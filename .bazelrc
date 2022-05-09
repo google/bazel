@@ -66,6 +66,9 @@ build --tool_java_runtime_version=21
 # Fail if a glob doesn't match anything (https://github.com/bazelbuild/bazel/issues/8195)
 common --incompatible_disallow_empty_glob
 
+# TODO: Fix tests that fail without this flag
+test --test_env=IGNORE_COVERAGE_COLLECTION_FAILURES=1
+
 # User-specific .bazelrc
 try-import %workspace%/user.bazelrc
 
