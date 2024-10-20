@@ -14,6 +14,7 @@
 package com.google.devtools.build.lib.runtime;
 
 import static com.google.devtools.build.lib.exec.ExecutionOptions.TestSummaryFormat.DETAILED;
+import static com.google.devtools.build.lib.exec.ExecutionOptions.TestSummaryFormat.DETAILED_FORMATTED;
 import static com.google.devtools.build.lib.exec.ExecutionOptions.TestSummaryFormat.TESTCASE;
 
 import com.google.common.annotations.VisibleForTesting;
@@ -103,12 +104,14 @@ public class TerminalTestResultNotifier implements TestResultNotifier {
    * @param showAllTests if true, print information about each test regardless of its status
    * @param showNoStatusTests if true, print information about not executed tests (no status tests)
    * @param showAllTestCases if true, print all test cases status and detailed information
+   * @param showAllTestCasesDetailed if true, print all test cases status with detailed formatted information
    */
   private void printSummary(
       Set<TestSummary> summaries,
       boolean showAllTests,
       boolean showNoStatusTests,
-      boolean showAllTestCases) {
+      boolean showAllTestCases,
+      boolean showAllTestCasesDetailed) {
     boolean withConfig = duplicateLabels(summaries);
     int numFailedToBuildReported = 0;
     for (TestSummary summary : summaries) {
@@ -132,6 +135,7 @@ public class TerminalTestResultNotifier implements TestResultNotifier {
           testLogPathFormatter,
           summaryOptions.verboseSummary,
           showAllTestCases,
+          showAllTestCasesDetailed,
           withConfig,
           mainRepoMapping);
     }
@@ -206,7 +210,17 @@ public class TerminalTestResultNotifier implements TestResultNotifier {
             summaries,
             /* showAllTests= */ true,
             /* showNoStatusTests= */ true,
-            /* showAllTestCases= */ true);
+            /* showAllTestCases= */ true,
+            /* showAllTestCasesDetailed */ false);
+        break;
+
+      case DETAILED_FORMATTED:
+        printSummary(
+                summaries,
+                /* showAllTests= */ true,
+                /* showNoStatusTests= */ true,
+                /* showAllTestCases= */ true,
+                /* showAllTestCasesDetailed */ true);
         break;
 
       case SHORT:
@@ -214,7 +228,8 @@ public class TerminalTestResultNotifier implements TestResultNotifier {
             summaries,
             /* showAllTests= */ true,
             /* showNoStatusTests= */ false,
-            /* showAllTestCases= */ false);
+            /* showAllTestCases= */ false,
+            /* showAllTestCasesDetailed */ false);
         break;
 
       case TERSE:
@@ -222,7 +237,8 @@ public class TerminalTestResultNotifier implements TestResultNotifier {
             summaries,
             /* showAllTests= */ false,
             /* showNoStatusTests= */ false,
-            /* showAllTestCases= */ false);
+            /* showAllTestCases= */ false,
+            /* showAllTestCasesDetailed */ false);
         break;
 
       case TESTCASE:
@@ -263,7 +279,7 @@ public class TerminalTestResultNotifier implements TestResultNotifier {
 
   private void printStats(TestResultStats stats) {
     TestSummaryFormat testSummaryFormat = options.getOptions(ExecutionOptions.class).testSummary;
-    if (testSummaryFormat == DETAILED || testSummaryFormat == TESTCASE) {
+    if (testSummaryFormat == DETAILED || testSummaryFormat == DETAILED_FORMATTED|| testSummaryFormat == TESTCASE) {
       int passCount =
           stats.totalTestCases - stats.totalFailedTestCases - stats.totalUnknownTestCases;
       String message =

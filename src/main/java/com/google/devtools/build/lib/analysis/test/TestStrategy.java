@@ -343,15 +343,17 @@ public abstract class TestStrategy implements TestActionContext {
   protected TestCase parseTestResult(Path resultFile) {
     /* xml files. We avoid parsing it unnecessarily, since test results can potentially consume
     a large amount of memory. */
-    if ((executionOptions.testSummary != ExecutionOptions.TestSummaryFormat.DETAILED)
-        && (executionOptions.testSummary != ExecutionOptions.TestSummaryFormat.TESTCASE)) {
-      return null;
-    }
-
-    try (InputStream fileStream = resultFile.getInputStream()) {
-      return new TestXmlOutputParser().parseXmlIntoTestResult(fileStream);
-    } catch (IOException | TestXmlOutputParserException e) {
-      return null;
+    switch (executionOptions.testSummary) {
+      case TESTCASE:
+      case DETAILED:
+      case DETAILED_FORMATTED:
+        try (InputStream fileStream = resultFile.getInputStream()) {
+          return new TestXmlOutputParser().parseXmlIntoTestResult(fileStream);
+        } catch (IOException | TestXmlOutputParserException e) {
+          return null;
+        }
+      default:
+        return null;
     }
   }
 

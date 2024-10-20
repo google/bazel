@@ -582,6 +582,7 @@ public class ExecutionOptions extends OptionsBase {
     SHORT, // Print information only about tests.
     TERSE, // Like "SHORT", but even shorter: Do not print PASSED and NO STATUS tests.
     DETAILED, // Print information only about failed test cases.
+    DETAILED_FORMATTED, // Print information about all tests along with the corresponding success status.
     NONE, // Do not print summary.
     TESTCASE; // Print summary in test case resolution, do not print detailed information about
     // failed test cases.

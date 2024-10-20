@@ -30,8 +30,10 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
+import java.util.stream.Collectors;
 
 /**
  * Print test statistics in human readable form.
@@ -119,13 +121,15 @@ public class TestSummaryPrinter {
       AnsiTerminalPrinter terminalPrinter,
       TestLogPathFormatter testLogPathFormatter,
       boolean verboseSummary,
-      boolean showAllTestCases) {
+      boolean showAllTestCases,
+      boolean showAllTestCasesDetailed) {
     print(
         summary,
         terminalPrinter,
         testLogPathFormatter,
         verboseSummary,
         showAllTestCases,
+        showAllTestCasesDetailed,
         false,
         RepositoryMapping.ALWAYS_FALLBACK);
   }
@@ -141,6 +145,7 @@ public class TestSummaryPrinter {
       TestLogPathFormatter testLogPathFormatter,
       boolean verboseSummary,
       boolean showAllTestCases,
+      boolean showAllTestCasesDetailed,
       boolean withConfigurationName,
       RepositoryMapping mainRepoMapping) {
     BlazeTestStatus status = summary.getStatus();
@@ -171,10 +176,10 @@ public class TestSummaryPrinter {
       if (summary.getStatus() == BlazeTestStatus.FAILED) {
         if (summary.getFailedTestCasesStatus() == FailedTestCasesStatus.NOT_AVAILABLE) {
           terminalPrinter.print(
-              Mode.WARNING
-                  + "    (individual test case information not available) "
-                  + Mode.DEFAULT
-                  + "\n");
+                  Mode.WARNING
+                          + "    (individual test case information not available) "
+                          + Mode.DEFAULT
+                          + "\n");
         } else {
           for (TestCase testCase : summary.getFailedTestCases()) {
             if (testCase.getStatus() != TestCase.Status.PASSED) {
@@ -184,11 +189,41 @@ public class TestSummaryPrinter {
 
           if (summary.getFailedTestCasesStatus() != FailedTestCasesStatus.FULL) {
             terminalPrinter.print(
-                Mode.WARNING
-                    + "    (some shards did not report details, list of failed test"
-                    + " cases incomplete)\n"
-                    + Mode.DEFAULT);
+                    Mode.WARNING
+                            + "    (some shards did not report details, list of failed test"
+                            + " cases incomplete)\n"
+                            + Mode.DEFAULT);
           }
+        }
+      }
+    } else if (showAllTestCasesDetailed) {
+      List<TestCase> allTestCases = new ArrayList<>(summary.getPassedTestCases());
+      allTestCases.addAll(summary.getFailedTestCases());
+
+      Map<String, List<TestCase>> groupedTestCases = allTestCases.stream()
+              .collect(Collectors.groupingBy(TestCase::getClassName));
+
+      if (summary.getFailedTestCasesStatus() == FailedTestCasesStatus.NOT_AVAILABLE) {
+        terminalPrinter.print(
+                Mode.WARNING
+                        + "    (individual test case information not available) "
+                        + Mode.DEFAULT
+                        + "\n");
+      } else {
+        for (Map.Entry<String, List<TestCase>> entry : groupedTestCases.entrySet()) {
+          String className = entry.getKey();
+          List<TestCase> testCases = entry.getValue();
+          terminalPrinter.printLn(className);
+          for (TestCase testCase : testCases) {
+            TestSummaryPrinter.printTestCaseFormatted(terminalPrinter, testCase);
+          }
+        }
+        if (summary.getFailedTestCasesStatus() != FailedTestCasesStatus.FULL) {
+          terminalPrinter.print(
+                  Mode.WARNING
+                          + "    (some shards did not report details, list of failed test"
+                          + " cases incomplete)\n"
+                          + Mode.DEFAULT);
         }
       }
     } else {
@@ -218,26 +253,43 @@ public class TestSummaryPrinter {
 
   /** Prints the result of an individual test case. */
   static void printTestCase(AnsiTerminalPrinter terminalPrinter, TestCase testCase) {
-    String timeSummary;
-    if (testCase.hasRunDurationMillis()) {
-      timeSummary = " ("
-          + timeInSec(testCase.getRunDurationMillis(), TimeUnit.MILLISECONDS)
-          + ")";
-    } else {
-      timeSummary = "";
-    }
-
+    String timeSummary = getTimeSummary(testCase);
     Mode mode = (testCase.getStatus() == Status.PASSED) ? Mode.INFO : Mode.ERROR;
     terminalPrinter.print(
-        "    "
-            + mode
-            + Strings.padEnd(testCase.getStatus().toString(), 8, ' ')
-            + Mode.DEFAULT
-            + testCase.getClassName()
-            + "."
-            + testCase.getName()
-            + timeSummary
-            + "\n");
+      "    "
+      + mode
+      + Strings.padEnd(testCase.getStatus().toString(), 8, ' ')
+      + Mode.DEFAULT
+      + testCase.getClassName()
+      + "."
+      + testCase.getName()
+      + timeSummary
+      + "\n");
+  }
+
+  /** Prints the result of an individual test case in a formatted view. */
+  static void printTestCaseFormatted(AnsiTerminalPrinter terminalPrinter, TestCase testCase) {
+    String timeSummary = getTimeSummary(testCase);
+    Mode mode = (testCase.getStatus() == Status.PASSED) ? Mode.INFO : Mode.ERROR;
+    terminalPrinter.print(
+      mode
+      + ((mode == Mode.INFO) ? "  + " : "  - ")
+      + Mode.DEFAULT
+      + testCase.getName()
+      + timeSummary
+      + "\n");
+  }
+
+  private static String getTimeSummary(TestCase testCase) {
+    if (testCase.hasRunDurationMillis()) {
+      long runDurationMillis = testCase.getRunDurationMillis();
+      String formattedTime = runDurationMillis < 100 ?
+              runDurationMillis + "ms" :
+              timeInSec(runDurationMillis, TimeUnit.MILLISECONDS);
+      return " (" + formattedTime + ")";
+    } else {
+      return "";
+    }
   }
 
   /**
