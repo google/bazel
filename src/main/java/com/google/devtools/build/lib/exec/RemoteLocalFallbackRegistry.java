@@ -15,6 +15,7 @@
 package com.google.devtools.build.lib.exec;
 
 import com.google.devtools.build.lib.actions.ActionContext;
+import com.google.devtools.build.lib.actions.Spawn;
 import javax.annotation.Nullable;
 
 /**
@@ -29,5 +30,5 @@ public interface RemoteLocalFallbackRegistry extends ActionContext {
    * @return remote fallback strategy or {@code null} if none was registered
    */
   @Nullable
-  AbstractSpawnStrategy getRemoteLocalFallbackStrategy();
+  AbstractSpawnStrategy getRemoteLocalFallbackStrategy(Spawn spawn);
 }

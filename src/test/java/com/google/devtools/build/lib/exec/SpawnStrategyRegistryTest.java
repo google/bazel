@@ -28,6 +28,7 @@ import com.google.devtools.build.lib.actions.SimpleSpawn;
 import com.google.devtools.build.lib.actions.Spawn;
 import com.google.devtools.build.lib.actions.SpawnResult;
 import com.google.devtools.build.lib.actions.SpawnStrategy;
+import com.google.devtools.build.lib.cmdline.Label;
 import com.google.devtools.build.lib.collect.nestedset.NestedSetBuilder;
 import com.google.devtools.build.lib.collect.nestedset.Order;
 import com.google.devtools.build.lib.events.Event;
@@ -301,6 +302,24 @@ public class SpawnStrategyRegistryTest {
   }
 
   @Test
+  public void testPlatformFilter() throws Exception {
+    NoopStrategy strategy1 = new NoopStrategy("1");
+    NoopStrategy strategy2 = new NoopStrategy("2");
+    SpawnStrategyRegistry strategyRegistry =
+        SpawnStrategyRegistry.builder()
+            .registerStrategy(strategy1, "foo")
+            .registerStrategy(strategy2, "bar")
+            .addExecPlatformFilter(Label.parseCanonical("//:dummy_platform"), ImmutableList.of("foo"))
+            .build();
+
+    assertThat(
+            strategyRegistry.getStrategies(
+                createSpawnWithMnemonicAndDescription("", ""),
+                SpawnStrategyRegistryTest::noopEventHandler))
+        .containsExactly(strategy1);
+  }
+
+  @Test
   public void testMultipleDefaultStrategies() throws Exception {
     NoopStrategy strategy1 = new NoopStrategy("1");
     NoopStrategy strategy2 = new NoopStrategy("2");
@@ -537,7 +556,7 @@ public class SpawnStrategyRegistryTest {
             .setRemoteLocalFallbackStrategyIdentifier("bar")
             .build();
 
-    assertThat(strategyRegistry.getRemoteLocalFallbackStrategy()).isEqualTo(strategy2);
+    assertThat(strategyRegistry.getRemoteLocalFallbackStrategy(createSpawnWithMnemonicAndDescription("", ""))).isEqualTo(strategy2);
   }
 
   @Test
@@ -561,7 +580,7 @@ public class SpawnStrategyRegistryTest {
     SpawnStrategyRegistry strategyRegistry =
         SpawnStrategyRegistry.builder().registerStrategy(strategy1, "foo").build();
 
-    assertThat(strategyRegistry.getRemoteLocalFallbackStrategy()).isNull();
+    assertThat(strategyRegistry.getRemoteLocalFallbackStrategy(createSpawnWithMnemonicAndDescription("", ""))).isNull();
   }
 
   @Test
@@ -649,7 +668,7 @@ public class SpawnStrategyRegistryTest {
     assertThat(strategy7.usedCalled).isEqualTo(0);
   }
 
-  private Spawn createSpawnWithMnemonicAndDescription(String mnemonic, String description) {
+  private Spawn createSpawnWithMnemonicAndDescription(String mnemonic, String description) throws Exception {
     return new SimpleSpawn(
         new FakeOwner(mnemonic, description, "//dummy:label"),
         ImmutableList.of(),
