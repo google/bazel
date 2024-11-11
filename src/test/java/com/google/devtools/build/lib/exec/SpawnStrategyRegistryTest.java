@@ -668,7 +668,7 @@ public class SpawnStrategyRegistryTest {
     assertThat(strategy7.usedCalled).isEqualTo(0);
   }
 
-  private Spawn createSpawnWithMnemonicAndDescription(String mnemonic, String description) throws Exception {
+  private Spawn createSpawnWithMnemonicAndDescription(String mnemonic, String description) {
     return new SimpleSpawn(
         new FakeOwner(mnemonic, description, "//dummy:label"),
         ImmutableList.of(),

@@ -80,12 +80,20 @@ public class FakeOwner implements ActionExecutionMetadata {
         /* isBuiltForToolConfiguration= */ false);
   }
 
-  public FakeOwner(String mnemonic, String progressMessage, String ownerLabel) throws Exception {
+  public FakeOwner(String mnemonic, String progressMessage, String ownerLabel) {
     this(
         mnemonic,
         progressMessage,
         checkNotNull(ownerLabel),
-        PlatformInfo.builder().setLabel(Label.parseCanonical("//:dummy_platform")).build());
+        createPlatformInfo());
+  }
+
+  private static PlatformInfo createPlatformInfo() {
+    try {
+      return PlatformInfo.builder().setLabel(Label.parseCanonical("//:dummy_platform")).build();
+    } catch (Exception ex) {
+      throw new RuntimeException("Fake PlatformInfo construction failed.", ex);
+    }
   }
 
   @Override
