@@ -643,6 +643,25 @@ class MethodLibrary {
   }
 
   @StarlarkMethod(
+      name = "frozendict",
+      doc =
+          "Creates a <a href=\"../core/dict.html\">dictionary</a> from an optional positional "
+              + "argument and an optional set of keyword arguments. In the case where the same key "
+              + "is given multiple times, the last value will be used. Entries supplied via "
+              + "keyword arguments are considered to come after entries supplied via the "
+              + "positional argument.",
+      parameters = {
+          @Param(
+              name = "pairs",
+              defaultValue = "[]",
+              doc = "A dict, or an iterable whose elements are each of length 2 (key, value)."),
+      },
+      extraKeywords = @Param(name = "kwargs", doc = "Dictionary of additional entries."))
+  public FrozenDict frozendict(Object pairs, Dict<String, Object> kwargs)
+      throws EvalException {
+    return FrozenDict.of(pairs, kwargs);
+  }
+  @StarlarkMethod(
       name = "enumerate",
       doc =
           "Returns a list of pairs (two-element tuples), with the index (int) and the item from"

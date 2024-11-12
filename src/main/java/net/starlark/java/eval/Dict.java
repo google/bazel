@@ -116,7 +116,7 @@ public class Dict<K, V>
   /** Final except for {@link #unsafeShallowFreeze}; must not be modified any other way. */
   private Mutability mutability;
 
-  private Dict(Mutability mutability, LinkedHashMap<K, V> contents) {
+  protected Dict(Mutability mutability, LinkedHashMap<K, V> contents) {
     Preconditions.checkNotNull(mutability);
     Preconditions.checkState(mutability != Mutability.IMMUTABLE);
     this.mutability = mutability;
@@ -181,7 +181,10 @@ public class Dict<K, V>
   @Override
   public void checkHashable() throws EvalException {
     // Even a frozen dict is unhashable.
-    throw Starlark.errorf("unhashable type: 'dict'");
+    // This is because you can create a self-referential dict. For example:
+    // a = {}
+    // a["a"] = a
+    throw Starlark.errorf("unhashable type: 'dict' (consider using frozendict)");
   }
 
   @Override

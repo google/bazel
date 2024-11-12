@@ -24,6 +24,7 @@ java_library(
         "EvalUtils.java",
         "FlagGuardedValue.java",
         "FormatParser.java",
+        "FrozenDict.java",
         "GuardedValue.java",
         "HasBinary.java",
         "ImmutableSingletonStarlarkList.java",

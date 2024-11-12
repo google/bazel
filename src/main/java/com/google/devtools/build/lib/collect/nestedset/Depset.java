@@ -30,6 +30,7 @@ import net.starlark.java.annot.StarlarkMethod;
 import net.starlark.java.eval.Debug;
 import net.starlark.java.eval.Dict;
 import net.starlark.java.eval.EvalException;
+import net.starlark.java.eval.FrozenDict;
 import net.starlark.java.eval.NoneType;
 import net.starlark.java.eval.Printer;
 import net.starlark.java.eval.Sequence;
@@ -132,7 +133,7 @@ public final class Depset implements StarlarkValue, Debug.ValueWithDebugAttribut
     }
 
     // Even the looser regime forbids the top-level class to be list or dict.
-    if (x instanceof StarlarkList || x instanceof Dict) {
+    if (x instanceof StarlarkList || (x instanceof Dict && !(x instanceof FrozenDict))) {
       throw Starlark.errorf("depsets cannot contain items of type '%s'", Starlark.type(x));
     }
   }
