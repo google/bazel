@@ -254,7 +254,7 @@ java_library(
         ":auto_value_gson_plugin",
     ],
     exports = [
-        ":auto_value_api",
+        ":auto_value_lib",
         ":tomcat_annotations_api",
         "@maven//:com_ryanharter_auto_value_auto_value_gson_runtime",
     ],
