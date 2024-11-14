@@ -117,19 +117,20 @@ public class ParameterFile {
 
   private static void writeContent(
       OutputStream outputStream, Iterable<String> arguments, Charset charset) throws IOException {
-    if (charset.equals(ISO_8859_1)) {
-      writeContentLatin1(outputStream, arguments);
-    } else if (charset.equals(UTF_8)) {
-      writeContentUtf8(outputStream, arguments);
-    } else {
-      // Generic charset support
-      OutputStreamWriter out = new OutputStreamWriter(outputStream, charset);
-      for (String line : arguments) {
-        out.write(line);
-        out.write('\n');
-      }
-      out.flush();
-    }
+    writeContentLatin1(outputStream, arguments);
+    //if (charset.equals(ISO_8859_1)) {
+    //  writeContentLatin1(outputStream, arguments);
+    //} else if (charset.equals(UTF_8)) {
+    //  writeContentUtf8(outputStream, arguments);
+    //} else {
+    //  // Generic charset support
+    //  OutputStreamWriter out = new OutputStreamWriter(outputStream, charset);
+    //  for (String line : arguments) {
+    //    out.write(line);
+    //    out.write('\n');
+    //  }
+    //  out.flush();
+    //}
   }
 
   /**
