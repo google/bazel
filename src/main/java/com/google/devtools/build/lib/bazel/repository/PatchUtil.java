@@ -595,7 +595,9 @@ public class PatchUtil {
               }
             }
 
-            if (singleFile == null || (singleFile.equals(newFile) && singleFile.equals(oldFile))) {
+            if (singleFile == null
+                || (singleFile.equals(newFile)
+                    && (singleFile.equals(oldFile) || (oldFile == null && !singleFile.exists())))) {
               Patch<String> patch = UnifiedDiffUtils.parseUnifiedDiff(patchContent);
               checkFilesStatusForPatching(
                   patch, oldFile, newFile, oldFileStr, newFileStr, patchStartLocation);
