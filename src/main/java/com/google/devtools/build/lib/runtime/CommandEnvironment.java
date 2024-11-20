@@ -912,9 +912,17 @@ public class CommandEnvironment {
     }
   }
 
-  /** Returns the client environment with all settings from --action_env and --repo_env. */
+  /**
+   * Returns the repository environment created from the client environment, `--action_env and
+   * --repo_env.
+   */
   public Map<String, String> getRepoEnv() {
     return Collections.unmodifiableMap(repoEnv);
+  }
+
+  /** Returns the repository environment created from `--action_env` and `--repo_env` */
+  public Map<String, String> getRepoEnvFromOptions() {
+    return Collections.unmodifiableMap(repoEnvFromOptions);
   }
 
   /** Returns the file cache to use during this build. */

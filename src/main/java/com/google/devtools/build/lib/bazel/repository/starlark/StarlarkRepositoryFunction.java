@@ -232,7 +232,7 @@ public final class StarlarkRepositoryFunction extends RepositoryFunction {
                 outputDirectory,
                 ignoredSubdirectories.asIgnoredSubdirectories(),
                 env,
-                ImmutableMap.copyOf(clientEnvironment),
+                ImmutableMap.copyOf(repoEnvironment),
                 downloadManager,
                 timeoutScaling,
                 processWrapper,

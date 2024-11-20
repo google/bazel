@@ -3573,4 +3573,37 @@ EOF
     @repo//... &> $TEST_log || fail "expected Bazel to succeed"
 }
 
+function test_execute_environment_strict_vars() {
+  cat >> $(setup_module_dot_bazel)  <<'EOF'
+my_repo = use_repo_rule("//:repo.bzl", "my_repo")
+my_repo(name="repo")
+EOF
+  touch BUILD
+  cat > repo.bzl <<'EOF'
+def _impl(ctx):
+  st = ctx.execute(
+    ["env"],
+  )
+  if st.return_code:
+    fail("Command did not succeed")
+  vars = {line.partition("=")[0]: line.partition("=")[-1] for line in st.stdout.strip().split("\n")}
+  if "CLIENT_ENV_REMOVED" in vars:
+    fail("CLIENT_ENV_REMOVED should not be in the environment")
+  if vars.get("REPO_ENV_PRESENT") != "value2":
+    fail("REPO_ENV_PRESENT has wrong value: " + vars.get("REPO_ENV_PRESENT"))
+  if len(vars.keys()) > 1:
+    fail("More variables than expected: " + json.encode(vars))
+
+  ctx.file("BUILD", "exports_files(['data.txt'])")
+
+my_repo = repository_rule(_impl)
+EOF
+
+  CLIENT_ENV_REMOVED=value1 \
+   bazel build \
+    --strict_repo_env \
+    --repo_env=REPO_ENV_PRESENT=value2 \
+    @repo//... &> $TEST_log || fail "expected Bazel to succeed"
+}
+
 run_suite "local repository tests"

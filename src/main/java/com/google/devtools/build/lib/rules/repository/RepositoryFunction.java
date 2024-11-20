@@ -84,7 +84,7 @@ import net.starlark.java.eval.Starlark;
  */
 public abstract class RepositoryFunction {
 
-  protected Map<String, String> clientEnvironment;
+  protected Map<String, String> repoEnvironment;
 
   /**
    * Exception thrown when something goes wrong accessing a remote repository.
@@ -409,8 +409,8 @@ public abstract class RepositoryFunction {
   }
 
   /** Sets up a mapping of environment variables to use. */
-  public void setClientEnvironment(Map<String, String> clientEnvironment) {
-    this.clientEnvironment = clientEnvironment;
+  public void setRepoEnvironment(Map<String, String> repoEnvironment) {
+    this.repoEnvironment = repoEnvironment;
   }
 
   /** Returns the RuleDefinition class for this type of repository. */
