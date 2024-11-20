@@ -3587,9 +3587,11 @@ def _impl(ctx):
   if st.return_code:
     fail("Command did not succeed")
   vars = {line.partition("=")[0]: line.partition("=")[-1] for line in st.stdout.strip().split("\n")}
+  if vars.get("CLIENT_ENV_PRESENT") != "value1":
+    fail("CLIENT_ENV_PRESENT has wrong value: " + vars.get("CLIENT_ENV_PRESENT"))
   if "CLIENT_ENV_REMOVED" in vars:
     fail("CLIENT_ENV_REMOVED should not be in the environment")
-  if vars.get("REPO_ENV_PRESENT") != "value2":
+  if vars.get("REPO_ENV_PRESENT") != "value3":
     fail("REPO_ENV_PRESENT has wrong value: " + vars.get("REPO_ENV_PRESENT"))
 
   ctx.file("BUILD", "exports_files(['data.txt'])")
@@ -3597,10 +3599,11 @@ def _impl(ctx):
 my_repo = repository_rule(_impl)
 EOF
 
-  CLIENT_ENV_REMOVED=value1 \
+  CLIENT_ENV_PRESENT=value1 CLIENT_ENV_REMOVED=value2 \
    bazel build \
     --strict_repo_env \
-    --repo_env=REPO_ENV_PRESENT=value2 \
+    --repo_env=CLIENT_ENV_PRESENT \
+    --repo_env=REPO_ENV_PRESENT=value3 \
     @repo//... &> $TEST_log || fail "expected Bazel to succeed"
 }
 
