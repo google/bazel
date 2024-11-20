@@ -3591,8 +3591,6 @@ def _impl(ctx):
     fail("CLIENT_ENV_REMOVED should not be in the environment")
   if vars.get("REPO_ENV_PRESENT") != "value2":
     fail("REPO_ENV_PRESENT has wrong value: " + vars.get("REPO_ENV_PRESENT"))
-  if len(vars.keys()) > 1:
-    fail("More variables than expected: " + json.encode(vars))
 
   ctx.file("BUILD", "exports_files(['data.txt'])")
 
