@@ -218,9 +218,9 @@ string Runfiles::Rlocation(const string& path) const {
 
 string Runfiles::Rlocation(const string& path,
                            const string& source_repo) const {
-  if (path.empty() || starts_with(path, "../") || contains(path, "/..") ||
-      starts_with(path, "./") || contains(path, "/./") ||
-      ends_with(path, "/.") || contains(path, "//")) {
+  if (path.empty() || starts_with(path, "../") || contains(path, "/../") ||
+      ends_with(path, "/..") || starts_with(path, "./") ||
+      contains(path, "/./") || ends_with(path, "/.") || contains(path, "//")) {
     return string();
   }
   if (IsAbsolute(path)) {

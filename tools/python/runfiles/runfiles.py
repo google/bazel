@@ -146,8 +146,9 @@ class _Runfiles(object):
       raise ValueError()
     if not isinstance(path, str):
       raise TypeError()
-    if (path.startswith("../") or "/.." in path or path.startswith("./") or
-        "/./" in path or path.endswith("/.") or "//" in path):
+    if (path.startswith("../") or "/../" in path or path.endswith("/..")
+        or path.startswith("./") or "/./" in path or path.endswith("/.")
+        or "//" in path):
       raise ValueError("path is not normalized: \"%s\"" % path)
     if path[0] == "\\":
       raise ValueError("path is absolute without a drive letter: \"%s\"" % path)

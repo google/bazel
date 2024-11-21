@@ -133,7 +133,7 @@ function rlocation() {
     # If the path is absolute, print it as-is.
     echo "$1"
     return 0
-  elif [[ "$1" == ../* || "$1" == */.. || "$1" == ./* || "$1" == */./* || "$1" == "*/." || "$1" == *//* ]]; then
+  elif [[ "$1" == ../* || "$1" == */../* || "$1" == */.. || "$1" == ./* || "$1" == */./* || "$1" == */. || "$1" == *//* ]]; then
     if [[ "${RUNFILES_LIB_DEBUG:-}" == 1 ]]; then
       echo >&2 "ERROR[runfiles.bash]: rlocation($1): path is not normalized"
     fi

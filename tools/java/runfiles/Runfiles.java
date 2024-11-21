@@ -336,7 +336,8 @@ public final class Runfiles {
     Util.checkArgument(!path.isEmpty());
     Util.checkArgument(
         !path.startsWith("../")
-            && !path.contains("/..")
+            && !path.contains("/../")
+            && !path.endsWith("/..")
             && !path.startsWith("./")
             && !path.contains("/./")
             && !path.endsWith("/.")
