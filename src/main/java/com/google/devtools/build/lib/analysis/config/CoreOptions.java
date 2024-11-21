@@ -449,12 +449,17 @@ public class CoreOptions extends FragmentOptions implements Cloneable {
       documentationCategory = OptionDocumentationCategory.OUTPUT_PARAMETERS,
       effectTags = {OptionEffectTag.ACTION_COMMAND_LINES},
       help =
-          "Specifies the set of environment variables available to actions with target"
-              + " configuration. Variables can be either specified by name, in which case the"
-              + " value will be taken from the invocation environment, or by the name=value pair"
-              + " which sets the value independent of the invocation environment. This option can"
-              + " be used multiple times; for options given for the same variable, the latest"
-              + " wins, options for different variables accumulate.")
+          """
+          Specifies the set of environment variables available to actions with target \
+          configuration. Variables can be either specified by <code>name</code>, in which case
+          the value will be taken from the invocation environment, or by the \
+          <code>name=value</code> pair which sets the value independent of the invocation \
+          environment. This option can be used multiple times; for options given for the same \
+          variable, the latest wins, options for different variables accumulate.
+          <br>
+          Note that unless <code>--strict_repo_env</code> is true, all <code>name=value</code> \
+          pairs will be available to repository rules.
+          """)
   public List<Map.Entry<String, String>> actionEnvironment;
 
   @Option(

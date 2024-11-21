@@ -325,8 +325,10 @@ public class CommandEnvironment {
           visibleActionEnv.add(entry.getKey());
         } else {
           visibleActionEnv.remove(entry.getKey());
-          repoEnv.put(entry.getKey(), entry.getValue());
-          repoEnvFromOptions.put(entry.getKey(), entry.getValue());
+          if (!options.getOptions(CommonCommandOptions.class).useStrictRepoEnv) {
+            repoEnv.put(entry.getKey(), entry.getValue());
+            repoEnvFromOptions.put(entry.getKey(), entry.getValue());
+          }
         }
       }
       for (Map.Entry<String, String> entry :
