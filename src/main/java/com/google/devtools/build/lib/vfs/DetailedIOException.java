@@ -21,10 +21,10 @@ import com.google.devtools.build.skyframe.SkyFunctionException.Transience;
 import java.io.IOException;
 
 /**
- * An {@link IOException} that includes a {@link DetailedExitCode}. Currently only used for {@link
- * Filesystem} exceptions.
+ * An {@link IOException} that includes {@link DetailedExitCode} and {@link Transience}. Currently
+ * only used for {@link Filesystem} exceptions.
  */
-public final class DetailedIOException extends IOException {
+public class DetailedIOException extends IOException {
 
   private final DetailedExitCode detailedExitCode;
   private final Transience transience;

@@ -98,27 +98,10 @@ class RcFileTest : public ::testing::Test {
   }
 
   void TearDown() override {
-    // TODO(bazel-team): The code below deletes all the files in the workspace
-    // and other rc-related directories, but it intentionally skips directories.
-    // As a consequence, there may be empty directories from test to test.
-    // Remove this once blaze_util::DeleteDirectories(path) exists.
-    std::vector<std::string> files;
-    blaze_util::GetAllFilesUnder(workspace_, &files);
-    for (const std::string& file : files) {
-      blaze_util::UnlinkPath(file);
-    }
-    blaze_util::GetAllFilesUnder(cwd_, &files);
-    for (const std::string& file : files) {
-      blaze_util::UnlinkPath(file);
-    }
-    blaze_util::GetAllFilesUnder(home_, &files);
-    for (const std::string& file : files) {
-      blaze_util::UnlinkPath(file);
-    }
-    blaze_util::GetAllFilesUnder(binary_dir_, &files);
-    for (const std::string& file : files) {
-      blaze_util::UnlinkPath(file);
-    }
+    blaze_util::RemoveRecursively(blaze_util::Path(workspace_));
+    blaze_util::RemoveRecursively(blaze_util::Path(cwd_));
+    blaze_util::RemoveRecursively(blaze_util::Path(home_));
+    blaze_util::RemoveRecursively(blaze_util::Path(binary_dir_));
   }
 
   bool SetUpSystemRcFile(const std::string& contents,

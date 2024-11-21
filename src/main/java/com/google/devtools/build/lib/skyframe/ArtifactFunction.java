@@ -46,8 +46,8 @@ import com.google.devtools.build.lib.skyframe.RecursiveFilesystemTraversalFuncti
 import com.google.devtools.build.lib.skyframe.RecursiveFilesystemTraversalValue.ResolvedFile;
 import com.google.devtools.build.lib.skyframe.serialization.SkyValueRetriever;
 import com.google.devtools.build.lib.skyframe.serialization.SkyValueRetriever.RetrievalResult;
+import com.google.devtools.build.lib.skyframe.serialization.SkyValueRetriever.SerializableSkyKeyComputeState;
 import com.google.devtools.build.lib.skyframe.serialization.SkyValueRetriever.SerializationState;
-import com.google.devtools.build.lib.skyframe.serialization.SkyValueRetriever.SerializationStateProvider;
 import com.google.devtools.build.lib.skyframe.serialization.analysis.RemoteAnalysisCachingDependenciesProvider;
 import com.google.devtools.build.lib.util.DetailedExitCode;
 import com.google.devtools.build.lib.util.Fingerprint;
@@ -56,7 +56,6 @@ import com.google.devtools.build.lib.vfs.PathFragment;
 import com.google.devtools.build.lib.vfs.RootedPath;
 import com.google.devtools.build.lib.vfs.XattrProvider;
 import com.google.devtools.build.skyframe.SkyFunction;
-import com.google.devtools.build.skyframe.SkyFunction.Environment.SkyKeyComputeState;
 import com.google.devtools.build.skyframe.SkyFunctionException;
 import com.google.devtools.build.skyframe.SkyFunctionException.Transience;
 import com.google.devtools.build.skyframe.SkyKey;
@@ -103,7 +102,7 @@ public final class ArtifactFunction implements SkyFunction {
     }
   }
 
-  private static class State implements SkyKeyComputeState, SerializationStateProvider {
+  private static class State implements SerializableSkyKeyComputeState {
     private SerializationState serializationState = INITIAL_STATE;
 
     @Override
@@ -134,12 +133,9 @@ public final class ArtifactFunction implements SkyFunction {
       throws ArtifactFunctionException, InterruptedException {
     Artifact artifact = (Artifact) skyKey;
 
-    if (cachingDependenciesSupplier.get() != null
-        && cachingDependenciesSupplier.get().enabled()
-        && artifact.getArtifactOwner().getLabel() != null) {
-      var state = env.getState(State::new);
+    if (artifact.getArtifactOwner().getLabel() != null) {
       RetrievalResult retrievalResult =
-          maybeFetchSkyValueRemotely(artifact, env, cachingDependenciesSupplier.get(), state);
+          maybeFetchSkyValueRemotely(artifact, env, cachingDependenciesSupplier.get(), State::new);
       switch (retrievalResult) {
         case SkyValueRetriever.Restart unused:
           return null;

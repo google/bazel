@@ -62,7 +62,7 @@ java_library(
         "//third_party:error_prone_annotations",
         "//third_party:flogger",
         "//third_party:guava",
-        "@protobuf//:protobuf_java_util",
+        "@com_google_protobuf//:protobuf_java_util",
     ],
 )
 

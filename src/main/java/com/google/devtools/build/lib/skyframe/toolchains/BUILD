@@ -313,6 +313,7 @@ java_library(
     name = "toolchain_resolution_function",
     srcs = [
         "PlatformKeys.java",
+        "ToolchainResolutionDebugPrinter.java",
         "ToolchainResolutionFunction.java",
     ],
     deps = [

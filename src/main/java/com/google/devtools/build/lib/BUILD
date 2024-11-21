@@ -198,7 +198,7 @@ java_library(
         "//src/main/protobuf:failure_details_java_proto",
         "//third_party:guava",
         "//third_party:jsr305",
-        "@protobuf//java/core",
+        "@com_google_protobuf//java/core",
     ],
 )
 
@@ -222,7 +222,7 @@ java_library(
         "//src/main/java/com/google/devtools/build/lib/util/io:io-proto",
         "//src/main/java/com/google/devtools/build/lib/util/io:out-err",
         "//src/main/protobuf:invocation_policy_java_proto",
-        "@protobuf//java/core",
+        "@com_google_protobuf//java/core",
     ],
 )
 
@@ -512,8 +512,8 @@ java_library(
         "//third_party:gson",
         "//third_party:guava",
         "//third_party:jsr305",
-        "@protobuf//:protobuf_java",
-        "@protobuf//java/util",
+        "@com_google_protobuf//:protobuf_java",
+        "@com_google_protobuf//java/util",
         "@zstd-jni//:zstd-jni",
     ],
 )

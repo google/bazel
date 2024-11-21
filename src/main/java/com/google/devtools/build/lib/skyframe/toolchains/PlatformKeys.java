@@ -26,7 +26,6 @@ import com.google.devtools.build.lib.analysis.platform.ConstraintValueInfo;
 import com.google.devtools.build.lib.analysis.platform.PlatformInfo;
 import com.google.devtools.build.lib.analysis.platform.ToolchainTypeInfo;
 import com.google.devtools.build.lib.cmdline.Label;
-import com.google.devtools.build.lib.events.Event;
 import com.google.devtools.build.lib.skyframe.ConfiguredTargetKey;
 import com.google.devtools.build.lib.skyframe.config.BuildConfigurationKey;
 import com.google.devtools.build.lib.skyframe.toolchains.ConstraintValueLookupUtil.InvalidConstraintValueException;
@@ -50,7 +49,7 @@ record PlatformKeys(
   private static class Builder {
     // Input data.
     private final SkyFunction.Environment environment;
-    private final boolean debug;
+    private final ToolchainResolutionDebugPrinter debugPrinter;
     private final BuildConfigurationKey configurationKey;
 
     // Internal state used during loading.
@@ -62,11 +61,11 @@ record PlatformKeys(
 
     private Builder(
         SkyFunction.Environment environment,
-        boolean debug,
+        ToolchainResolutionDebugPrinter debugPrinter,
         BuildConfigurationKey configurationKey,
         PlatformConfiguration platformConfiguration) {
       this.environment = environment;
-      this.debug = debug;
+      this.debugPrinter = debugPrinter;
       this.configurationKey = configurationKey;
 
       this.hostPlatformLabel = platformConfiguration.getHostPlatform();
@@ -221,20 +220,7 @@ record PlatformKeys(
         PlatformInfo platformInfo, List<ConstraintValueInfo> constraints) {
       ImmutableList<ConstraintValueInfo> missingConstraints =
           platformInfo.constraints().findMissing(constraints);
-      if (debug) {
-        for (ConstraintValueInfo constraint : missingConstraints) {
-          // The value for this setting is not present in the platform, or doesn't match the
-          // expected value.
-          environment
-              .getListener()
-              .handle(
-                  Event.info(
-                      String.format(
-                          "ToolchainResolution: Removed execution platform %s from"
-                              + " available execution platforms, it is missing constraint %s",
-                          platformInfo.label(), constraint.label())));
-        }
-      }
+      debugPrinter.reportRemovedExecutionPlatform(platformInfo.label(), missingConstraints);
 
       return missingConstraints.isEmpty();
     }
@@ -242,7 +228,7 @@ record PlatformKeys(
 
   static PlatformKeys load(
       SkyFunction.Environment environment,
-      boolean debug,
+      ToolchainResolutionDebugPrinter debugPrinter,
       BuildConfigurationKey configurationKey,
       PlatformConfiguration platformConfiguration,
       ImmutableSet<Label> execConstraintLabels)
@@ -252,7 +238,7 @@ record PlatformKeys(
           InvalidPlatformException,
           InvalidExecutionPlatformLabelException {
 
-    return new Builder(environment, debug, configurationKey, platformConfiguration)
+    return new Builder(environment, debugPrinter, configurationKey, platformConfiguration)
         .build(execConstraintLabels);
   }
 

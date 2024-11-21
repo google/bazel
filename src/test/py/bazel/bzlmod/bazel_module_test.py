@@ -23,6 +23,8 @@ import tempfile
 from absl.testing import absltest
 from src.test.py.bazel import test_base
 from src.test.py.bazel.bzlmod.test_utils import BazelRegistry
+from src.test.py.bazel.bzlmod.test_utils import integrity
+from src.test.py.bazel.bzlmod.test_utils import read
 from src.test.py.bazel.bzlmod.test_utils import scratchFile
 
 
@@ -190,6 +192,100 @@ class BazelModuleTest(test_base.TestBase):
     ])
     _, stdout, _ = self.RunBazel(['run', '//:main'])
     self.assertIn('main function => aaa@1.1-1 (remotely patched)', stdout)
+
+  def testArchiveOverrideWithMainRepoLabelPatch(self):
+    self.ScratchFile(
+        'aaa.patch',
+        [
+            '--- a/aaa.cc',
+            '+++ b/aaa.cc',
+            '@@ -1,6 +1,6 @@',
+            ' #include <stdio.h>',
+            ' #include "aaa.h"',
+            ' void hello_aaa(const std::string& caller) {',
+            '-    std::string lib_name = "aaa@lol";',
+            '+    std::string lib_name = "aaa@lol (locally patched)";',
+            '     printf("%s => %s\\n", caller.c_str(), lib_name.c_str());',
+            ' }',
+        ],
+    )
+    self.main_registry.createCcModule('aaa', 'lol')
+    integ = integrity(read(self.main_registry.archives.joinpath('aaa.lol.zip')))
+    self.ScratchFile(
+        'MODULE.bazel',
+        [
+            'module(repo_name="foo")',
+            'bazel_dep(name = "aaa")',
+            'archive_override(',
+            '  module_name="aaa",',
+            '  urls=["%s/archives/aaa.lol.zip"],' % self.main_registry.getURL(),
+            '  integrity="%s",' % integ,
+            '  patches=["@foo//:aaa.patch"],',
+            '  patch_strip=1,',
+            ')',
+        ],
+    )
+    self.ScratchFile(
+        'BUILD',
+        [
+            'cc_binary(',
+            '  name = "main",',
+            '  srcs = ["main.cc"],',
+            '  deps = ["@aaa//:lib_aaa"],',
+            ')',
+        ],
+    )
+    self.ScratchFile(
+        'main.cc',
+        [
+            '#include "aaa.h"',
+            'int main() {',
+            '    hello_aaa("main function");',
+            '}',
+        ],
+    )
+    _, stdout, _ = self.RunBazel(['run', '//:main'])
+    self.assertIn('main function => aaa@lol (locally patched)', stdout)
+
+  def testArchiveOverrideWithBadLabelPatch(self):
+    self.main_registry.createCcModule('aaa', '1')
+    self.main_registry.createCcModule('bbb', '1')
+    integ = integrity(read(self.main_registry.archives.joinpath('aaa.1.zip')))
+    self.ScratchFile(
+        'MODULE.bazel',
+        [
+            'module(repo_name="foo")',
+            'bazel_dep(name = "aaa")',
+            'bazel_dep(name = "bbb", version = "1")',
+            'archive_override(',
+            '  module_name="aaa",',
+            '  urls=["%s/archives/aaa.1.zip"],' % self.main_registry.getURL(),
+            '  integrity="%s",' % integ,
+            '  patches=["@bbb//:aaa.patch"])',
+        ],
+    )
+    self.ScratchFile(
+        'BUILD',
+        [
+            'cc_binary(',
+            '  name = "main",',
+            '  srcs = ["main.cc"],',
+            '  deps = ["@aaa//:lib_aaa"],',
+            ')',
+        ],
+    )
+    self.ScratchFile(
+        'main.cc',
+        [
+            '#include "aaa.h"',
+            'int main() {',
+            '    hello_aaa("main function");',
+            '}',
+        ],
+    )
+    exit_code, _, stderr = self.RunBazel(['run', '//:main'], allow_failure=True)
+    self.AssertNotExitCode(exit_code, 0, stderr)
+    self.assertIn("@@[unknown repo 'bbb' requested from @@]", '\n'.join(stderr))
 
   def testRepoNameForBazelDep(self):
     self.writeMainProjectFiles()

@@ -24,7 +24,7 @@ import com.google.common.testing.EqualsTester;
 import com.google.devtools.build.lib.analysis.BlazeDirectories;
 import com.google.devtools.build.lib.analysis.util.AnalysisMock;
 import com.google.devtools.build.lib.analysis.util.BuildViewTestCase;
-import com.google.devtools.build.lib.bazel.bzlmod.LocalPathOverride;
+import com.google.devtools.build.lib.bazel.bzlmod.LocalPathRepoSpecs;
 import com.google.devtools.build.lib.bazel.bzlmod.NonRegistryOverride;
 import com.google.devtools.build.lib.bazel.bzlmod.Version;
 import com.google.devtools.build.lib.cmdline.RepositoryMapping;
@@ -71,14 +71,19 @@ public class RepositoryMappingFunctionTest extends BuildViewTestCase {
         }
         return ImmutableMap.of(
             "bazel_tools",
-            LocalPathOverride.create(
-                directories.getWorkingDirectory().getRelative("embedded_tools").getPathString()),
+            new NonRegistryOverride(
+                LocalPathRepoSpecs.create(
+                    directories
+                        .getWorkingDirectory()
+                        .getRelative("embedded_tools")
+                        .getPathString())),
             "platforms",
-            LocalPathOverride.create(
-                directories
-                    .getWorkingDirectory()
-                    .getRelative("platforms_workspace")
-                    .getPathString()));
+            new NonRegistryOverride(
+                LocalPathRepoSpecs.create(
+                    directories
+                        .getWorkingDirectory()
+                        .getRelative("platforms_workspace")
+                        .getPathString())));
       }
     };
   }

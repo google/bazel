@@ -161,9 +161,7 @@ attributes common to all test rules (*_test)</a>.</p>
         # testing.ExecutionInfo defaults to an exec_group of "test".
         "test": exec_group(toolchains = [config_common.toolchain_type(_CC_TEST_TOOLCHAIN_TYPE, mandatory = False)]),
     },
-    toolchains = [] +
-                 cc_helper.use_cpp_toolchain() +
-                 semantics.get_runtimes_toolchain(),
+    toolchains = cc_helper.use_cpp_toolchain(),
     test = True,
     provides = [CcInfo],
 )

@@ -290,13 +290,11 @@ public class BazelModuleInspectorFunctionTest {
     ImmutableMap<String, ModuleOverride> overrides =
         ImmutableMap.of(
             "bbb",
-            ArchiveOverride.create(
-                ImmutableList.of("file://users/user/bbb.zip"),
-                ImmutableList.of(),
-                ImmutableList.of(),
-                "",
-                "",
-                0));
+            new NonRegistryOverride(
+                new RepoSpec(
+                    ArchiveRepoSpecBuilder.HTTP_ARCHIVE,
+                    AttributeValues.create(
+                        ImmutableMap.of("urls", ImmutableList.of("file://users/user/bbb.zip"))))));
 
     ImmutableSet<ModuleKey> usedModules =
         ImmutableSet.of(ModuleKey.ROOT, createModuleKey("bbb", ""), createModuleKey("ccc", "1.1"));
@@ -308,7 +306,7 @@ public class BazelModuleInspectorFunctionTest {
     assertThat(depGraph.entrySet())
         .containsExactly(
             buildAugmentedModule(ModuleKey.ROOT, "aaa")
-                .addChangedDep("bbb", "", "1.0", ResolutionReason.ARCHIVE_OVERRIDE)
+                .addChangedDep("bbb", "", "1.0", ResolutionReason.NON_REGISTRY_OVERRIDE)
                 .buildEntry(),
             buildAugmentedModule("bbb", "1.0", false)
                 .addOriginalDependant(ModuleKey.ROOT)

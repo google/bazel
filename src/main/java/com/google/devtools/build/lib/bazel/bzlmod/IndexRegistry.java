@@ -407,11 +407,7 @@ public class IndexRegistry implements Registry {
       }
     }
 
-    return RepoSpec.builder()
-        .setRuleClassName("local_repository")
-        .setAttributes(
-            AttributeValues.create(ImmutableMap.of("path", PathFragment.create(path).toString())))
-        .build();
+    return LocalPathRepoSpecs.create(PathFragment.create(path).toString());
   }
 
   private RepoSpec createArchiveRepoSpec(

@@ -92,9 +92,8 @@ import com.google.devtools.build.lib.skyframe.SkyframeActionExecutor.ActionPostp
 import com.google.devtools.build.lib.skyframe.rewinding.ActionRewindException;
 import com.google.devtools.build.lib.skyframe.rewinding.ActionRewindStrategy;
 import com.google.devtools.build.lib.skyframe.serialization.SkyValueRetriever;
-import com.google.devtools.build.lib.skyframe.serialization.SkyValueRetriever.RetrievalResult;
+import com.google.devtools.build.lib.skyframe.serialization.SkyValueRetriever.SerializableSkyKeyComputeState;
 import com.google.devtools.build.lib.skyframe.serialization.SkyValueRetriever.SerializationState;
-import com.google.devtools.build.lib.skyframe.serialization.SkyValueRetriever.SerializationStateProvider;
 import com.google.devtools.build.lib.skyframe.serialization.analysis.RemoteAnalysisCachingDependenciesProvider;
 import com.google.devtools.build.lib.util.DetailedExitCode;
 import com.google.devtools.build.lib.util.DetailedExitCode.DetailedExitCodeComparator;
@@ -191,14 +190,12 @@ public final class ActionExecutionFunction implements SkyFunction {
     skyframeActionExecutor.maybeAcquireActionExecutionSemaphore();
     try {
       ActionLookupData actionLookupData = (ActionLookupData) skyKey.argument();
-      if (cachingDependenciesSupplier.get() != null
-          && cachingDependenciesSupplier.get().enabled()
-          && actionLookupData.getLabel() != null) {
-        var state = env.getState(() -> new StateWithSerializationStateProvider());
-        RetrievalResult retrievalResult =
-            maybeFetchSkyValueRemotely(
-                actionLookupData, env, cachingDependenciesSupplier.get(), state);
-        switch (retrievalResult) {
+      if (actionLookupData.getLabel() != null) {
+        switch (maybeFetchSkyValueRemotely(
+            actionLookupData,
+            env,
+            cachingDependenciesSupplier.get(),
+            StateWithSerializationStateProvider::new)) {
           case SkyValueRetriever.Restart unused:
             return null;
           case SkyValueRetriever.RetrievedValue v:
@@ -1453,7 +1450,7 @@ public final class ActionExecutionFunction implements SkyFunction {
   }
 
   private static class StateWithSerializationStateProvider extends InputDiscoveryState
-      implements SerializationStateProvider {
+      implements SerializableSkyKeyComputeState {
     private SerializationState serializationState = INITIAL_STATE;
 
     @Override

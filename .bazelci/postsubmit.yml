@@ -344,9 +344,6 @@ tasks:
       - test
   kythe_ubuntu2204:
     shell_commands:
-    # Replace @com_google_protobuf with @protobuf because Bazel has renamed @com_google_protobuf to @protobuf. See b/371908235.
-    # TODO(chiwang): Remove this once kythe is updated to use @protobuf.
-    - sed -i -e 's/@com_google_protobuf/@protobuf/' /usr/local/kythe/BUILD
     # Disable custom proto_toolchain_for_cc from kythe because it doesn't work with protobuf 29. See b/371908235.
     # TODO(chiwang): Remove this once kythe resolves the issue.
     - sed -i -e 's/build --proto_toolchain_for_cc=@kythe_release\/\/:cc_native_proto_toolchain//' /usr/local/kythe/extractors.bazelrc

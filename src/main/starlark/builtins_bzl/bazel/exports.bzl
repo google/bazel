@@ -15,17 +15,10 @@
 """Exported builtins symbols that are specific to OSS Bazel."""
 
 load("@_builtins//:common/python/py_internal.bzl", "py_internal")
-load(":common/java/java_package_configuration.bzl", "java_package_configuration")
-load(":common/java/java_runtime.bzl", "java_runtime")
-load(":common/java/java_toolchain.bzl", "java_toolchain")
 
 exported_toplevels = {
     "py_internal": py_internal,
     "proto_common_do_not_use": struct(INCOMPATIBLE_ENABLE_PROTO_TOOLCHAIN_RESOLUTION = _builtins.toplevel.proto_common_do_not_use.incompatible_enable_proto_toolchain_resolution()),
 }
-exported_rules = {
-    "java_package_configuration": java_package_configuration,
-    "java_runtime": java_runtime,
-    "java_toolchain": java_toolchain,
-}
+exported_rules = {}
 exported_to_java = {}

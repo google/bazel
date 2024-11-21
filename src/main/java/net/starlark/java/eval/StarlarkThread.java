@@ -187,10 +187,10 @@ public final class StarlarkThread {
       if (fn instanceof StarlarkFunction) {
         for (int i = 0; i < locals.length; i++) {
           Object local = locals[i];
+          if (local instanceof StarlarkFunction.Cell) {
+            local = ((StarlarkFunction.Cell) local).x;
+          }
           if (local != null) {
-            if (local instanceof StarlarkFunction.Cell) {
-              local = ((StarlarkFunction.Cell) local).x;
-            }
             env.put(((StarlarkFunction) fn).rfn.getLocals().get(i).getName(), local);
           }
         }

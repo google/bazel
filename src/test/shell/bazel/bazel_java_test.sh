@@ -87,6 +87,10 @@ function tear_down() {
   rm -rf "$(bazel info bazel-bin)/java"
 }
 
+function set_up() {
+  add_rules_java MODULE.bazel
+}
+
 function write_hello_library_files() {
   mkdir -p java/main
   cat >java/main/BUILD <<EOF
@@ -229,6 +233,7 @@ EOF
 
 function write_java_custom_rule() {
   cat > java/com/google/sandwich/java_custom_library.bzl << EOF
+load("@rules_java//java/common:java_common.bzl", "java_common")
 def _impl(ctx):
   deps = [dep[java_common.provider] for dep in ctx.attr.deps]
   exports = [export[java_common.provider] for export in ctx.attr.exports]
@@ -414,6 +419,7 @@ java_custom_library(
 EOF
 
   cat >g/java_custom_library.bzl << EOF
+load("@rules_java//java/common:java_common.bzl", "java_common")
 def _impl(ctx):
   output_jar = ctx.actions.declare_file("lib" + ctx.label.name + ".jar")
 
@@ -484,6 +490,7 @@ java_custom_library(
 EOF
 
   cat >g/java_custom_library.bzl << EOF
+load("@rules_java//java/common:java_common.bzl", "java_common")
 def _impl(ctx):
   output_jar = ctx.actions.declare_file("lib" + ctx.label.name + ".jar")
 
@@ -1387,6 +1394,8 @@ class A {
 EOF
 
   cat > java/com/google/sandwich/java_custom_library.bzl << EOF
+load("@rules_java//java/common:java_common.bzl", "java_common")
+load("@rules_java//java/common:java_info.bzl", "JavaInfo")
 def _impl(ctx):
   compiled_jar = ctx.actions.declare_file("lib" + ctx.label.name + ".jar")
   imported_jar = ctx.files.jar[0];
@@ -1441,6 +1450,8 @@ my_rule(
 EOF
 
   cat > java/com/google/foo/my_rule.bzl << EOF
+load("@rules_java//java/common:java_common.bzl", "java_common")
+load("@rules_java//java/common:java_info.bzl", "JavaInfo")
 result = provider()
 def _impl(ctx):
   compile_jar = java_common.run_ijar(

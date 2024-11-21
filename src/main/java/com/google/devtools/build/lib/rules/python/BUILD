@@ -55,6 +55,6 @@ java_library(
         "//src/main/protobuf:extra_actions_base_java_proto",
         "//third_party:guava",
         "//third_party:jsr305",
-        "@protobuf//:protobuf_java",
+        "@com_google_protobuf//:protobuf_java",
     ],
 )

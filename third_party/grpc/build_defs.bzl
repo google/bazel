@@ -3,7 +3,7 @@ You need to load the rules in your BUILD file for use, like:
 load("//third_party/grpc:build_defs.bzl", "java_grpc_library")
 """
 
-load("@protobuf//bazel/common:proto_info.bzl", "ProtoInfo")
+load("@com_google_protobuf//bazel/common:proto_info.bzl", "ProtoInfo")
 load("@rules_cc//cc:defs.bzl", "cc_library")
 load("@rules_java//java:defs.bzl", "java_library")
 
@@ -62,7 +62,7 @@ _java_grpc_gensource = rule(
             default = False,
         ),
         "_protoc": attr.label(
-            default = Label("@protobuf//:protoc"),
+            default = Label("@com_google_protobuf//:protoc"),
             executable = True,
             cfg = "exec",
             allow_single_file = True,
@@ -116,7 +116,7 @@ def java_grpc_library(name, srcs, deps, enable_deprecated = None, visibility = N
             Label("//third_party:jsr305"),
             Label("//third_party/grpc-java:grpc-jar"),
             Label("//third_party:guava"),
-            "@protobuf//:protobuf_java",
+            "@com_google_protobuf//:protobuf_java",
         ] + deps,
         **kwargs
     )

@@ -69,6 +69,12 @@ public interface OutputService {
     STAGE_REMOTE_FILES_FILE_SYSTEM,
 
     /**
+     * Similar to STAGE_REMOTE_FILES_FILES_SYSTEM, but only constructs output directories as needed
+     * by local actions. Used by Blaze.
+     */
+    STAGE_REMOTE_FILES_ON_DEMAND_FILE_SYSTEM,
+
+    /**
      * The action file system implementation mixes an in-memory and a local file system. It uses the
      * in-memory filesystem for in-process and remote actions, but is also aware of outputs from
      * local actions. It's able to stage remote outputs accessed as inputs by local actions, but
@@ -80,7 +86,20 @@ public interface OutputService {
       return this != DISABLED;
     }
 
-    public boolean supportsLocalActions() {
+    /**
+     * Returns true if this service should early prepare the underlying filesystem for every action.
+     * This involves deleting old output files and creating directories for the newly-created output
+     * files. If false, the output service must handle such tasks itself as needed.
+     */
+    public boolean shouldDoEagerActionPrep() {
+      return this != IN_MEMORY_ONLY_FILE_SYSTEM && this != STAGE_REMOTE_FILES_ON_DEMAND_FILE_SYSTEM;
+    }
+
+    /**
+     * Returns true if this service needs top-level output tree setup. This involves creating
+     * symlinks to the source tree in the execRoot and constructing a directory for action logging.
+     */
+    public boolean shouldDoTopLevelOutputSetup() {
       return this != IN_MEMORY_ONLY_FILE_SYSTEM;
     }
 

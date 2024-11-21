@@ -1,3 +1,4 @@
+#include <stdlib.h>
 // Copyright 2014 The Bazel Authors. All rights reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -11,21 +12,22 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-#include "src/main/cpp/util/file.h"
-
 #include <stdio.h>
 #include <string.h>
 
 #include <algorithm>
 #include <map>
-#include <memory>  // unique_ptr
+#include <memory>
 #include <thread>  // NOLINT (to silence Google-internal linter)
+#include <vector>
 
+#include "src/main/cpp/util/file.h"
 #include "src/main/cpp/util/file_platform.h"
 #include "src/main/cpp/util/path.h"
 #include "src/main/cpp/util/path_platform.h"
 #include "src/test/cpp/util/test_util.h"
 #include "googletest/include/gtest/gtest.h"
+#include "absl/strings/match.h"
 
 namespace blaze_util {
 
@@ -184,38 +186,41 @@ TEST(FileTest, TestMtimeHandling) {
   ASSERT_FALSE(IsUntampered(file));
 }
 
-TEST(FileTest, TestCreateTempDir) {
+TEST(FileTest, TestCreateSiblingTempDir) {
   const char* tempdir_cstr = getenv("TEST_TMPDIR");
   EXPECT_NE(tempdir_cstr, nullptr);
   EXPECT_NE(tempdir_cstr[0], 0);
-  string tempdir(tempdir_cstr);
-  string tmpdir(tempdir_cstr);
+  Path tempdir(tempdir_cstr);
 
-  string prefix_in_existing_dir(JoinPath(tempdir, "foo."));
-  string result_in_existing_dir(CreateTempDir(prefix_in_existing_dir));
-  ASSERT_NE(result_in_existing_dir, prefix_in_existing_dir);
-  ASSERT_EQ(0, result_in_existing_dir.find(prefix_in_existing_dir));
-  EXPECT_TRUE(PathExists(result_in_existing_dir));
+  Path input_in_existing = tempdir.GetRelative("other");
+  Path output_in_existing = CreateSiblingTempDir(input_in_existing);
+  ASSERT_NE(input_in_existing, output_in_existing);
+  ASSERT_EQ(input_in_existing.GetParent(), output_in_existing.GetParent());
+  ASSERT_TRUE(absl::StartsWith(output_in_existing.GetBaseName(),
+                               input_in_existing.GetBaseName() + ".tmp."));
+  EXPECT_TRUE(PathExists(output_in_existing));
 
-  string base_dir(JoinPath(tempdir, "doesntexistyet"));
-  ASSERT_FALSE(PathExists(base_dir));
-  string prefix_in_new_dir(JoinPath(base_dir, "foo."));
-  string result_in_new_dir(CreateTempDir(prefix_in_new_dir));
-  ASSERT_NE(result_in_new_dir, prefix_in_new_dir);
-  ASSERT_EQ(0, result_in_new_dir.find(prefix_in_new_dir));
-  EXPECT_TRUE(PathExists(result_in_new_dir));
+  Path missing_dir = tempdir.GetRelative("doesntexistyet");
+  ASSERT_FALSE(PathExists(missing_dir));
+  Path input_in_missing = missing_dir.GetRelative("other");
+  Path output_in_missing = CreateSiblingTempDir(input_in_missing);
+  ASSERT_NE(input_in_missing, output_in_missing);
+  ASSERT_EQ(input_in_missing.GetParent(), output_in_missing.GetParent());
+  ASSERT_TRUE(absl::StartsWith(output_in_missing.GetBaseName(),
+                               input_in_missing.GetBaseName() + ".tmp."));
+  EXPECT_TRUE(PathExists(output_in_missing));
 }
 
 TEST(FileTest, TestRenameDirectory) {
   const char* tempdir_cstr = getenv("TEST_TMPDIR");
   EXPECT_NE(tempdir_cstr, nullptr);
   EXPECT_NE(tempdir_cstr[0], 0);
-  string tempdir(tempdir_cstr);
+  Path tempdir(tempdir_cstr);
 
-  string dir1(JoinPath(tempdir, "test_rename_dir/dir1"));
-  string dir2(JoinPath(tempdir, "test_rename_dir/dir2"));
+  Path dir1 = tempdir.GetRelative("test_rename_dir/dir1");
+  Path dir2 = tempdir.GetRelative("test_rename_dir/dir2");
   EXPECT_TRUE(MakeDirectories(dir1, 0700));
-  string file1(JoinPath(dir1, "file1.txt"));
+  Path file1 = dir1.GetRelative("file1.txt");
   EXPECT_TRUE(WriteFile("hello", 5, file1));
 
   ASSERT_EQ(RenameDirectory(dir1, dir2), kRenameDirectorySuccess);
@@ -225,54 +230,81 @@ TEST(FileTest, TestRenameDirectory) {
   ASSERT_EQ(RenameDirectory(dir2, dir1), kRenameDirectoryFailureNotEmpty);
 }
 
-class CollectingDirectoryEntryConsumer : public DirectoryEntryConsumer {
+class MockDirectoryEntryConsumer : public DirectoryEntryConsumer {
  public:
-  CollectingDirectoryEntryConsumer(const string& _rootname)
-      : rootname(_rootname) {}
-
-  void Consume(const string& name, bool is_directory) override {
-    // Strip the path prefix up to the `rootname` to ease testing on all
-    // platforms.
-    size_t index = name.rfind(rootname);
-    string key = (index == string::npos) ? name : name.substr(index);
-    // Replace backslashes with forward slashes (necessary on Windows only).
-    std::replace(key.begin(), key.end(), '\\', '/');
-    entries[key] = is_directory;
+  void Consume(const Path& path, bool is_directory) override {
+    entries[path] = is_directory;
   }
 
-  const string rootname;
-  std::map<string, bool> entries;
+  std::map<Path, bool> entries;
 };
 
 TEST(FileTest, ForEachDirectoryEntryTest) {
-  string tmpdir(getenv("TEST_TMPDIR"));
-  EXPECT_FALSE(tmpdir.empty());
-  // Create a directory structure:
+  const char* tmpdir_cstr = getenv("TEST_TMPDIR");
+  ASSERT_NE(tmpdir_cstr, nullptr);
+  Path tmpdir(tmpdir_cstr);
+  ASSERT_TRUE(PathExists(tmpdir));
   //   $TEST_TMPDIR/
   //      foo/
   //        bar/
   //          file3.txt
   //        file1.txt
   //        file2.txt
-  string rootdir(JoinPath(tmpdir, "foo"));
-  string file1(JoinPath(rootdir, "file1.txt"));
-  string file2(JoinPath(rootdir, "file2.txt"));
-  string subdir(JoinPath(rootdir, "bar"));
-  string file3(JoinPath(subdir, "file3.txt"));
+  Path rootdir = tmpdir.GetRelative("foo");
+  Path file1 = rootdir.GetRelative("file1.txt");
+  Path file2 = rootdir.GetRelative("file2.txt");
+  Path subdir = rootdir.GetRelative("bar");
+  Path file3 = subdir.GetRelative("file3.txt");
 
-  EXPECT_TRUE(MakeDirectories(subdir, 0700));
-  EXPECT_TRUE(WriteFile("hello", 5, file1));
-  EXPECT_TRUE(WriteFile("hello", 5, file2));
-  EXPECT_TRUE(WriteFile("hello", 5, file3));
+  ASSERT_TRUE(MakeDirectories(subdir, 0700));
+  ASSERT_TRUE(WriteFile("hello", 5, file1));
+  ASSERT_TRUE(WriteFile("hello", 5, file2));
+  ASSERT_TRUE(WriteFile("hello", 5, file3));
 
-  std::map<string, bool> expected;
-  expected["foo/file1.txt"] = false;
-  expected["foo/file2.txt"] = false;
-  expected["foo/bar"] = true;
+  std::map<Path, bool> expected;
+  expected[file1] = false;
+  expected[file2] = false;
+  expected[subdir] = true;
 
-  CollectingDirectoryEntryConsumer consumer("foo");
+  MockDirectoryEntryConsumer consumer;
   ForEachDirectoryEntry(rootdir, &consumer);
-  ASSERT_EQ(consumer.entries, expected);
+  EXPECT_EQ(consumer.entries, expected);
+}
+
+TEST(FilePosixTest, GetAllFilesUnder) {
+  const char* tmpdir_cstr = getenv("TEST_TMPDIR");
+  ASSERT_NE(tmpdir_cstr, nullptr);
+  Path tmpdir(tmpdir_cstr);
+  ASSERT_TRUE(PathExists(tmpdir));
+
+  Path root = tmpdir.GetRelative("FilePosixTest.GetAllFilesUnder.root");
+  Path file1 = root.GetRelative("file1");
+  Path dir1 = root.GetRelative("dir1");
+  Path dir2 = root.GetRelative("dir2");
+  Path dir3 = dir1.GetRelative("dir3");
+  Path file2 = dir1.GetRelative("file2");
+  Path file3 = dir2.GetRelative("file3");
+  Path file4 = dir3.GetRelative("file4");
+  Path file5 = dir3.GetRelative("file5");
+
+  ASSERT_TRUE(MakeDirectories(root, 0700));
+  ASSERT_TRUE(MakeDirectories(dir1, 0700));
+  ASSERT_TRUE(MakeDirectories(dir2, 0700));
+  ASSERT_TRUE(MakeDirectories(dir3, 0700));
+  ASSERT_TRUE(WriteFile("", file1));
+  ASSERT_TRUE(WriteFile("", file2));
+  ASSERT_TRUE(WriteFile("", file3));
+  ASSERT_TRUE(WriteFile("", file4));
+  ASSERT_TRUE(WriteFile("", file5));
+
+  std::vector<Path> result;
+  GetAllFilesUnder(root, &result);
+  std::sort(result.begin(), result.end());
+
+  std::vector<Path> expected({file4, file5, file2, file3, file1});
+  EXPECT_EQ(expected, result);
+
+  EXPECT_TRUE(RemoveRecursively(root));
 }
 
 TEST(FileTest, IsDevNullTest) {
@@ -287,30 +319,30 @@ TEST(FileTest, IsDevNullTest) {
 TEST(FileTest, TestRemoveRecursively) {
   const char* tempdir_cstr = getenv("TEST_TMPDIR");
   ASSERT_NE(tempdir_cstr, nullptr);
-  string tempdir(tempdir_cstr);
+  Path tempdir(tempdir_cstr);
   ASSERT_TRUE(PathExists(tempdir));
 
-  string non_existent_dir(JoinPath(tempdir, "test_rmr_non_existent"));
+  Path non_existent_dir = tempdir.GetRelative("test_rmr_non_existent");
   EXPECT_TRUE(RemoveRecursively(non_existent_dir));
   EXPECT_FALSE(PathExists(non_existent_dir));
 
-  string empty_dir(JoinPath(tempdir, "test_rmr_empty_dir"));
+  Path empty_dir = tempdir.GetRelative("test_rmr_empty_dir");
   EXPECT_TRUE(MakeDirectories(empty_dir, 0700));
   EXPECT_TRUE(RemoveRecursively(empty_dir));
   EXPECT_FALSE(PathExists(empty_dir));
 
-  string dir_with_content(JoinPath(tempdir, "test_rmr_dir_w_content"));
+  Path dir_with_content = tempdir.GetRelative("test_rmr_dir_w_content");
   EXPECT_TRUE(MakeDirectories(dir_with_content, 0700));
-  EXPECT_TRUE(WriteFile("junkdata", 8, JoinPath(dir_with_content, "file")));
-  string subdir = JoinPath(dir_with_content, "dir");
+  EXPECT_TRUE(WriteFile("junkdata", 8, dir_with_content.GetRelative("file")));
+  Path subdir = dir_with_content.GetRelative("dir");
   EXPECT_TRUE(MakeDirectories(subdir, 0700));
-  string subsubdir = JoinPath(subdir, "dir");
+  Path subsubdir = subdir.GetRelative("dir");
   EXPECT_TRUE(MakeDirectories(subsubdir, 0700));
-  EXPECT_TRUE(WriteFile("junkdata", 8, JoinPath(subsubdir, "deep_file")));
+  EXPECT_TRUE(WriteFile("junkdata", 8, subsubdir.GetRelative("deep_file")));
   EXPECT_TRUE(RemoveRecursively(dir_with_content));
   EXPECT_FALSE(PathExists(dir_with_content));
 
-  string regular_file(JoinPath(tempdir, "test_rmr_regular_file"));
+  Path regular_file = tempdir.GetRelative("test_rmr_regular_file");
   EXPECT_TRUE(WriteFile("junkdata", 8, regular_file));
   EXPECT_TRUE(RemoveRecursively(regular_file));
   EXPECT_FALSE(PathExists(regular_file));

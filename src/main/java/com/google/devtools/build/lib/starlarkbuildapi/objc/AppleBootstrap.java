@@ -17,8 +17,9 @@ package com.google.devtools.build.lib.starlarkbuildapi.objc;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.google.devtools.build.lib.cmdline.PackageIdentifier;
+import com.google.devtools.build.lib.packages.semantics.BuildLanguageOptions;
 import com.google.devtools.build.lib.starlarkbuildapi.core.Bootstrap;
-import com.google.devtools.build.lib.starlarkbuildapi.core.ContextGuardedValue;
+import com.google.devtools.build.lib.starlarkbuildapi.core.ContextAndFlagGuardedValue;
 import net.starlark.java.eval.Starlark;
 
 /** {@link Bootstrap} for Starlark objects related to apple rules. */
@@ -27,22 +28,17 @@ public class AppleBootstrap implements Bootstrap {
   private static final ImmutableSet<PackageIdentifier> allowedRepositories =
       ImmutableSet.of(
           PackageIdentifier.createUnchecked("_builtins", ""),
-          PackageIdentifier.createUnchecked("apple_support", ""),
           PackageIdentifier.createUnchecked("bazel_tools", ""),
-          PackageIdentifier.createUnchecked("local_config_cc", ""),
           PackageIdentifier.createUnchecked("rules_apple", ""),
-          PackageIdentifier.createUnchecked("rules_cc", ""),
-          PackageIdentifier.createUnchecked("rules_go", ""),
-          PackageIdentifier.createUnchecked("rules_ios", ""),
-          PackageIdentifier.createUnchecked("rules_swift", ""),
-          PackageIdentifier.createUnchecked("stardoc", ""),
-          PackageIdentifier.createUnchecked("tulsi", ""),
-          PackageIdentifier.createUnchecked("", "test_starlark"),
-          PackageIdentifier.createUnchecked("", "tools/osx"));
+          PackageIdentifier.createUnchecked("", "tools/build_defs/apple"));
 
   @Override
   public void addBindingsToBuilder(ImmutableMap.Builder<String, Object> builder) {
     builder.put(
-        "apple_common", ContextGuardedValue.onlyInAllowedRepos(Starlark.NONE, allowedRepositories));
+        "apple_common",
+        ContextAndFlagGuardedValue.onlyInAllowedReposOrWhenIncompatibleFlagIsFalse(
+            BuildLanguageOptions.INCOMPATIBLE_STOP_EXPORTING_LANGUAGE_MODULES,
+            Starlark.NONE,
+            allowedRepositories));
   }
 }

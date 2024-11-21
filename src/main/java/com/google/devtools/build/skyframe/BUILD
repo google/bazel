@@ -1,4 +1,4 @@
-load("@protobuf//bazel:proto_library.bzl", "proto_library")
+load("@com_google_protobuf//bazel:proto_library.bzl", "proto_library")
 load("@rules_java//java:defs.bzl", "java_library")
 load("//tools/build_rules:utilities.bzl", "java_library_srcs")
 

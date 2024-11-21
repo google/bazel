@@ -53,7 +53,7 @@ java_library(
         "//src/main/java/com/google/devtools/build/lib/vfs:pathfragment",
         "//third_party:flogger",
         "//third_party:guava",
-        "@protobuf//:protobuf_java",
+        "@com_google_protobuf//:protobuf_java",
     ],
 )
 
@@ -63,8 +63,8 @@ java_library(
     deps = [
         "//third_party:guava",
         "//third_party:jsr305",
-        "@protobuf//:protobuf_java",
-        "@protobuf//:protobuf_java_util",
+        "@com_google_protobuf//:protobuf_java",
+        "@com_google_protobuf//:protobuf_java_util",
     ],
 )
 

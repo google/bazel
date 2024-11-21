@@ -446,7 +446,7 @@ public class XcodeConfigTest extends BuildViewTestCase {
   @Test
   public void xcodeVersionConfigConstructor() throws Exception {
     scratch.file(
-        "test_starlark/extension.bzl",
+        "foo/extension.bzl",
         """
         result = provider()
 
@@ -471,19 +471,19 @@ public class XcodeConfigTest extends BuildViewTestCase {
         my_rule = rule(_impl, attrs = {"dep": attr.label()})
         """);
     scratch.file(
-        "test_starlark/BUILD",
+        "foo/BUILD",
         """
         load(":extension.bzl", "my_rule")
 
         my_rule(name = "test")
         """);
     assertNoEvents();
-    ConfiguredTarget myRuleTarget = getConfiguredTarget("//test_starlark:test");
+    ConfiguredTarget myRuleTarget = getConfiguredTarget("//foo:test");
     StructImpl info =
         (StructImpl)
             myRuleTarget.get(
                 new StarlarkProvider.Key(
-                    keyForBuild(Label.parseCanonical("//test_starlark:extension.bzl")), "result"));
+                    keyForBuild(Label.parseCanonical("//foo:extension.bzl")), "result"));
     StructImpl actual = info.getValue("xcode_version", StructImpl.class);
     assertThat(
             callProviderMethod(actual, "sdk_version_for_platform", ApplePlatform.IOS_DEVICE)
@@ -563,7 +563,7 @@ public class XcodeConfigTest extends BuildViewTestCase {
   @Test
   public void xcodeVersionConfig_throwsOnBadInput() throws Exception {
     scratch.file(
-        "test_starlark/extension.bzl",
+        "foo/extension.bzl",
         """
         result = provider()
 
@@ -588,14 +588,14 @@ public class XcodeConfigTest extends BuildViewTestCase {
         my_rule = rule(_impl, attrs = {"dep": attr.label()})
         """);
     scratch.file(
-        "test_starlark/BUILD",
+        "foo/BUILD",
         """
         load(":extension.bzl", "my_rule")
 
         my_rule(name = "test")
         """);
     assertNoEvents();
-    assertThrows(AssertionError.class, () -> getConfiguredTarget("//test_starlark:test"));
+    assertThrows(AssertionError.class, () -> getConfiguredTarget("//foo:test"));
     assertContainsEvent("Dotted version components must all start with the form");
     assertContainsEvent("got 'not a valid dotted version'");
   }
@@ -603,7 +603,7 @@ public class XcodeConfigTest extends BuildViewTestCase {
   @Test
   public void xcodeVersionConfig_exposesExpectedAttributes() throws Exception {
     scratch.file(
-        "test_starlark/extension.bzl",
+        "foo/extension.bzl",
         """
         result = provider()
 
@@ -638,28 +638,28 @@ public class XcodeConfigTest extends BuildViewTestCase {
         )
         """);
     scratch.file(
-        "test_starlark/BUILD",
+        "foo/BUILD",
         """
         load(":extension.bzl", "my_rule")
 
         my_rule(name = "test")
         """);
     assertNoEvents();
-    ConfiguredTarget myRuleTarget = getConfiguredTarget("//test_starlark:test");
+    ConfiguredTarget myRuleTarget = getConfiguredTarget("//foo:test");
     StructImpl info =
         (StructImpl)
             myRuleTarget.get(
                 new StarlarkProvider.Key(
-                    keyForBuild(Label.parseCanonical("//test_starlark:extension.bzl")), "result"));
+                    keyForBuild(Label.parseCanonical("//foo:extension.bzl")), "result"));
     assertThat(info.getValue("xcode_version").toString()).isEqualTo("1.11");
     assertThat(info.getValue("min_os").toString()).isEqualTo("1.8");
   }
 
   @Test
   public void testConfigAlias_configSetting() throws Exception {
-    scratch.file("test_starlark/BUILD");
+    scratch.file("starlark/BUILD");
     scratch.file(
-        "test_starlark/version_retriever.bzl",
+        "starlark/version_retriever.bzl",
         """
         def _version_retriever_impl(ctx):
             xcode_properties = ctx.attr.dep[apple_common.XcodeProperties]
@@ -675,7 +675,7 @@ public class XcodeConfigTest extends BuildViewTestCase {
     scratch.file(
         "xcode/BUILD",
         """
-        load("//test_starlark:version_retriever.bzl", "version_retriever")
+        load("//starlark:version_retriever.bzl", "version_retriever")
 
         version_retriever(
             name = "flag_propagator",
@@ -757,9 +757,9 @@ public class XcodeConfigTest extends BuildViewTestCase {
 
   @Test
   public void testDefaultVersion_configSetting() throws Exception {
-    scratch.file("test_starlark/BUILD");
+    scratch.file("starlark/BUILD");
     scratch.file(
-        "test_starlark/version_retriever.bzl",
+        "starlark/version_retriever.bzl",
         """
         def _version_retriever_impl(ctx):
             xcode_properties = ctx.attr.dep[apple_common.XcodeProperties]
@@ -775,7 +775,7 @@ public class XcodeConfigTest extends BuildViewTestCase {
     scratch.file(
         "xcode/BUILD",
         """
-        load("//test_starlark:version_retriever.bzl", "version_retriever")
+        load("//starlark:version_retriever.bzl", "version_retriever")
 
         version_retriever(
             name = "flag_propagator",
@@ -1226,9 +1226,9 @@ public class XcodeConfigTest extends BuildViewTestCase {
   @Test
   public void testXcodeVersionFromStarlarkByAlias() throws Exception {
     scratch.file(
-        "test_starlark/BUILD",
+        "x/BUILD",
         """
-        load("//test_starlark:r.bzl", "r")
+        load("//x:r.bzl", "r")
 
         xcode_config_alias(name = "a")
 
@@ -1250,7 +1250,7 @@ public class XcodeConfigTest extends BuildViewTestCase {
         r(name = "r")
         """);
     scratch.file(
-        "test_starlark/r.bzl",
+        "x/r.bzl",
         """
         MyInfo = provider()
 
@@ -1274,19 +1274,16 @@ public class XcodeConfigTest extends BuildViewTestCase {
 
         r = rule(
             implementation = _impl,
-            attrs = {"_xcode": attr.label(default = Label("//test_starlark:a"))},
+            attrs = {"_xcode": attr.label(default = Label("//x:a"))},
             fragments = ["apple"],
         )
         """);
 
     useConfiguration(
-        "--xcode_version_config=//test_starlark:c",
-        "--tvos_sdk_version=2.5",
-        "--watchos_minimum_os=4.5");
-    ConfiguredTarget r = getConfiguredTarget("//test_starlark:r");
+        "--xcode_version_config=//x:c", "--tvos_sdk_version=2.5", "--watchos_minimum_os=4.5");
+    ConfiguredTarget r = getConfiguredTarget("//x:r");
     Provider.Key key =
-        new StarlarkProvider.Key(
-            keyForBuild(Label.parseCanonical("//test_starlark:r.bzl")), "MyInfo");
+        new StarlarkProvider.Key(keyForBuild(Label.parseCanonical("//x:r.bzl")), "MyInfo");
     StructImpl info = (StructImpl) r.get(key);
 
     assertThat(info.getValue("xcode").toString()).isEqualTo("0.0");
@@ -1304,9 +1301,9 @@ public class XcodeConfigTest extends BuildViewTestCase {
   @Test
   public void testMutualXcodeFromStarlarkByAlias() throws Exception {
     scratch.file(
-        "test_starlark/BUILD",
+        "x/BUILD",
         """
-        load("//test_starlark:r.bzl", "r")
+        load("//x:r.bzl", "r")
 
         xcode_config_alias(name = "a")
 
@@ -1348,7 +1345,7 @@ public class XcodeConfigTest extends BuildViewTestCase {
         r(name = "r")
         """);
     scratch.file(
-        "test_starlark/r.bzl",
+        "x/r.bzl",
         """
         MyInfo = provider()
 
@@ -1372,16 +1369,15 @@ public class XcodeConfigTest extends BuildViewTestCase {
 
         r = rule(
             implementation = _impl,
-            attrs = {"_xcode": attr.label(default = Label("//test_starlark:a"))},
+            attrs = {"_xcode": attr.label(default = Label("//x:a"))},
             fragments = ["apple"],
         )
         """);
 
-    useConfiguration("--xcode_version_config=//test_starlark:c");
-    ConfiguredTarget r = getConfiguredTarget("//test_starlark:r");
+    useConfiguration("--xcode_version_config=//x:c");
+    ConfiguredTarget r = getConfiguredTarget("//x:r");
     Provider.Key key =
-        new StarlarkProvider.Key(
-            keyForBuild(Label.parseCanonical("//test_starlark:r.bzl")), "MyInfo");
+        new StarlarkProvider.Key(keyForBuild(Label.parseCanonical("//x:r.bzl")), "MyInfo");
     StructImpl info = (StructImpl) r.get(key);
     assertThat((Map<?, ?>) info.getValue("execution_info"))
         .containsKey(ExecutionRequirements.REQUIRES_DARWIN);
@@ -1392,9 +1388,9 @@ public class XcodeConfigTest extends BuildViewTestCase {
   @Test
   public void testLocalXcodeFromStarlarkByAlias() throws Exception {
     scratch.file(
-        "test_starlark/BUILD",
+        "x/BUILD",
         """
-        load("//test_starlark:r.bzl", "r")
+        load("//x:r.bzl", "r")
 
         xcode_config_alias(name = "a")
 
@@ -1433,7 +1429,7 @@ public class XcodeConfigTest extends BuildViewTestCase {
         r(name = "r")
         """);
     scratch.file(
-        "test_starlark/r.bzl",
+        "x/r.bzl",
         """
         MyInfo = provider()
 
@@ -1456,16 +1452,15 @@ public class XcodeConfigTest extends BuildViewTestCase {
 
         r = rule(
             implementation = _impl,
-            attrs = {"_xcode": attr.label(default = Label("//test_starlark:a"))},
+            attrs = {"_xcode": attr.label(default = Label("//x:a"))},
             fragments = ["apple"],
         )
         """);
 
-    useConfiguration("--xcode_version_config=//test_starlark:c");
-    ConfiguredTarget r = getConfiguredTarget("//test_starlark:r");
+    useConfiguration("--xcode_version_config=//x:c");
+    ConfiguredTarget r = getConfiguredTarget("//x:r");
     Provider.Key key =
-        new StarlarkProvider.Key(
-            keyForBuild(Label.parseCanonical("//test_starlark:r.bzl")), "MyInfo");
+        new StarlarkProvider.Key(keyForBuild(Label.parseCanonical("//x:r.bzl")), "MyInfo");
     StructImpl info = (StructImpl) r.get(key);
 
     assertThat(info.getValue("xcode").toString()).isEqualTo("8.4");
@@ -1535,7 +1530,7 @@ public class XcodeConfigTest extends BuildViewTestCase {
   @Test
   public void testConfigurationFieldForRule() throws Exception {
     scratch.file(
-        "test_starlark/provider_grabber.bzl",
+        "x/provider_grabber.bzl",
         """
         def _impl(ctx):
             conf = ctx.attr._xcode_dep[apple_common.XcodeVersionConfig]
@@ -1556,9 +1551,9 @@ public class XcodeConfigTest extends BuildViewTestCase {
         """);
 
     scratch.file(
-        "test_starlark/BUILD",
+        "x/BUILD",
         """
-        load("//test_starlark:provider_grabber.bzl", "provider_grabber")
+        load("//x:provider_grabber.bzl", "provider_grabber")
 
         xcode_config(
             name = "config1",
@@ -1585,11 +1580,11 @@ public class XcodeConfigTest extends BuildViewTestCase {
         provider_grabber(name = "provider_grabber")
         """);
 
-    useConfiguration("--xcode_version_config=//test_starlark:config1");
-    assertXcodeVersion("1.0", "//test_starlark:provider_grabber");
+    useConfiguration("--xcode_version_config=//x:config1");
+    assertXcodeVersion("1.0", "//x:provider_grabber");
 
-    useConfiguration("--xcode_version_config=//test_starlark:config2");
-    assertXcodeVersion("2.0", "//test_starlark:provider_grabber");
+    useConfiguration("--xcode_version_config=//x:config2");
+    assertXcodeVersion("2.0", "//x:provider_grabber");
   }
 
   // Verifies that the --xcode_version_config configuration value can be accessed via the
@@ -1597,7 +1592,7 @@ public class XcodeConfigTest extends BuildViewTestCase {
   @Test
   public void testConfigurationFieldForAspect() throws Exception {
     scratch.file(
-        "test_starlark/provider_grabber.bzl",
+        "x/provider_grabber.bzl",
         """
         def _aspect_impl(target, ctx):
             conf = ctx.attr._xcode_dep[apple_common.XcodeVersionConfig]
@@ -1631,10 +1626,10 @@ public class XcodeConfigTest extends BuildViewTestCase {
         """);
 
     scratch.file(
-        "test_starlark/BUILD",
+        "x/BUILD",
         """
         load("@rules_java//java:defs.bzl", "java_library")
-        load("//test_starlark:provider_grabber.bzl", "provider_grabber")
+        load("//x:provider_grabber.bzl", "provider_grabber")
 
         xcode_config(
             name = "config1",
@@ -1668,11 +1663,11 @@ public class XcodeConfigTest extends BuildViewTestCase {
         )
         """);
 
-    useConfiguration("--xcode_version_config=//test_starlark:config1");
-    assertXcodeVersion("1.0", "//test_starlark:provider_grabber");
+    useConfiguration("--xcode_version_config=//x:config1");
+    assertXcodeVersion("1.0", "//x:provider_grabber");
 
-    useConfiguration("--xcode_version_config=//test_starlark:config2");
-    assertXcodeVersion("2.0", "//test_starlark:provider_grabber");
+    useConfiguration("--xcode_version_config=//x:config2");
+    assertXcodeVersion("2.0", "//x:provider_grabber");
   }
 
   @Test

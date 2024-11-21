@@ -31,6 +31,7 @@ cc_test(
     deps = [
         ":test_util",
         "//src/main/cpp/util:filesystem",
+        "@abseil-cpp//absl/strings",
         "@com_google_googletest//:gtest_main",
     ] + select({
         "//src/conditions:windows": [

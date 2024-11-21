@@ -541,7 +541,7 @@ check_collocated = rule(_impl,
         .inOrder();
   }
 
-  // LINT.ThenChange(@protobuf/bazel/tests/proto_common_compile_tests.bzl)
+  // LINT.ThenChange(@com_google_protobuf/bazel/tests/proto_common_compile_tests.bzl)
 
   /**
    * Verifies <code>proto_common.compile</code> correctly handles external <code>proto_library

@@ -19,7 +19,6 @@ import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.google.common.collect.ImmutableMap.toImmutableMap;
 import static com.google.common.collect.ImmutableSet.toImmutableSet;
 
-import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
@@ -151,22 +150,17 @@ public class BazelModuleInspectorFunction implements SkyFunction {
           newChildBuilder.addDependant(parentKey);
         }
 
-        ResolutionReason reason = ResolutionReason.ORIGINAL;
-        if (!key.version().equals(originalKey.version())) {
-          ModuleOverride override = overrides.get(key.name());
-          if (override != null) {
-            if (override instanceof SingleVersionOverride) {
-              reason = ResolutionReason.SINGLE_VERSION_OVERRIDE;
-            } else if (override instanceof MultipleVersionOverride) {
-              reason = ResolutionReason.MULTIPLE_VERSION_OVERRIDE;
-            } else {
-              // There is no other possible override
-              Preconditions.checkArgument(override instanceof NonRegistryOverride);
-              reason = ((NonRegistryOverride) override).getResolutionReason();
-            }
-          } else {
-            reason = ResolutionReason.MINIMAL_VERSION_SELECTION;
-          }
+        ResolutionReason reason;
+        if (key.version().equals(originalKey.version())) {
+          reason = ResolutionReason.ORIGINAL;
+        } else {
+          reason =
+              switch (overrides.get(key.name())) {
+                case SingleVersionOverride svo -> ResolutionReason.SINGLE_VERSION_OVERRIDE;
+                case MultipleVersionOverride mvo -> ResolutionReason.MULTIPLE_VERSION_OVERRIDE;
+                case NonRegistryOverride nro -> ResolutionReason.NON_REGISTRY_OVERRIDE;
+                case null -> ResolutionReason.MINIMAL_VERSION_SELECTION;
+              };
         }
 
         if (!reason.equals(ResolutionReason.ORIGINAL)) {

@@ -71,6 +71,45 @@ java_plugin = _java_plugin
               load("@rules_java//java/bazel/rules:bazel_java_test.bzl", _java_test = "java_test")
               java_test = _java_test
               """);
+          config.overwrite(
+              "rules_java_workspace/java/toolchains/java_package_configuration.bzl",
+              """
+              load("@rules_java//java/common/rules:java_package_configuration.bzl",
+                _java_package_configuration = "java_package_configuration")
+              java_package_configuration = _java_package_configuration
+              """);
+          config.overwrite(
+              "rules_java_workspace/java/toolchains/java_runtime.bzl",
+              """
+              load("@rules_java//java/common/rules:java_runtime.bzl",
+                _java_runtime = "java_runtime")
+              java_runtime = _java_runtime
+              """);
+          config.overwrite(
+              "rules_java_workspace/java/toolchains/java_toolchain.bzl",
+              """
+              load("@rules_java//java/common/rules:java_toolchain.bzl",
+                _java_toolchain = "java_toolchain")
+              java_toolchain = _java_toolchain
+              """);
+          config.overwrite(
+              "rules_java_workspace/java/common/java_common.bzl",
+              """
+              load("@rules_java//java/private:java_common.bzl", _java_common = "java_common")
+              java_common = _java_common
+              """);
+          config.overwrite(
+              "rules_java_workspace/java/common/java_info.bzl",
+              """
+              load("@rules_java//java/private:java_info.bzl", _JavaInfo = "JavaInfo")
+              JavaInfo = _JavaInfo
+              """);
+          config.overwrite(
+              "rules_java_workspace/java/common/java_plugin_info.bzl",
+              """
+              load("@rules_java//java/private:java_info.bzl", _JavaPluginInfo = "JavaPluginInfo")
+              JavaPluginInfo = _JavaPluginInfo
+              """);
           // mocks
           config.create("rules_java_workspace/toolchains/BUILD");
           config.create(

@@ -28,7 +28,6 @@ load("@_builtins//:common/cc/cc_toolchain_alias.bzl", "cc_toolchain_alias")
 load("@_builtins//:common/cc/experimental_cc_static_library.bzl", "cc_static_library")
 load("@_builtins//:common/objc/objc_import.bzl", "objc_import")
 load("@_builtins//:common/objc/objc_library.bzl", "objc_library")
-load("@_builtins//:common/python/providers.bzl", "PyCcLinkParamsProvider", "PyInfo", "PyRuntimeInfo")
 load("@_builtins//:common/xcode/available_xcodes.bzl", "available_xcodes")
 load("@_builtins//:common/xcode/xcode_config.bzl", "xcode_config")
 load("@_builtins//:common/xcode/xcode_config_alias.bzl", "xcode_config_alias")
@@ -38,7 +37,6 @@ load(":common/cc/fdo/fdo_profile.bzl", "fdo_profile")
 load(":common/cc/fdo/memprof_profile.bzl", "memprof_profile")
 load(":common/cc/fdo/propeller_optimize.bzl", "propeller_optimize")
 load(":common/java/java_common.bzl", "java_common")
-load(":common/java/java_info.bzl", "JavaInfo", "JavaPluginInfo")
 load(":common/objc/apple_common.bzl", "apple_common")
 load(":common/objc/objc_common.bzl", "objc_common")
 
@@ -49,13 +47,8 @@ exported_toplevels = {
     "_builtins_dummy": "overridden value",
     "CcSharedLibraryInfo": CcSharedLibraryInfo,
     "CcSharedLibraryHintInfo": CcSharedLibraryHintInfo,
-    "PyRuntimeInfo": PyRuntimeInfo,
-    "PyInfo": PyInfo,
-    "PyCcLinkParamsProvider": PyCcLinkParamsProvider,
     "cc_common": cc_common,
-    "+JavaPluginInfo": JavaPluginInfo,
-    "+JavaInfo": JavaInfo,
-    "java_common": java_common,
+    "java_common": struct(internal_DO_NOT_USE = java_common.internal_DO_NOT_USE),
     "apple_common": apple_common,
 }
 

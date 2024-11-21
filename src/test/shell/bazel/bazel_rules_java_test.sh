@@ -72,9 +72,11 @@ EOF
 filegroup(name = 'yolo')
 EOF
   touch override/java/BUILD || fail "couldn't touch override/java/BUILD"
-  cat > override/java/repositories.bzl <<EOF
+  cat > override/java/rules_java_deps.bzl <<EOF
 def rules_java_dependencies():
     pass
+EOF
+  cat > override/java/repositories.bzl <<EOF
 def rules_java_toolchains():
     pass
 EOF

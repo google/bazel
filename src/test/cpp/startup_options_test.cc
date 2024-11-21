@@ -99,7 +99,8 @@ TEST_F(StartupOptionsTest, OutputRootPreferTestTmpdirIfSet) {
   SetEnv("TEST_TMPDIR", "/nonexistent/tmpdir");
   ReinitStartupOptions();
 
-  ASSERT_EQ("/nonexistent/tmpdir", startup_options_->output_root);
+  ASSERT_EQ(blaze_util::Path("/nonexistent/tmpdir"),
+            startup_options_->output_root);
 }
 
 TEST_F(StartupOptionsTest,
@@ -109,7 +110,8 @@ TEST_F(StartupOptionsTest,
   UnsetEnv("TEST_TMPDIR");
   ReinitStartupOptions();
 
-  ASSERT_EQ("/nonexistent/cache/bazel", startup_options_->output_root);
+  ASSERT_EQ(blaze_util::Path("/nonexistent/cache/bazel"),
+            startup_options_->output_root);
 }
 
 TEST_F(StartupOptionsTest, OutputRootUseHomeDirectory) {
@@ -118,7 +120,8 @@ TEST_F(StartupOptionsTest, OutputRootUseHomeDirectory) {
   UnsetEnv("XDG_CACHE_HOME");
   ReinitStartupOptions();
 
-  ASSERT_EQ("/nonexistent/home/.cache/bazel", startup_options_->output_root);
+  ASSERT_EQ(blaze_util::Path("/nonexistent/home/.cache/bazel"),
+            startup_options_->output_root);
 }
 
 TEST_F(StartupOptionsTest, OutputRootIsAbsoluteAndNotShellExpanded) {
@@ -127,29 +130,32 @@ TEST_F(StartupOptionsTest, OutputRootIsAbsoluteAndNotShellExpanded) {
   SetEnv("HOME", "~/home$(echo baz)");
 
   ReinitStartupOptions();
-  ASSERT_EQ(blaze_util::GetCwd() + "/~/\"$foo/test\"",
+  ASSERT_EQ(blaze_util::Path(blaze_util::GetCwd() + "/~/\"$foo/test\""),
             startup_options_->output_root);
 
   UnsetEnv("TEST_TMPDIR");
   ReinitStartupOptions();
-  ASSERT_EQ(blaze_util::GetCwd() + "/~/cache${bar}/bazel",
+  ASSERT_EQ(blaze_util::Path(blaze_util::GetCwd() + "/~/cache${bar}/bazel"),
             startup_options_->output_root);
 
   UnsetEnv("XDG_CACHE_HOME");
   ReinitStartupOptions();
-  ASSERT_EQ(blaze_util::GetCwd() + "/~/home$(echo baz)/.cache/bazel",
+  ASSERT_EQ(blaze_util::Path(blaze_util::GetCwd() +
+                             "/~/home$(echo baz)/.cache/bazel"),
             startup_options_->output_root);
 }
 #endif  // __linux
 
 TEST_F(StartupOptionsTest, OutputUserRootTildeExpansion) {
 #if defined(_WIN32)
-  std::string home = "C:/nonexistent/home/";
+  std::string home_str = "C:/nonexistent/home/";
 #else
-  std::string home = "/nonexistent/home/";
+  std::string home_str = "/nonexistent/home/";
 #endif
 
-  SetEnv("HOME", home);
+  SetEnv("HOME", home_str);
+
+  blaze_util::Path home(home_str);
 
   std::string error;
 
@@ -164,8 +170,7 @@ TEST_F(StartupOptionsTest, OutputUserRootTildeExpansion) {
     ASSERT_EQ(blaze_exit_code::SUCCESS, ec)
         << "ProcessArgs failed with error " << error;
 
-    EXPECT_EQ(blaze_util::JoinPath(home, "test"),
-              startup_options_->output_user_root);
+    EXPECT_EQ(home.GetRelative("test"), startup_options_->output_user_root);
   }
 
   {

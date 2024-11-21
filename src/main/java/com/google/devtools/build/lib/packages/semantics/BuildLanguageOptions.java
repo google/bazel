@@ -245,16 +245,6 @@ public final class BuildLanguageOptions extends OptionsBase {
   public boolean experimentalEnableFirstClassMacros;
 
   @Option(
-      name = "experimental_enable_macro_inherit_attrs",
-      defaultValue = "false",
-      documentationCategory = OptionDocumentationCategory.STARLARK_SEMANTICS,
-      effectTags = OptionEffectTag.BUILD_FILE_SEMANTICS,
-      help =
-          "If set to true, enables attribute inheritance in symbolic macros and the inherit_attrs"
-              + " parameter in the macro() built-in")
-  public boolean experimentalEnableMacroInheritAttrs;
-
-  @Option(
       name = "experimental_enable_scl_dialect",
       defaultValue = "true",
       documentationCategory = OptionDocumentationCategory.STARLARK_SEMANTICS,
@@ -867,7 +857,6 @@ public final class BuildLanguageOptions extends OptionsBase {
                 EXPERIMENTAL_SINGLE_PACKAGE_TOOLCHAIN_BINDING,
                 experimentalSinglePackageToolchainBinding)
             .setBool(EXPERIMENTAL_ENABLE_FIRST_CLASS_MACROS, experimentalEnableFirstClassMacros)
-            .setBool(EXPERIMENTAL_ENABLE_MACRO_INHERIT_ATTRS, experimentalEnableMacroInheritAttrs)
             .setBool(EXPERIMENTAL_ENABLE_SCL_DIALECT, experimentalEnableSclDialect)
             .setBool(ENABLE_BZLMOD, enableBzlmod)
             .setBool(ENABLE_WORKSPACE, enableWorkspace)
@@ -983,8 +972,6 @@ public final class BuildLanguageOptions extends OptionsBase {
       "-experimental_single_package_toolchain_binding";
   public static final String EXPERIMENTAL_ENABLE_FIRST_CLASS_MACROS =
       "+experimental_enable_first_class_macros";
-  public static final String EXPERIMENTAL_ENABLE_MACRO_INHERIT_ATTRS =
-      "-experimental_enable_macro_inherit_attrs";
   public static final String EXPERIMENTAL_ENABLE_SCL_DIALECT = "+experimental_enable_scl_dialect";
   public static final String ENABLE_BZLMOD = "+enable_bzlmod";
   public static final String ENABLE_WORKSPACE = "-enable_workspace";

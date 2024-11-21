@@ -43,7 +43,7 @@ import com.google.devtools.build.lib.bazel.bzlmod.BazelLockFileFunction;
 import com.google.devtools.build.lib.bazel.bzlmod.BazelModTidyFunction;
 import com.google.devtools.build.lib.bazel.bzlmod.BazelModuleInspectorFunction;
 import com.google.devtools.build.lib.bazel.bzlmod.BazelModuleResolutionFunction;
-import com.google.devtools.build.lib.bazel.bzlmod.LocalPathOverride;
+import com.google.devtools.build.lib.bazel.bzlmod.LocalPathRepoSpecs;
 import com.google.devtools.build.lib.bazel.bzlmod.ModuleExtensionRepoMappingEntriesFunction;
 import com.google.devtools.build.lib.bazel.bzlmod.ModuleFileFunction;
 import com.google.devtools.build.lib.bazel.bzlmod.ModuleOverride;
@@ -514,7 +514,9 @@ public class BazelRepositoryModule extends BlazeModule {
             continue;
           }
           String modulePath = getAbsolutePath(override.path(), env);
-          moduleOverrideMap.put(override.moduleName(), LocalPathOverride.create(modulePath));
+          moduleOverrideMap.put(
+              override.moduleName(),
+              new NonRegistryOverride(LocalPathRepoSpecs.create(modulePath)));
         }
         ImmutableMap<String, ModuleOverride> newModOverrides =
             ImmutableMap.copyOf(moduleOverrideMap);

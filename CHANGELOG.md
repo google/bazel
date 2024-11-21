@@ -1,3 +1,75 @@
+## Release 9.0.0-pre.20241113.4 (2024-11-20)
+
+```
+Baseline: 8d02d476f0a1ccc5bfcc47b2dd9ac17526c4d0fb
+
+Cherry picks:
+
+   + 04871da8478a9ce713a0c08b442a686bed61c7c9:
+     Use LinkedHashSet instead of HashSet in
+     CcCompilationContext.Builder for determinism
+   + aa5d821c58d8b20ba55365b32d1bccc3235eb70a:
+     Automated rollback of commit
+     7ffa08e649a57728a642fb1643396678ea2032a8.
+   + 08beb210eddd35b703857e005d99c60b963e8e10:
+     Put macro attribute inheritance behind an off-by-default
+     --experimental_enable_macro_inherit_attrs flag
+   + f8e1588bb3ae7f46ded713e129c6eff63d76d107:
+     Update `with_cfg.bzl` to v0.6.0
+```
+
+Incompatible changes:
+
+  - On Windows, a change to the output base locking protocol might
+    cause an older Bazel invoked immediately after a newer Bazel (on
+    the same output base) to error out instead of blocking for the
+    lock, even if --block_for_lock is enabled.
+  - The `--watchfs` startup option is now a no-op and will be removed
+    in April 2025. Use the `--watchfs` command option instead.
+  - The mnemonic passed to --worker_extra_flag is now matched against
+    the worker key mnemonic when one is available, instead of the
+    action mnemonic. This makes it consistent with other worker flags
+    taking a mnemonic.
+
+New features:
+
+  - The "blaze --quiet" command line option can now be used to make
+    Blaze emit much less output.
+  - REPO.bazel now allows another directive, "ignore_directories()".
+    It takes a list of directories to ignore just like .bazelignore
+    does, but with glob semantics.
+  - Commands executed by "bazel run" now have two extra environment
+    variables: $BUILD_ID indicates the id of the Bazel command and
+    $BUILD_EXECROOT indicates the execroot of the Bazel server.
+
+Important changes:
+
+  - The stripPrefix parameter of repository_ctx.download_and_extract()
+    and repository_ctx.extract() has been renamed to strip_prefix;
+    the deprecated
+    stripPrefix name remains usable for compatibility.
+  - A no-config transition is now available as `config.no_config()`.
+  - Actions that create runfiles trees are now considered regular
+    actions. This means that they are now reported in statistics,
+    critical paths and the like.
+  - External repositories that are managed by Bzlmod can now contain
+    a top-level `external` directory or package.
+  - `repository_ctx.execute` can now remove an environment variable
+    when executing a process by associating it with the value `None`
+    in the `environment` argument.
+  - Add inherit_attrs param to macro() to allow symbolic macros to
+    inherit attributes from rules or other symbolic macros.
+  - `bazel mod` now tries to evaluate all module extensions, even
+    when some have failed to evaluate.
+  - The new `--inject_repository` flag can be used to add new
+    repositories via the CLI with `--enable_bzlmod`. Such
+    repositories behave as if they were declared by
+    `local_repository` via `use_repo_rule` in the root module.
+  - symbolic macro attribute inheritance is now marked experimental;
+    set --experimental_enable_macro_inherit_attrs flag to enable it.
+
+This release contains contributions from many people at Google, as well as Alexander Golovlev, Benson Muite, Cornelius Riemenschneider, dependabot[bot], Dimi Shahbaz, Fabian Meumertzheim, Farid Zakaria, Honnix, Jay Conrod, John Millikin, Keith Smiley, Matt Brown, Richard Woodbury, Roman Salvador, Rostislav Rumenov, Wojciech Mazur, Xdng Yng, Zhongpeng Lin.
+
 ## Release 7.4.1 (2024-11-11)
 
 ```

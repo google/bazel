@@ -1573,6 +1573,7 @@ public final class StarlarkRuleImplementationFunctionsTest extends BuildViewTest
     scratch.file(
         "test/foo.bzl",
         """
+        load("@rules_java//java/common:java_info.bzl", "JavaInfo")
         FooInfo = provider()
         def _impl(ctx):
             MyFooInfo = FooInfo()

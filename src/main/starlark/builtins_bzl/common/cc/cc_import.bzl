@@ -421,6 +421,6 @@ most build rules</a>."""),
         "_use_auto_exec_groups": attr.bool(default = True),
     },
     provides = [CcInfo],
-    toolchains = cc_helper.use_cpp_toolchain() + semantics.get_runtimes_toolchain(),
+    toolchains = cc_helper.use_cpp_toolchain(),
     fragments = ["cpp"],
 )

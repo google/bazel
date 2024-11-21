@@ -119,6 +119,6 @@ java_library(
         "//third_party:jsr305",
         "//third_party:junit4",
         "//third_party:truth",
-        "@protobuf//:protobuf_java",
+        "@com_google_protobuf//:protobuf_java",
     ],
 )

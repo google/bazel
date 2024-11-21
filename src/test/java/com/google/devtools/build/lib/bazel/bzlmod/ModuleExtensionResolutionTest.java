@@ -179,7 +179,9 @@ public class ModuleExtensionResolutionTest extends FoundationTestCase {
                         ruleClassProvider.getBazelStarlarkEnvironment(),
                         workspaceRoot,
                         // Required to load @_builtins.
-                        ImmutableMap.of("bazel_tools", LocalPathOverride.create(bazelToolsPath))))
+                        ImmutableMap.of(
+                            "bazel_tools",
+                            new NonRegistryOverride(LocalPathRepoSpecs.create(bazelToolsPath)))))
                 .put(SkyFunctions.PRECOMPUTED, new PrecomputedFunction())
                 .put(
                     SkyFunctions.BZL_COMPILE,
@@ -3050,6 +3052,7 @@ public class ModuleExtensionResolutionTest extends FoundationTestCase {
             "error creating repo data requested at /ws/MODULE.bazel:3:10: failed to instantiate"
                 + " 'data_repo' from this module extension");
   }
+
   @Test
   public void extensionRepoMapping() throws Exception {
     scratch.file(

@@ -26,7 +26,10 @@ import java.util.List;
  */
 public class GitRepoSpecBuilder {
 
-  public static final String GIT_REPO_PATH = "@@bazel_tools//tools/build_defs/repo:git.bzl";
+  public static final RepoRuleId GIT_REPOSITORY =
+      new RepoRuleId(
+          Label.parseCanonicalUnchecked("@@bazel_tools//tools/build_defs/repo:git.bzl"),
+          "git_repository");
 
   private final ImmutableMap.Builder<String, Object> attrBuilder;
 
@@ -87,11 +90,7 @@ public class GitRepoSpecBuilder {
   }
 
   public RepoSpec build() {
-    return RepoSpec.builder()
-        .setBzlFile(GIT_REPO_PATH)
-        .setRuleClassName("git_repository")
-        .setAttributes(AttributeValues.create(attrBuilder.buildOrThrow()))
-        .build();
+    return new RepoSpec(GIT_REPOSITORY, AttributeValues.create(attrBuilder.buildOrThrow()));
   }
 
   @CanIgnoreReturnValue

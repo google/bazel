@@ -31,7 +31,7 @@ std::string ConvertPath(const std::string &path) { return path; }
 
 std::string PathAsJvmFlag(const std::string &path) { return path; }
 
-bool CompareAbsolutePaths(const std::string &a, const std::string &b) {
+bool ArePathsEquivalent(const blaze_util::Path &a, const blaze_util::Path &b) {
   return a == b;
 }
 
@@ -159,6 +159,8 @@ Path Path::GetRelative(const std::string &r) const {
 }
 
 Path Path::Canonicalize() const { return Path(MakeCanonical(path_.c_str())); }
+
+std::string Path::GetBaseName() const { return SplitPath(path_).second; }
 
 Path Path::GetParent() const { return Path(SplitPath(path_).first); }
 

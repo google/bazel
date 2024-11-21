@@ -226,17 +226,13 @@ final class InnateRunnableExtension implements RunnableExtension {
         throw ExternalDepsException.withCauseAndMessage(
             Code.BAD_MODULE, e, "error creating repo %s requested at %s", name, tag.getLocation());
       }
-      RepoSpec repoSpec =
-          RepoSpec.builder()
-              .setBzlFile(
-                  repoRule
-                      .getRuleClass()
-                      .getRuleDefinitionEnvironmentLabel()
-                      .getUnambiguousCanonicalForm())
-              .setRuleClassName(repoRule.getRuleClass().getName())
-              .setAttributes(attributesValue)
-              .build();
-      generatedRepoSpecs.put(name, repoSpec);
+      generatedRepoSpecs.put(
+          name,
+          new RepoSpec(
+              new RepoRuleId(
+                  repoRule.getRuleClass().getRuleDefinitionEnvironmentLabel(),
+                  repoRule.getRuleClass().getName()),
+              attributesValue));
     }
     return new RunModuleExtensionResult(
         ImmutableMap.of(),

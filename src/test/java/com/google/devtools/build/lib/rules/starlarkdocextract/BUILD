@@ -33,7 +33,7 @@ java_library(
         "//src/test/java/com/google/devtools/build/lib/testutil",
         "//third_party:junit4",
         "//third_party:truth",
-        "@protobuf//:protobuf_java",
+        "@com_google_protobuf//:protobuf_java",
     ],
 )
 

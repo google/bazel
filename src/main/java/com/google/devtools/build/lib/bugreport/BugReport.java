@@ -314,7 +314,7 @@ public final class BugReport {
             // therefore induce a deadlock. This call would block on the shutdown sequence
             // completing, but the shutdown sequence would in turn be blocked on this thread
             // finishing. Instead, exit fast via halt().
-            Runtime.getRuntime().halt(numericExitCode);
+            halt(numericExitCode);
           }
         }
       } finally {
@@ -336,7 +336,7 @@ public final class BugReport {
       t.printStackTrace(System.err);
     } finally {
       if (ctx.shouldHaltJvm()) {
-        Runtime.getRuntime().halt(numericExitCode);
+        halt(numericExitCode);
       }
     }
     if (!ctx.shouldHaltJvm()) {
@@ -344,6 +344,16 @@ public final class BugReport {
     }
     logger.atSevere().log("Failed to crash in handleCrash");
     throw new IllegalStateException("Should have halted", throwable);
+  }
+
+  private static void halt(int numericExitCode) {
+    if (TestType.getTestType() == TestType.UNKNOWN_TEST) {
+      // Only intercept halt in unit tests. In shell integration tests, we do want to halt.
+      throw new SecurityException(
+          "Intercepted call to Runtime.halt with status " + numericExitCode);
+    } else {
+      Runtime.getRuntime().halt(numericExitCode);
+    }
   }
 
   /**

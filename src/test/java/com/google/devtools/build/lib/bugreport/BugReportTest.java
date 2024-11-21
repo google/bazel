@@ -43,22 +43,20 @@ import com.google.devtools.build.lib.util.DetailedExitCode;
 import com.google.devtools.build.lib.util.ExitCode;
 import com.google.devtools.build.lib.util.LoggingUtil;
 import com.google.protobuf.ExtensionRegistry;
-import com.google.testing.junit.runner.util.GoogleTestSecurityManager;
 import com.google.testing.junit.testparameterinjector.TestParameter;
 import com.google.testing.junit.testparameterinjector.TestParameterInjector;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.security.Permission;
 import java.util.Arrays;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.logging.Level;
 import java.util.logging.LogRecord;
 import java.util.logging.Logger;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import org.junit.After;
-import org.junit.AfterClass;
 import org.junit.Before;
-import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.function.ThrowingRunnable;
@@ -81,23 +79,10 @@ public final class BugReportTest {
 
   @TestParameter private boolean oomDetectorOverride;
 
-  @BeforeClass
-  public static void installCustomSecurityManager() {
-    GoogleTestSecurityManager.uninstallIfInstalled();
-    System.setSecurityManager(new ExitProhibitingSecurityManager());
-  }
-
   @Before
   public void maybeSetOomDetector() {
     if (oomDetectorOverride) {
       CrashFailureDetails.setOomDetector(() -> true);
-    }
-  }
-
-  @AfterClass
-  public static void uninstallCustomSecurityManager() {
-    if (System.getSecurityManager() instanceof ExitProhibitingSecurityManager) {
-      System.setSecurityManager(null);
     }
   }
 
@@ -225,8 +210,11 @@ public final class BugReportTest {
     Throwable t = crashType.createThrowable();
     FailureDetail expectedFailureDetail =
         createExpectedFailureDetail(t, crashType, oomDetectorOverride);
-    ExitException exitException = assertThrows(ExitException.class, () -> BugReport.handleCrash(t));
-    int code = exitException.code;
+    SecurityException exitException =
+        assertThrows(
+            SecurityException.class,
+            () -> BugReport.handleCrash(Crash.from(t), CrashContext.halt()));
+    int code = haltCode(exitException);
     assertThat(code).isEqualTo(expectedExitCode(crashType).getNumericExitCode());
     assertThat(BugReport.getAndResetLastCrashingThrowableIfInTest()).isSameInstanceAs(t);
 
@@ -248,16 +236,19 @@ public final class BugReportTest {
     FailureDetail expectedFailureDetail =
         createExpectedFailureDetail(t, crashType, oomDetectorOverride);
 
-    ExitException exitException =
+    SecurityException exitException =
         assertThrows(
-            ExitException.class, () -> BugReport.handleCrash(Crash.from(t), CrashContext.halt()));
-    int code = exitException.code;
+            SecurityException.class,
+            () -> BugReport.handleCrash(Crash.from(t), CrashContext.halt()));
+    int code = haltCode(exitException);
     ExitCode expectedExitCode = expectedExitCode(crashType);
     assertThat(code).isEqualTo(expectedExitCode.getNumericExitCode());
     assertThat(BugReport.getAndResetLastCrashingThrowableIfInTest()).isSameInstanceAs(t);
-
     verify(mockRuntime)
-        .cleanUpForCrash(DetailedExitCode.of(expectedExitCode, expectedFailureDetail));
+        .cleanUpForCrash(
+            DetailedExitCode.of(
+                oomDetectorOverride ? EXIT_CODE_BLAZE_OOMING : crashType.expectedExitCode,
+                expectedFailureDetail));
     verifyExitCodeWritten(
         oomDetectorOverride
             ? EXIT_CODE_BLAZE_OOMING.getNumericExitCode()
@@ -303,10 +294,10 @@ public final class BugReportTest {
     Throwable firstThrown = new IllegalStateException("second crash in background thread");
     ThrowingRunnable doFirstCrash =
         () -> BugReport.handleCrash(Crash.from(firstThrown), CrashContext.halt());
-    AtomicReference<ExitException> firstCrashThrownRef = new AtomicReference<>(null);
+    AtomicReference<SecurityException> firstCrashThrownRef = new AtomicReference<>(null);
     TestThread firstCrashThread =
         new TestThread(
-            () -> firstCrashThrownRef.set(assertThrows(ExitException.class, doFirstCrash)));
+            () -> firstCrashThrownRef.set(assertThrows(SecurityException.class, doFirstCrash)));
     firstCrashThread.start();
     cleanupBegunLatch.await();
 
@@ -325,14 +316,14 @@ public final class BugReportTest {
     cleanupMayFinishLatch.countDown();
     firstCrashThread.joinAndAssertState(TestUtils.WAIT_TIMEOUT_MILLISECONDS);
 
-    ExitException firstException = firstCrashThrownRef.get();
-    int firstCode = firstException.code;
+    SecurityException firstException = firstCrashThrownRef.get();
+    int firstCode = haltCode(firstException);
     ExitCode expectedExitCode =
         oomDetectorOverride ? EXIT_CODE_BLAZE_OOMING : ExitCode.BLAZE_INTERNAL_ERROR;
     assertThat(firstCode).isEqualTo(expectedExitCode.getNumericExitCode());
 
-    ExitException secondException = assertThrows(ExitException.class, doSecondCrash);
-    int secondCode = secondException.code;
+    SecurityException secondException = assertThrows(SecurityException.class, doSecondCrash);
+    int secondCode = haltCode(secondException);
     assertThat(secondCode).isEqualTo(expectedExitCode(crashType).getNumericExitCode());
   }
 
@@ -429,24 +420,14 @@ public final class BugReportTest {
     return oomDetectorOverride ? EXIT_CODE_BLAZE_OOMING : crashType.expectedExitCode;
   }
 
-  private static final class ExitException extends SecurityException {
-    private final int code;
+  private static final Pattern SECURITY_EXCEPTION_MESSAGE_PATTERN =
+      Pattern.compile("Intercepted call to Runtime\\.halt with status (\\d+)");
 
-    ExitException(int code) {
-      super("Tried to exit JVM with code " + code);
-      this.code = code;
-    }
-  }
-
-  /** Instead of exiting the JVM, throws {@link ExitException} to keep the test alive. */
-  private static final class ExitProhibitingSecurityManager extends SecurityManager {
-
-    @Override
-    public void checkExit(int code) {
-      throw new ExitException(code);
-    }
-
-    @Override
-    public void checkPermission(Permission p) {} // Allow everything else.
+  private static int haltCode(SecurityException exitException) {
+    String message = exitException.getMessage();
+    assertThat(message).matches(SECURITY_EXCEPTION_MESSAGE_PATTERN);
+    Matcher matcher = SECURITY_EXCEPTION_MESSAGE_PATTERN.matcher(message);
+    assertThat(matcher.matches()).isTrue();
+    return Integer.parseInt(matcher.group(1));
   }
 }

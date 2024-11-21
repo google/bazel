@@ -89,9 +89,8 @@ import com.google.devtools.build.lib.skyframe.AspectKeyCreator.AspectKey;
 import com.google.devtools.build.lib.skyframe.SkyframeExecutor.BuildViewProvider;
 import com.google.devtools.build.lib.skyframe.config.BuildConfigurationKey;
 import com.google.devtools.build.lib.skyframe.serialization.SkyValueRetriever;
-import com.google.devtools.build.lib.skyframe.serialization.SkyValueRetriever.RetrievalResult;
+import com.google.devtools.build.lib.skyframe.serialization.SkyValueRetriever.SerializableSkyKeyComputeState;
 import com.google.devtools.build.lib.skyframe.serialization.SkyValueRetriever.SerializationState;
-import com.google.devtools.build.lib.skyframe.serialization.SkyValueRetriever.SerializationStateProvider;
 import com.google.devtools.build.lib.skyframe.serialization.analysis.RemoteAnalysisCachingDependenciesProvider;
 import com.google.devtools.build.lib.skyframe.toolchains.ToolchainContextUtil;
 import com.google.devtools.build.lib.skyframe.toolchains.ToolchainException;
@@ -99,7 +98,6 @@ import com.google.devtools.build.lib.skyframe.toolchains.UnloadedToolchainContex
 import com.google.devtools.build.lib.util.OrderedSetMultimap;
 import com.google.devtools.build.lib.util.Pair;
 import com.google.devtools.build.skyframe.SkyFunction;
-import com.google.devtools.build.skyframe.SkyFunction.Environment.SkyKeyComputeState;
 import com.google.devtools.build.skyframe.SkyFunctionException;
 import com.google.devtools.build.skyframe.SkyKey;
 import com.google.devtools.build.skyframe.SkyValue;
@@ -190,9 +188,7 @@ final class AspectFunction implements SkyFunction {
   }
 
   static class State
-      implements SkyKeyComputeState,
-          UnloadedToolchainContextsProducer.ResultSink,
-          SerializationStateProvider {
+      implements SerializableSkyKeyComputeState, UnloadedToolchainContextsProducer.ResultSink {
     @Nullable InitialValues initialValues;
 
     final DependencyResolver.State computeDependenciesState;
@@ -268,24 +264,21 @@ final class AspectFunction implements SkyFunction {
   public SkyValue compute(SkyKey skyKey, Environment env)
       throws AspectFunctionException, InterruptedException {
     AspectKey key = (AspectKey) skyKey.argument();
-    State state = env.getState(() -> new State(storeTransitivePackages, prerequisitePackages));
+    java.util.function.Supplier<State> stateSupplier =
+        () -> new State(storeTransitivePackages, prerequisitePackages);
 
-    RemoteAnalysisCachingDependenciesProvider analysisCachingDeps =
-        cachingDependenciesSupplier.get();
-    if (analysisCachingDeps.enabled()) {
-      RetrievalResult retrievalResult =
-          maybeFetchSkyValueRemotely(key, env, analysisCachingDeps, state);
-      switch (retrievalResult) {
-        case SkyValueRetriever.Restart unused:
-          return null;
-        case SkyValueRetriever.RetrievedValue v:
-          analysisProgressReceiver.doneDownloadedConfiguredAspect();
-          return v.value();
-        case SkyValueRetriever.NoCachedData unused:
-          break;
-      }
+    switch (maybeFetchSkyValueRemotely(
+        key, env, cachingDependenciesSupplier.get(), stateSupplier)) {
+      case SkyValueRetriever.Restart unused:
+        return null;
+      case SkyValueRetriever.RetrievedValue v:
+        analysisProgressReceiver.doneDownloadedConfiguredAspect();
+        return v.value();
+      case SkyValueRetriever.NoCachedData unused:
+        break;
     }
 
+    State state = env.getState(stateSupplier);
     DependencyResolver.State computeDependenciesState = state.computeDependenciesState;
     if (state.initialValues == null) {
       InitialValues initialValues = getInitialValues(computeDependenciesState, key, env);

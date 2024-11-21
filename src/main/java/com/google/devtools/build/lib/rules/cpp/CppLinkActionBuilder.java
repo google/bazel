@@ -867,6 +867,8 @@ public class CppLinkActionBuilder {
             .addAll(cppConfiguration.getLinkopts())
             .build();
 
+    cppSemantics.finalizeLinkActionBuilder(cppConfiguration, this);
+
     return buildLinkAction(
         linkType.getActionName(),
         /* mnemonic= */ mnemonic == null ? "CppLink" : mnemonic,

@@ -49,15 +49,12 @@ public class RemoteAnalysisCachingOptions extends OptionsBase {
     /** Fetches and deserializes the Skyframe analysis nodes during the build. */
     DOWNLOAD,
 
-    /** Combination of DOWNLOAD and UPLOAD. */
-    FULL,
-
     /** Disabled. */
     OFF;
 
     /** Returns true if the selected mode should fetch remote SkyValues for the analysis phase. */
     public boolean downloadForAnalysis() {
-      return this == DOWNLOAD || this == FULL;
+      return this == DOWNLOAD;
     }
   }
 

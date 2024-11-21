@@ -21,6 +21,6 @@ package com.google.devtools.build.lib.bazel.bzlmod;
  * further details.
  */
 // This interface is not named "Override" because of the Java @Override annotation.
-public interface ModuleOverride {
+public sealed interface ModuleOverride permits RegistryOverride, NonRegistryOverride {
   // This space intentionally left blank
 }

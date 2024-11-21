@@ -1277,6 +1277,7 @@ public class JavaInfoStarlarkApiTest extends BuildViewTestCase {
     scratch.file(
         "foo/extension.bzl",
         """
+        load("@rules_java//java/common:java_info.bzl", "JavaInfo")
         def _impl(ctx):
             f = ctx.actions.declare_file(ctx.label.name + ".jar")
             ctx.actions.write(f, "")
@@ -1313,6 +1314,7 @@ public class JavaInfoStarlarkApiTest extends BuildViewTestCase {
     scratch.file(
         "foo/extension.bzl",
         """
+        load("@rules_java//java/common:java_info.bzl", "JavaInfo")
         def _impl(ctx):
             f = ctx.actions.declare_file(ctx.label.name + ".jar")
             ctx.actions.write(f, "")

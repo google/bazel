@@ -124,6 +124,6 @@ java_library(
         "//third_party:gson",
         "//third_party:guava",
         "//third_party:jsr305",
-        "@protobuf//:protobuf_java",
+        "@com_google_protobuf//:protobuf_java",
     ],
 )

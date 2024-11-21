@@ -140,11 +140,7 @@ public final class PyRuntimeInfo {
   private static class RulesPythonProvider extends BaseProvider {
 
     private RulesPythonProvider() {
-      super(
-          keyForBuild(
-              Label.parseCanonicalUnchecked(
-                  TestConstants.RULES_PYTHON_PACKAGE_ROOT
-                      + "/python/private/common:providers.bzl")));
+      super(keyForBuild(Label.parseCanonicalUnchecked(TestConstants.PYRUNTIMEINFO_BZL)));
     }
   }
 }

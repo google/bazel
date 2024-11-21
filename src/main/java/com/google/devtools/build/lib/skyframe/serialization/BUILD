@@ -95,7 +95,7 @@ java_library(
         "//third_party:guava",
         "//third_party:jsr305",
         "//third_party/pprof:profile_java_proto",
-        "@protobuf//:protobuf_java",
+        "@com_google_protobuf//:protobuf_java",
     ],
 )
 
@@ -121,6 +121,6 @@ java_library(
         "//src/main/java/com/google/devtools/build/lib/skyframe:bzl_load_value",
         "//src/main/java/net/starlark/java/eval",
         "//third_party:guava",
-        "@protobuf//:protobuf_java",
+        "@com_google_protobuf//:protobuf_java",
     ],
 )

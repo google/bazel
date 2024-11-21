@@ -31,11 +31,11 @@ DIST_ARCHIVE_REPOS = [get_canonical_repo_name(repo) for repo in [
     "blake3",
     "c-ares",
     "com_github_grpc_grpc",
+    "com_google_protobuf",
     "googleapis",
     "grpc-java",
     "io_bazel_skydoc",
     "platforms",
-    "protobuf",
     "rules_cc",
     "rules_go",
     "rules_graalvm",
@@ -74,49 +74,49 @@ def embedded_jdk_repositories():
     """OpenJDK distributions used to create a version of Bazel bundled with the OpenJDK."""
     http_file(
         name = "openjdk_linux_vanilla",
-        integrity = "sha256-MY0MLtPIdvt+oslSlFzc997PtSZMpRrs4VnmNaxT1UQ=",
+        integrity = "sha256-UyCjNxT1jAEEGR0kR1napqbUaBnURzR7qQAxMuVInZI=",
         downloaded_file_path = "zulu-linux-vanilla.tar.gz",
-        url = "https://cdn.azul.com/zulu/bin/zulu21.36.17-ca-jdk21.0.4-linux_x64.tar.gz",
+        url = "https://cdn.azul.com/zulu/bin/zulu21.38.21-ca-jdk21.0.5-linux_x64.tar.gz",
     )
     http_file(
         name = "openjdk_linux_aarch64_vanilla",
-        integrity = "sha256-2jwtfbM2cLz2ZTJEGut/M9zw0ifI2v5841zuZ/aCnEw=",
+        integrity = "sha256-i9OHMVYgu2aoSUWlG867kBY1S1V8dH6U1IN+aOpAd+w=",
         downloaded_file_path = "zulu-linux-aarch64-vanilla.tar.gz",
-        url = "https://cdn.azul.com/zulu/bin/zulu21.36.17-ca-jdk21.0.4-linux_aarch64.tar.gz",
+        url = "https://cdn.azul.com/zulu/bin/zulu21.38.21-ca-jdk21.0.5-linux_aarch64.tar.gz",
     )
     http_file(
         name = "openjdk_linux_s390x_vanilla",
-        integrity = "sha256-yQDI1k+rHlMnSXT6Skxzalo3VEhaXFb0lHKBSAdzZYo=",
+        integrity = "sha256-UafKQswujLXz56MmwokS7oT/B5GhymZlCoxTrwdRCnw=",
         downloaded_file_path = "adoptopenjdk-s390x-vanilla.tar.gz",
-        url = "https://github.com/adoptium/temurin21-binaries/releases/download/jdk-21.0.4%2B7/OpenJDK21U-jdk_s390x_linux_hotspot_21.0.4_7.tar.gz",
+        url = "https://github.com/adoptium/temurin21-binaries/releases/download/jdk-21.0.5%2B11/OpenJDK21U-jdk_s390x_linux_hotspot_21.0.5_11.tar.gz",
     )
     http_file(
         name = "openjdk_linux_ppc64le_vanilla",
-        integrity = "sha256-wgjND7kFYGRKkPkoZn0vU7/kCMlXpeNiBlha2HRCd2E=",
+        integrity = "sha256-PG9MNY+s+2wZ2Q+vAr/g/HUS1rDoCsGBRrvX4NAd7u8=",
         downloaded_file_path = "adoptopenjdk-ppc64le-vanilla.tar.gz",
-        url = "https://github.com/adoptium/temurin21-binaries/releases/download/jdk-21.0.4%2B7/OpenJDK21U-jdk_ppc64le_linux_hotspot_21.0.4_7.tar.gz",
+        url = "https://github.com/adoptium/temurin21-binaries/releases/download/jdk-21.0.5%2B11/OpenJDK21U-jdk_ppc64le_linux_hotspot_21.0.5_11.tar.gz",
     )
     http_file(
         name = "openjdk_macos_x86_64_vanilla",
-        integrity = "sha256-XOdaaiR8cCm3TEynz29g/SstaM4eiVb7RI0phDFrX+o=",
+        integrity = "sha256-zXTl63OMkUWdS45eEOrJGK4qBdIan8fKXcLaZOZbzr0=",
         downloaded_file_path = "zulu-macos-vanilla.tar.gz",
-        url = "https://cdn.azul.com/zulu/bin/zulu21.36.17-ca-jdk21.0.4-macosx_x64.tar.gz",
+        url = "https://cdn.azul.com/zulu/bin/zulu21.38.21-ca-jdk21.0.5-macosx_x64.tar.gz",
     )
     http_file(
         name = "openjdk_macos_aarch64_vanilla",
-        integrity = "sha256-vCdQ+BoWbMbpwwroqrpU8lOoyOydjPwEpVX+IHEse/8=",
+        integrity = "sha256-gP/CXfeblVZTGNv8gwnFFXJv9C6b21MwYe3HrSbxPfI=",
         downloaded_file_path = "zulu-macos-aarch64-vanilla.tar.gz",
-        url = "https://cdn.azul.com/zulu/bin/zulu21.36.17-ca-jdk21.0.4-macosx_aarch64.tar.gz",
+        url = "https://cdn.azul.com/zulu/bin/zulu21.38.21-ca-jdk21.0.5-macosx_aarch64.tar.gz",
     )
     http_file(
         name = "openjdk_win_vanilla",
-        integrity = "sha256-13Ha0Q0/C0QMNobR89K2izIIAqyXshLYdnGvPy7viEg=",
+        integrity = "sha256-jepE/TpvetD0LzirwTcQdXELWL7ZvY8JPC7y1FDdJnI=",
         downloaded_file_path = "zulu-win-vanilla.zip",
-        url = "https://cdn.azul.com/zulu/bin/zulu21.36.17-ca-jdk21.0.4-win_x64.zip",
+        url = "https://cdn.azul.com/zulu/bin/zulu21.38.21-ca-jdk21.0.5-win_x64.zip",
     )
     http_file(
         name = "openjdk_win_arm64_vanilla",
-        integrity = "sha256-n4c+zPAwsdPch57B6w/14Rv3YALcgcXGRMNGK/bFFGs=",
+        integrity = "sha256-9a1/U5900StiSMD9n0tBZFXc9oA5ALKOjRkFTz3Mbpg=",
         downloaded_file_path = "zulu-win-arm64.zip",
-        url = "https://cdn.azul.com/zulu/bin/zulu21.36.17-ca-jdk21.0.4-win_aarch64.zip",
+        url = "https://cdn.azul.com/zulu/bin/zulu21.38.21-ca-jdk21.0.5-win_aarch64.zip",
     )

@@ -19,21 +19,21 @@ WORKSPACE_REPOS = {
     # Used in src/main/java/com/google/devtools/build/lib/bazel/rules/java/jdk.WORKSPACE.
     # Used in src/test/java/com/google/devtools/build/lib/blackbox/framework/blackbox.WORKSAPCE
     "rules_cc": {
-        "archive": "rules_cc-0.0.13.tar.gz",
-        "sha256": "d9bdd3ec66b6871456ec9c965809f43a0901e692d754885e89293807762d3d80",
-        "urls": ["https://github.com/bazelbuild/rules_cc/releases/download/0.0.13/rules_cc-0.0.13.tar.gz"],
-        "strip_prefix": "rules_cc-0.0.13",
+        "archive": "rules_cc-0.0.16.tar.gz",
+        "sha256": "bbf1ae2f83305b7053b11e4467d317a7ba3517a12cef608543c1b1c5bf48a4df",
+        "urls": ["https://github.com/bazelbuild/rules_cc/releases/download/0.0.16/rules_cc-0.0.16.tar.gz"],
+        "strip_prefix": "rules_cc-0.0.16",
     },
-    "protobuf": {
-        "archive": "protobuf-29.0-rc2.zip",
-        "sha256": "23082dca1ca73a1e9c6cbe40097b41e81f71f3b4d6201e36c134acc30a1b3660",
-        "urls": ["https://github.com/protocolbuffers/protobuf/releases/download/v29.0-rc2/protobuf-29.0-rc2.zip"],
-        "strip_prefix": "protobuf-29.0-rc2",
+    "com_google_protobuf": {
+        "archive": "protobuf-29.0-rc3.zip",
+        "sha256": "537d1c4edb6cbfa96d98a021650e3c455fffcf80dbdcea7fe46cb356e6e9732d",
+        "urls": ["https://github.com/protocolbuffers/protobuf/releases/download/v29.0-rc3/protobuf-29.0-rc3.zip"],
+        "strip_prefix": "protobuf-29.0-rc3",
     },
     "rules_java": {
-        "archive": "rules_java-8.2.0.tar.gz",
-        "sha256": "c86a51fb2baf3cfd60c4f7c158df8f7a4c2066b3908107c181f2c7e8aa413a3e",
-        "urls": ["https://github.com/bazelbuild/rules_java/releases/download/8.2.0/rules_java-8.2.0.tar.gz"],
+        "archive": "rules_java-8.5.0.tar.gz",
+        "sha256": "5c215757b9a6c3dd5312a3cdc4896cef3f0c5b31db31baa8da0d988685d42ae4",
+        "urls": ["https://github.com/bazelbuild/rules_java/releases/download/8.5.0/rules_java-8.5.0.tar.gz"],
     },
     "bazel_skylib": {
         "archive": "bazel-skylib-1.6.1.tar.gz",
@@ -46,10 +46,10 @@ WORKSPACE_REPOS = {
         "urls": ["https://github.com/bazelbuild/rules_license/releases/download/0.0.7/rules_license-0.0.7.tar.gz"],
     },
     "rules_python": {
-        "archive": "rules_python-0.36.0.tar.gz",
-        "sha256": "ca77768989a7f311186a29747e3e95c936a41dffac779aff6b443db22290d913",
-        "strip_prefix": "rules_python-0.36.0",
-        "urls": ["https://github.com/bazelbuild/rules_python/releases/download/0.36.0/rules_python-0.36.0.tar.gz"],
+        "archive": "rules_python-0.40.0.tar.gz",
+        "sha256": "690e0141724abb568267e003c7b6d9a54925df40c275a870a4d934161dc9dd53",
+        "strip_prefix": "rules_python-0.40.0",
+        "urls": ["https://github.com/bazelbuild/rules_python/releases/download/0.40.0/rules_python-0.40.0.tar.gz"],
     },
     "rules_pkg": {
         "archive": "rules_pkg-0.9.1.tar.gz",

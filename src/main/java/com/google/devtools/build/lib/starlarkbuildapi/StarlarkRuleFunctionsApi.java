@@ -302,8 +302,6 @@ site of the rule. Such attributes can be assigned a default value (as in
             positional = false,
             named = true,
             defaultValue = "None",
-            enableOnlyWithFlag = BuildLanguageOptions.EXPERIMENTAL_ENABLE_MACRO_INHERIT_ATTRS,
-            valueWhenDisabled = "None",
             doc =
                 """
 A rule symbol, macro symbol, or the name of a built-in common attribute list (see below) from which

@@ -412,6 +412,29 @@ filegroup(
     visibility = ["//:__pkg__"],
 )
 
+# Source files that can be excluded from //:bazel-distfile to avoid triggering the bootstrap test.
+filegroup(
+    name = "srcs-to-exclude-in-distfile",
+    srcs = [
+        "//src/test/cpp:srcs",
+        "//src/test/gen:srcs",
+        "//src/test/java/com/google/devtools/build/docgen:srcs",
+        "//src/test/java/com/google/devtools/build/lib:srcs",
+        "//src/test/java/com/google/devtools/build/lib/shell:srcs",
+        "//src/test/java/com/google/devtools/build/skyframe:srcs",
+        "//src/test/java/com/google/devtools/common/options:srcs",
+        "//src/test/java/net/starlark/java/eval:srcs",
+        "//src/test/java/net/starlark/java/spelling:srcs",
+        "//src/test/native/windows:srcs",
+        "//src/test/py/bazel:srcs",
+        "//src/test/res:srcs",
+        "//src/test/shell:srcs",
+        "//src/test/testdata/test_tls_certificate",
+        "//src/test/tools:srcs",
+    ],
+    visibility = ["//:__pkg__"],
+)
+
 genrule(
     name = "derived_java_srcs",
     srcs = [
@@ -615,7 +638,7 @@ filegroup(
     srcs = [
         requirement("bazel-runfiles"),  # Fetching the hermetic Python toolchain.
         "@bazel_skylib//:WORKSPACE",
-        "@protobuf//:LICENSE",
+        "@com_google_protobuf//:LICENSE",
         "@remote_coverage_tools//:all_lcov_merger_lib",
         "@remote_java_tools//:GenClass",
         "@remote_java_tools_darwin_arm64//:java_tools/src/tools/singlejar/singlejar_local",

@@ -573,9 +573,11 @@ public class DiscoveryTest extends FoundationTestCase {
     ImmutableMap<String, NonRegistryOverride> builtinModules =
         ImmutableMap.of(
             "bazel_tools",
-            LocalPathOverride.create(rootDirectory.getRelative("tools").getPathString()),
+            new NonRegistryOverride(
+                LocalPathRepoSpecs.create(rootDirectory.getRelative("tools").getPathString())),
             "local_config_platform",
-            LocalPathOverride.create(rootDirectory.getRelative("localplat").getPathString()));
+            new NonRegistryOverride(
+                LocalPathRepoSpecs.create(rootDirectory.getRelative("localplat").getPathString())));
     setUpWithBuiltinModules(builtinModules);
     scratch.file(
         workspaceRoot.getRelative("MODULE.bazel").getPathString(),

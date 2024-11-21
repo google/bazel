@@ -429,7 +429,10 @@ public class AutoloadSymbols {
           bazelDepGraphValue.getCanonicalRepoNameLookup().values().stream()
               .collect(
                   toImmutableMap(
-                      ModuleKey::name,
+                      moduleKey ->
+                          moduleKey.name().equals("protobuf")
+                              ? "com_google_protobuf"
+                              : moduleKey.name(),
                       moduleKey -> moduleKey,
                       (m1, m2) -> m1.version().compareTo(m2.version()) >= 0 ? m1 : m2));
       RepositoryMapping repositoryMapping =
@@ -690,18 +693,19 @@ public class AutoloadSymbols {
           .put(
               "cc_proto_aspect",
               symbolRedirect(
-                  "@protobuf//bazel/private:bazel_cc_proto_library.bzl", "cc_proto_aspect"))
+                  "@com_google_protobuf//bazel/private:bazel_cc_proto_library.bzl",
+                  "cc_proto_aspect"))
           .put(
               "ProtoInfo",
               symbolRedirect(
-                  "@protobuf//bazel/common:proto_info.bzl",
+                  "@com_google_protobuf//bazel/common:proto_info.bzl",
                   "proto_library",
                   "cc_proto_library",
                   "java_lite_proto_library",
                   "java_proto_library",
                   "proto_lang_toolchain",
                   "java_binary"))
-          .put("proto_common_do_not_use", symbolRedirect("@protobuf//:dummy.bzl"))
+          .put("proto_common_do_not_use", symbolRedirect("@com_google_protobuf//:dummy.bzl"))
           .put("cc_common", symbolRedirect("@rules_cc//cc/common:cc_common.bzl"))
           .put(
               "CcInfo",
@@ -804,7 +808,7 @@ public class AutoloadSymbols {
           .put("cc_binary", ruleRedirect("@rules_cc//cc:cc_binary.bzl"))
           .put("cc_import", ruleRedirect("@rules_cc//cc:cc_import.bzl"))
           .put("cc_library", ruleRedirect("@rules_cc//cc:cc_library.bzl"))
-          .put("cc_proto_library", ruleRedirect("@protobuf//bazel:cc_proto_library.bzl"))
+          .put("cc_proto_library", ruleRedirect("@com_google_protobuf//bazel:cc_proto_library.bzl"))
           .put("cc_shared_library", ruleRedirect("@rules_cc//cc:cc_shared_library.bzl"))
           .put("cc_test", ruleRedirect("@rules_cc//cc:cc_test.bzl"))
           .put("cc_toolchain", ruleRedirect("@rules_cc//cc/toolchains:cc_toolchain.bzl"))
@@ -818,12 +822,14 @@ public class AutoloadSymbols {
           .put("java_library", ruleRedirect("@rules_java//java:java_library.bzl"))
           .put(
               "java_lite_proto_library",
-              ruleRedirect("@protobuf//bazel:java_lite_proto_library.bzl"))
+              ruleRedirect("@com_google_protobuf//bazel:java_lite_proto_library.bzl"))
           .put(
               "java_package_configuration",
               ruleRedirect("@rules_java//java/toolchains:java_package_configuration.bzl"))
           .put("java_plugin", ruleRedirect("@rules_java//java:java_plugin.bzl"))
-          .put("java_proto_library", ruleRedirect("@protobuf//bazel:java_proto_library.bzl"))
+          .put(
+              "java_proto_library",
+              ruleRedirect("@com_google_protobuf//bazel:java_proto_library.bzl"))
           .put("java_runtime", ruleRedirect("@rules_java//java/toolchains:java_runtime.bzl"))
           .put("java_test", ruleRedirect("@rules_java//java:java_test.bzl"))
           .put("java_toolchain", ruleRedirect("@rules_java//java/toolchains:java_toolchain.bzl"))
@@ -834,8 +840,8 @@ public class AutoloadSymbols {
               "propeller_optimize", ruleRedirect("@rules_cc//cc/toolchains:propeller_optimize.bzl"))
           .put(
               "proto_lang_toolchain",
-              ruleRedirect("@protobuf//bazel/toolchains:proto_lang_toolchain.bzl"))
-          .put("proto_library", ruleRedirect("@protobuf//bazel:proto_library.bzl"))
+              ruleRedirect("@com_google_protobuf//bazel/toolchains:proto_lang_toolchain.bzl"))
+          .put("proto_library", ruleRedirect("@com_google_protobuf//bazel:proto_library.bzl"))
           .put("py_binary", ruleRedirect("@rules_python//python:py_binary.bzl"))
           .put("py_library", ruleRedirect("@rules_python//python:py_library.bzl"))
           .put("py_runtime", ruleRedirect("@rules_python//python:py_runtime.bzl"))

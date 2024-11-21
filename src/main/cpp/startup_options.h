@@ -144,16 +144,16 @@ class StartupOptions {
   blaze_util::Path output_base;
 
   // Installation base for a specific release installation.
-  std::string install_base;
+  blaze_util::Path install_base;
 
   // The toplevel directory containing Blaze's output.  When Blaze is
   // run by a test, we use TEST_TMPDIR, simplifying the correct
   // hermetic invocation of Blaze from tests.
-  std::string output_root;
+  blaze_util::Path output_root;
 
   // Blaze's output_user_root. Used only for computing install_base and
   // output_base.
-  std::string output_user_root;
+  blaze_util::Path output_user_root;
 
   // Override more finegrained rc file flags and ignore them all.
   bool ignore_all_rc_files;

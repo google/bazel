@@ -107,6 +107,25 @@ public final class GsonTypeAdapterUtil {
         }
       };
 
+  public static final TypeAdapter<RepoRuleId> REPO_RULE_ID_TYPE_ADAPTER =
+      new TypeAdapter<>() {
+        @Override
+        public void write(JsonWriter jsonWriter, RepoRuleId repoRuleId) throws IOException {
+          jsonWriter.value(repoRuleId.toString());
+        }
+
+        @Override
+        public RepoRuleId read(JsonReader jsonReader) throws IOException {
+          String s = jsonReader.nextString();
+          int percent = s.indexOf('%');
+          if (percent == -1) {
+            return new RepoRuleId(null, s);
+          }
+          return new RepoRuleId(
+              Label.parseCanonicalUnchecked(s.substring(0, percent)), s.substring(percent + 1));
+        }
+      };
+
   public static final TypeAdapter<RepositoryName> REPOSITORY_NAME_TYPE_ADAPTER =
       new TypeAdapter<>() {
         @Override
@@ -455,6 +474,7 @@ public final class GsonTypeAdapterUtil {
         .registerTypeAdapterFactory(OPTIONAL)
         .registerTypeAdapterFactory(IMMUTABLE_TABLE)
         .registerTypeAdapter(Label.class, LABEL_TYPE_ADAPTER)
+        .registerTypeAdapter(RepoRuleId.class, REPO_RULE_ID_TYPE_ADAPTER)
         .registerTypeAdapter(RepositoryName.class, REPOSITORY_NAME_TYPE_ADAPTER)
         .registerTypeAdapter(Version.class, VERSION_TYPE_ADAPTER)
         .registerTypeAdapter(ModuleKey.class, MODULE_KEY_TYPE_ADAPTER)

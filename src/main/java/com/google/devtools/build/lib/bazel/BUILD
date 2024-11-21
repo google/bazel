@@ -29,6 +29,7 @@ java_library(
         "//src/main/java/com/google/devtools/build/lib/authandtls",
         "//src/main/java/com/google/devtools/build/lib/authandtls/credentialhelper",
         "//src/main/java/com/google/devtools/build/lib/authandtls/credentialhelper:credential_module",
+        "//src/main/java/com/google/devtools/build/lib/bazel/bzlmod:common",
         "//src/main/java/com/google/devtools/build/lib/bazel/bzlmod:extension_eval_impl",
         "//src/main/java/com/google/devtools/build/lib/bazel/bzlmod:inspection_impl",
         "//src/main/java/com/google/devtools/build/lib/bazel/bzlmod:registry",

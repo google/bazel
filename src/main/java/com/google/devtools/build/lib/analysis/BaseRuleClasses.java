@@ -584,14 +584,24 @@ public class BaseRuleClasses {
    */
   public abstract static class EmptyRule implements RuleDefinition {
     private final String name;
+    @Nullable private final String bzlLoadFile;
 
     public EmptyRule(String name) {
+      this(name, null);
+    }
+
+    public EmptyRule(String name, @Nullable String bzlLoadLabel) {
       this.name = name;
+      this.bzlLoadFile = bzlLoadLabel;
     }
 
     @Override
     public RuleClass build(RuleClass.Builder builder, RuleDefinitionEnvironment env) {
-      return builder.removeAttribute("deps").removeAttribute("data").build();
+      return builder
+          .removeAttribute("deps")
+          .removeAttribute("data")
+          .addAttribute(attr("$bzl_load_label", STRING).value(this.bzlLoadFile).build())
+          .build();
     }
 
     @Override
@@ -620,7 +630,19 @@ public class BaseRuleClasses {
     @Override
     @Nullable
     public ConfiguredTarget create(RuleContext ruleContext) {
-      ruleContext.ruleError("Rule is unimplemented.");
+      String ruleName = ruleContext.getRule().getRuleClass();
+      String bzlLoadLabel = ruleContext.attributes().get("$bzl_load_label", STRING);
+      if (bzlLoadLabel != null) {
+        ruleContext.ruleError(
+            """
+            The %s rule has been removed, add the following to your BUILD/bzl file:
+
+            load("%s", "%s")
+            """
+                .formatted(ruleName, bzlLoadLabel, ruleName));
+      } else {
+        ruleContext.ruleError("Rule is unimplemented.");
+      }
       return null;
     }
   }

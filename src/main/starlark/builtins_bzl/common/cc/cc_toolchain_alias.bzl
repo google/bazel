@@ -16,7 +16,6 @@
 
 load(":common/cc/cc_common.bzl", "cc_common")
 load(":common/cc/cc_helper.bzl", "cc_helper")
-load(":common/cc/semantics.bzl", "semantics")
 
 CcToolchainInfo = cc_common.CcToolchainInfo
 TemplateVariableInfo = _builtins.toplevel.platform_common.TemplateVariableInfo
@@ -48,6 +47,5 @@ cc_toolchain_alias = rule(
     attrs = {
         "mandatory": attr.bool(default = True),
     },
-    toolchains = cc_helper.use_cpp_toolchain() +
-                 semantics.get_runtimes_toolchain(),
+    toolchains = cc_helper.use_cpp_toolchain(),
 )

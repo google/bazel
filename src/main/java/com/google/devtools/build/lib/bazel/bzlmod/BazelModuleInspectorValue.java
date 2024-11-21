@@ -223,9 +223,7 @@ public record BazelModuleInspectorValue(
       /** The dependency was replaced by a {@code multiple_version_override} rule. */
       MULTIPLE_VERSION_OVERRIDE("MVO"),
       /** The dependency was replaced by one of the {@link NonRegistryOverride} rules. */
-      ARCHIVE_OVERRIDE("archive"),
-      GIT_OVERRIDE("git"),
-      LOCAL_PATH_OVERRIDE("local");
+      NON_REGISTRY_OVERRIDE("NRO");
 
       private final String label;
 

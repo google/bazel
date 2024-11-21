@@ -862,10 +862,6 @@ public class BuildTool {
     }
 
     switch (options.mode) {
-      case FULL -> {
-        uploadFrontier(activeDirectoriesMatcher, options);
-        reportRemoteAnalysisCachingStats();
-      }
       case UPLOAD -> {
         uploadFrontier(activeDirectoriesMatcher, options);
       }

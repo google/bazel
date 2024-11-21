@@ -386,7 +386,8 @@ public final class MockProtoSupport {
         """);
     if (TestConstants.PRODUCT_NAME.equals("bazel")) {
       Runfiles runfiles = Runfiles.preload().withSourceRepository("");
-      PathFragment path = PathFragment.create(runfiles.rlocation("protobuf/bazel/BUILD.bazel"));
+      PathFragment path =
+          PathFragment.create(runfiles.rlocation("com_google_protobuf/bazel/BUILD.bazel"));
       config.copyDirectory(
           path.getParentDirectory(), "third_party/protobuf/bazel", MAX_VALUE, false);
       config.overwrite(

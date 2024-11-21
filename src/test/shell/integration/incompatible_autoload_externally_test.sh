@@ -75,9 +75,11 @@ function mock_rules_java() {
   rules_java_workspace="${TEST_TMPDIR}/rules_java_workspace"
   mkdir -p "${rules_java_workspace}/java"
   touch "${rules_java_workspace}/java/BUILD"
-  cat > "${rules_java_workspace}/java/repositories.bzl" <<EOF
+  cat > "${rules_java_workspace}/java/rules_java_deps.bzl" <<EOF
 def rules_java_dependencies():
   pass
+EOF
+  cat > "${rules_java_workspace}/java/repositories.bzl" <<EOF
 def rules_java_toolchains():
   pass
 EOF

@@ -23,10 +23,11 @@ import com.google.devtools.build.lib.skyframe.serialization.SerializationExcepti
 import com.google.devtools.build.lib.skyframe.serialization.SkyValueRetriever;
 import com.google.devtools.build.lib.skyframe.serialization.SkyValueRetriever.DefaultDependOnFutureShim;
 import com.google.devtools.build.lib.skyframe.serialization.SkyValueRetriever.RetrievalResult;
-import com.google.devtools.build.lib.skyframe.serialization.SkyValueRetriever.SerializationStateProvider;
+import com.google.devtools.build.lib.skyframe.serialization.SkyValueRetriever.SerializableSkyKeyComputeState;
 import com.google.devtools.build.lib.skyframe.serialization.analysis.RemoteAnalysisCachingDependenciesProvider;
 import com.google.devtools.build.skyframe.SkyFunction.Environment;
 import com.google.devtools.build.skyframe.SkyKey;
+import java.util.function.Supplier;
 
 /**
  * A wrapper around {@link SkyValueRetriever} to handle Bazel-on-Skyframe specific logic, metrics
@@ -38,8 +39,12 @@ public final class SkyValueRetrieverUtils {
       SkyKey key,
       Environment env,
       RemoteAnalysisCachingDependenciesProvider analysisCachingDeps,
-      SerializationStateProvider state)
+      Supplier<? extends SerializableSkyKeyComputeState> stateSupplier)
       throws InterruptedException {
+    if (!analysisCachingDeps.enabled()) {
+      return NO_CACHED_DATA;
+    }
+
     Label label =
         switch (key) {
           case ActionLookupKey alk -> alk.getLabel();
@@ -54,6 +59,7 @@ public final class SkyValueRetrieverUtils {
 
     RetrievalResult retrievalResult;
     try {
+      SerializableSkyKeyComputeState state = env.getState(stateSupplier);
       retrievalResult =
           SkyValueRetriever.tryRetrieve(
               env,

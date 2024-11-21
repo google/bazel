@@ -55,6 +55,7 @@ gen_workspace_stanza(
         "rules_cc",
         "rules_python",
         "rules_shell",
+        "com_google_protobuf",
     ],
 )
 

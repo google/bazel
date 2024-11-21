@@ -129,9 +129,9 @@ public class TestConstants {
    */
   public static final String RULES_PYTHON_PACKAGE_ROOT = "@@rules_python+/";
 
-  public static final String PYINFO_BZL = "@@rules_python+//python/private/common:providers.bzl";
+  public static final String PYINFO_BZL = "@@rules_python+//python/private:py_info.bzl";
 
-  public static final String PYRUNTIMEINFO_BZL = "@@rules_python+//python/private/common:providers.bzl";
+  public static final String PYRUNTIMEINFO_BZL = "@@rules_python+//python/private:py_runtime_info.bzl";
 
   public static final ImmutableList<String> DOCS_RULES_PATHS = ImmutableList.of(
       "src/main/java/com/google/devtools/build/lib/rules");

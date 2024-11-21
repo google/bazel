@@ -15,7 +15,6 @@ package com.google.devtools.build.lib.skyframe.toolchains;
 
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.google.common.collect.ImmutableSet.toImmutableSet;
-import static java.util.stream.Collectors.joining;
 
 import com.google.common.base.Preconditions;
 import com.google.common.collect.HashBasedTable;
@@ -30,7 +29,6 @@ import com.google.devtools.build.lib.analysis.config.ToolchainTypeRequirement;
 import com.google.devtools.build.lib.analysis.platform.PlatformInfo;
 import com.google.devtools.build.lib.analysis.platform.ToolchainTypeInfo;
 import com.google.devtools.build.lib.cmdline.Label;
-import com.google.devtools.build.lib.events.Event;
 import com.google.devtools.build.lib.server.FailureDetails.Toolchain.Code;
 import com.google.devtools.build.lib.skyframe.ConfiguredTargetKey;
 import com.google.devtools.build.lib.skyframe.config.BuildConfigurationKey;
@@ -86,12 +84,15 @@ public class ToolchainResolutionFunction implements SkyFunction {
                           .map(ToolchainTypeRequirement::toolchainType)
                           .collect(toImmutableSet()));
 
+      ToolchainResolutionDebugPrinter debugPrinter =
+          ToolchainResolutionDebugPrinter.create(debug, env.getListener());
+
       // Create keys for all platforms that will be used, and validate them early.
       // Do this early, to catch platform errors early.
       PlatformKeys platformKeys =
           PlatformKeys.load(
               env,
-              debug,
+              debugPrinter,
               configuration.getKey(),
               platformConfiguration,
               key.execConstraintLabels());
@@ -118,24 +119,10 @@ public class ToolchainResolutionFunction implements SkyFunction {
           key.debugTarget());
 
       UnloadedToolchainContext unloadedToolchainContext = builder.build();
-      if (debug) {
-        String selectedToolchains =
-            unloadedToolchainContext.toolchainTypeToResolved().entries().stream()
-                .map(
-                    e ->
-                        String.format(
-                            "type %s -> toolchain %s", e.getKey().typeLabel(), e.getValue()))
-                .collect(joining(", "));
-        env.getListener()
-            .handle(
-                Event.info(
-                    String.format(
-                        "ToolchainResolution: Target platform %s: Selected execution platform %s,"
-                            + " %s",
-                        unloadedToolchainContext.targetPlatform().label(),
-                        unloadedToolchainContext.executionPlatform().label(),
-                        selectedToolchains)));
-      }
+      debugPrinter.reportSelectedToolchains(
+          unloadedToolchainContext.targetPlatform().label(),
+          unloadedToolchainContext.executionPlatform().label(),
+          unloadedToolchainContext.toolchainTypeToResolved());
       return unloadedToolchainContext;
     } catch (ToolchainException e) {
       throw new ToolchainResolutionFunctionException(e);

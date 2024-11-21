@@ -78,13 +78,7 @@ public class FakeRegistry implements Registry {
   public RepoSpec getRepoSpec(
       ModuleKey key, ExtendedEventHandler eventHandler, DownloadManager downloadManager) {
     RepoSpec repoSpec =
-        RepoSpec.builder()
-            .setRuleClassName("local_repository")
-            .setAttributes(
-                AttributeValues.create(
-                    ImmutableMap.of(
-                        "path", rootPath + "/" + key.getCanonicalRepoNameWithVersion().getName())))
-            .build();
+        LocalPathRepoSpecs.create(rootPath + "/" + key.getCanonicalRepoNameWithVersion().getName());
     eventHandler.post(
         RegistryFileDownloadEvent.create(
             "%s/modules/%s/%s/source.json".formatted(url, key.name(), key.version()),

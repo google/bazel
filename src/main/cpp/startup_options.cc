@@ -106,15 +106,18 @@ StartupOptions::StartupOptions(const string &product_name,
   // relative path starting with "~/", PathFragmentConverter would shell-expand
   // it as a path relative to the home directory, and Bazel would crash.
   if (blaze::IsRunningWithinTest()) {
-    output_root = blaze_util::MakeAbsolute(blaze::GetPathEnv("TEST_TMPDIR"));
+    output_root = blaze_util::Path(
+        blaze_util::MakeAbsolute(blaze::GetPathEnv("TEST_TMPDIR")));
     max_idle_secs = 15;
     BAZEL_LOG(USER) << "$TEST_TMPDIR defined: output root default is '"
-                    << output_root << "' and max_idle_secs default is '"
-                    << max_idle_secs << "'.";
+                    << output_root.AsPrintablePath()
+                    << "' and max_idle_secs default is '" << max_idle_secs
+                    << "'.";
   } else {
-    output_root = blaze_util::MakeAbsolute(workspace_layout->GetOutputRoot());
+    output_root = blaze_util::Path(
+        blaze_util::MakeAbsolute(workspace_layout->GetOutputRoot()));
     max_idle_secs = 3 * 3600;
-    BAZEL_LOG(INFO) << "output root is '" << output_root
+    BAZEL_LOG(INFO) << "output root is '" << output_root.AsPrintablePath()
                     << "' and max_idle_secs default is '" << max_idle_secs
                     << "'.";
   }
@@ -128,8 +131,8 @@ StartupOptions::StartupOptions(const string &product_name,
 #endif  // defined(_WIN32) || defined(__CYGWIN__)
 
   const string product_name_lower = GetLowercaseProductName();
-  output_user_root = blaze_util::JoinPath(
-      output_root, "_" + product_name_lower + "_" + GetUserName());
+  output_user_root =
+      output_root.GetRelative("_" + product_name_lower + "_" + GetUserName());
 
   // IMPORTANT: Before modifying the statements below please contact a Bazel
   // core team member that knows the internal procedure for adding/deprecating
@@ -270,11 +273,11 @@ blaze_exit_code::ExitCode StartupOptions::ProcessArg(
     option_sources["output_base"] = rcfile;
   } else if ((value = GetUnaryOption(arg, next_arg, "--install_base")) !=
              nullptr) {
-    install_base = blaze::AbsolutePathFromFlag(value);
+    install_base = blaze_util::Path(blaze::AbsolutePathFromFlag(value));
     option_sources["install_base"] = rcfile;
   } else if ((value = GetUnaryOption(arg, next_arg, "--output_user_root")) !=
              nullptr) {
-    output_user_root = blaze::AbsolutePathFromFlag(value);
+    output_user_root = blaze_util::Path(blaze::AbsolutePathFromFlag(value));
     option_sources["output_user_root"] = rcfile;
   } else if ((value = GetUnaryOption(arg, next_arg, "--server_jvm_out")) !=
              nullptr) {
@@ -455,8 +458,8 @@ blaze_util::Path StartupOptions::GetSystemJavabase() const {
 }
 
 blaze_util::Path StartupOptions::GetEmbeddedJavabase() const {
-  blaze_util::Path bundled_jre_path = blaze_util::Path(
-      blaze_util::JoinPath(install_base, "embedded_tools/jdk"));
+  blaze_util::Path bundled_jre_path =
+      install_base.GetRelative("embedded_tools").GetRelative("jdk");
   if (blaze_util::CanExecuteFile(
           bundled_jre_path.GetRelative(GetJavaBinaryUnderJavabase()))) {
     return bundled_jre_path;

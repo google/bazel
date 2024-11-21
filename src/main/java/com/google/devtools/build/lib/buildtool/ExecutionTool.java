@@ -268,7 +268,7 @@ public class ExecutionTool {
     BuildRequestOptions buildRequestOptions = request.getBuildOptions();
     SkyframeExecutor skyframeExecutor = env.getSkyframeExecutor();
     boolean localActionsSupported =
-        env.getOutputService().actionFileSystemType().supportsLocalActions();
+        env.getOutputService().actionFileSystemType().shouldDoTopLevelOutputSetup();
 
     // TODO: b/290617036 - Reconsider this for local action support with virtual roots.
     checkState(
@@ -396,7 +396,7 @@ public class ExecutionTool {
     ModifiedFileSet modifiedOutputFiles =
         startBuildAndDetermineModifiedOutputFiles(buildId, outputService);
 
-    if (outputService.actionFileSystemType().supportsLocalActions()) {
+    if (outputService.actionFileSystemType().shouldDoTopLevelOutputSetup()) {
       // Must be created after the output path is created above.
       createActionLogDirectory();
     }

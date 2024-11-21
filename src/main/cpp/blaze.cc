@@ -425,9 +425,9 @@ static vector<string> GetServerExeArgs(const blaze_util::Path &jvm_path,
                    blaze_util::ToString(startup_options.connect_timeout_secs));
 
   result.push_back("--output_user_root=" +
-                   blaze_util::ConvertPath(startup_options.output_user_root));
+                   startup_options.output_user_root.AsCommandLineArgument());
   result.push_back("--install_base=" +
-                   blaze_util::ConvertPath(startup_options.install_base));
+                   startup_options.install_base.AsCommandLineArgument());
   result.push_back("--install_md5=" + install_md5);
   result.push_back("--output_base=" +
                    startup_options.output_base.AsCommandLineArgument());
@@ -1006,13 +1006,13 @@ static void EnsureCorrectRunningVersion(const StartupOptions &startup_options,
   // target dirs don't match, or if the symlink was not present, then kill any
   // running servers. Lastly, symlink to our installation so others know which
   // installation is running.
-  const blaze_util::Path installation_path =
+  const blaze_util::Path install_base_symlink =
       startup_options.output_base.GetRelative("install");
-  string prev_installation;
-  bool ok =
-      blaze_util::ReadDirectorySymlink(installation_path, &prev_installation);
-  if (!ok || !blaze_util::CompareAbsolutePaths(prev_installation,
-                                               startup_options.install_base)) {
+  blaze_util::Path prev_install_base;
+  if (!blaze_util::ReadDirectorySymlink(install_base_symlink,
+                                        &prev_install_base) ||
+      !blaze_util::ArePathsEquivalent(prev_install_base,
+                                      startup_options.install_base)) {
     if (server->Connected()) {
       BAZEL_LOG(INFO)
           << "Killing running server because it is using another version of "
@@ -1021,12 +1021,13 @@ static void EnsureCorrectRunningVersion(const StartupOptions &startup_options,
       logging_info->restart_reason = NEW_VERSION;
     }
 
-    blaze_util::UnlinkPath(installation_path);
-    if (!SymlinkDirectories(startup_options.install_base, installation_path)) {
-      string err = GetLastErrorString();
+    blaze_util::UnlinkPath(install_base_symlink);
+    if (!SymlinkDirectories(startup_options.install_base,
+                            install_base_symlink)) {
       BAZEL_DIE(blaze_exit_code::LOCAL_ENVIRONMENTAL_ERROR)
           << "failed to create installation symlink '"
-          << installation_path.AsPrintablePath() << "': " << err;
+          << install_base_symlink.AsPrintablePath()
+          << "': " << GetLastErrorString();
     }
 
     // Update the mtime of the install base so that cleanup tools can
@@ -1034,10 +1035,10 @@ static void EnsureCorrectRunningVersion(const StartupOptions &startup_options,
     // Ignore permissions errors (i.e. if the install base is not writable).
     if (!SetMtimeToNowIfPossible(
             blaze_util::Path(startup_options.install_base))) {
-      string err = GetLastErrorString();
       BAZEL_DIE(blaze_exit_code::LOCAL_ENVIRONMENTAL_ERROR)
-          << "failed to set timestamp on '" << startup_options.install_base
-          << "': " << err;
+          << "failed to set timestamp on '"
+          << startup_options.install_base.AsPrintablePath()
+          << "': " << GetLastErrorString();
     }
   }
 }
@@ -1142,15 +1143,14 @@ static void UpdateConfiguration(const string &install_md5,
   // The default install_base is <output_user_root>/install/<md5(blaze)>
   // but if an install_base is specified on the command line, we use that as
   // the base instead.
-  if (startup_options->install_base.empty()) {
+  if (startup_options->install_base.IsEmpty()) {
     if (server_mode) {
       BAZEL_DIE(blaze_exit_code::BAD_ARGV)
           << "exec-server requires --install_base";
     }
-    string install_user_root =
-        blaze_util::JoinPath(startup_options->output_user_root, "install");
-    startup_options->install_base =
-        blaze_util::JoinPath(install_user_root, install_md5);
+    blaze_util::Path install_user_root =
+        startup_options->output_user_root.GetRelative("install");
+    startup_options->install_base = install_user_root.GetRelative(install_md5);
   }
 
   if (startup_options->output_base.IsEmpty()) {
@@ -1158,8 +1158,8 @@ static void UpdateConfiguration(const string &install_md5,
       BAZEL_DIE(blaze_exit_code::BAD_ARGV)
           << "exec-server requires --output_base";
     }
-    startup_options->output_base = blaze_util::Path(
-        blaze::GetHashedBaseDir(startup_options->output_user_root, workspace));
+    startup_options->output_base =
+        blaze::GetHashedBaseDir(startup_options->output_user_root, workspace);
   }
 
   if (!blaze_util::PathExists(startup_options->output_base)) {

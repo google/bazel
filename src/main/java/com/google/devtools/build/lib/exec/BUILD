@@ -59,7 +59,7 @@ java_library(
         "//third_party:error_prone_annotations",
         "//third_party:guava",
         "//third_party:jsr305",
-        "@protobuf//:protobuf_java",
+        "@com_google_protobuf//:protobuf_java",
     ],
 )
 
@@ -296,8 +296,8 @@ java_library(
         "//third_party:flogger",
         "//third_party:guava",
         "//third_party:jsr305",
-        "@protobuf//:protobuf_java",
-        "@protobuf//:protobuf_java_util",
+        "@com_google_protobuf//:protobuf_java",
+        "@com_google_protobuf//:protobuf_java_util",
         "@zstd-jni",
     ],
 )
@@ -426,8 +426,8 @@ java_library(
         "//src/main/protobuf:failure_details_java_proto",
         "//src/main/protobuf:test_status_java_proto",
         "//third_party:guava",
-        "@protobuf//:protobuf_java",
-        "@protobuf//:protobuf_java_util",
+        "@com_google_protobuf//:protobuf_java",
+        "@com_google_protobuf//:protobuf_java_util",
     ],
 )
 
@@ -516,7 +516,7 @@ java_library(
         "//src/main/protobuf:test_status_java_proto",
         "//third_party:guava",
         "//third_party:jsr305",
-        "@protobuf//:protobuf_java",
+        "@com_google_protobuf//:protobuf_java",
     ],
 )
 

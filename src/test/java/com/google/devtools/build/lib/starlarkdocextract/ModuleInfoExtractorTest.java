@@ -975,8 +975,7 @@ public final class ModuleInfoExtractorTest {
   @Test
   public void macroInheritedAttributes() throws Exception {
     Module module =
-        execWithOptions(
-            ImmutableList.of("--experimental_enable_macro_inherit_attrs"),
+        exec(
             """
 def _my_rule_impl(ctx):
     pass

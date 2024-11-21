@@ -34,6 +34,7 @@ import com.google.devtools.build.lib.rules.cpp.CppActionNames;
 import com.google.devtools.build.lib.rules.cpp.CppCompileActionBuilder;
 import com.google.devtools.build.lib.rules.cpp.CppConfiguration;
 import com.google.devtools.build.lib.rules.cpp.CppFileTypes;
+import com.google.devtools.build.lib.rules.cpp.CppLinkActionBuilder;
 import com.google.devtools.build.lib.skyframe.serialization.autocodec.SerializationConstant;
 import net.starlark.java.eval.EvalException;
 import net.starlark.java.eval.Sequence;
@@ -118,6 +119,10 @@ public class BazelCppSemantics implements AspectLegalCppSemantics {
           .setShouldScanIncludes(false);
     }
   }
+
+  @Override
+  public void finalizeLinkActionBuilder(
+      CppConfiguration configuration, CppLinkActionBuilder actionBuilder) throws EvalException {}
 
   @Override
   public boolean allowIncludeScanning() {

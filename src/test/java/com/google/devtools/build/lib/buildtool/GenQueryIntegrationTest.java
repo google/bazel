@@ -23,6 +23,7 @@ import com.google.common.io.ByteStreams;
 import com.google.devtools.build.lib.actions.Artifact;
 import com.google.devtools.build.lib.actions.BuildFailedException;
 import com.google.devtools.build.lib.analysis.ViewCreationFailedException;
+import com.google.devtools.build.lib.analysis.util.AnalysisMock;
 import com.google.devtools.build.lib.buildtool.util.BuildIntegrationTestCase;
 import com.google.devtools.build.lib.skyframe.TransitiveTargetKey;
 import com.google.protobuf.ByteString;
@@ -952,6 +953,49 @@ public class GenQueryIntegrationTest extends BuildIntegrationTestCase {
         )
         """);
     assertQueryResult("//fruits:q", "@@//fruits:melon", "@@//fruits:papaya");
+  }
+
+  @Test
+  public void testGenQueryInExternalRepo() throws Exception {
+    if (!AnalysisMock.get().isThisBazel()) {
+      return;
+    }
+    write(
+        "MODULE.bazel",
+        """
+        bazel_dep(name = "other_module")
+        local_path_override(
+            module_name = "other_module",
+            path = "other_module",
+        )
+        """);
+    write(
+        "other_module/MODULE.bazel",
+        """
+        module(name = 'other_module')
+        """);
+    write(
+        "other_module/fruits/BUILD",
+        """
+        load('@@//test_defs:foo_library.bzl', 'foo_library')
+        foo_library(
+            name = "melon",
+            deps = [":papaya"],
+        )
+
+        foo_library(name = "papaya")
+
+        genquery(
+            name = "q",
+            expression = "deps(//fruits:melon)",
+            scope = [":melon"],
+        )
+        """);
+
+    assertQueryResult(
+        "@@other_module+//fruits:q",
+        "@@other_module+//fruits:melon",
+        "@@other_module+//fruits:papaya");
   }
 
   private void assertQueryResult(String queryTarget, String... expected) throws Exception {

@@ -14,7 +14,7 @@
 
 package com.google.devtools.build.lib.rules.java;
 
-import static com.google.devtools.build.lib.skyframe.BzlLoadValue.keyForBuiltins;
+import static com.google.devtools.build.lib.skyframe.BzlLoadValue.keyForBuild;
 
 import com.google.common.collect.ImmutableList;
 import com.google.devtools.build.lib.actions.Artifact;
@@ -42,8 +42,10 @@ public final class MessageBundleInfo {
   private static class Provider extends StarlarkProviderWrapper<MessageBundleInfo> {
     private Provider() {
       super(
-          keyForBuiltins(
-              Label.parseCanonicalUnchecked("@_builtins//:common/java/message_bundle_info.bzl")),
+          keyForBuild(
+              Label.parseCanonicalUnchecked(
+                  JavaSemantics.RULES_JAVA_PROVIDER_LABELS_PREFIX
+                      + "java/private:message_bundle_info.bzl")),
           STARLARK_NAME);
     }
 

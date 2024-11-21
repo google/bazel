@@ -34,7 +34,7 @@ java_test(
         "//third_party:junit4",
         "//third_party:mockito",
         "//third_party:truth",
-        "@protobuf//:protobuf_java",
+        "@com_google_protobuf//:protobuf_java",
         "@remoteapis//:build_bazel_remote_execution_v2_remote_execution_java_proto",
     ],
 )

@@ -1598,32 +1598,7 @@ Label("//conditions:default"): None})\
   }
 
   @Test
-  public void inheritAttrs_disabledByDefault() throws Exception {
-    scratch.file(
-        "pkg/foo.bzl",
-        """
-        def _my_macro_impl(name, visibility, **kwargs):
-            pass
-
-        my_macro = macro(
-            implementation = _my_macro_impl,
-            inherit_attrs = native.cc_library,
-        )
-        """);
-    scratch.file(
-        "pkg/BUILD",
-        """
-        load(":foo.bzl", "my_macro")
-        """);
-    reporter.removeHandler(failFastHandler);
-    assertThat(getPackage("pkg")).isNull();
-    assertContainsEvent(
-        "parameter 'inherit_attrs' is experimental and thus unavailable with the current flags");
-  }
-
-  @Test
   public void inheritAttrs_fromInvalidSource_fails() throws Exception {
-    setBuildLanguageOptions("--experimental_enable_macro_inherit_attrs");
     scratch.file(
         "pkg/foo.bzl",
         """
@@ -1648,7 +1623,6 @@ Label("//conditions:default"): None})\
 
   @Test
   public void inheritAttrs_withoutKwargsInImplementation_fails() throws Exception {
-    setBuildLanguageOptions("--experimental_enable_macro_inherit_attrs");
     scratch.file(
         "pkg/foo.bzl",
         """
@@ -1673,7 +1647,6 @@ Label("//conditions:default"): None})\
 
   @Test
   public void inheritAttrs_fromCommon_withOverrides() throws Exception {
-    setBuildLanguageOptions("--experimental_enable_macro_inherit_attrs");
     scratch.file(
         "pkg/my_macro.bzl",
         """
@@ -1738,7 +1711,6 @@ Label("//conditions:default"): None})\
     // * a new AttributeValueSource or a new attribute type is introduced, and symbolic macros
     //   cannot inherit an attribute with a default with this source or of such a type (to fix, add
     //   a check for it in MacroClass#forceDefaultToNone).
-    setBuildLanguageOptions("--experimental_enable_macro_inherit_attrs");
     for (RuleClass ruleClass : getBuiltinRuleClasses(false)) {
       if (ruleClass.getAttributes().isEmpty()) {
         continue;
@@ -1819,7 +1791,6 @@ Label("//conditions:default"): None})\
     // inheritAttrs_fromAnyNativeRule() above is loading-phase only; by contrast, this test verifies
     // that we can wrap a native rule (in this case, genrule) in a macro with inherit_attrs, and
     // that the macro-wrapped rule target passes analysis.
-    setBuildLanguageOptions("--experimental_enable_macro_inherit_attrs");
     scratch.file(
         "pkg/my_genrule.bzl",
         """
@@ -1857,7 +1828,6 @@ my_genrule = macro(
 
   @Test
   public void inheritAttrs_fromExportedStarlarkRule() throws Exception {
-    setBuildLanguageOptions("--experimental_enable_macro_inherit_attrs");
     scratch.file(
         "pkg/my_macro.bzl",
         """
@@ -1895,7 +1865,6 @@ my_genrule = macro(
 
   @Test
   public void inheritAttrs_fromUnexportedStarlarkRule_fails() throws Exception {
-    setBuildLanguageOptions("--experimental_enable_macro_inherit_attrs");
     scratch.file(
         "pkg/my_macro.bzl",
         """
@@ -1934,7 +1903,6 @@ my_genrule = macro(
 
   @Test
   public void inheritAttrs_fromExportedMacro() throws Exception {
-    setBuildLanguageOptions("--experimental_enable_macro_inherit_attrs");
     scratch.file(
         "pkg/my_macro.bzl",
         """
@@ -1976,7 +1944,6 @@ my_macro = macro(
 
   @Test
   public void inheritAttrs_fromUnexportedMacro_fails() throws Exception {
-    setBuildLanguageOptions("--experimental_enable_macro_inherit_attrs");
     scratch.file(
         "pkg/my_macro.bzl",
         """

@@ -25,6 +25,7 @@ import com.google.common.collect.Table;
 import com.google.devtools.build.lib.analysis.BlazeDirectories;
 import com.google.devtools.build.lib.analysis.RuleDefinition;
 import com.google.devtools.build.lib.bazel.bzlmod.NonRegistryOverride;
+import com.google.devtools.build.lib.bazel.bzlmod.RepoRuleId;
 import com.google.devtools.build.lib.bazel.repository.RepositoryResolvedEvent;
 import com.google.devtools.build.lib.bazel.repository.downloader.DownloadManager;
 import com.google.devtools.build.lib.cmdline.Label;
@@ -197,12 +198,11 @@ public final class StarlarkRepositoryFunction extends RepositoryFunction {
     }
 
     boolean enableBzlmod = starlarkSemantics.getBool(BuildLanguageOptions.ENABLE_BZLMOD);
+    RepoRuleId repoRuleId =
+        new RepoRuleId(
+            rule.getRuleClassObject().getRuleDefinitionEnvironmentLabel(), rule.getRuleClass());
     @Nullable RepositoryMapping mainRepoMapping;
-    String ruleClass =
-        rule.getRuleClassObject().getRuleDefinitionEnvironmentLabel().getUnambiguousCanonicalForm()
-            + "%"
-            + rule.getRuleClass();
-    if (NonRegistryOverride.BOOTSTRAP_RULE_CLASSES.contains(ruleClass)) {
+    if (NonRegistryOverride.BOOTSTRAP_REPO_RULES.contains(repoRuleId)) {
       // Avoid a cycle.
       mainRepoMapping = null;
     } else if (enableBzlmod || !isWorkspaceRepo(rule)) {

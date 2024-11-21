@@ -953,8 +953,7 @@ See <a href="${link cc_binary.linkshared}"><code>cc_binary.linkshared</code></a>
         "_cc_toolchain": attr.label(default = "@" + semantics.get_repo() + "//tools/cpp:current_cc_toolchain"),
         "_use_auto_exec_groups": attr.bool(default = True),
     } | semantics.get_distribs_attr() | semantics.get_implementation_deps_allowed_attr() | semantics.get_nocopts_attr(),
-    toolchains = cc_helper.use_cpp_toolchain() +
-                 semantics.get_runtimes_toolchain(),
+    toolchains = cc_helper.use_cpp_toolchain(),
     fragments = ["cpp"] + semantics.additional_fragments(),
     provides = [CcInfo],
     exec_groups = {

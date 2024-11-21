@@ -62,6 +62,6 @@ java_library(
         "//third_party:guava",
         "//third_party:jsr305",
         "//third_party:truth",
-        "@protobuf//:protobuf_java",
+        "@com_google_protobuf//:protobuf_java",
     ],
 )

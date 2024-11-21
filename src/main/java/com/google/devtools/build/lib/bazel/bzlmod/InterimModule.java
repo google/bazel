@@ -224,11 +224,7 @@ public abstract class InterimModule extends ModuleBase {
     attrBuilder.put("patches", singleVersion.patches());
     attrBuilder.put("patch_cmds", singleVersion.patchCmds());
     attrBuilder.put("patch_args", ImmutableList.of("-p" + singleVersion.patchStrip()));
-    return RepoSpec.builder()
-        .setBzlFile(repoSpec.bzlFile())
-        .setRuleClassName(repoSpec.ruleClassName())
-        .setAttributes(AttributeValues.create(attrBuilder.buildOrThrow()))
-        .build();
+    return new RepoSpec(repoSpec.repoRuleId(), AttributeValues.create(attrBuilder.buildOrThrow()));
   }
 
   static UnaryOperator<DepSpec> applyOverrides(
@@ -238,16 +234,12 @@ public abstract class InterimModule extends ModuleBase {
         return DepSpec.fromModuleKey(ModuleKey.ROOT);
       }
 
-      Version newVersion = depSpec.version();
-      @Nullable ModuleOverride override = overrides.get(depSpec.name());
-      if (override instanceof NonRegistryOverride) {
-        newVersion = Version.EMPTY;
-      } else if (override instanceof SingleVersionOverride singleVersionOverride) {
-        Version overrideVersion = singleVersionOverride.version();
-        if (!overrideVersion.isEmpty()) {
-          newVersion = overrideVersion;
-        }
-      }
+      Version newVersion =
+          switch (overrides.get(depSpec.name())) {
+            case NonRegistryOverride nro -> Version.EMPTY;
+            case SingleVersionOverride svo when !svo.version().isEmpty() -> svo.version();
+            case null, default -> depSpec.version();
+          };
 
       return DepSpec.create(depSpec.name(), newVersion, depSpec.maxCompatibilityLevel());
     };

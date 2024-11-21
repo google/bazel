@@ -48,7 +48,7 @@ java_library(
         "//third_party:error_prone_annotations",
         "//third_party:guava",
         "//third_party:jsr305",
-        "@protobuf//:protobuf_java",
+        "@com_google_protobuf//:protobuf_java",
     ],
 )
 
@@ -152,7 +152,7 @@ java_library(
         "//third_party:flogger",
         "//third_party:guava",
         "//third_party:jsr305",
-        "@protobuf//:protobuf_java",
+        "@com_google_protobuf//:protobuf_java",
     ],
 )
 

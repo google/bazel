@@ -28,6 +28,7 @@ import java.io.IOException;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicReferenceArray;
+import java.util.concurrent.locks.ReentrantLock;
 import javax.annotation.Nullable;
 
 /**
@@ -70,6 +71,8 @@ final class PersistentStringIndexer implements StringIndexer {
     return new PersistentStringIndexer(stringToInt, intToString);
   }
 
+  private final ReentrantLock lock = new ReentrantLock();
+
   // These two fields act similarly to a (synchronized) BiMap. Mutating operations are performed in
   // synchronized blocks. Reads are done lock-free.
   private final PersistentIndexMap stringToInt;
@@ -82,9 +85,14 @@ final class PersistentStringIndexer implements StringIndexer {
   }
 
   @Override
-  public synchronized void clear() {
-    stringToInt.clear();
-    intToString = new AtomicReferenceArray<>(INITIAL_CAPACITY);
+  public void clear() {
+    lock.lock();
+    try {
+      stringToInt.clear();
+      intToString = new AtomicReferenceArray<>(INITIAL_CAPACITY);
+    } finally {
+      lock.unlock();
+    }
   }
 
   @Override
@@ -99,7 +107,8 @@ final class PersistentStringIndexer implements StringIndexer {
       return i;
     }
     s = s.intern();
-    synchronized (this) {
+    lock.lock();
+    try {
       i = stringToInt.size();
       Integer existing = stringToInt.putIfAbsent(s, i);
       if (existing != null) {
@@ -111,6 +120,8 @@ final class PersistentStringIndexer implements StringIndexer {
       }
       intToString.set(i, s);
       return i;
+    } finally {
+      lock.unlock();
     }
   }
 
@@ -140,23 +151,38 @@ final class PersistentStringIndexer implements StringIndexer {
   }
 
   /** Saves index data to the file. */
-  synchronized long save() throws IOException {
-    return stringToInt.save();
+  long save() throws IOException {
+    lock.lock();
+    try {
+      return stringToInt.save();
+    } finally {
+      lock.unlock();
+    }
   }
 
   /** Flushes the journal. */
-  synchronized void flush() {
-    stringToInt.flush();
+  void flush() {
+    lock.lock();
+    try {
+      stringToInt.flush();
+    } finally {
+      lock.unlock();
+    }
   }
 
   @Override
-  public synchronized String toString() {
-    StringBuilder builder = new StringBuilder();
-    builder.append("size = ").append(size()).append("\n");
-    for (Map.Entry<String, Integer> entry : stringToInt.entrySet()) {
-      builder.append(entry.getKey()).append(" <==> ").append(entry.getValue()).append("\n");
+  public String toString() {
+    lock.lock();
+    try {
+      StringBuilder builder = new StringBuilder();
+      builder.append("size = ").append(size()).append("\n");
+      for (Map.Entry<String, Integer> entry : stringToInt.entrySet()) {
+        builder.append(entry.getKey()).append(" <==> ").append(entry.getValue()).append("\n");
+      }
+      return builder.toString();
+    } finally {
+      lock.unlock();
     }
-    return builder.toString();
   }
 
   /**

@@ -77,11 +77,9 @@ void BazelStartupOptions::MaybeLogStartupOptionWarnings() const {
                             "ignored, since --ignore_all_rc_files is on.";
     }
   }
-  bool output_user_root_has_space =
-      output_user_root.find_first_of(' ') != std::string::npos;
-  if (output_user_root_has_space) {
+  if (output_user_root.Contains(' ')) {
     BAZEL_LOG(WARNING)
-        << "Output user root \"" << output_user_root
+        << "Output user root \"" << output_user_root.AsPrintablePath()
         << "\" contains a space. This will probably break the build. "
            "You should set a different --output_user_root.";
   } else if (output_base.Contains(' ')) {

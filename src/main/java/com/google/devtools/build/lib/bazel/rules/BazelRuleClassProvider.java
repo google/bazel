@@ -308,7 +308,6 @@ public class BazelRuleClassProvider {
               ContextGuardedValue.onlyInAllowedRepos(
                   Starlark.NONE, PyBootstrap.allowedRepositories));
           builder.addStarlarkBuiltinsInternal(BazelPyBuiltins.NAME, new BazelPyBuiltins());
-          builder.addStarlarkBootstrap(new PyBootstrap());
 
           try {
             builder.addWorkspaceFileSuffix(

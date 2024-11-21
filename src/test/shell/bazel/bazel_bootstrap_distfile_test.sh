@@ -151,6 +151,7 @@ EOF
       --override_repository=$(cat derived/maven/MAVEN_CANONICAL_REPO_NAME)=derived/maven \
       --java_language_version=${JAVA_VERSION} --tool_java_language_version=${JAVA_VERSION} \
       --tool_java_runtime_version=local_jdk \
+      --extra_toolchains=@rules_python//python/runtime_env_toolchains:all \
       --extra_toolchains=fake_java_toolchain:all \
       src:bazel_nojdk &> "${TEST_log}" || fail "analysis with bootstrapped Bazel failed"
 }

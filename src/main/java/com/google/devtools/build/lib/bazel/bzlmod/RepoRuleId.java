@@ -1,4 +1,4 @@
-// Copyright 2021 The Bazel Authors. All rights reserved.
+// Copyright 2024 The Bazel Authors. All rights reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -11,19 +11,32 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+//
 
 package com.google.devtools.build.lib.bazel.bzlmod;
 
+import com.google.devtools.build.lib.cmdline.Label;
 import com.google.devtools.build.lib.skyframe.serialization.autocodec.AutoCodec;
-import com.ryanharter.auto.value.gson.GenerateTypeAdapter;
+import javax.annotation.Nullable;
 
 /**
- * Contains information about a repo definition, including the ID of the underlying repo rule, and
- * all its attributes (except for the name).
+ * Identifies a repo rule.
  *
- * @param repoRuleId The repo rule backing this repo.
- * @param attributes All attribute values provided to the repo rule, except for <code>name</code>.
+ * @param bzlFileLabel The label pointing to the .bzl file defining the repo rule, or null if this
+ *     is a native repo rule.
+ * @param ruleName The name of the repo rule.
  */
 @AutoCodec
-@GenerateTypeAdapter
-public record RepoSpec(RepoRuleId repoRuleId, AttributeValues attributes) {}
+public record RepoRuleId(@Nullable Label bzlFileLabel, String ruleName) {
+  public boolean isNative() {
+    return bzlFileLabel == null;
+  }
+
+  @Override
+  public String toString() {
+    if (bzlFileLabel == null) {
+      return ruleName;
+    }
+    return bzlFileLabel.getUnambiguousCanonicalForm() + "%" + ruleName;
+  }
+}

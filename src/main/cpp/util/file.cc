@@ -15,15 +15,14 @@
 #include "src/main/cpp/util/file.h"
 
 #include <limits.h>
+#include <stdlib.h>
 
 #include <algorithm>
-#include <cstdlib>
+#include <string>
 #include <vector>
 
-#include "src/main/cpp/util/errors.h"
-#include "src/main/cpp/util/exit_code.h"
-#include "src/main/cpp/util/path.h"
-#include "src/main/cpp/util/strings.h"
+#include "src/main/cpp/util/file_platform.h"
+#include "src/main/cpp/util/path_platform.h"
 
 namespace blaze_util {
 
@@ -95,33 +94,24 @@ bool WriteFile(const std::string &content, const Path &path,
 
 class DirectoryTreeWalker : public DirectoryEntryConsumer {
  public:
-  DirectoryTreeWalker(vector<string> *files,
-                      _ForEachDirectoryEntry walk_entries)
-      : _files(files), _walk_entries(walk_entries) {}
+  explicit DirectoryTreeWalker(vector<Path> *files) : files(files) {}
 
-  void Consume(const string &path, bool follow_directory) override {
-    if (follow_directory) {
+  void Consume(const Path &path, bool is_directory) override {
+    if (is_directory) {
       Walk(path);
     } else {
-      _files->push_back(path);
+      files->push_back(path);
     }
   }
 
-  void Walk(const string &path) { _walk_entries(path, this); }
+  void Walk(const Path &path) { ForEachDirectoryEntry(path, this); }
 
  private:
-  vector<string> *_files;
-  _ForEachDirectoryEntry _walk_entries;
+  vector<Path> *files;
 };
 
-void GetAllFilesUnder(const string &path, vector<string> *result) {
-  _GetAllFilesUnder(path, result, &ForEachDirectoryEntry);
-}
-
-void _GetAllFilesUnder(const string &path,
-                       vector<string> *result,
-                       _ForEachDirectoryEntry walk_entries) {
-  DirectoryTreeWalker(result, walk_entries).Walk(path);
+void GetAllFilesUnder(const Path &path, vector<Path> *result) {
+  DirectoryTreeWalker(result).Walk(path);
 }
 
 }  // namespace blaze_util

@@ -17,7 +17,7 @@ Proto Semantics
 """
 
 semantics = struct(
-    PROTO_TOOLCHAIN = "@protobuf//bazel/private:proto_toolchain_type",
+    PROTO_TOOLCHAIN = "@com_google_protobuf//bazel/private:proto_toolchain_type",
     # This constant is used in ProtoCompileActionBuilder to generate an error message that's
     # displayed when a strict proto deps violation occurs.
     #

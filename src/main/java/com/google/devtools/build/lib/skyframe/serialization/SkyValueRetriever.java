@@ -61,6 +61,10 @@ public final class SkyValueRetriever {
     void setSerializationState(SerializationState state);
   }
 
+  /** A {@link SerializationStateProvider} implemented as a {@link SkyKeyComputeState}. */
+  public interface SerializableSkyKeyComputeState
+      extends SerializationStateProvider, SkyKeyComputeState {}
+
   /** Returned status of {@link DependOnFutureShim#dependOnFuture}. */
   public enum ObservedFutureStatus {
     /** If the future was already done. */

@@ -58,10 +58,6 @@ as an unconfigurable `select` – `"foo"` will become
 
 #### Attribute inheritance {:#attribute-inheritance}
 
-IMPORTANT: Attribute inheritance is an experimental feature enabled by the
-`--experimental_enable_macro_inherit_attrs` flag. Some of the behaviors
-described in this section may change before the feature is enabled by default.
-
 Macros are often intended to wrap a rule (or another macro), and the macro's
 author often wants to forward the bulk of the wrapped symbol's attributes
 unchanged, using `**kwargs`, to the macro's main target (or main inner macro).
