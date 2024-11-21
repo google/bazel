@@ -2305,6 +2305,10 @@ You can use the `--output_user_root` option to choose an
 alternate base location for all of Bazel's output (install base and output
 base) if there is a better location in your filesystem layout.
 
+You can also use the environment variable `BAZEL_OUTPUT_USER_ROOT` to set this directory for
+all further invocations. The value set by the environment variable will be overriden by a
+value explicitly specified on the commandline.
+
 Note: We recommend you do not use an NFS or similar networked file system for the root
 directory, as the higher access latency will cause noticeably slower builds.
 

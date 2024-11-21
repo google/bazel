@@ -130,6 +130,9 @@ StartupOptions::StartupOptions(const string &product_name,
   const string product_name_lower = GetLowercaseProductName();
   output_user_root = blaze_util::JoinPath(
       output_root, "_" + product_name_lower + "_" + GetUserName());
+  string env_output_user_root = blaze_util::MakeAbsolute(blaze::GetPathEnv("BAZEL_OUTPUT_USER_ROOT"));
+  if (!env_output_user_root.empty())
+    output_user_root = env_output_user_root;
 
   // IMPORTANT: Before modifying the statements below please contact a Bazel
   // core team member that knows the internal procedure for adding/deprecating
