@@ -1293,4 +1293,21 @@ EOF
   expect_log "in copy of external/other_repo/pkg/binary.sh: '+_repo_rules+other_repo'"
 }
 
+function test_utf8_charmap_default() {
+  cat > BUILD <<'EOF'
+genrule(
+    name = "gen",
+    outs = ["out"],
+    cmd = """
+got="$$(locale charmap)"
+want="UTF-8"
+[[ "$$got" == "$$want" ]] || { echo "got $$got, want $$want" >&2; exit 1; }
+touch $@
+""",
+)
+EOF
+
+  bazel build //:gen &> $TEST_log || fail "Build should succeed"
+}
+
 run_suite "rules test"

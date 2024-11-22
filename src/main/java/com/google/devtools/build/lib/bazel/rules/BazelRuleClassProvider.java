@@ -100,9 +100,10 @@ public class BazelRuleClassProvider {
           .buildOrThrow();
 
   /**
-   * {@link BuildConfigurationFunction} constructs {@link BuildOptions} out of the options required
-   * by the registered fragments. We create and register this fragment exclusively to ensure {@link
-   * StrictActionEnvOptions} is always available.
+   * {@link com.google.devtools.build.lib.skyframe.config.BuildConfigurationFunction} constructs
+   * {@link BuildOptions} out of the options required by the registered fragments. We create and
+   * register this fragment exclusively to ensure {@link StrictActionEnvOptions} is always
+   * available.
    */
   @RequiresOptions(options = {StrictActionEnvOptions.class})
   public static class StrictActionEnvConfiguration extends Fragment {
@@ -170,6 +171,14 @@ public class BazelRuleClassProvider {
           // and fell back to a hard-coded "/bin:/usr/bin" if PATH was not set.
           env.put("PATH", null);
         }
+
+        // An otherwise empty environment would force a fallback to the C locale, which only
+        // supports ASCII file paths. C.UTF-8 is now the de facto standard UTF-8 locale for all
+        // reasonably modern Unix systems (and doesn't cause any harm on Windows) and also a common
+        // default value for LANG.
+        // Set LANG instead of LC_CTYPE or LC_ALL to match what most distributions do and also make
+        // it easier for the user to override (e.g. back to C).
+        env.put("LANG", "C.UTF-8");
 
         // Shell environment variables specified via options take precedence over the
         // ones inherited from the fragments. In the long run, these fragments will

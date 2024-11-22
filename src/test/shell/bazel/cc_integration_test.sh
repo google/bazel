@@ -1946,7 +1946,7 @@ EOF
   bazel build -s --process_headers_in_dependencies --features parse_headers \
     //pkg:lib &> "$TEST_log" && fail "Build should have failed due to unclean headers"
   expect_log "Compiling pkg/lib.h"
-  expect_log "error:.*'uint8_t'"
+  expect_log "error:.*uint8_t"
 
   bazel build -s --process_headers_in_dependencies \
     //pkg:lib &> "$TEST_log" || fail "Build should have passed"

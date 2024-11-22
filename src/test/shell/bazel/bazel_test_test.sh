@@ -1116,4 +1116,22 @@ EOF
   expect_log "-- Test exited prematurely (TEST_PREMATURE_EXIT_FILE exists) --"
 }
 
+function test_utf8_charmap_default() {
+  cat <<'EOF' > BUILD
+sh_test(
+    name = 'x',
+    srcs = ['x.sh'],
+)
+EOF
+  cat <<'EOF' > x.sh
+#!/bin/sh
+got="$(locale charmap)"
+want="UTF-8"
+[[ "$got" == "$want" ]] || { echo "got $got, want $want" >&2; exit 1; }
+EOF
+  chmod +x x.sh
+
+  bazel test //:x --test_output=errors &> $TEST_log || fail "expected success"
+}
+
 run_suite "bazel test tests"

@@ -26,11 +26,10 @@ import java.util.List;
 public class BazelJavaSemantics implements JavaSemantics {
 
   /**
-   * {@code C.UTF-8} is now the universally accepted standard UTF-8 locale, to the point where some
-   * minimal distributions no longer ship with {@code en_US.UTF-8}.
+   * Bazel sets {@code LANG=C.UTF-8} in the environment for all actions and thus doesn't need
+   * special handling for Java compilation actions.
    */
-  private static final ImmutableMap<String, String> UTF8_ENVIRONMENT =
-      ImmutableMap.of("LC_CTYPE", "C.UTF-8");
+  private static final ImmutableMap<String, String> UTF8_ENVIRONMENT = ImmutableMap.of();
 
   @SerializationConstant public static final BazelJavaSemantics INSTANCE = new BazelJavaSemantics();
 

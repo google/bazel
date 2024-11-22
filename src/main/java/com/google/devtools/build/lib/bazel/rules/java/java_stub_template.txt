@@ -94,22 +94,6 @@ function is_macos() {
   [[ "${OSTYPE}" =~ darwin* ]]
 }
 
-function available_utf8_locale() {
-  # Both C.UTF-8 and en_US.UTF-8 do not cause any language-specific effects
-  # when set as LC_CTYPE, but neither is certain to exist on all systems.
-  #
-  # https://github.com/bazelbuild/bazel/pull/17670: Note that the use of "env"
-  # is important in these calls. Without "env", bash itself seems to pick up
-  # the LC_CTYPE change as soon as the variable is defined and may emit a
-  # warning when the locale files are not present. By using "env", bash never
-  # sees the change and the 2>/dev/null redirection does the right thing.
-  if [[ "$(env LC_CTYPE=C.UTF-8 locale charmap 2>/dev/null)" == "UTF-8" ]]; then
-    echo "C.UTF-8"
-  elif [[ "$(env LC_CTYPE=en_US.UTF-8 locale charmap 2>/dev/null)" == "UTF-8" ]]; then
-    echo "en_US.UTF-8"
-  fi
-}
-
 # Parse arguments sequentially until the first unrecognized arg is encountered.
 # Scan the remaining args for --wrapper_script_flag=X options and process them.
 ARGS=()
@@ -380,17 +364,6 @@ if [ -z "$CLASSPATH_LIMIT" ]; then
   # Windows per-arg limit MAX_ARG_STRLEN == 8k
   # Linux per-arg limit MAX_ARG_STRLEN == 128k
   is_windows && CLASSPATH_LIMIT=7000 || CLASSPATH_LIMIT=120000
-fi
-
-# On non-macOS Unix, without any locale variable set, the JVM would use
-# using ASCII rather than UTF-8 as the encoding for file system paths.
-if ! is_macos; then
-  if [ -z ${LC_CTYPE+x} ] && [ -z ${LC_ALL+x} ] && [ -z ${LANG+x} ]; then
-    UTF8_LOCALE=$(available_utf8_locale)
-    if [[ -n "$UTF8_LOCALE" ]]; then
-      export LC_CTYPE="$UTF8_LOCALE"
-    fi
-  fi
 fi
 
 if (("${#CLASSPATH}" > ${CLASSPATH_LIMIT})); then
