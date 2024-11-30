@@ -35,14 +35,32 @@ before the command (`build`, `test`, etc).
     The system-specified location may contain environment variable references,
     such as `${VAR_NAME}` on Unix or `%VAR_NAME%` on Windows.
 
-2.  **The workspace RC file**, unless `--noworkspace_rc` is present.
+2.  **The low-priority user-specified RC file**, if specified with
+    <code>--low_priority_bazelrc=<var>file</var></code>
+
+    This flag is optional but can also be specified multiple times.
+
+    `/dev/null` indicates that all further `--low_priority_bazelrc`s will
+    be ignored, which is useful to disable the search for user-supplied
+    low-priority rc files, such as in release builds.
+
+    For example:
+
+    ```
+    --low_priority_bazelrc=x.rc --low_priority_bazelrc=y.rc --low_priority_bazelrc=/dev/null --low_priority_bazelrc=z.rc
+    ```
+
+    - `x.rc` and `y.rc` are read.
+    - `z.rc` is ignored due to the prior `/dev/null`.
+
+3.  **The workspace RC file**, unless `--noworkspace_rc` is present.
 
     Path: `.bazelrc` in your workspace directory (next to the main
     `MODULE.bazel` file).
 
     It is not an error if this file does not exist.
 
-3.  **The home RC file**, unless `--nohome_rc` is present.
+4.  **The home RC file**, unless `--nohome_rc` is present.
 
     Path:
 
@@ -51,7 +69,7 @@ before the command (`build`, `test`, etc).
 
     It is not an error if this file does not exist.
 
-4.  **The user-specified RC file**, if specified with
+5.  **The user-specified RC file**, if specified with
     <code>--bazelrc=<var>file</var></code>
 
     This flag is optional but can also be specified multiple times.

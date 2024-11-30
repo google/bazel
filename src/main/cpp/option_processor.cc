@@ -367,6 +367,22 @@ blaze_exit_code::ExitCode OptionProcessor::GetRcFiles(
     rc_files.push_back(system_rc);
   }
 
+  // Get the command-line provided rc, passed as --bazelrc or nothing if the
+  // flag is absent.
+  vector<std::string> cmd_line_low_priority_rc_files =
+      GetAllUnaryOptionValues(cmd_line->startup_args, "--low_priority_bazelrc", "/dev/null");
+  for (auto& rc_file : cmd_line_low_priority_rc_files) {
+    string absolute_cmd_line_rc = blaze::AbsolutePathFromFlag(rc_file);
+    // Since this path is explicitly passed, a missing file is an error.
+    // Check this condition here.
+    if (!blaze_util::CanReadFile(absolute_cmd_line_rc)) {
+      BAZEL_LOG(ERROR) << "Error: Unable to read .bazelrc file '"
+                       << absolute_cmd_line_rc << "'.";
+      return blaze_exit_code::BAD_ARGV;
+    }
+    rc_files.push_back(absolute_cmd_line_rc);
+  }
+
   // Get the workspace rc: %workspace%/.bazelrc (unless --noworkspace_rc), but
   // only if we are in a workspace: invoking commands like "help" from outside
   // a workspace should work.
@@ -391,9 +407,8 @@ blaze_exit_code::ExitCode OptionProcessor::GetRcFiles(
       GetAllUnaryOptionValues(cmd_line->startup_args, "--bazelrc", "/dev/null");
   for (auto& rc_file : cmd_line_rc_files) {
     string absolute_cmd_line_rc = blaze::AbsolutePathFromFlag(rc_file);
-    // Unlike the previous 3 paths, where we ignore it if the file does not
-    // exist or is unreadable, since this path is explicitly passed, this is an
-    // error. Check this condition here.
+    // Since this path is explicitly passed, a missing file is an error.
+    // Check this condition here.
     if (!blaze_util::CanReadFile(absolute_cmd_line_rc)) {
       BAZEL_LOG(ERROR) << "Error: Unable to read .bazelrc file '"
                        << absolute_cmd_line_rc << "'.";

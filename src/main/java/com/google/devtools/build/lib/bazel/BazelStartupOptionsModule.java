@@ -47,6 +47,15 @@ public class BazelStartupOptionsModule extends BlazeModule {
                 + "Note: command line options will always supersede any option in bazelrc.")
     public String blazerc;
 
+    @Option(
+            name = "low_priority_bazelrc",
+            defaultValue = "null", // NOTE: purely decorative, rc files are read by the client.
+            documentationCategory = OptionDocumentationCategory.BAZEL_CLIENT_OPTIONS,
+            effectTags = {OptionEffectTag.CHANGES_INPUTS},
+            valueHelp = "<path>",
+            help = "Exactly the same semantics as --bazelrc except applied before the workspace bazelrc rather than after.")
+    public String lowPriorityBlazerc;
+
     // For the system_rc, it can be /etc/bazel.bazelrc, or a special Windows value, or can be
     // custom-set by the Bazel distributor. We don't list a known path in the help output in order
     // to avoid misdocumentation here.

@@ -24,6 +24,7 @@ namespace blaze {
 BazelStartupOptions::BazelStartupOptions(
     const WorkspaceLayout *workspace_layout)
     : StartupOptions("Bazel", workspace_layout),
+      user_low_priority_bazelrc_(""),
       user_bazelrc_(""),
       use_system_rc(true),
       use_workspace_rc(true),
@@ -32,6 +33,7 @@ BazelStartupOptions::BazelStartupOptions(
   RegisterNullaryStartupFlagNoRc("system_rc", &use_system_rc);
   RegisterNullaryStartupFlagNoRc("workspace_rc", &use_workspace_rc);
   RegisterUnaryStartupFlag("bazelrc");
+  RegisterUnaryStartupFlag("low_priority_bazelrc");
 }
 
 blaze_exit_code::ExitCode BazelStartupOptions::ProcessArgExtra(
@@ -40,7 +42,13 @@ blaze_exit_code::ExitCode BazelStartupOptions::ProcessArgExtra(
   assert(value);
   assert(is_processed);
 
-  if ((*value = GetUnaryOption(arg, next_arg, "--bazelrc")) != nullptr) {
+  if ((*value = GetUnaryOption(arg, next_arg, "--low_priority_bazelrc")) != nullptr) {
+    if (!rcfile.empty()) {
+      *error = "Can't specify --low_priority_bazelrc in the RC file.";
+      return blaze_exit_code::BAD_ARGV;
+    }
+    user_low_priority_bazelrc_ = *value;
+  } else if ((*value = GetUnaryOption(arg, next_arg, "--bazelrc")) != nullptr) {
     if (!rcfile.empty()) {
       *error = "Can't specify --bazelrc in the RC file.";
       return blaze_exit_code::BAD_ARGV;

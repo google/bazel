@@ -113,4 +113,17 @@ function test_bazelrc_after_devnull_ignored() {
   expect_not_log "--definitely_invalid_config"
 }
 
+function test_workspace_overrides_low_priority_user_bazelrc() {
+  # Help message only visible with --help_verbosity=medium
+  help_message_in_description="--${PRODUCT_NAME}rc (a string; default: see description)"
+
+  echo "help --help_verbosity=short" > 1.rc
+  bazel "--low_priority_${PRODUCT_NAME}rc=1.rc" help startup_options &> $TEST_log || fail "Should pass"
+  expect_not_log "$help_message_in_description"
+
+  add_to_bazelrc "help --help_verbosity=medium"
+  bazel "--low_priority_${PRODUCT_NAME}rc=1.rc" help startup_options &> $TEST_log || fail "Should pass"
+  expect_log "$help_message_in_description"
+}
+
 run_suite "${PRODUCT_NAME} startup options test"

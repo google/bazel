@@ -38,6 +38,7 @@ class BazelStartupOptions : public StartupOptions {
   std::string GetRcFileBaseName() const override { return ".bazelrc"; }
 
  private:
+  std::string user_low_priority_bazelrc_;
   std::string user_bazelrc_;
   bool use_system_rc;
   bool use_workspace_rc;
