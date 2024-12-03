@@ -32,7 +32,6 @@ public class TestFileNameConstants {
 
   // Only present for the coverage command.
   public static final String TEST_COVERAGE = "test.lcov";
-  public static final String BASELINE_COVERAGE = "baseline.lcov";
 
   // Present for both --zip_undeclared_outputs and --nozip_undeclared_outputs.
   public static final String UNDECLARED_OUTPUTS_ANNOTATIONS = "test.outputs_manifest__ANNOTATIONS";
