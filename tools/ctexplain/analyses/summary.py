@@ -20,6 +20,8 @@ from dataclasses import dataclass
 from tools.ctexplain.types import ConfiguredTarget
 # Do not edit this line. Copybara replaces it with PY2 migration helper..third_party.bazel.tools.ctexplain.util as util
 
+import tools.ctexplain.util as util
+
 
 @dataclass(frozen=True)
 class _Summary():

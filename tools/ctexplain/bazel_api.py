@@ -15,8 +15,10 @@
 
 There's no Python Bazel API so we invoke Bazel as a subprocess.
 """
+import functools
 import json
 import os
+import re
 import subprocess
 from typing import Callable
 from typing import List
@@ -28,8 +30,12 @@ from tools.ctexplain.types import ConfiguredTarget
 from tools.ctexplain.types import HostConfiguration
 from tools.ctexplain.types import NullConfiguration
 
+CQUERY_RESULT_LINE_REGEX = re.compile(r"^(.*?) \((\S+)\) \[([^[]*)\]$")
+DEFAULT_BAZEL_BINARY = "bazel"
 
-def run_bazel_in_client(args: List[str]) -> Tuple[int, List[str], List[str]]:
+
+def run_bazel_in_client(args: List[str],
+                        bazel: str = DEFAULT_BAZEL_BINARY) -> Tuple[int, List[str], List[str]]:
   """Calls bazel within the current workspace.
 
   For production use. Tests use an alternative invoker that goes through test
@@ -42,7 +48,7 @@ def run_bazel_in_client(args: List[str]) -> Tuple[int, List[str], List[str]]:
     Tuple of (return code, stdout, stderr)
   """
   result = subprocess.run(
-      ["blaze"] + args,
+      [bazel] + args,
       cwd=os.getcwd(),
       stdout=subprocess.PIPE,
       stderr=subprocess.PIPE,
@@ -57,8 +63,12 @@ class BazelApi():
   def __init__(self,
                run_bazel: Callable[[List[str]],
                                    Tuple[int, List[str],
-                                         List[str]]] = run_bazel_in_client):
+                                         List[str]]] = None,
+               bazel: str = DEFAULT_BAZEL_BINARY):
+    self.bazel = bazel
     self.run_bazel = run_bazel
+    if run_bazel is None:
+      self.run_bazel = functools.partial(run_bazel_in_client, bazel=self.bazel)
 
   def cquery(self,
              args: List[str]) -> Tuple[bool, str, Tuple[ConfiguredTarget, ...]]:
@@ -144,20 +154,16 @@ def _parse_cquery_result_line(line: str) -> ConfiguredTarget:
   Returns:
     Corresponding ConfiguredTarget if the line matches else None.
   """
-  tokens = line.split(maxsplit=2)
-  label = tokens[0]
-  if tokens[1][0] != "(" or tokens[1][-1] != ")":
-    raise ValueError(f"{tokens[1]} in {line} not surrounded by parentheses")
-  config_hash = tokens[1][1:-1]
-  if config_hash == "null":
-    fragments = ()
+  result = CQUERY_RESULT_LINE_REGEX.search(line)
+  if result is None:
+    raise ValueError(f"{repr(line)} does not match {repr(CQUERY_RESULT_LINE_REGEX.pattern)}")
+  label, config_hash, fragments_str = result.groups()
+  if fragments_str:
+    # The fragments list looks like 'Fragment1, Fragment2, ...'. Split on
+    # ', ' to convert it to a structured tuple.
+    fragments = tuple(fragments_str.split(", "))
   else:
-    if tokens[2][0] != "[" or tokens[2][-1] != "]":
-      raise ValueError(f"{tokens[2]} in {line} not surrounded by [] brackets")
-    # The fragments list looks like '[Fragment1, Fragment2, ...]'. Split the
-    # whole line on ' [' to get just this list, then remove the final ']', then
-    # split again on ', ' to convert it to a structured tuple.
-    fragments = tuple(line.split(" [")[1][0:-1].split(", "))
+    fragments = ()
   return ConfiguredTarget(
       label=label,
       config=None,  # Not yet available: we'll need `bazel config` to get this.

@@ -43,10 +43,14 @@ from absl import flags
 from dataclasses import dataclass
 
 # Do not edit this line. Copybara replaces it with PY2 migration helper..third_party.bazel.tools.ctexplain.analyses.summary as summary
-from tools.ctexplain.bazel_api import BazelApi
+from tools.ctexplain.bazel_api import DEFAULT_BAZEL_BINARY, BazelApi
 # Do not edit this line. Copybara replaces it with PY2 migration helper..third_party.bazel.tools.ctexplain.lib as lib
 from tools.ctexplain.types import ConfiguredTarget
 # Do not edit this line. Copybara replaces it with PY2 migration helper..third_party.bazel.tools.ctexplain.util as util
+
+import tools.ctexplain.lib as lib
+import tools.ctexplain.util as util
+import tools.ctexplain.analyses.summary as summary
 
 FLAGS = flags.FLAGS
 
@@ -112,6 +116,8 @@ flags.register_validator(
     lambda flag_value: all(name in analyses for name in flag_value),
     message=f'available analyses: {", ".join(analyses.keys())}')
 
+flags.DEFINE_string("bazel", DEFAULT_BAZEL_BINARY, "Path to bazel binary")
+
 flags.DEFINE_multi_string(
     "build", [],
     """command-line invocation of the build to analyze. For example:
@@ -133,8 +139,8 @@ def _get_build_flags(cmdline: str) -> Tuple[Tuple[str, ...], Tuple[str, ...]]:
     Tuple of ((target labels to build), (build flags))
   """
   cmdlist = cmdline.split()
-  labels = [arg for arg in cmdlist if arg.startswith("//")]
-  build_flags = [arg for arg in cmdlist if not arg.startswith("//")]
+  labels = [arg for arg in cmdlist if arg.startswith("//") or arg.startswith("@")]
+  build_flags = [arg for arg in cmdlist if not arg.startswith("//") and not arg.startswith("@")]
   return (tuple(labels), tuple(build_flags))
 
 
@@ -148,8 +154,10 @@ def main(argv):
 
   (labels, build_flags) = _get_build_flags(FLAGS.build[0])
   build_desc = ",".join(labels)
+
   with util.ProgressStep(f"Collecting configured targets for {build_desc}"):
-    cts = lib.analyze_build(BazelApi(), labels, build_flags)
+    cts = lib.analyze_build(BazelApi(bazel=FLAGS.bazel), labels, build_flags)
+
   for analysis in FLAGS.analysis:
     analyses[analysis].exec(cts)
 

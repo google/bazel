@@ -16,6 +16,7 @@ from typing import Tuple
 
 # Do not edit this line. Copybara replaces it with PY2 migration helper..third_party.bazel.tools.ctexplain.bazel_api as bazel_api
 from tools.ctexplain.types import ConfiguredTarget
+import tools.ctexplain.bazel_api as bazel_api
 
 
 def analyze_build(bazel: bazel_api.BazelApi, labels: Tuple[str, ...],
