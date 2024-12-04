@@ -184,12 +184,18 @@ def compile(
     classpath_mode = ctx.fragments.java.reduce_java_classpath()
 
     direct_jars = depset()
+    transitive = [dep.transitive_compile_time_jars for dep in deps]
+
     if is_strict_mode:
         direct_jars = depset(order = "preorder", transitive = [dep.compile_jars for dep in deps])
+        pruned = ctx.fragments.java.experimental_prune_transitive_deps() and not ctx.label.workspace_root.startswith("external/")
+        transitive = [direct_jars] if pruned else [direct_jars] + [dep.transitive_compile_time_jars for dep in deps]
+
     compilation_classpath = depset(
         order = "preorder",
-        transitive = [direct_jars] + [dep.transitive_compile_time_jars for dep in deps],
+        transitive = transitive,
     )
+
     compile_time_java_deps = depset()
     if is_strict_mode and classpath_mode != "OFF":
         compile_time_java_deps = depset(transitive = [dep._compile_time_java_dependencies for dep in deps])

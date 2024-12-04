@@ -120,6 +120,12 @@ public interface JavaConfigurationApi extends StarlarkValue {
   boolean getUseIjarsInStarlark(StarlarkThread thread) throws EvalException;
 
   @StarlarkMethod(
+          name = "experimental_prune_transitive_deps",
+          doc = "If enabled, compilation is performed against only direct dependencies.",
+          useStarlarkThread = true)
+  boolean getPruneTransitiveDepsInStarlark(StarlarkThread thread) throws EvalException;
+
+  @StarlarkMethod(
       name = "disallow_java_import_exports",
       doc = "Returns true if java_import exports are not allowed.",
       useStarlarkThread = true)

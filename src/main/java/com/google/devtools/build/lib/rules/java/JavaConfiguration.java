@@ -226,6 +226,12 @@ public final class JavaConfiguration extends Fragment implements JavaConfigurati
     return useIjars;
   }
 
+  @Override
+  public boolean getPruneTransitiveDepsInStarlark(StarlarkThread thread) throws EvalException {
+    checkPrivateAccess(thread);
+    return !compileWithTransitiveDeps;
+  }
+
   /** Returns true iff Java header compilation is enabled. */
   public boolean useHeaderCompilation() {
     return useHeaderCompilation;
