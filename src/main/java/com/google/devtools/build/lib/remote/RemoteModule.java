@@ -249,8 +249,6 @@ public final class RemoteModule extends BlazeModule {
     Retrier.CircuitBreaker circuitBreaker =
         CircuitBreakerFactory.createCircuitBreaker(remoteOptions);
     try {
-      Retrier.CircuitBreaker circuitBreaker =
-        CircuitBreakerFactory.createCircuitBreaker(remoteOptions);
       combinedCacheClient =
           CombinedCacheClientFactory.create(
               remoteOptions,
