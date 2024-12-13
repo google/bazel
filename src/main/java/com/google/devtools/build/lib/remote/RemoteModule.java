@@ -227,6 +227,17 @@ public final class RemoteModule extends BlazeModule {
         return retry;
       };
 
+  public static final Predicate<? super Exception> HTTP_SUCCESS_CODES =
+      e -> {
+        boolean success = false;
+        if (e instanceof HttpException) {
+          int status = ((HttpException) e).response().status().code();
+          success =
+              status == HttpResponseStatus.NOT_FOUND.code();
+        }
+        return success;
+      };
+
   private void initHttpAndDiskCache(
       CommandEnvironment env,
       Credentials credentials,
@@ -238,6 +249,8 @@ public final class RemoteModule extends BlazeModule {
     Retrier.CircuitBreaker circuitBreaker =
         CircuitBreakerFactory.createCircuitBreaker(remoteOptions);
     try {
+      Retrier.CircuitBreaker circuitBreaker =
+        CircuitBreakerFactory.createCircuitBreaker(remoteOptions);
       combinedCacheClient =
           CombinedCacheClientFactory.create(
               remoteOptions,
@@ -247,7 +260,7 @@ public final class RemoteModule extends BlazeModule {
               digestUtil,
               executorService,
               new RemoteRetrier(
-                  remoteOptions, RETRIABLE_HTTP_ERRORS, retryScheduler, circuitBreaker));
+                  remoteOptions, RETRIABLE_HTTP_ERRORS, retryScheduler, circuitBreaker, HTTP_SUCCESS_CODES));
     } catch (IOException e) {
       handleInitFailure(env, e, Code.CACHE_INIT_FAILURE);
       return;
@@ -474,7 +487,7 @@ public final class RemoteModule extends BlazeModule {
         CircuitBreakerFactory.createCircuitBreaker(remoteOptions);
     RemoteRetrier retrier =
         new RemoteRetrier(
-            remoteOptions, RemoteRetrier.RETRIABLE_GRPC_ERRORS, retryScheduler, circuitBreaker);
+            remoteOptions, RemoteRetrier.RETRIABLE_GRPC_ERRORS, retryScheduler, circuitBreaker, RemoteRetrier.GRPC_SUCCESS_CODES);
 
     if (!Strings.isNullOrEmpty(remoteOptions.remoteOutputService)) {
       var bazelOutputServiceChannel =
@@ -648,7 +661,8 @@ public final class RemoteModule extends BlazeModule {
                 remoteOptions,
                 RemoteRetrier.RETRIABLE_GRPC_ERRORS, // Handle NOT_FOUND internally
                 retryScheduler,
-                circuitBreaker);
+                circuitBreaker,
+                RemoteRetrier.GRPC_SUCCESS_CODES);
         remoteExecutor =
             new ExperimentalGrpcRemoteExecutor(
                 remoteOptions, execChannel.retain(), callCredentialsProvider, execRetrier);
@@ -658,7 +672,8 @@ public final class RemoteModule extends BlazeModule {
                 remoteOptions,
                 RemoteRetrier.RETRIABLE_GRPC_EXEC_ERRORS,
                 retryScheduler,
-                circuitBreaker);
+                circuitBreaker,
+                RemoteRetrier.GRPC_SUCCESS_CODES);
         remoteExecutor =
             new GrpcRemoteExecutor(execChannel.retain(), callCredentialsProvider, execRetrier);
       }

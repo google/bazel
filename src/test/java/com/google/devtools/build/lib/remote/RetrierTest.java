@@ -375,6 +375,45 @@ public class RetrierTest {
     assertThat(cb.state).isEqualTo(State.ACCEPT_CALLS);
   }
 
+  @Test
+  public void testCircuitBreakerFailureAndSuccessCallOnNonRetriableGrpcError() {
+    Supplier<Backoff> s = () -> new ZeroBackoff(/*maxRetries=*/ 2);
+    List<Status> nonRetriableFailure =
+        Arrays.asList(Status.PERMISSION_DENIED, Status.UNIMPLEMENTED, Status.DATA_LOSS);
+    List<Status> nonRetriableSuccess =
+        Arrays.asList(Status.NOT_FOUND, Status.OUT_OF_RANGE, Status.ALREADY_EXISTS);
+    TripAfterNCircuitBreaker cb =
+        new TripAfterNCircuitBreaker(nonRetriableFailure.size());
+    Retrier r = new Retrier(s, RemoteRetrier.RETRIABLE_GRPC_ERRORS, retryService, cb, RemoteRetrier.GRPC_SUCCESS_CODES);
+
+    int expectedConsecutiveFailures = 0;
+
+    for (Status status : nonRetriableFailure) {
+      ListenableFuture<Void> res =
+          r.executeAsync(
+              () -> {
+                throw new StatusRuntimeException(status);
+              });
+      expectedConsecutiveFailures += 1;
+      assertThrows(ExecutionException.class, res::get);
+      assertThat(cb.consecutiveFailures).isEqualTo(expectedConsecutiveFailures);
+    }
+
+    assertThat(cb.state).isEqualTo(State.REJECT_CALLS);
+    cb.trialCall();
+
+    for (Status status : nonRetriableSuccess) {
+      ListenableFuture<Void> res =
+          r.executeAsync(
+              () -> {
+                throw new StatusRuntimeException(status);
+              });
+      assertThat(cb.consecutiveFailures).isEqualTo(0);
+      assertThrows(ExecutionException.class, res::get);
+    }
+    assertThat(cb.state).isEqualTo(State.ACCEPT_CALLS);
+  }
+
   /** Simple circuit breaker that trips after N consecutive failures. */
   @ThreadSafe
   private static class TripAfterNCircuitBreaker implements CircuitBreaker {

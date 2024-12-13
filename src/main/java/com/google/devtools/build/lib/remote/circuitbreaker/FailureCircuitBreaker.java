@@ -35,6 +35,7 @@ public class FailureCircuitBreaker implements Retrier.CircuitBreaker {
   private final int failureRateThreshold;
   private final int slidingWindowSize;
   private final int minCallCountToComputeFailureRate;
+  private final int minFailCountToComputeFailureRate;
   private final ScheduledExecutorService scheduledExecutor;
 
   /**
@@ -52,6 +53,8 @@ public class FailureCircuitBreaker implements Retrier.CircuitBreaker {
     this.slidingWindowSize = slidingWindowSize;
     this.minCallCountToComputeFailureRate =
         CircuitBreakerFactory.DEFAULT_MIN_CALL_COUNT_TO_COMPUTE_FAILURE_RATE;
+    this.minFailCountToComputeFailureRate =
+        CircuitBreakerFactory.DEFAULT_MIN_FAIL_COUNT_TO_COMPUTE_FAILURE_RATE;
     this.state = State.ACCEPT_CALLS;
     this.scheduledExecutor =
         slidingWindowSize > 0 ? Executors.newSingleThreadScheduledExecutor() : null;
@@ -72,7 +75,7 @@ public class FailureCircuitBreaker implements Retrier.CircuitBreaker {
               failures::decrementAndGet, slidingWindowSize, TimeUnit.MILLISECONDS);
     }
 
-    if (totalCallCount < minCallCountToComputeFailureRate) {
+    if (totalCallCount < minCallCountToComputeFailureRate && failureCount < minFailCountToComputeFailureRate) {
       // The remote call count is below the threshold required to calculate the failure rate.
       return;
     }

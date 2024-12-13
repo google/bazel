@@ -49,8 +49,8 @@ public class FailureCircuitBreakerTest {
     listOfSuccessAndFailureCalls.stream().parallel().forEach(Runnable::run);
     assertThat(failureCircuitBreaker.state()).isEqualTo(State.ACCEPT_CALLS);
 
-    // Sleep for windowInterval + 1ms.
-    Thread.sleep(windowInterval + 1 /*to compensate any delay*/);
+    // Sleep for windowInterval + 5ms.
+    Thread.sleep(windowInterval + 5 /*to compensate any delay*/);
 
     // make calls equals to threshold number of not ignored failure calls in parallel.
     listOfSuccessAndFailureCalls.stream().parallel().forEach(Runnable::run);
@@ -64,21 +64,40 @@ public class FailureCircuitBreakerTest {
 
   @Test
   public void testRecordFailure_minCallCriteriaNotMet() throws InterruptedException {
-    final int failureRateThreshold = 10;
+    final int failureRateThreshold = 0;
     final int windowInterval = 100;
     final int minCallToComputeFailure =
         CircuitBreakerFactory.DEFAULT_MIN_CALL_COUNT_TO_COMPUTE_FAILURE_RATE;
     FailureCircuitBreaker failureCircuitBreaker =
         new FailureCircuitBreaker(failureRateThreshold, windowInterval);
 
-    // make half failure call, half success call and number of total call less than
+    // make success calls, failure call and number of total calls less than
     // minCallToComputeFailure.
-    IntStream.range(0, minCallToComputeFailure >> 1)
-        .parallel()
-        .forEach(i -> failureCircuitBreaker.recordFailure());
-    IntStream.range(0, minCallToComputeFailure >> 1)
+    IntStream.range(0, minCallToComputeFailure - 2)
         .parallel()
         .forEach(i -> failureCircuitBreaker.recordSuccess());
+    failureCircuitBreaker.recordFailure();
+    assertThat(failureCircuitBreaker.state()).isEqualTo(State.ACCEPT_CALLS);
+
+    // Sleep for less than windowInterval.
+    Thread.sleep(windowInterval - 50);
+    failureCircuitBreaker.recordFailure();
+    assertThat(failureCircuitBreaker.state()).isEqualTo(State.REJECT_CALLS);
+  }
+
+  @Test
+  public void testRecordFailure_minFailCriteriaNotMet() throws InterruptedException {
+    final int failureRateThreshold = 10;
+    final int windowInterval = 100;
+    final int minFailToComputeFailure =
+        CircuitBreakerFactory.DEFAULT_MIN_FAIL_COUNT_TO_COMPUTE_FAILURE_RATE;
+    FailureCircuitBreaker failureCircuitBreaker =
+        new FailureCircuitBreaker(failureRateThreshold, windowInterval);
+
+    // make number of failure calls less than minFailToComputeFailure.
+    IntStream.range(0, minFailToComputeFailure - 1)
+        .parallel()
+        .forEach(i -> failureCircuitBreaker.recordFailure());
     assertThat(failureCircuitBreaker.state()).isEqualTo(State.ACCEPT_CALLS);
 
     // Sleep for less than windowInterval.
