@@ -49,18 +49,17 @@ final class FormatParser {
   String format(
       String input, List<Object> args, Map<String, Object> kwargs, StarlarkSemantics semantics)
       throws EvalException {
-    char[] chars = input.toCharArray();
     StringBuilder output = new StringBuilder();
     History history = new History();
 
-    for (int pos = 0; pos < chars.length; ++pos) {
-      char current = chars[pos];
+    for (int pos = 0; pos < input.length(); ++pos) {
+      char current = input.charAt(pos);
       int advancePos = 0;
 
       if (current == '{') {
-        advancePos = processOpeningBrace(chars, pos, args, kwargs, history, output, semantics);
+        advancePos = processOpeningBrace(input, pos, args, kwargs, history, output, semantics);
       } else if (current == '}') {
-        advancePos = processClosingBrace(chars, pos, output);
+        advancePos = processClosingBrace(input, pos, output);
       } else {
         output.append(current);
       }
@@ -75,7 +74,7 @@ final class FormatParser {
    * Processes the expression after an opening brace (possibly a replacement field) and emits the
    * result to the output StringBuilder
    *
-   * @param chars The entire string
+   * @param s The entire string
    * @param pos The position of the opening brace
    * @param args List of positional arguments
    * @param kwargs Map of named arguments
@@ -85,7 +84,7 @@ final class FormatParser {
    * @return Number of characters that have been consumed by this method
    */
   private int processOpeningBrace(
-      char[] chars,
+      String s,
       int pos,
       List<Object> args,
       Map<String, Object> kwargs,
@@ -94,14 +93,14 @@ final class FormatParser {
       StarlarkSemantics semantics)
       throws EvalException {
     Printer printer = new Printer(output);
-    if (has(chars, pos + 1, '{')) {
+    if (has(s, pos + 1, '{')) {
       // Escaped brace -> output and move to char after right brace
       printer.append("{");
       return 1;
     }
 
     // Inside a replacement field
-    String key = getFieldName(chars, pos);
+    String key = getFieldName(s, pos);
     Object value = null;
 
     // Only positional replacement fields will lead to a valid index
@@ -142,14 +141,14 @@ final class FormatParser {
   /**
    * Processes a closing brace and emits the result to the output StringBuilder
    *
-   * @param chars The entire string
+   * @param s The entire string
    * @param pos Position of the closing brace
    * @param output StringBuilder that consumes the result
    * @return Number of characters that have been consumed by this method
    */
-  private int processClosingBrace(char[] chars, int pos, StringBuilder output)
+  private int processClosingBrace(String s, int pos, StringBuilder output)
       throws EvalException {
-    if (!has(chars, pos + 1, '}')) {
+    if (!has(s, pos + 1, '}')) {
       // Invalid brace outside replacement field
       throw Starlark.errorf("Found '}' without matching '{'");
     }
@@ -162,28 +161,28 @@ final class FormatParser {
   /**
    * Checks whether the given input string has a specific character at the given location
    *
-   * @param data Input string as character array
+   * @param s Input string
    * @param pos Position to be checked
    * @param needle Character to be searched for
    * @return True if string has the specified character at the given location
    */
-  private static boolean has(char[] data, int pos, char needle) {
-    return pos < data.length && data[pos] == needle;
+  private static boolean has(String s, int pos, char needle) {
+    return pos < s.length() && s.charAt(pos) == needle;
   }
 
   /**
    * Extracts the name/index of the replacement field that starts at the specified location
    *
-   * @param chars Input string
+   * @param s Input string
    * @param openingBrace Position of the opening brace of the replacement field
    * @return Name or index of the current replacement field
    */
-  private String getFieldName(char[] chars, int openingBrace) throws EvalException {
+  private String getFieldName(String s, int openingBrace) throws EvalException {
     StringBuilder result = new StringBuilder();
     boolean foundClosingBrace = false;
 
-    for (int pos = openingBrace + 1; pos < chars.length; ++pos) {
-      char current = chars[pos];
+    for (int pos = openingBrace + 1; pos < s.length(); ++pos) {
+      char current = s.charAt(pos);
 
       if (current == '}') {
         foundClosingBrace = true;

@@ -19,6 +19,7 @@ import com.google.common.collect.ImmutableMap;
 import com.sun.management.ThreadMXBean;
 import java.io.File;
 import java.lang.management.ManagementFactory;
+import java.nio.file.Files;
 import java.util.Arrays;
 import java.util.Map;
 import java.util.TreeMap;
@@ -63,7 +64,7 @@ import net.starlark.java.syntax.SyntaxError;
 public final class Benchmarks {
 
   private static final String HELP =
-      "Usage: Benchmarks [--help] [--filter regex] [--seconds float] [--iterations count]\n"
+      "Usage: Benchmarks [--help] [--filter regex] [--seconds float] [--iterations count] [--latin1]\n"
           + "Runs Starlark benchmarks matching the filter for the specified approximate time or\n"
           + "specified number of iterations, and reports various performance measures.\n"
           + "The optional filter is a regular expression applied to the string FILE:FUNC,\n"
@@ -76,6 +77,7 @@ public final class Benchmarks {
     Pattern filter = null; // default: all
     long budgetNanos = -1;
     int iterations = -1;
+    boolean useUtf8 = true;
 
     // parse flags
     int i;
@@ -124,6 +126,9 @@ public final class Benchmarks {
           fail("--iterations out of range");
         }
 
+      } else if (args[i].equals("--latin1")) {
+        useUtf8 = false;
+
       } else {
         fail("unknown flag: %s", args[i]);
       }
@@ -154,7 +159,12 @@ public final class Benchmarks {
       }
 
       // parse & execute
-      ParserInput input = ParserInput.readFile(file.toString());
+      ParserInput input;
+      if (useUtf8) {
+        input = ParserInput.readFile(file.toString());
+      } else {
+        input = ParserInput.fromLatin1(Files.readAllBytes(file.toPath()), file.toString());
+      }
       ImmutableMap.Builder<String, Object> predeclared = ImmutableMap.builder();
       predeclared.put("json", Json.INSTANCE);
 

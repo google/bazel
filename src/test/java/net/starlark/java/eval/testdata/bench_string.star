@@ -16,3 +16,26 @@ _to_strip = "   Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do 
 def bench_strip(b):
     for _ in range(b.n):
         _to_strip.strip()
+
+_sample_template = """
+load("@rules_pkg//pkg:tar.bzl", "pkg_tar")
+
+filegroup(
+  name="files",
+  srcs = {srcs},
+  visibility = ["//visibility:public"],
+)
+
+pkg_tar(
+  name="archives",
+  srcs = [":files"],
+  strip_prefix = "{strip_prefix}",
+  package_dir = "{dirname}",
+  visibility = ["//visibility:public"],
+)
+
+"""
+
+def bench_format(b):
+    for _ in range(b.n):
+        _sample_template.format(srcs = "srcs", strip_prefix = "strip_prefix", dirname = "dirname")
