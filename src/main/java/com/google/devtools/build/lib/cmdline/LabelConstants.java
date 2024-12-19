@@ -48,6 +48,8 @@ public class LabelConstants {
   public static final PathFragment VENDOR_FILE_NAME = PathFragment.create("VENDOR.bazel");
 
   public static final PathFragment MODULE_LOCKFILE_NAME = PathFragment.create("MODULE.bazel.lock");
+  public static final PathFragment MODULE_REPRODUCIBLE_LOCKFILE_NAME =
+      PathFragment.create("MODULE.bazel.reproducible_lock");
 
   // With this prefix, non-main repositories are symlinked under
   // $output_base/execution_root/__main__/external

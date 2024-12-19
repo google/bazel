@@ -140,13 +140,23 @@ public class SingleExtensionEvalFunction implements SkyFunction {
     LockFileModuleExtension lockedExtension = null;
     LockfileMode lockfileMode = BazelLockFileFunction.LOCKFILE_MODE.get(env);
     if (!lockfileMode.equals(LockfileMode.OFF)) {
-      BazelLockFileValue lockfile = (BazelLockFileValue) env.getValue(BazelLockFileValue.KEY);
-      if (lockfile == null) {
+      var lockfiles =
+          env.getValuesAndExceptions(
+              ImmutableList.of(BazelLockFileValue.KEY, BazelLockFileValue.PERSISTENT_KEY));
+      BazelLockFileValue lockfile = (BazelLockFileValue) lockfiles.get(BazelLockFileValue.KEY);
+      BazelLockFileValue persistentLockfile =
+          (BazelLockFileValue) lockfiles.get(BazelLockFileValue.PERSISTENT_KEY);
+      if (lockfile == null || persistentLockfile == null) {
         return null;
       }
       var lockedExtensionMap = lockfile.getModuleExtensions().get(extensionId);
       lockedExtension =
           lockedExtensionMap == null ? null : lockedExtensionMap.get(extension.getEvalFactors());
+      if (lockedExtension == null) {
+        lockedExtensionMap = persistentLockfile.getModuleExtensions().get(extensionId);
+        lockedExtension =
+            lockedExtensionMap == null ? null : lockedExtensionMap.get(extension.getEvalFactors());
+      }
       if (lockedExtension != null) {
         try {
           SingleExtensionValue singleExtensionValue =
@@ -335,7 +345,9 @@ public class SingleExtensionEvalFunction implements SkyFunction {
           Optional.of(new LockFileModuleExtension.WithFactors(evalFactors, lockedExtension)),
           env);
     }
-    if (lockfileMode.equals(LockfileMode.ERROR)) {
+    // Reproducible extensions are always locked in the persistent lockfile to provide best-effort
+    // speedups, but should never result in an error if out-of-date.
+    if (lockfileMode.equals(LockfileMode.ERROR) && !lockedExtension.isReproducible()) {
       throw new SingleExtensionEvalFunctionException(
           ExternalDepsException.withMessage(
               Code.BAD_LOCKFILE,

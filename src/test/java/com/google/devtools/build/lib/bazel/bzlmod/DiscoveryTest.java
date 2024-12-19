@@ -189,7 +189,7 @@ public class DiscoveryTest extends FoundationTestCase {
                         SyscallCache.NO_CACHE,
                         externalFilesHelper))
                 .put(DiscoveryValue.FUNCTION_NAME, new DiscoveryFunction())
-                .put(SkyFunctions.BAZEL_LOCK_FILE, new BazelLockFileFunction(rootDirectory))
+                .put(SkyFunctions.BAZEL_LOCK_FILE, new BazelLockFileFunction(rootDirectory, directories.getOutputBase()))
                 .put(
                     SkyFunctions.MODULE_FILE,
                     new ModuleFileFunction(

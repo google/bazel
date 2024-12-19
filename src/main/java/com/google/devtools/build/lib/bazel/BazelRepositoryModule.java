@@ -266,7 +266,8 @@ public class BazelRepositoryModule extends BlazeModule {
         .addSkyFunction(SkyFunctions.MODULE_FILE, moduleFileFunction)
         .addSkyFunction(SkyFunctions.BAZEL_DEP_GRAPH, new BazelDepGraphFunction())
         .addSkyFunction(
-            SkyFunctions.BAZEL_LOCK_FILE, new BazelLockFileFunction(directories.getWorkspace()))
+            SkyFunctions.BAZEL_LOCK_FILE,
+            new BazelLockFileFunction(directories.getWorkspace(), directories.getOutputBase()))
         .addSkyFunction(SkyFunctions.BAZEL_FETCH_ALL, new BazelFetchAllFunction())
         .addSkyFunction(SkyFunctions.BAZEL_MOD_TIDY, new BazelModTidyFunction())
         .addSkyFunction(SkyFunctions.BAZEL_MODULE_INSPECTION, new BazelModuleInspectorFunction())

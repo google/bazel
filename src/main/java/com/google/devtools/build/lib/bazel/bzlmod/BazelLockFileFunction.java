@@ -55,29 +55,42 @@ public class BazelLockFileFunction implements SkyFunction {
   private static final BazelLockFileValue EMPTY_LOCKFILE = BazelLockFileValue.builder().build();
 
   private final Path rootDirectory;
+  private final Path outputBase;
 
-  public BazelLockFileFunction(Path rootDirectory) {
+  public BazelLockFileFunction(Path rootDirectory, Path outputBase) {
     this.rootDirectory = rootDirectory;
+    this.outputBase = outputBase;
   }
 
   @Override
   @Nullable
   public SkyValue compute(SkyKey skyKey, Environment env)
       throws BazelLockfileFunctionException, InterruptedException {
+    boolean forPersistentLockfile = skyKey == BazelLockFileValue.PERSISTENT_KEY;
     RootedPath lockfilePath =
-        RootedPath.toRootedPath(Root.fromPath(rootDirectory), LabelConstants.MODULE_LOCKFILE_NAME);
+        RootedPath.toRootedPath(
+            Root.fromPath(forPersistentLockfile ? outputBase : rootDirectory),
+            LabelConstants.MODULE_LOCKFILE_NAME);
 
-    // Add dependency on the lockfile to recognize changes to it
+    // Add dependency on the lockfiles to recognize changes to it
     if (env.getValue(FileValue.key(lockfilePath)) == null) {
       return null;
     }
 
-    try (SilentCloseable c = Profiler.instance().profile(ProfilerTask.BZLMOD, "parse lockfile")) {
-      return getLockfileValue(lockfilePath, LOCKFILE_MODE.get(env));
+    try (SilentCloseable c =
+        Profiler.instance()
+            .profile(
+                ProfilerTask.BZLMOD,
+                forPersistentLockfile ? "parse persistent lockfile" : "parse lockfile")) {
+      return getLockfileValue(
+          lockfilePath, forPersistentLockfile ? LockfileMode.UPDATE : LOCKFILE_MODE.get(env));
     } catch (IOException
         | JsonSyntaxException
         | NullPointerException
         | IllegalArgumentException e) {
+      if (forPersistentLockfile) {
+        return EMPTY_LOCKFILE;
+      }
       String actionSuffix;
       if (POSSIBLE_MERGE_CONFLICT_PATTERN.matcher(e.getMessage()).find()) {
         actionSuffix =

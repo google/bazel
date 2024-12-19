@@ -15,7 +15,10 @@
 
 package com.google.devtools.build.lib.bazel.bzlmod;
 
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
 import com.google.devtools.build.lib.bazel.repository.RepositoryOptions.LockfileMode;
+import com.google.devtools.build.lib.bazel.repository.downloader.Checksum;
 import com.google.devtools.build.lib.rules.repository.RepositoryDelegatorFunction;
 import com.google.devtools.build.lib.server.FailureDetails;
 import com.google.devtools.build.lib.skyframe.PrecomputedValue.Precomputed;
@@ -64,8 +67,13 @@ public class RegistryFunction implements SkyFunction {
       RegistryFunction.LAST_INVALIDATION.get(env);
     }
 
-    BazelLockFileValue lockfile = (BazelLockFileValue) env.getValue(BazelLockFileValue.KEY);
-    if (lockfile == null) {
+    var lockfiles =
+        env.getValuesAndExceptions(
+            ImmutableList.of(BazelLockFileValue.KEY, BazelLockFileValue.PERSISTENT_KEY));
+    BazelLockFileValue lockfile = (BazelLockFileValue) lockfiles.get(BazelLockFileValue.KEY);
+    BazelLockFileValue persistentLockfile =
+        (BazelLockFileValue) lockfiles.get(BazelLockFileValue.PERSISTENT_KEY);
+    if (lockfile == null || persistentLockfile == null) {
       return null;
     }
 
@@ -74,7 +82,10 @@ public class RegistryFunction implements SkyFunction {
       return registryFactory.createRegistry(
           key.url().replace("%workspace%", workspaceRoot.getPathString()),
           lockfileMode,
-          lockfile.getRegistryFileHashes(),
+          ImmutableMap.<String, Optional<Checksum>>builder()
+              .putAll(persistentLockfile.getRegistryFileHashes())
+              .putAll(lockfile.getRegistryFileHashes())
+              .buildKeepingLast(),
           lockfile.getSelectedYankedVersions(),
           vendorDir);
     } catch (URISyntaxException e) {

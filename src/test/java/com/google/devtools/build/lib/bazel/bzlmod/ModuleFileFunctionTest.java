@@ -148,7 +148,9 @@ public class ModuleFileFunctionTest extends FoundationTestCase {
                             new TimestampGranularityMonitor(BlazeClock.instance())),
                         SyscallCache.NO_CACHE,
                         externalFilesHelper))
-                .put(SkyFunctions.BAZEL_LOCK_FILE, new BazelLockFileFunction(rootDirectory))
+                .put(
+                    SkyFunctions.BAZEL_LOCK_FILE,
+                    new BazelLockFileFunction(rootDirectory, directories.getOutputBase()))
                 .put(
                     SkyFunctions.MODULE_FILE,
                     new ModuleFileFunction(

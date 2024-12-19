@@ -42,6 +42,9 @@ public abstract class BazelLockFileValue implements SkyValue {
 
   @SerializationConstant public static final SkyKey KEY = () -> SkyFunctions.BAZEL_LOCK_FILE;
 
+  @SerializationConstant
+  public static final SkyKey PERSISTENT_KEY = () -> SkyFunctions.BAZEL_LOCK_FILE;
+
   static Builder builder() {
     return new AutoValue_BazelLockFileValue.Builder()
         .setLockFileVersion(LOCK_FILE_VERSION)

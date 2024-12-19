@@ -140,7 +140,7 @@ public class BazelModuleResolutionFunctionTest extends FoundationTestCase {
                         ImmutableMap.of()))
                 .put(SkyFunctions.PRECOMPUTED, new PrecomputedFunction())
                 .put(SkyFunctions.BAZEL_DEP_GRAPH, new BazelDepGraphFunction())
-                .put(SkyFunctions.BAZEL_LOCK_FILE, new BazelLockFileFunction(rootDirectory))
+                .put(SkyFunctions.BAZEL_LOCK_FILE, new BazelLockFileFunction(rootDirectory, directories.getOutputBase()))
                 .put(SkyFunctions.BAZEL_MODULE_RESOLUTION, new BazelModuleResolutionFunction())
                 .put(
                     SkyFunctions.REGISTRY,

@@ -60,6 +60,12 @@ class BazelLockfileTest(test_base.TestBase):
     # TODO(pcloudy): investigate why this is needed, MODULE.bazel.lock is not
     # deterministic?
     os.remove(self.Path('MODULE.bazel.lock'))
+    _, stdout, _ = self.RunBazel(['info', 'output_base'])
+    output_base = pathlib.Path(stdout[0].strip())
+    try:
+      os.remove(output_base.joinpath('MODULE.bazel.lock'))
+    except FileNotFoundError:
+      pass
 
   def tearDown(self):
     self.main_registry.stop()

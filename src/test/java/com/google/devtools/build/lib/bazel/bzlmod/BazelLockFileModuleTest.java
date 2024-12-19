@@ -63,7 +63,7 @@ public class BazelLockFileModuleTest {
 
     assertThat(
             BazelLockFileModule.combineModuleExtensions(
-                oldExtensionInfos, newExtensionInfos, id -> true))
+                oldExtensionInfos, newExtensionInfos, id -> true, /* reproducible= */ false))
         .isEqualTo(oldExtensionInfos);
   }
 
@@ -77,7 +77,7 @@ public class BazelLockFileModuleTest {
 
     assertThat(
             BazelLockFileModule.combineModuleExtensions(
-                oldExtensionInfos, newExtensionInfos, id -> true))
+                oldExtensionInfos, newExtensionInfos, id -> true, /* reproducible= */ false))
         .isEmpty();
   }
 
@@ -92,7 +92,7 @@ public class BazelLockFileModuleTest {
 
     assertThat(
             BazelLockFileModule.combineModuleExtensions(
-                oldExtensionInfos, newExtensionInfos, id -> true))
+                oldExtensionInfos, newExtensionInfos, id -> true, /* reproducible= */ false))
         .isEqualTo(
             ImmutableMap.of(extensionId, ImmutableMap.of(evalFactors, nonReproducibleResult)));
   }
