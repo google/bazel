@@ -222,7 +222,7 @@ public class MerkleTreeTest {
       throws IOException {
     Path p = execRoot.getRelative(path);
     Preconditions.checkNotNull(p.getParentDirectory()).createDirectoryAndParents();
-    FileSystemUtils.writeContentAsLatin1(p, content);
+    FileSystemUtils.writeContent(p, content);
     Artifact a = ActionsTestUtil.createArtifact(artifactRoot, p);
 
     sortedInputs.put(PathFragment.create(path), a);

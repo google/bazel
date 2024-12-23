@@ -147,7 +147,7 @@ public final class RemoteActionFileSystemTest extends RemoteActionFileSystemTest
 
   private static Answer<ListenableFuture<Void>> mockPrefetchFile(Path path, String contents) {
     return invocationOnMock -> {
-      FileSystemUtils.writeContent(path, UTF_8, contents);
+      FileSystemUtils.writeContent(path, contents);
       return immediateVoidFuture();
     };
   }
@@ -161,7 +161,7 @@ public final class RemoteActionFileSystemTest extends RemoteActionFileSystemTest
 
     // act
     Path actionFsPath = actionFs.getPath(artifact.getPath().asFragment());
-    String contents = FileSystemUtils.readContent(actionFsPath, UTF_8);
+    String contents = FileSystemUtils.readContentToString(actionFsPath);
 
     // assert
     assertThat(actionFsPath.getFileSystem()).isSameInstanceAs(actionFs);
@@ -180,7 +180,7 @@ public final class RemoteActionFileSystemTest extends RemoteActionFileSystemTest
 
     // act
     Path actionFsPath = actionFs.getPath(artifact.getPath().asFragment());
-    String contents = FileSystemUtils.readContent(actionFsPath, UTF_8);
+    String contents = FileSystemUtils.readContentToString(actionFsPath);
 
     // assert
     assertThat(actionFsPath.getFileSystem()).isSameInstanceAs(actionFs);
@@ -202,7 +202,7 @@ public final class RemoteActionFileSystemTest extends RemoteActionFileSystemTest
 
     // act
     Path actionFsPath = actionFs.getPath(artifact.getPath().asFragment());
-    String contents = FileSystemUtils.readContent(actionFsPath, UTF_8);
+    String contents = FileSystemUtils.readContentToString(actionFsPath);
 
     // assert
     assertThat(actionFsPath.getFileSystem()).isSameInstanceAs(actionFs);
@@ -225,7 +225,7 @@ public final class RemoteActionFileSystemTest extends RemoteActionFileSystemTest
 
     // act
     Path actionFsPath = actionFs.getPath(path.asFragment());
-    String contents = FileSystemUtils.readContent(actionFsPath, UTF_8);
+    String contents = FileSystemUtils.readContentToString(actionFsPath);
 
     // assert
     assertThat(actionFsPath.getFileSystem()).isSameInstanceAs(actionFs);
@@ -244,7 +244,7 @@ public final class RemoteActionFileSystemTest extends RemoteActionFileSystemTest
 
     // act
     Path actionFsPath = actionFs.getPath(artifact.getPath().asFragment());
-    String contents = FileSystemUtils.readContent(actionFsPath, UTF_8);
+    String contents = FileSystemUtils.readContentToString(actionFsPath);
 
     // assert
     assertThat(actionFsPath.getFileSystem()).isSameInstanceAs(actionFs);
@@ -260,7 +260,7 @@ public final class RemoteActionFileSystemTest extends RemoteActionFileSystemTest
 
     // act
     Path actionFsPath = actionFs.getPath(artifact.getPath().asFragment());
-    String contents = FileSystemUtils.readContent(actionFsPath, UTF_8);
+    String contents = FileSystemUtils.readContentToString(actionFsPath);
 
     // assert
     assertThat(actionFsPath.getFileSystem()).isSameInstanceAs(actionFs);
@@ -1334,7 +1334,8 @@ public final class RemoteActionFileSystemTest extends RemoteActionFileSystemTest
       throws IOException {
     FileSystem localFs = getLocalFileSystem(actionFs);
     localFs.getPath(path).getParentDirectory().createDirectoryAndParents();
-    FileSystemUtils.writeContent(localFs.getPath(path), UTF_8, content);
+    Path outputFile = localFs.getPath(path);
+    FileSystemUtils.writeContent(outputFile, content);
   }
 
   /** Returns a remote artifact and puts its metadata into the action input map. */
@@ -1381,7 +1382,7 @@ public final class RemoteActionFileSystemTest extends RemoteActionFileSystemTest
   private Artifact createLocalArtifact(String pathFragment, String contents, ActionInputMap inputs)
       throws IOException {
     Path p = outputRoot.getRoot().asPath().getRelative(pathFragment);
-    FileSystemUtils.writeContent(p, UTF_8, contents);
+    FileSystemUtils.writeContent(p, contents);
     Artifact a = ActionsTestUtil.createArtifact(outputRoot, p);
     Path path = a.getPath();
     // Caution: there's a race condition between stating the file and computing the

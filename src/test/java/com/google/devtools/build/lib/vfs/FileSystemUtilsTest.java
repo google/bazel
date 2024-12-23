@@ -23,12 +23,11 @@ import static com.google.devtools.build.lib.vfs.FileSystemUtils.relativePath;
 import static com.google.devtools.build.lib.vfs.FileSystemUtils.removeExtension;
 import static com.google.devtools.build.lib.vfs.FileSystemUtils.touchFile;
 import static com.google.devtools.build.lib.vfs.FileSystemUtils.traverseTree;
-import static java.nio.charset.StandardCharsets.ISO_8859_1;
-import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.junit.Assert.assertThrows;
 
 import com.google.devtools.build.lib.testutil.BlazeTestUtils;
 import com.google.devtools.build.lib.testutil.ManualClock;
+import com.google.devtools.build.lib.testutil.TestUtils;
 import com.google.devtools.build.lib.vfs.FileSystemUtils.MoveResult;
 import com.google.devtools.build.lib.vfs.inmemoryfs.InMemoryFileSystem;
 import java.io.FileNotFoundException;
@@ -369,12 +368,12 @@ public class FileSystemUtilsTest {
     Path target = fs.getPath("/fs2/target");
     target.getParentDirectory().createDirectoryAndParents();
 
-    FileSystemUtils.writeContent(source, UTF_8, "hello, world");
+    FileSystemUtils.writeContent(source, "hello, world");
     source.setLastModifiedTime(142);
     assertThat(FileSystemUtils.moveFile(source, target)).isEqualTo(MoveResult.FILE_COPIED);
     assertThat(source.exists(Symlinks.NOFOLLOW)).isFalse();
     assertThat(target.isFile(Symlinks.NOFOLLOW)).isTrue();
-    assertThat(FileSystemUtils.readContent(target, UTF_8)).isEqualTo("hello, world");
+    assertThat(FileSystemUtils.readContentToString(target)).isEqualTo("hello, world");
     assertThat(target.getLastModifiedTime()).isEqualTo(142);
 
     source.createSymbolicLink(PathFragment.create("link-target"));
@@ -394,7 +393,7 @@ public class FileSystemUtilsTest {
     Path target = fs.getPath("/fs2/target");
     target.getParentDirectory().createDirectoryAndParents();
 
-    FileSystemUtils.writeContent(source, UTF_8, "linear-a");
+    FileSystemUtils.writeContent(source, "linear-a");
     source.setLastModifiedTime(142);
     source.setReadable(false);
 
@@ -403,14 +402,14 @@ public class FileSystemUtilsTest {
     assertThat(moveResult).isEqualTo(MoveResult.FILE_COPIED);
     assertThat(source.exists(Symlinks.NOFOLLOW)).isFalse();
     assertThat(target.isFile(Symlinks.NOFOLLOW)).isTrue();
-    assertThat(FileSystemUtils.readContent(target, UTF_8)).isEqualTo("linear-a");
+    assertThat(FileSystemUtils.readContentToString(target)).isEqualTo("linear-a");
   }
 
   @Test
   public void testReadContentWithLimit() throws IOException {
     createTestDirectoryTree();
     String str = "this is a test of readContentWithLimit method";
-    FileSystemUtils.writeContent(file1, StandardCharsets.ISO_8859_1, str);
+    FileSystemUtils.writeContent(file1, str);
     assertThat(readStringFromFile(file1, 0)).isEmpty();
     assertThat(str.substring(0, 10)).isEqualTo(readStringFromFile(file1, 10));
     assertThat(str).isEqualTo(readStringFromFile(file1, 1000000));
@@ -424,11 +423,10 @@ public class FileSystemUtilsTest {
   @Test
   public void testAppend() throws IOException {
     createTestDirectoryTree();
-    FileSystemUtils.writeIsoLatin1(file1, "nobody says ");
-    FileSystemUtils.writeIsoLatin1(file1, "mary had");
-    FileSystemUtils.appendIsoLatin1(file1, "a little lamb");
-    assertThat(new String(FileSystemUtils.readContentAsLatin1(file1)))
-        .isEqualTo("mary had\na little lamb\n");
+    TestUtils.writeLines(file1, "nobody says ");
+    TestUtils.writeLines(file1, "mary had");
+    TestUtils.appendLines(file1, "a little lamb");
+    assertThat(FileSystemUtils.readContentToString(file1)).isEqualTo("mary had\na little lamb\n");
   }
 
   @Test
@@ -638,18 +636,9 @@ public class FileSystemUtilsTest {
   @Test
   public void testWriteIsoLatin1() throws Exception {
     Path file = fileSystem.getPath("/does/not/exist/yet.txt");
-    FileSystemUtils.writeIsoLatin1(file, "Line 1", "Line 2", "Line 3");
+    TestUtils.writeLines(file, "Line 1", "Line 2", "Line 3");
     String expected = "Line 1\nLine 2\nLine 3\n";
-    String actual = new String(FileSystemUtils.readContentAsLatin1(file));
-    assertThat(actual).isEqualTo(expected);
-  }
-
-  @Test
-  public void testWriteLinesAs() throws Exception {
-    Path file = fileSystem.getPath("/does/not/exist/yet.txt");
-    FileSystemUtils.writeLinesAs(file, UTF_8, "\u00F6"); // an oe umlaut
-    byte[] expected = new byte[] {(byte) 0xC3, (byte) 0xB6, 0x0A};//"\u00F6\n";
-    byte[] actual = FileSystemUtils.readContent(file);
+    String actual = FileSystemUtils.readContentToString(file);
     assertThat(actual).isEqualTo(expected);
   }
 
@@ -692,7 +681,8 @@ public class FileSystemUtilsTest {
   @Test
   public void testGetFileSystem() throws Exception {
     Path mountTable = fileSystem.getPath("/proc/mounts");
-    FileSystemUtils.writeIsoLatin1(mountTable,
+    TestUtils.writeLines(
+        mountTable,
         "/dev/sda1 / ext2 blah 0 0",
         "/dev/mapper/_dev_sda6 /usr/local/google ext3 blah 0 0",
         "devshm /dev/shm tmpfs blah 0 0",
@@ -757,14 +747,14 @@ public class FileSystemUtilsTest {
   @Test
   public void testReadLines() throws Exception {
     Path file = fileSystem.getPath("/test.txt");
-    FileSystemUtils.writeContent(file, ISO_8859_1, "a\nb");
-    assertThat(FileSystemUtils.readLinesAsLatin1(file)).containsExactly("a", "b").inOrder();
+    FileSystemUtils.writeContent(file, "a\nb");
+    assertThat(FileSystemUtils.readLines(file)).containsExactly("a", "b").inOrder();
 
-    FileSystemUtils.writeContent(file, ISO_8859_1, "a\rb");
-    assertThat(FileSystemUtils.readLinesAsLatin1(file)).containsExactly("a", "b").inOrder();
+    FileSystemUtils.writeContent(file, "a\rb");
+    assertThat(FileSystemUtils.readLines(file)).containsExactly("a", "b").inOrder();
 
-    FileSystemUtils.writeContent(file, ISO_8859_1, "a\r\nb");
-    assertThat(FileSystemUtils.readLinesAsLatin1(file)).containsExactly("a", "b").inOrder();
+    FileSystemUtils.writeContent(file, "a\r\nb");
+    assertThat(FileSystemUtils.readLines(file)).containsExactly("a", "b").inOrder();
   }
 
   @Test

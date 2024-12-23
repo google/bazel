@@ -18,8 +18,7 @@ import static com.google.common.truth.Truth.assertThat;
 import static com.google.devtools.build.lib.actions.util.ActionsTestUtil.NULL_ARTIFACT_OWNER;
 import static com.google.devtools.build.lib.actions.util.ActionsTestUtil.createArtifact;
 import static com.google.devtools.build.lib.actions.util.ActionsTestUtil.createTreeArtifactWithGeneratingAction;
-import static com.google.devtools.build.lib.vfs.FileSystemUtils.readContent;
-import static com.google.devtools.build.lib.vfs.FileSystemUtils.writeIsoLatin1;
+import static com.google.devtools.build.lib.testutil.TestUtils.writeLines;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.argThat;
@@ -394,7 +393,7 @@ public class ActionCacheCheckerTest {
   public void testDifferentFiles() throws Exception {
     Action action = new WriteEmptyOutputAction();
     runAction(action); // Not cached.
-    assertThat(readContent(action.getPrimaryOutput().getPath(), UTF_8)).isEmpty();
+    assertThat(FileSystemUtils.readContentToString(action.getPrimaryOutput().getPath())).isEmpty();
     writeContentAsLatin1(action.getPrimaryOutput().getPath(), "modified");
     runAction(action); // Cache miss because output files were modified.
 
@@ -932,7 +931,7 @@ public class ActionCacheCheckerTest {
     cacheChecker = createActionCacheChecker(/*storeOutputMetadata=*/ true);
     SpecialArtifact output =
         createTreeArtifactWithGeneratingAction(artifactRoot, PathFragment.create("bin/dummy"));
-    writeIsoLatin1(fileSystem.getPath("/file2"), "");
+    writeLines(fileSystem.getPath("/file2"), "");
     ImmutableMap<String, FileArtifactValue> children =
         ImmutableMap.of(
             "file1", createRemoteFileMetadata("content1"),
@@ -966,7 +965,7 @@ public class ActionCacheCheckerTest {
     cacheChecker = createActionCacheChecker(/*storeOutputMetadata=*/ true);
     SpecialArtifact output =
         createTreeArtifactWithGeneratingAction(artifactRoot, PathFragment.create("bin/dummy"));
-    writeIsoLatin1(fileSystem.getPath("/archive"), "");
+    writeLines(fileSystem.getPath("/archive"), "");
     Action action =
         new InjectOutputTreeMetadataAction(
             output,
@@ -1063,7 +1062,7 @@ public class ActionCacheCheckerTest {
     FakeInputMetadataHandler metadataHandler = new FakeInputMetadataHandler();
 
     runAction(action);
-    writeIsoLatin1(output.getPath().getRelative("file2"), "modified_local");
+    writeLines(output.getPath().getRelative("file2"), "modified_local");
     var mockedRemoteArtifactChecker = mock(RemoteArtifactChecker.class);
     doReturn(true).when(mockedRemoteArtifactChecker).shouldTrustRemoteArtifact(any(), any());
     var token =
@@ -1136,7 +1135,7 @@ public class ActionCacheCheckerTest {
     FakeInputMetadataHandler metadataHandler = new FakeInputMetadataHandler();
 
     runAction(action);
-    writeIsoLatin1(ArchivedTreeArtifact.createForTree(output).getPath(), "modified");
+    writeLines(ArchivedTreeArtifact.createForTree(output).getPath(), "modified");
     var mockedRemoteArtifactChecker = mock(RemoteArtifactChecker.class);
     var token =
         cacheChecker.getTokenIfNeedToExecute(
@@ -1270,7 +1269,7 @@ public class ActionCacheCheckerTest {
     if (parent != null) {
       parent.createDirectoryAndParents();
     }
-    FileSystemUtils.writeContentAsLatin1(path, content);
+    FileSystemUtils.writeContent(path, content);
   }
 
   @Test

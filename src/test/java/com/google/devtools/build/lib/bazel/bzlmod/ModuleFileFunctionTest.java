@@ -1811,7 +1811,7 @@ public class ModuleFileFunctionTest extends FoundationTestCase {
         .containsExactly(
             "ccc", InterimModule.DepSpec.fromModuleKey(new ModuleKey("ccc", Version.parse("3.0"))));
 
-    FileSystemUtils.writeContentAsLatin1(
+    FileSystemUtils.writeContent(
         otherPatch,
         """
         --- a/MODULE.bazel

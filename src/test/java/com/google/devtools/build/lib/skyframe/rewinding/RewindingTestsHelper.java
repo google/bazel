@@ -21,7 +21,7 @@ import static com.google.common.collect.ImmutableSetMultimap.toImmutableSetMulti
 import static com.google.common.collect.MoreCollectors.onlyElement;
 import static com.google.common.truth.Truth.assertThat;
 import static com.google.common.truth.Truth.assertWithMessage;
-import static com.google.devtools.build.lib.vfs.FileSystemUtils.readContentAsLatin1;
+import static com.google.devtools.build.lib.vfs.FileSystemUtils.readContentToString;
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.fail;
@@ -312,7 +312,7 @@ public class RewindingTestsHelper {
         input.getExecPathString().endsWith(".inlined"),
         "Only inputs ending in .inlined are guaranteed readable. Tried to read: %s",
         input);
-    return new String(readContentAsLatin1(context.getInputPath(input)));
+    return readContentToString(context.getInputPath(input));
   }
 
   /**

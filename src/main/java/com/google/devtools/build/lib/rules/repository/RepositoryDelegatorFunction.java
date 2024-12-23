@@ -16,7 +16,6 @@
 package com.google.devtools.build.lib.rules.repository;
 
 import static com.google.devtools.build.lib.skyframe.RepositoryMappingFunction.REPOSITORY_OVERRIDES;
-import static java.nio.charset.StandardCharsets.UTF_8;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
@@ -651,7 +650,7 @@ public final class RepositoryDelegatorFunction implements SkyFunction {
       }
       String content = builder.toString();
       try {
-        FileSystemUtils.writeContent(markerPath, UTF_8, content);
+        FileSystemUtils.writeContent(markerPath, content);
       } catch (IOException e) {
         throw new RepositoryFunctionException(e, Transience.TRANSIENT);
       }
@@ -684,7 +683,7 @@ public final class RepositoryDelegatorFunction implements SkyFunction {
       }
 
       try {
-        String content = FileSystemUtils.readContent(markerPath, UTF_8);
+        String content = FileSystemUtils.readContentToString(markerPath);
         Map<RepoRecordedInput, String> recordedInputValues =
             readMarkerFile(content, Preconditions.checkNotNull(ruleKey));
         if (!handler.verifyRecordedInputs(rule, directories, recordedInputValues, env)) {

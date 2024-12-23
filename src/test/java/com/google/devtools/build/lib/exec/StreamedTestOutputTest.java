@@ -17,6 +17,7 @@ package com.google.devtools.build.lib.exec;
 import static com.google.common.truth.Truth.assertThat;
 
 import com.google.common.io.ByteStreams;
+import com.google.devtools.build.lib.testutil.TestUtils;
 import com.google.devtools.build.lib.util.io.OutErr;
 import com.google.devtools.build.lib.vfs.DigestHashFunction;
 import com.google.devtools.build.lib.vfs.FileSystemUtils;
@@ -52,7 +53,7 @@ public class StreamedTestOutputTest {
   @Test
   public void testNoHeaderOutputsEntireFile() throws IOException {
     Path watchedPath = fileSystem.getPath("/myfile");
-    FileSystemUtils.writeContent(watchedPath, StandardCharsets.UTF_8, "random\nlines\n");
+    FileSystemUtils.writeContent(watchedPath, "random\nlines\n");
 
     ByteArrayOutputStream out = new ByteArrayOutputStream();
     ByteArrayOutputStream err = new ByteArrayOutputStream();
@@ -66,14 +67,8 @@ public class StreamedTestOutputTest {
   @Test
   public void testOnlyOutputsContentsAfterHeaderWhenPresent() throws IOException {
     Path watchedPath = fileSystem.getPath("/myfile");
-    FileSystemUtils.writeLinesAs(
-        watchedPath,
-        StandardCharsets.UTF_8,
-        "ignored",
-        "lines",
-        TestLogHelper.HEADER_DELIMITER,
-        "included",
-        "lines");
+    TestUtils.writeLines(
+        watchedPath, "ignored", "lines", TestLogHelper.HEADER_DELIMITER, "included", "lines");
 
     ByteArrayOutputStream out = new ByteArrayOutputStream();
     ByteArrayOutputStream err = new ByteArrayOutputStream();
@@ -88,8 +83,7 @@ public class StreamedTestOutputTest {
   @Test
   public void testWatcherDoneAfterClose() throws IOException {
     Path watchedPath = fileSystem.getPath("/myfile");
-    FileSystemUtils.writeLinesAs(
-        watchedPath, StandardCharsets.UTF_8, TestLogHelper.HEADER_DELIMITER, "x".repeat(10 << 20));
+    TestUtils.writeLines(watchedPath, TestLogHelper.HEADER_DELIMITER, "x".repeat(10 << 20));
     StreamedTestOutput underTest =
         new StreamedTestOutput(
             OutErr.create(ByteStreams.nullOutputStream(), ByteStreams.nullOutputStream()),
@@ -101,8 +95,7 @@ public class StreamedTestOutputTest {
   @Test
   public void testInterruptWaitsForWatcherToClose() throws IOException {
     Path watchedPath = fileSystem.getPath("/myfile");
-    FileSystemUtils.writeLinesAs(
-        watchedPath, StandardCharsets.UTF_8, TestLogHelper.HEADER_DELIMITER, "x".repeat(10 << 20));
+    TestUtils.writeLines(watchedPath, TestLogHelper.HEADER_DELIMITER, "x".repeat(10 << 20));
 
     StreamedTestOutput underTest =
         new StreamedTestOutput(
@@ -121,7 +114,7 @@ public class StreamedTestOutputTest {
   @Test
   public void testOutputsFileWithHeaderRegardlessOfInterrupt() throws IOException {
     Path watchedPath = fileSystem.getPath("/myfile");
-    FileSystemUtils.writeContent(watchedPath, StandardCharsets.UTF_8, "blahblahblah");
+    FileSystemUtils.writeContent(watchedPath, "blahblahblah");
 
     ByteArrayOutputStream out = new ByteArrayOutputStream();
     ByteArrayOutputStream err = new ByteArrayOutputStream();

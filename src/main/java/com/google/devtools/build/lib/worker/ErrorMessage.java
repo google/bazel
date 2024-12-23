@@ -14,9 +14,7 @@
 
 package com.google.devtools.build.lib.worker;
 
-import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.Objects.requireNonNull;
-
 import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
 import com.google.devtools.build.lib.vfs.FileSystemUtils;
@@ -61,7 +59,7 @@ record ErrorMessage(String message) {
       Preconditions.checkNotNull(logFile);
       try {
         this.logFile = logFile;
-        return logText(FileSystemUtils.readContent(logFile, UTF_8));
+        return logText(FileSystemUtils.readContentToString(logFile));
       } catch (IOException e) {
         logSizeLimit(Integer.MAX_VALUE);
         return logText(

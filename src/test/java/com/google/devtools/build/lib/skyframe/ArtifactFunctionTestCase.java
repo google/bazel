@@ -154,7 +154,7 @@ abstract class ArtifactFunctionTestCase {
 
   protected static void writeFile(Path path, String contents) throws IOException {
     path.getParentDirectory().createDirectoryAndParents();
-    FileSystemUtils.writeContentAsLatin1(path, contents);
+    FileSystemUtils.writeContent(path, contents);
   }
 
   /** ActionExecutionFunction that delegates to our delegate. */

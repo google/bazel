@@ -151,7 +151,7 @@ public abstract class BuildWithoutTheBytesIntegrationTestBase extends BuildInteg
       if (!isWritable) {
         path.setWritable(true);
       }
-      writeContent(path, UTF_8, "foo\n");
+      writeContent(path, "foo\n");
       if (!isWritable) {
         path.setWritable(false);
       }

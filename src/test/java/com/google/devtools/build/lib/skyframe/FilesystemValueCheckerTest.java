@@ -213,7 +213,7 @@ public final class FilesystemValueCheckerTest {
     // Make sure we advance the clock to detect modifications which do not change the size, which
     // rely on ctime.
     fs.advanceClockMillis(1);
-    FileSystemUtils.writeIsoLatin1(path, lines);
+    TestUtils.writeLines(path, lines);
   }
 
   private static final class MockFileSystem extends InMemoryFileSystem {
@@ -559,7 +559,7 @@ public final class FilesystemValueCheckerTest {
 
     assertEmptyDiff(getDirtyFilesystemKeys(evaluator, checker));
 
-    FileSystemUtils.writeContentAsLatin1(path, "hello");
+    FileSystemUtils.writeContent(path, "hello");
     assertDiffWithNewValues(getDirtyFilesystemKeys(evaluator, checker), skyKey);
 
     // The dirty bits are not reset until the FileValues are actually revalidated.
@@ -588,7 +588,7 @@ public final class FilesystemValueCheckerTest {
             FSVC_THREADS_FOR_TEST);
 
     Path path = fs.getPath("/foo");
-    FileSystemUtils.writeContentAsLatin1(path, "foo contents");
+    FileSystemUtils.writeContent(path, "foo contents");
     // We need the intermediate sym1 and sym2 so that we can dirty a child of symlink without
     // actually changing the FileValue calculated for symlink (if we changed the contents of foo,
     // the FileValue created for symlink would notice, since it stats foo).
@@ -634,7 +634,7 @@ public final class FilesystemValueCheckerTest {
     assertThat(sym1.delete()).isTrue();
     FileSystemUtils.ensureSymbolicLink(sym1, path);
     assertThat(symlink.delete()).isTrue();
-    FileSystemUtils.writeContentAsLatin1(symlink, "new symlink contents");
+    FileSystemUtils.writeContent(symlink, "new symlink contents");
     assertDiffWithNewValues(getDirtyFilesystemKeys(evaluator, checker), symlinkFileStateKey);
     differencer.invalidate(ImmutableList.of(symlinkFileStateKey));
     result = evaluator.evaluate(allKeys, EVALUATION_OPTIONS);
@@ -680,7 +680,7 @@ public final class FilesystemValueCheckerTest {
     // Update path1's contents. This will update the file's ctime with current time indicated by the
     // clock.
     fs.advanceClockMillis(1);
-    FileSystemUtils.writeContentAsLatin1(path1, "hello1");
+    FileSystemUtils.writeContent(path1, "hello1");
     // Update path2's mtime but not its contents. We expect that an mtime change suffices to update
     // the ctime.
     path2.setLastModifiedTime(42);
@@ -749,8 +749,8 @@ public final class FilesystemValueCheckerTest {
     Artifact out1 = createDerivedArtifact("fiz");
     Artifact out2 = createDerivedArtifact("pop");
 
-    FileSystemUtils.writeContentAsLatin1(out1.getPath(), "hello");
-    FileSystemUtils.writeContentAsLatin1(out2.getPath(), "fizzlepop");
+    FileSystemUtils.writeContent(out1.getPath(), "hello");
+    FileSystemUtils.writeContent(out2.getPath(), "fizzlepop");
 
     TimestampGranularityMonitor tsgm = new TimestampGranularityMonitor(BlazeClock.instance());
     SkyKey actionKey1 = ActionLookupData.create(ACTION_LOOKUP_KEY, 0);
@@ -759,12 +759,12 @@ public final class FilesystemValueCheckerTest {
     pretendBuildTwoArtifacts(out1, actionKey1, out2, actionKey2, batchStatter, tsgm);
 
     // Change the file but not its size
-    FileSystemUtils.writeContentAsLatin1(out1.getPath(), "hallo");
+    FileSystemUtils.writeContent(out1.getPath(), "hallo");
     checkActionDirtiedByFile(out1, actionKey1, batchStatter, tsgm);
     pretendBuildTwoArtifacts(out1, actionKey1, out2, actionKey2, batchStatter, tsgm);
 
     // Now try with a different size
-    FileSystemUtils.writeContentAsLatin1(out1.getPath(), "hallo2");
+    FileSystemUtils.writeContent(out1.getPath(), "hallo2");
     checkActionDirtiedByFile(out1, actionKey1, batchStatter, tsgm);
   }
 
@@ -920,7 +920,7 @@ public final class FilesystemValueCheckerTest {
       throws Exception {
     SpecialArtifact tree = createTreeArtifact("tree");
     TreeFileArtifact treeFile = TreeFileArtifact.createTreeOutput(tree, "subdir/file");
-    FileSystemUtils.writeIsoLatin1(treeFile.getPath(), "text");
+    TestUtils.writeLines(treeFile.getPath(), "text");
     SkyKey actionKey = ActionLookupData.create(ACTION_LOOKUP_KEY, 0);
     differencer.inject(
         ImmutableMap.of(actionKey, actionValueWithTreeArtifacts(ImmutableList.of(treeFile))));
@@ -1008,12 +1008,12 @@ public final class FilesystemValueCheckerTest {
       @TestParameter ModifiedSetReporting modifiedSet) throws Exception {
     SpecialArtifact tree = createTreeArtifact("tree");
     TreeFileArtifact treeFile = TreeFileArtifact.createTreeOutput(tree, "file");
-    FileSystemUtils.writeIsoLatin1(treeFile.getPath(), "text");
+    TestUtils.writeLines(treeFile.getPath(), "text");
     SkyKey actionKey = ActionLookupData.create(ACTION_LOOKUP_KEY, 0);
     differencer.inject(
         ImmutableMap.of(actionKey, actionValueWithTreeArtifacts(ImmutableList.of(treeFile))));
     evaluate();
-    FileSystemUtils.writeIsoLatin1(treeFile.getPath(), "other text");
+    TestUtils.writeLines(treeFile.getPath(), "other text");
 
     Collection<SkyKey> dirtyActionKeys =
         new FilesystemValueChecker(
@@ -1037,14 +1037,14 @@ public final class FilesystemValueCheckerTest {
       @TestParameter ModifiedSetReporting modifiedSet) throws Exception {
     SpecialArtifact tree = createTreeArtifact("tree");
     TreeFileArtifact treeFile = TreeFileArtifact.createTreeOutput(tree, "file1");
-    FileSystemUtils.writeIsoLatin1(treeFile.getPath());
+    TestUtils.writeLines(treeFile.getPath());
     SkyKey actionKey = ActionLookupData.create(ACTION_LOOKUP_KEY, 0);
     differencer.inject(
         ImmutableMap.of(actionKey, actionValueWithTreeArtifacts(ImmutableList.of(treeFile))));
     evaluate();
 
     TreeFileArtifact newFile = TreeFileArtifact.createTreeOutput(tree, "file2");
-    FileSystemUtils.writeIsoLatin1(newFile.getPath());
+    TestUtils.writeLines(newFile.getPath());
     Collection<SkyKey> dirtyActionValues =
         new FilesystemValueChecker(
                 /* tsgm= */ null,
@@ -1072,7 +1072,7 @@ public final class FilesystemValueCheckerTest {
         ImmutableMap.of(actionKey, actionValueWithTreeArtifact(tree, TreeArtifactValue.empty())));
     evaluate();
     TreeFileArtifact newFile = TreeFileArtifact.createTreeOutput(tree, "file");
-    FileSystemUtils.writeIsoLatin1(newFile.getPath());
+    TestUtils.writeLines(newFile.getPath());
 
     Collection<SkyKey> dirtyActionKeys =
         new FilesystemValueChecker(
@@ -1096,7 +1096,7 @@ public final class FilesystemValueCheckerTest {
       @TestParameter ModifiedSetReporting modifiedSet) throws Exception {
     SpecialArtifact tree = createTreeArtifact("tree");
     TreeFileArtifact treeFile = TreeFileArtifact.createTreeOutput(tree, "file");
-    FileSystemUtils.writeIsoLatin1(treeFile.getPath());
+    TestUtils.writeLines(treeFile.getPath());
     SkyKey actionKey = ActionLookupData.create(ACTION_LOOKUP_KEY, 0);
     differencer.inject(
         ImmutableMap.of(actionKey, actionValueWithTreeArtifacts(ImmutableList.of(treeFile))));
@@ -1124,10 +1124,10 @@ public final class FilesystemValueCheckerTest {
   public void getDirtyActionValues_everythingModified_returnsAllKeys() throws Exception {
     SpecialArtifact tree1 = createTreeArtifact("tree1");
     TreeFileArtifact tree1File = TreeFileArtifact.createTreeOutput(tree1, "file");
-    FileSystemUtils.writeIsoLatin1(tree1File.getPath(), "text");
+    TestUtils.writeLines(tree1File.getPath(), "text");
     SpecialArtifact tree2 = createTreeArtifact("tree2");
     TreeFileArtifact tree2File = TreeFileArtifact.createTreeOutput(tree2, "file");
-    FileSystemUtils.writeIsoLatin1(tree2File.getPath());
+    TestUtils.writeLines(tree2File.getPath());
     SkyKey actionKey1 = ActionLookupData.create(ACTION_LOOKUP_KEY, 0);
     SkyKey actionKey2 = ActionLookupData.create(ACTION_LOOKUP_KEY, 1);
     differencer.inject(
@@ -1137,7 +1137,7 @@ public final class FilesystemValueCheckerTest {
             actionKey2,
             actionValueWithTreeArtifacts(ImmutableList.of(tree2File))));
     evaluate();
-    FileSystemUtils.writeIsoLatin1(tree1File.getPath(), "new text");
+    TestUtils.writeLines(tree1File.getPath(), "new text");
     assertThat(tree2File.getPath().delete()).isTrue();
 
     Collection<SkyKey> dirtyActionKeys =
@@ -1162,10 +1162,10 @@ public final class FilesystemValueCheckerTest {
       @TestParameter boolean reportFirst) throws Exception {
     SpecialArtifact tree1 = createTreeArtifact("tree1");
     TreeFileArtifact tree1File = TreeFileArtifact.createTreeOutput(tree1, "file");
-    FileSystemUtils.writeIsoLatin1(tree1File.getPath(), "text");
+    TestUtils.writeLines(tree1File.getPath(), "text");
     SpecialArtifact tree2 = createTreeArtifact("tree2");
     TreeFileArtifact tree2File = TreeFileArtifact.createTreeOutput(tree2, "file");
-    FileSystemUtils.writeIsoLatin1(tree2File.getPath());
+    TestUtils.writeLines(tree2File.getPath());
     SkyKey actionKey1 = ActionLookupData.create(ACTION_LOOKUP_KEY, 0);
     SkyKey actionKey2 = ActionLookupData.create(ACTION_LOOKUP_KEY, 1);
     differencer.inject(
@@ -1175,7 +1175,7 @@ public final class FilesystemValueCheckerTest {
             actionKey2,
             actionValueWithTreeArtifacts(ImmutableList.of(tree2File))));
     evaluate();
-    FileSystemUtils.writeIsoLatin1(tree1File.getPath(), "new text");
+    TestUtils.writeLines(tree1File.getPath(), "new text");
     assertThat(tree2File.getPath().delete()).isTrue();
 
     Collection<SkyKey> dirtyActionKeys =
@@ -1204,13 +1204,13 @@ public final class FilesystemValueCheckerTest {
       throws Exception {
     SpecialArtifact treeA = createTreeArtifact("a_tree");
     TreeFileArtifact treeAFile = TreeFileArtifact.createTreeOutput(treeA, "file");
-    FileSystemUtils.writeIsoLatin1(treeAFile.getPath());
+    TestUtils.writeLines(treeAFile.getPath());
     SpecialArtifact treeB = createTreeArtifact("b_tree");
     TreeFileArtifact treeBFile = TreeFileArtifact.createTreeOutput(treeB, "file");
-    FileSystemUtils.writeIsoLatin1(treeBFile.getPath());
+    TestUtils.writeLines(treeBFile.getPath());
     SpecialArtifact treeC = createTreeArtifact("c_tree");
     TreeFileArtifact treeCFile = TreeFileArtifact.createTreeOutput(treeC, "file");
-    FileSystemUtils.writeIsoLatin1(treeCFile.getPath());
+    TestUtils.writeLines(treeCFile.getPath());
     SkyKey actionKey1 = ActionLookupData.create(ACTION_LOOKUP_KEY, 0);
     SkyKey actionKey2 = ActionLookupData.create(ACTION_LOOKUP_KEY, 1);
     SkyKey actionKey3 = ActionLookupData.create(ACTION_LOOKUP_KEY, 2);
@@ -1252,7 +1252,7 @@ public final class FilesystemValueCheckerTest {
   public void getDirtyActionValues_nothingModified_returnsEmptyDiff() throws Exception {
     SpecialArtifact tree = createTreeArtifact("tree");
     TreeFileArtifact treeFile = TreeFileArtifact.createTreeOutput(tree, "file");
-    FileSystemUtils.writeIsoLatin1(treeFile.getPath());
+    TestUtils.writeLines(treeFile.getPath());
     SkyKey actionKey = ActionLookupData.create(ACTION_LOOKUP_KEY, 0);
     differencer.inject(
         ImmutableMap.of(actionKey, actionValueWithTreeArtifacts(ImmutableList.of(treeFile))));
@@ -1449,7 +1449,7 @@ public final class FilesystemValueCheckerTest {
 
     // Create the "out1" artifact on the filesystem and test that it invalidates the generating
     // action's SkyKey.
-    FileSystemUtils.writeContentAsLatin1(out1.getPath(), "new-foo-content");
+    FileSystemUtils.writeContent(out1.getPath(), "new-foo-content");
     assertThat(
             new FilesystemValueChecker(
                     /* tsgm= */ null,
@@ -1510,7 +1510,7 @@ public final class FilesystemValueCheckerTest {
 
     // Create NO_OVERRIDE "out1" artifact on the filesystem and test that it invalidates the
     // generating action's SkyKey.
-    FileSystemUtils.writeContentAsLatin1(out1.getPath(), "foo-content");
+    FileSystemUtils.writeContent(out1.getPath(), "foo-content");
     assertThat(
             new FilesystemValueChecker(
                     /* tsgm= */ null,
@@ -1614,7 +1614,7 @@ public final class FilesystemValueCheckerTest {
 
     // Create dir/foo on the local disk and test that it invalidates the associated sky key.
     TreeFileArtifact fooArtifact = TreeFileArtifact.createTreeOutput(treeArtifact, "foo");
-    FileSystemUtils.writeContentAsLatin1(fooArtifact.getPath(), "new-foo-content");
+    FileSystemUtils.writeContent(fooArtifact.getPath(), "new-foo-content");
     assertThat(
             new FilesystemValueChecker(
                     /* tsgm= */ null,
@@ -1675,7 +1675,7 @@ public final class FilesystemValueCheckerTest {
     // Create NO_OVERRIDE dir/foo on the local disk and test that it invalidates the associated sky
     // key.
     TreeFileArtifact fooArtifact = TreeFileArtifact.createTreeOutput(treeArtifact, "foo");
-    FileSystemUtils.writeContentAsLatin1(fooArtifact.getPath(), "foo-content");
+    FileSystemUtils.writeContent(fooArtifact.getPath(), "foo-content");
     assertThat(
             new FilesystemValueChecker(
                     /* tsgm= */ null,

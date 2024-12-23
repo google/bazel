@@ -98,7 +98,7 @@ final class FakeActionInputFileCache implements InputMetadataProvider {
   public Digest createScratchInput(ActionInput input, String content) throws IOException {
     Path inputFile = execRoot.getRelative(input.getExecPath());
     inputFile.getParentDirectory().createDirectoryAndParents();
-    FileSystemUtils.writeContentAsLatin1(inputFile, content);
+    FileSystemUtils.writeContent(inputFile, content);
     Digest digest = digestUtil.compute(inputFile);
     setDigest(input, digest.getHash());
     return digest;

@@ -25,7 +25,6 @@ import com.google.devtools.build.lib.vfs.Path;
 import com.google.devtools.build.lib.vfs.PathFragment;
 import com.google.devtools.build.lib.vfs.inmemoryfs.InMemoryFileSystem;
 import java.io.IOException;
-import java.nio.charset.Charset;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -73,7 +72,7 @@ public class WorkerExecRootTest {
     FileSystemUtils.createEmptyFile(workDir.getRelative("very/output.txt"));
     FileSystemUtils.createEmptyFile(workDir.getRelative("temp.txt"));
     // Modify the worker.sh so that we're able to detect whether it gets rewritten or not.
-    FileSystemUtils.writeContentAsLatin1(workerSh, "#!/bin/sh");
+    FileSystemUtils.writeContent(workerSh, "#!/bin/sh");
 
     // Reuse the same execRoot.
     workerExecRoot.createFileSystem(
@@ -83,8 +82,7 @@ public class WorkerExecRootTest {
         new SynchronousTreeDeleter());
 
     assertThat(workDir.getRelative("worker.sh").exists()).isTrue();
-    assertThat(
-            FileSystemUtils.readContent(workDir.getRelative("worker.sh"), Charset.defaultCharset()))
+    assertThat(FileSystemUtils.readContentToString(workDir.getRelative("worker.sh")))
         .isEqualTo("#!/bin/sh");
     assertThat(workDir.getRelative("tempdir").exists()).isFalse();
     assertThat(workDir.getRelative("very/output.txt").exists()).isFalse();
@@ -173,9 +171,9 @@ public class WorkerExecRootTest {
         .isEqualTo(neededWorkspaceFile.asFragment());
     assertThat(workDir.getRelative("other_file").exists()).isFalse();
 
-    assertThat(FileSystemUtils.readContent(neededWorkspaceFile, Charset.defaultCharset()))
+    assertThat(FileSystemUtils.readContentToString(neededWorkspaceFile))
         .isEqualTo("needed workspace content");
-    assertThat(FileSystemUtils.readContent(otherWorkspaceFile, Charset.defaultCharset()))
+    assertThat(FileSystemUtils.readContentToString(otherWorkspaceFile))
         .isEqualTo("other workspace content");
   }
 
@@ -199,9 +197,7 @@ public class WorkerExecRootTest {
         sandboxHelper.getSandboxOutputs(),
         new SynchronousTreeDeleter());
 
-    assertThat(
-            FileSystemUtils.readContent(workDir.getRelative("some_file"), Charset.defaultCharset()))
-        .isEmpty();
+    assertThat(FileSystemUtils.readContentToString(workDir.getRelative("some_file"))).isEmpty();
   }
 
   @Test

@@ -14,11 +14,17 @@
 
 package com.google.devtools.build.lib.testutil;
 
+import static java.nio.charset.StandardCharsets.ISO_8859_1;
+
+import com.google.common.base.Preconditions;
+import com.google.devtools.build.lib.concurrent.ThreadSafety;
+import com.google.devtools.build.lib.unsafe.StringUnsafe;
 import com.google.devtools.build.lib.util.StringEncoding;
 import com.google.devtools.build.lib.vfs.DigestHashFunction;
 import com.google.devtools.build.lib.vfs.Dirent;
 import com.google.devtools.build.lib.vfs.FileStatus;
 import com.google.devtools.build.lib.vfs.FileSystem;
+import com.google.devtools.build.lib.vfs.FileSystemUtils;
 import com.google.devtools.build.lib.vfs.JavaIoFileSystem;
 import com.google.devtools.build.lib.vfs.Path;
 import com.google.devtools.build.lib.vfs.PathFragment;
@@ -26,6 +32,7 @@ import com.google.devtools.build.lib.vfs.Symlinks;
 import com.google.devtools.build.lib.vfs.SyscallCache;
 import java.io.File;
 import java.io.IOException;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.UUID;
 import javax.annotation.Nullable;
@@ -174,6 +181,40 @@ public final class TestUtils {
 
     return String.format(
         suggestedTargetsBaseString, fullTarget, target, packageStr, buildFilePath, expectedTargets);
+  }
+
+  /**
+   * Writes lines in Bazel's internal string encoding to a file.
+   *
+   * <p>The line separator is '\n' on all platforms.
+   */
+  @ThreadSafety.ThreadSafe // but not atomic
+  public static void writeLines(Path file, String... lines) throws IOException {
+    emitLines(file, lines, /* append= */ false);
+  }
+
+  /**
+   * Appends lines in Bazel's internal string encoding to a file.
+   *
+   * <p>The line separator is '\n' on all platforms.
+   */
+  @ThreadSafety.ThreadSafe // but not atomic
+  public static void appendLines(Path file, String... lines) throws IOException {
+    emitLines(file, lines, /* append= */ true);
+  }
+
+  private static void emitLines(Path file, String[] lines, boolean append) throws IOException {
+    for (String line : lines) {
+      Preconditions.checkArgument(
+          StringUnsafe.getInstance().getCoder(line) == StringUnsafe.LATIN1,
+          "Line '%s' does not use Bazel's internal string encoding, are you missing a call to "
+              + "StringEncoding.unicodeToInternal()?",
+          line);
+    }
+    file.getParentDirectory().createDirectoryAndParents();
+    FileSystemUtils.asByteSink(file, append)
+        .asCharSink(ISO_8859_1)
+        .writeLines(Arrays.asList(lines), "\n");
   }
 
   /**

@@ -252,7 +252,7 @@ public class DependencySetTest {
     dotd.getParentDirectory().createDirectoryAndParents();
     depSet1.write(outfile, ".d");
 
-    String dotdContents = new String(FileSystemUtils.readContentAsLatin1(dotd));
+    String dotdContents = FileSystemUtils.readContentToString(dotd);
     String expected =
         "usr/local/blah/blah/genhello/hello.o:  \\\n"
             + "  /usr/local/blah/blah/genhello/hello.cc \\\n"

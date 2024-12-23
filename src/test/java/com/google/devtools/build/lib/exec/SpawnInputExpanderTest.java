@@ -249,8 +249,8 @@ public final class SpawnInputExpanderTest {
     SpecialArtifact treeArtifact = createTreeArtifact("treeArtifact");
     TreeFileArtifact file1 = TreeFileArtifact.createTreeOutput(treeArtifact, "file1");
     TreeFileArtifact file2 = TreeFileArtifact.createTreeOutput(treeArtifact, "file2");
-    FileSystemUtils.writeContentAsLatin1(file1.getPath(), "foo");
-    FileSystemUtils.writeContentAsLatin1(file2.getPath(), "bar");
+    FileSystemUtils.writeContent(file1.getPath(), "foo");
+    FileSystemUtils.writeContent(file2.getPath(), "bar");
 
     Runfiles runfiles = new Runfiles.Builder("workspace").addArtifact(treeArtifact).build();
     ArtifactExpander artifactExpander =
@@ -275,8 +275,8 @@ public final class SpawnInputExpanderTest {
     SpecialArtifact treeArtifact = createTreeArtifact("treeArtifact");
     TreeFileArtifact file1 = TreeFileArtifact.createTreeOutput(treeArtifact, "file1");
     TreeFileArtifact file2 = TreeFileArtifact.createTreeOutput(treeArtifact, "file2");
-    FileSystemUtils.writeContentAsLatin1(file1.getPath(), "foo");
-    FileSystemUtils.writeContentAsLatin1(file2.getPath(), "bar");
+    FileSystemUtils.writeContent(file1.getPath(), "foo");
+    FileSystemUtils.writeContent(file2.getPath(), "bar");
 
     Runfiles runfiles = new Runfiles.Builder("workspace").addArtifact(treeArtifact).build();
     ArtifactExpander artifactExpander =
@@ -352,8 +352,8 @@ public final class SpawnInputExpanderTest {
     SpecialArtifact treeArtifact = createTreeArtifact("treeArtifact");
     TreeFileArtifact file1 = TreeFileArtifact.createTreeOutput(treeArtifact, "file1");
     TreeFileArtifact file2 = TreeFileArtifact.createTreeOutput(treeArtifact, "file2");
-    FileSystemUtils.writeContentAsLatin1(file1.getPath(), "foo");
-    FileSystemUtils.writeContentAsLatin1(file2.getPath(), "bar");
+    FileSystemUtils.writeContent(file1.getPath(), "foo");
+    FileSystemUtils.writeContent(file2.getPath(), "bar");
     Runfiles runfiles =
         new Runfiles.Builder("workspace")
             .addSymlink(PathFragment.create("symlink"), treeArtifact)
@@ -382,8 +382,8 @@ public final class SpawnInputExpanderTest {
     TreeFileArtifact file1 = TreeFileArtifact.createTreeOutput(treeArtifact, "file1");
     TreeFileArtifact file2 = TreeFileArtifact.createTreeOutput(treeArtifact, "file2");
     InputMetadataProvider inputMetadataProvider = new FakeActionInputFileCache();
-    FileSystemUtils.writeContentAsLatin1(file1.getPath(), "foo");
-    FileSystemUtils.writeContentAsLatin1(file2.getPath(), "bar");
+    FileSystemUtils.writeContent(file1.getPath(), "foo");
+    FileSystemUtils.writeContent(file2.getPath(), "bar");
 
     ArtifactExpander artifactExpander =
         artifact ->

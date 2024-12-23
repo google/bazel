@@ -489,10 +489,10 @@ public class ByteStreamBuildEventArtifactUploaderTest {
 
     // arrange
     Path remoteFile = fs.getPath("/remote-file");
-    FileSystemUtils.writeContent(remoteFile, StandardCharsets.UTF_8, "hello world");
+    FileSystemUtils.writeContent(remoteFile, "hello world");
     Digest remoteDigest = DIGEST_UTIL.compute(remoteFile);
     Path localFile = fs.getPath("/local-file");
-    FileSystemUtils.writeContent(localFile, StandardCharsets.UTF_8, "foo bar");
+    FileSystemUtils.writeContent(localFile, "foo bar");
     Digest localDigest = DIGEST_UTIL.compute(localFile);
 
     StaticMissingDigestsFinder digestQuerier =

@@ -106,13 +106,13 @@ public class ActionInputDirectoryTreeTest extends DirectoryTreeTest {
     dirPath.createDirectoryAndParents();
 
     Path barPath = dirPath.getRelative("bar.cc");
-    FileSystemUtils.writeContentAsLatin1(barPath, "bar");
+    FileSystemUtils.writeContent(barPath, "bar");
     ActionInput bar = ActionInputHelper.fromPath(barPath.relativeTo(execRoot));
     metadata.put(bar, FileArtifactValue.createForTesting(barPath));
 
     dirPath.getRelative("fizz").createDirectoryAndParents();
     Path buzzPath = dirPath.getRelative("fizz/buzz.cc");
-    FileSystemUtils.writeContentAsLatin1(dirPath.getRelative("fizz/buzz.cc"), "buzz");
+    FileSystemUtils.writeContent(dirPath.getRelative("fizz/buzz.cc"), "buzz");
     ActionInput buzz = ActionInputHelper.fromPath(buzzPath.relativeTo(execRoot));
     metadata.put(buzz, FileArtifactValue.createForTesting(buzzPath));
 
@@ -165,7 +165,7 @@ public class ActionInputDirectoryTreeTest extends DirectoryTreeTest {
     metadata.put(dir, FileArtifactValue.createForTesting(dirPath));
 
     Path fooPath = dirPath.getRelative("foo.cc");
-    FileSystemUtils.writeContentAsLatin1(fooPath, "foo");
+    FileSystemUtils.writeContent(fooPath, "foo");
     ActionInput foo = ActionInputHelper.fromPath(fooPath.relativeTo(execRoot));
     sortedInputs.put(fooPath.relativeTo(execRoot), foo);
     metadata.put(foo, FileArtifactValue.createForTesting(fooPath));
@@ -209,7 +209,7 @@ public class ActionInputDirectoryTreeTest extends DirectoryTreeTest {
       throws IOException {
     Path p = execRoot.getRelative(path);
     p.getParentDirectory().createDirectoryAndParents();
-    FileSystemUtils.writeContentAsLatin1(p, content);
+    FileSystemUtils.writeContent(p, content);
     Artifact a = ActionsTestUtil.createArtifact(artifactRoot, p);
 
     sortedInputs.put(PathFragment.create(path), a);

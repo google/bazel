@@ -300,7 +300,7 @@ public abstract class RepositoryFunction {
       if (filePath.exists(Symlinks.NOFOLLOW)) {
         filePath.delete();
       }
-      FileSystemUtils.writeContentAsLatin1(filePath, contents);
+      FileSystemUtils.writeContent(filePath, contents);
     } catch (IOException e) {
       throw new RepositoryFunctionException(e, Transience.TRANSIENT);
     }

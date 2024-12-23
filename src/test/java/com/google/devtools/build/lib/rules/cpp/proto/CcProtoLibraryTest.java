@@ -34,6 +34,7 @@ import com.google.devtools.build.lib.rules.cpp.CcInfo;
 import com.google.devtools.build.lib.rules.cpp.CppCompileAction;
 import com.google.devtools.build.lib.rules.cpp.CppRuleClasses;
 import com.google.devtools.build.lib.testutil.TestConstants;
+import com.google.devtools.build.lib.testutil.TestUtils;
 import com.google.devtools.build.lib.vfs.FileSystemUtils;
 import java.util.List;
 import org.junit.Before;
@@ -267,7 +268,7 @@ public class CcProtoLibraryTest extends BuildViewTestCase {
         "package(default_visibility=['//visibility:public'])",
         "proto_library(name = 'bar_proto', srcs = ['bar.proto'])");
     String existingWorkspace =
-        new String(FileSystemUtils.readContentAsLatin1(rootDirectory.getRelative("WORKSPACE")));
+        FileSystemUtils.readContentToString(rootDirectory.getRelative("WORKSPACE"));
     scratch.overwriteFile(
         "WORKSPACE", "local_repository(name = 'bla', path = '/bla/')", existingWorkspace);
     invalidatePackages(); // A dash of magic to re-evaluate the WORKSPACE file.
@@ -337,7 +338,7 @@ public class CcProtoLibraryTest extends BuildViewTestCase {
   @Test
   public void importPrefixWorksWithRepositories() throws Exception {
     setBuildLanguageOptions("--enable_workspace");
-    FileSystemUtils.appendIsoLatin1(
+    TestUtils.appendLines(
         scratch.resolve("WORKSPACE"), "local_repository(name = 'yolo_repo', path = '/yolo_repo')");
     invalidatePackages();
 
@@ -364,7 +365,7 @@ public class CcProtoLibraryTest extends BuildViewTestCase {
   @Test
   public void stripImportPrefixWorksWithRepositories() throws Exception {
     setBuildLanguageOptions("--enable_workspace");
-    FileSystemUtils.appendIsoLatin1(
+    TestUtils.appendLines(
         scratch.resolve("WORKSPACE"), "local_repository(name = 'yolo_repo', path = '/yolo_repo')");
     invalidatePackages();
 
@@ -390,7 +391,7 @@ public class CcProtoLibraryTest extends BuildViewTestCase {
   @Test
   public void importPrefixAndStripImportPrefixWorksWithRepositories() throws Exception {
     setBuildLanguageOptions("--enable_workspace");
-    FileSystemUtils.appendIsoLatin1(
+    TestUtils.appendLines(
         scratch.resolve("WORKSPACE"), "local_repository(name = 'yolo_repo', path = '/yolo_repo')");
     invalidatePackages();
 

@@ -185,7 +185,7 @@ public final class LtoBackendAction extends SpawnAction {
     Path importsFilePath = actionExecutionContext.getInputPath(imports);
     ImmutableList<String> lines;
     try {
-      lines = FileSystemUtils.readLinesAsLatin1(importsFilePath);
+      lines = FileSystemUtils.readLines(importsFilePath);
     } catch (IOException e) {
       String message =
           String.format(

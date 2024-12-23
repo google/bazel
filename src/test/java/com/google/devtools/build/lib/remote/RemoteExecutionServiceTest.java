@@ -22,7 +22,6 @@ import static com.google.devtools.build.lib.actions.ExecutionRequirements.REMOTE
 import static com.google.devtools.build.lib.remote.util.DigestUtil.toBinaryDigest;
 import static com.google.devtools.build.lib.remote.util.Utils.getFromFuture;
 import static com.google.devtools.build.lib.util.StringEncoding.unicodeToInternal;
-import static com.google.devtools.build.lib.vfs.FileSystemUtils.readContent;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.junit.Assert.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
@@ -120,6 +119,7 @@ import com.google.devtools.build.lib.util.TempPathGenerator;
 import com.google.devtools.build.lib.util.io.FileOutErr;
 import com.google.devtools.build.lib.vfs.DigestHashFunction;
 import com.google.devtools.build.lib.vfs.FileSystem;
+import com.google.devtools.build.lib.vfs.FileSystemUtils;
 import com.google.devtools.build.lib.vfs.OutputPermissions;
 import com.google.devtools.build.lib.vfs.OutputService;
 import com.google.devtools.build.lib.vfs.Path;
@@ -497,8 +497,10 @@ public class RemoteExecutionServiceTest {
     service.downloadOutputs(action, result);
 
     // assert
-    assertThat(readContent(execRoot.getRelative("outputs/foo"), UTF_8)).isEqualTo("foo-contents");
-    assertThat(readContent(execRoot.getRelative("outputs/bar"), UTF_8)).isEqualTo("bar-contents");
+    assertThat(FileSystemUtils.readContentToString(execRoot.getRelative("outputs/foo")))
+        .isEqualTo("foo-contents");
+    assertThat(FileSystemUtils.readContentToString(execRoot.getRelative("outputs/bar")))
+        .isEqualTo("bar-contents");
     assertThat(context.isLockOutputFilesCalled()).isTrue();
   }
 
@@ -528,7 +530,8 @@ public class RemoteExecutionServiceTest {
     RemoteActionFileSystem actionFs = context.getActionFileSystem();
     assertThat(actionFs.getDigest(execRoot.asFragment().getRelative("outputs/file1")))
         .isEqualTo(toBinaryDigest(d1));
-    assertThat(readContent(execRoot.getRelative("outputs/file1"), UTF_8)).isEqualTo("content1");
+    assertThat(FileSystemUtils.readContentToString(execRoot.getRelative("outputs/file1")))
+        .isEqualTo("content1");
     assertThat(context.isLockOutputFilesCalled()).isTrue();
   }
 
@@ -575,9 +578,10 @@ public class RemoteExecutionServiceTest {
         .isEqualTo(toBinaryDigest(fooDigest));
     assertThat(actionFs.getDigest(execRoot.asFragment().getRelative("outputs/a/dir/subdir/bar")))
         .isEqualTo(toBinaryDigest(barDigest));
-    assertThat(readContent(execRoot.getRelative("outputs/a/dir/foo"), UTF_8))
+    assertThat(FileSystemUtils.readContentToString(execRoot.getRelative("outputs/a/dir/foo")))
         .isEqualTo("foo-contents");
-    assertThat(readContent(execRoot.getRelative("outputs/a/dir/subdir/bar"), UTF_8))
+    assertThat(
+            FileSystemUtils.readContentToString(execRoot.getRelative("outputs/a/dir/subdir/bar")))
         .isEqualTo("bar-contents");
     assertThat(context.isLockOutputFilesCalled()).isTrue();
   }
@@ -656,8 +660,10 @@ public class RemoteExecutionServiceTest {
     service.downloadOutputs(action, result);
 
     // assert
-    assertThat(readContent(execRoot.getRelative("outputs/a/foo"), UTF_8)).isEqualTo("foo-contents");
-    assertThat(readContent(execRoot.getRelative("outputs/a/bar/wobble/qux"), UTF_8))
+    assertThat(FileSystemUtils.readContentToString(execRoot.getRelative("outputs/a/foo")))
+        .isEqualTo("foo-contents");
+    assertThat(
+            FileSystemUtils.readContentToString(execRoot.getRelative("outputs/a/bar/wobble/qux")))
         .isEqualTo("qux-contents");
     assertThat(context.isLockOutputFilesCalled()).isTrue();
   }
@@ -703,9 +709,9 @@ public class RemoteExecutionServiceTest {
     service.downloadOutputs(action, result);
 
     // assert
-    assertThat(readContent(execRoot.getRelative("outputs/subdir/foo"), UTF_8))
+    assertThat(FileSystemUtils.readContentToString(execRoot.getRelative("outputs/subdir/foo")))
         .isEqualTo("foo-contents");
-    assertThat(readContent(execRoot.getRelative("outputs/subdir/bar"), UTF_8))
+    assertThat(FileSystemUtils.readContentToString(execRoot.getRelative("outputs/subdir/bar")))
         .isEqualTo("bar-contents");
     assertThat(context.isLockOutputFilesCalled()).isTrue();
   }
@@ -758,9 +764,10 @@ public class RemoteExecutionServiceTest {
     service.downloadOutputs(action, result);
 
     // assert
-    assertThat(readContent(execRoot.getRelative("outputs/a/bar/foo/file"), UTF_8))
+    assertThat(FileSystemUtils.readContentToString(execRoot.getRelative("outputs/a/bar/foo/file")))
         .isEqualTo("file");
-    assertThat(readContent(execRoot.getRelative("outputs/a/foo/file"), UTF_8)).isEqualTo("file");
+    assertThat(FileSystemUtils.readContentToString(execRoot.getRelative("outputs/a/foo/file")))
+        .isEqualTo("file");
     assertThat(context.isLockOutputFilesCalled()).isTrue();
   }
 
@@ -1002,8 +1009,9 @@ public class RemoteExecutionServiceTest {
     service.downloadOutputs(action, result);
 
     // assert
-    assertThat(readContent(execRoot.getRelative("outputs/foo"), UTF_8)).isEqualTo("foo-contents");
-    assertThat(readContent(execRoot.getRelative("outputs/dir/bar"), UTF_8))
+    assertThat(FileSystemUtils.readContentToString(execRoot.getRelative("outputs/foo")))
+        .isEqualTo("foo-contents");
+    assertThat(FileSystemUtils.readContentToString(execRoot.getRelative("outputs/dir/bar")))
         .isEqualTo("bar-contents");
     assertThat(context.isLockOutputFilesCalled()).isTrue();
   }
@@ -1288,8 +1296,10 @@ public class RemoteExecutionServiceTest {
 
     service.downloadOutputs(action, result);
 
-    assertThat(readContent(execRoot.getRelative("outputs/foo.tmp"), UTF_8)).isEqualTo("content1");
-    assertThat(readContent(execRoot.getRelative("outputs/foo"), UTF_8)).isEqualTo("content2");
+    assertThat(FileSystemUtils.readContentToString(execRoot.getRelative("outputs/foo.tmp")))
+        .isEqualTo("content1");
+    assertThat(FileSystemUtils.readContentToString(execRoot.getRelative("outputs/foo")))
+        .isEqualTo("content2");
     assertThat(context.isLockOutputFilesCalled()).isTrue();
   }
 
@@ -1730,9 +1740,9 @@ public class RemoteExecutionServiceTest {
     assertThat(inMemoryOutput).isNull();
     RemoteActionFileSystem actionFs = context.getActionFileSystem();
     assertThat(actionFs.getDigest(output1.getPath().asFragment())).isEqualTo(toBinaryDigest(d1));
-    assertThat(readContent(output1.getPath(), UTF_8)).isEqualTo("content1");
+    assertThat(FileSystemUtils.readContentToString(output1.getPath())).isEqualTo("content1");
     assertThat(actionFs.getDigest(output2.getPath().asFragment())).isEqualTo(toBinaryDigest(d2));
-    assertThat(readContent(output2.getPath(), UTF_8)).isEqualTo("content2");
+    assertThat(FileSystemUtils.readContentToString(output2.getPath())).isEqualTo("content2");
     assertThat(context.isLockOutputFilesCalled()).isTrue();
   }
 

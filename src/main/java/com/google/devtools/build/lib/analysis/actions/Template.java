@@ -14,8 +14,6 @@
 
 package com.google.devtools.build.lib.analysis.actions;
 
-import static java.nio.charset.StandardCharsets.ISO_8859_1;
-
 import com.google.common.annotations.VisibleForTesting;
 import com.google.devtools.build.lib.actions.Artifact;
 import com.google.devtools.build.lib.actions.ArtifactPathResolver;
@@ -104,7 +102,7 @@ public abstract class Template {
       Path templatePath = resolver.toPath(templateArtifact);
       try {
         // Bazel's internal encoding for strings is raw bytes as Latin-1
-        return FileSystemUtils.readContent(templatePath, ISO_8859_1);
+        return FileSystemUtils.readContentToString(templatePath);
       } catch (IOException e) {
         throw new IOException(
             "failed to load template file '"

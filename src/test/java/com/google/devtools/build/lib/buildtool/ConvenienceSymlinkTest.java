@@ -46,7 +46,7 @@ import com.google.devtools.build.lib.packages.RuleTransitionData;
 import com.google.devtools.build.lib.runtime.BlazeModule;
 import com.google.devtools.build.lib.runtime.CommandEnvironment;
 import com.google.devtools.build.lib.testutil.TestConstants;
-import com.google.devtools.build.lib.vfs.FileSystemUtils;
+import com.google.devtools.build.lib.testutil.TestUtils;
 import com.google.devtools.build.lib.vfs.Path;
 import com.google.devtools.build.lib.vfs.PathFragment;
 import com.google.devtools.build.lib.vfs.Symlinks;
@@ -819,11 +819,11 @@ public final class ConvenienceSymlinkTest extends BuildIntegrationTestCase {
     Path workspaceLink = getWorkspace().getChild("blocked-" + TestConstants.WORKSPACE_NAME);
     Path outLink = getWorkspace().getChild("blocked-out");
 
-    FileSystemUtils.writeIsoLatin1(binLink, "this file is not a symlink");
-    FileSystemUtils.writeIsoLatin1(genfilesLink, "this file is not a symlink");
-    FileSystemUtils.writeIsoLatin1(testlogsLink, "this file is not a symlink");
-    FileSystemUtils.writeIsoLatin1(workspaceLink, "this file is not a symlink");
-    FileSystemUtils.writeIsoLatin1(outLink, "this file is not a symlink");
+    TestUtils.writeLines(binLink, "this file is not a symlink");
+    TestUtils.writeLines(genfilesLink, "this file is not a symlink");
+    TestUtils.writeLines(testlogsLink, "this file is not a symlink");
+    TestUtils.writeLines(workspaceLink, "this file is not a symlink");
+    TestUtils.writeLines(outLink, "this file is not a symlink");
 
     write("target/BUILD", "basic_rule(name='target')");
     buildTarget("//target:target");
@@ -938,7 +938,7 @@ public final class ConvenienceSymlinkTest extends BuildIntegrationTestCase {
         "--compilation_mode=fastbuild");
 
     Path parentDir = getWorkspace().getChild("blocked");
-    FileSystemUtils.writeIsoLatin1(parentDir, "this file is not a directory");
+    TestUtils.writeLines(parentDir, "this file is not a directory");
 
     write("target/BUILD", "basic_rule(name='target')");
     buildTarget("//target:target");
@@ -1067,11 +1067,11 @@ public final class ConvenienceSymlinkTest extends BuildIntegrationTestCase {
     Path workspaceLink = getWorkspace().getChild("blocked-" + TestConstants.WORKSPACE_NAME);
     Path outLink = getWorkspace().getChild("blocked-out");
 
-    FileSystemUtils.writeIsoLatin1(binLink, "this file is not a symlink");
-    FileSystemUtils.writeIsoLatin1(genfilesLink, "this file is not a symlink");
-    FileSystemUtils.writeIsoLatin1(testlogsLink, "this file is not a symlink");
-    FileSystemUtils.writeIsoLatin1(workspaceLink, "this file is not a symlink");
-    FileSystemUtils.writeIsoLatin1(outLink, "this file is not a symlink");
+    TestUtils.writeLines(binLink, "this file is not a symlink");
+    TestUtils.writeLines(genfilesLink, "this file is not a symlink");
+    TestUtils.writeLines(testlogsLink, "this file is not a symlink");
+    TestUtils.writeLines(workspaceLink, "this file is not a symlink");
+    TestUtils.writeLines(outLink, "this file is not a symlink");
 
     write("file/BUILD", "exports_files(['file'])");
     write("file/file", "this is just a file to pretend to build");

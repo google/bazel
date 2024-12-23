@@ -56,7 +56,6 @@ import com.google.devtools.build.lib.testutil.TestThread;
 import com.google.devtools.build.lib.testutil.TestUtils;
 import com.google.devtools.build.lib.util.AbruptExitException;
 import com.google.devtools.build.lib.util.io.FileOutErr;
-import com.google.devtools.build.lib.vfs.FileSystemUtils;
 import com.google.devtools.build.lib.vfs.Path;
 import com.google.devtools.build.lib.vfs.Root;
 import com.google.devtools.build.lib.vfs.util.FileSystems;
@@ -145,7 +144,7 @@ public class DynamicSpawnStrategyTest {
     /** Helper to record an execution failure from within {@link #doExecBeforeStop}. */
     void failExecution(ActionExecutionContext actionExecutionContext) throws ExecException {
       try {
-        FileSystemUtils.appendIsoLatin1(
+        TestUtils.appendLines(
             actionExecutionContext.getFileOutErr().getOutputPath(), "action failed with " + name);
       } catch (IOException e) {
         throw new IllegalStateException(e);
@@ -169,14 +168,14 @@ public class DynamicSpawnStrategyTest {
 
       for (ActionInput output : spawn.getOutputFiles()) {
         try {
-          FileSystemUtils.writeIsoLatin1(testRoot.getRelative(output.getExecPath()), name);
+          TestUtils.writeLines(testRoot.getRelative(output.getExecPath()), name);
         } catch (IOException e) {
           throw new IllegalStateException(e);
         }
       }
 
       try {
-        FileSystemUtils.appendIsoLatin1(
+        TestUtils.appendLines(
             actionExecutionContext.getFileOutErr().getOutputPath(),
             "output files written with " + name);
       } catch (IOException e) {

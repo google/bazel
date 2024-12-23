@@ -1564,13 +1564,11 @@ public abstract class SpawnLogContextTestBase {
     writeFile(sourceFile, "source");
     Artifact sourceDir = ActionsTestUtil.createArtifact(rootDir, "pkg/source_dir");
     sourceDir.getPath().createDirectoryAndParents();
-    FileSystemUtils.writeContentAsLatin1(
-        sourceDir.getPath().getRelative("some_file"), "source_dir_file");
+    FileSystemUtils.writeContent(sourceDir.getPath().getRelative("some_file"), "source_dir_file");
     Artifact genDir =
         ActionsTestUtil.createTreeArtifactWithGeneratingAction(outputDir, "pkg/gen_dir");
     genDir.getPath().createDirectoryAndParents();
-    FileSystemUtils.writeContentAsLatin1(
-        genDir.getPath().getRelative("other_file"), "gen_dir_file");
+    FileSystemUtils.writeContent(genDir.getPath().getRelative("other_file"), "gen_dir_file");
     Artifact symlink = ActionsTestUtil.createUnresolvedSymlinkArtifact(outputDir, "pkg/symlink");
     symlink.getPath().getParentDirectory().createDirectoryAndParents();
     symlink.getPath().createSymbolicLink(PathFragment.create("/some/path"));
@@ -2408,7 +2406,7 @@ public abstract class SpawnLogContextTestBase {
 
   protected static void writeFile(Path path, String contents) throws IOException {
     path.getParentDirectory().createDirectoryAndParents();
-    FileSystemUtils.writeContent(path, UTF_8, contents);
+    FileSystemUtils.writeContent(path, contents);
   }
 
   protected abstract void closeAndAssertLog(SpawnLogContext context, SpawnExec... expected)

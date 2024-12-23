@@ -38,7 +38,7 @@ import com.google.devtools.build.lib.cmdline.RepositoryName;
 import com.google.devtools.build.lib.collect.nestedset.NestedSet;
 import com.google.devtools.build.lib.packages.util.Crosstool.CcToolchainConfig;
 import com.google.devtools.build.lib.testutil.TestConstants;
-import com.google.devtools.build.lib.vfs.FileSystemUtils;
+import com.google.devtools.build.lib.testutil.TestUtils;
 import com.google.devtools.build.lib.vfs.ModifiedFileSet;
 import com.google.devtools.build.lib.vfs.PathFragment;
 import com.google.devtools.build.lib.vfs.Root;
@@ -739,7 +739,7 @@ public class CcCommonTest extends BuildViewTestCase {
   @Test
   public void testCcLibraryExternalIncludesNotWarned() throws Exception {
     eventCollector.clear();
-    FileSystemUtils.appendIsoLatin1(
+    TestUtils.appendLines(
         scratch.resolve("MODULE.bazel"),
         "bazel_dep(name = 'pkg')",
         "local_path_override(module_name = 'pkg', path = '/foo')");

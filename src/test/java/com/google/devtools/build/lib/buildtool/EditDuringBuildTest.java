@@ -66,6 +66,6 @@ public class EditDuringBuildTest extends BuildIntegrationTestCase {
 
   private String buildAndReadOutputFile() throws Exception {
     buildTarget("//edit:out");
-    return readContentAsLatin1String(Iterables.getOnlyElement(getArtifacts("//edit:out")));
+    return readToString(Iterables.getOnlyElement(getArtifacts("//edit:out")));
   }
 }

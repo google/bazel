@@ -364,7 +364,7 @@ public class CombinedCacheTest {
         });
 
     Path path = execRoot.getRelative("foo");
-    FileSystemUtils.writeContentAsLatin1(path, "bar");
+    FileSystemUtils.writeContent(path, "bar");
     SortedMap<PathFragment, Path> inputs = new TreeMap<>();
     inputs.put(PathFragment.create("foo"), path);
     MerkleTree merkleTree = MerkleTree.build(inputs, digestUtil);
@@ -409,7 +409,7 @@ public class CombinedCacheTest {
         .uploadFile(any(), any(), any());
 
     Path path = execRoot.getRelative("foo");
-    FileSystemUtils.writeContentAsLatin1(path, "bar");
+    FileSystemUtils.writeContent(path, "bar");
     SortedMap<PathFragment, Path> inputs = new TreeMap<>();
     inputs.put(PathFragment.create("foo"), path);
     MerkleTree merkleTree = MerkleTree.build(inputs, digestUtil);
@@ -484,7 +484,7 @@ public class CombinedCacheTest {
         .uploadFile(any(), any(), any());
 
     Path path = execRoot.getRelative("foo");
-    FileSystemUtils.writeContentAsLatin1(path, "bar");
+    FileSystemUtils.writeContent(path, "bar");
     SortedMap<PathFragment, Path> inputs = new TreeMap<>();
     inputs.put(PathFragment.create("foo"), path);
     MerkleTree merkleTree = MerkleTree.build(inputs, digestUtil);
@@ -566,11 +566,11 @@ public class CombinedCacheTest {
         .uploadFile(any(), any(), any());
 
     Path foo = execRoot.getRelative("foo");
-    FileSystemUtils.writeContentAsLatin1(foo, "foo");
+    FileSystemUtils.writeContent(foo, "foo");
     Path bar = execRoot.getRelative("bar");
-    FileSystemUtils.writeContentAsLatin1(bar, "bar");
+    FileSystemUtils.writeContent(bar, "bar");
     Path qux = execRoot.getRelative("qux");
-    FileSystemUtils.writeContentAsLatin1(qux, "qux");
+    FileSystemUtils.writeContent(qux, "qux");
 
     SortedMap<PathFragment, Path> input1 = new TreeMap<>();
     input1.put(PathFragment.create("foo"), foo);
@@ -658,7 +658,7 @@ public class CombinedCacheTest {
         .uploadFile(any(), any(), any());
     RemoteExecutionCache remoteCache = spy(newRemoteExecutionCache(cacheProtocol));
     Path path = execRoot.getRelative("foo");
-    FileSystemUtils.writeContentAsLatin1(path, "bar");
+    FileSystemUtils.writeContent(path, "bar");
     SortedMap<PathFragment, Path> inputs = ImmutableSortedMap.of(PathFragment.create("foo"), path);
     MerkleTree merkleTree = MerkleTree.build(inputs, digestUtil);
 

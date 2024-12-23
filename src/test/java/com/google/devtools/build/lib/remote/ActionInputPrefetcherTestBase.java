@@ -321,7 +321,7 @@ public abstract class ActionInputPrefetcherTestBase {
     verify(prefetcher).doDownloadFile(eq(action), any(), any(), eq(a.getExecPath()), any(), any());
     assertThat(prefetcher.downloadedFiles()).containsExactly(a.getPath());
     assertThat(prefetcher.downloadsInProgress()).isEmpty();
-    assertThat(FileSystemUtils.readContent(a.getPath(), UTF_8)).isEqualTo("hello world remote");
+    assertThat(FileSystemUtils.readContentToString(a.getPath())).isEqualTo("hello world remote");
   }
 
   @Test
@@ -336,9 +336,9 @@ public abstract class ActionInputPrefetcherTestBase {
         prefetcher.prefetchFilesInterruptibly(
             action, metadata.keySet(), metadata::get, Priority.MEDIUM));
 
-    assertThat(FileSystemUtils.readContent(a1.getPath(), UTF_8)).isEqualTo("hello world");
+    assertThat(FileSystemUtils.readContentToString(a1.getPath())).isEqualTo("hello world");
     assertReadableNonWritableAndExecutable(a1.getPath());
-    assertThat(FileSystemUtils.readContent(a2.getPath(), UTF_8)).isEqualTo("fizz buzz");
+    assertThat(FileSystemUtils.readContentToString(a2.getPath())).isEqualTo("fizz buzz");
     assertReadableNonWritableAndExecutable(a2.getPath());
     assertThat(prefetcher.downloadedFiles()).containsExactly(a1.getPath(), a2.getPath());
     assertThat(prefetcher.downloadsInProgress()).isEmpty();
@@ -359,7 +359,7 @@ public abstract class ActionInputPrefetcherTestBase {
     assertThat(a.getPath().isSymbolicLink()).isTrue();
     assertThat(a.getPath().readSymbolicLink())
         .isEqualTo(execRoot.getRelative(targetExecPath).asFragment());
-    assertThat(FileSystemUtils.readContent(a.getPath(), UTF_8)).isEqualTo("hello world");
+    assertThat(FileSystemUtils.readContentToString(a.getPath())).isEqualTo("hello world");
     assertThat(prefetcher.downloadedFiles())
         .containsExactly(a.getPath(), execRoot.getRelative(targetExecPath));
     assertThat(prefetcher.downloadsInProgress()).isEmpty();
@@ -386,8 +386,8 @@ public abstract class ActionInputPrefetcherTestBase {
 
     wait(prefetcher.prefetchFilesInterruptibly(action, children, metadata::get, Priority.MEDIUM));
 
-    assertThat(FileSystemUtils.readContent(firstChild.getPath(), UTF_8)).isEqualTo("content1");
-    assertThat(FileSystemUtils.readContent(secondChild.getPath(), UTF_8)).isEqualTo("content2");
+    assertThat(FileSystemUtils.readContentToString(firstChild.getPath())).isEqualTo("content1");
+    assertThat(FileSystemUtils.readContentToString(secondChild.getPath())).isEqualTo("content2");
 
     assertTreeReadableNonWritableAndExecutable(tree.getPath());
 
@@ -419,7 +419,7 @@ public abstract class ActionInputPrefetcherTestBase {
             action, ImmutableList.of(firstChild, secondChild), metadata::get, Priority.MEDIUM));
 
     assertThat(firstChild.getPath().exists()).isFalse();
-    assertThat(FileSystemUtils.readContent(secondChild.getPath(), UTF_8)).isEqualTo("content2");
+    assertThat(FileSystemUtils.readContentToString(secondChild.getPath())).isEqualTo("content2");
     assertTreeReadableNonWritableAndExecutable(tree.getPath());
     assertThat(prefetcher.downloadedFiles()).containsExactly(secondChild.getPath());
   }
@@ -450,8 +450,8 @@ public abstract class ActionInputPrefetcherTestBase {
     assertThat(tree.getPath().isSymbolicLink()).isTrue();
     assertThat(tree.getPath().readSymbolicLink())
         .isEqualTo(execRoot.getRelative(targetExecPath).asFragment());
-    assertThat(FileSystemUtils.readContent(firstChild.getPath(), UTF_8)).isEqualTo("content1");
-    assertThat(FileSystemUtils.readContent(secondChild.getPath(), UTF_8)).isEqualTo("content2");
+    assertThat(FileSystemUtils.readContentToString(firstChild.getPath())).isEqualTo("content1");
+    assertThat(FileSystemUtils.readContentToString(secondChild.getPath())).isEqualTo("content2");
 
     assertTreeReadableNonWritableAndExecutable(execRoot.getRelative(targetExecPath));
 
@@ -517,7 +517,7 @@ public abstract class ActionInputPrefetcherTestBase {
     // Test that non-remote files are not downloaded.
 
     Path p = execRoot.getRelative(artifactRoot.getExecPath()).getRelative("file1");
-    FileSystemUtils.writeContent(p, UTF_8, "hello world");
+    FileSystemUtils.writeContent(p, "hello world");
     Artifact a = ActionsTestUtil.createArtifact(artifactRoot, p);
     FileArtifactValue f = FileArtifactValue.createForTesting(a);
     ImmutableMap<ActionInput, FileArtifactValue> metadata = ImmutableMap.of(a, f);
@@ -554,7 +554,7 @@ public abstract class ActionInputPrefetcherTestBase {
     wait(prefetcher.prefetchFilesInterruptibly(action, children, metadata::get, Priority.MEDIUM));
 
     assertThat(firstChild.getPath().exists()).isFalse();
-    assertThat(FileSystemUtils.readContent(secondChild.getPath(), UTF_8)).isEqualTo("content2");
+    assertThat(FileSystemUtils.readContentToString(secondChild.getPath())).isEqualTo("content2");
     assertTreeReadableNonWritableAndExecutable(tree.getPath());
     assertThat(prefetcher.downloadedFiles()).containsExactly(secondChild.getPath());
   }
@@ -758,7 +758,7 @@ public abstract class ActionInputPrefetcherTestBase {
 
     // assert
     assertThat(successful.get()).isTrue();
-    assertThat(FileSystemUtils.readContent(artifact.getPath(), UTF_8)).isEqualTo("hello world");
+    assertThat(FileSystemUtils.readContentToString(artifact.getPath())).isEqualTo("hello world");
   }
 
   @Test

@@ -84,18 +84,19 @@ public final class DarwinSandboxedSpawnRunnerTest extends SandboxedSpawnRunnerTe
     // receives. We must print a syntactically-valid path, however, to not confuse the consumer
     // of this output.
     Path getconf = execRoot.getRelative("getconf");
-    FileSystemUtils.writeContentAsLatin1(getconf, "#!/bin/sh\necho /tmp");
+    FileSystemUtils.writeContent(getconf, "#!/bin/sh\necho /tmp");
     getconf.setExecutable(true);
     oldGetconf = DarwinSandboxedSpawnRunner.getconfBinary;
     DarwinSandboxedSpawnRunner.getconfBinary = getconf.toString();
 
     // The mock sandbox-exec just executes the given command and returns its output.
     Path sandboxExec = execRoot.getRelative("sandbox-exec");
-    FileSystemUtils.writeContentAsLatin1(sandboxExec,
+    FileSystemUtils.writeContent(
+        sandboxExec,
         "#!/bin/sh\n"
-        + "shift\n"  // Skip -f flag.
-        + "shift\n"  // Skip target of -f flag.
-        + "exec \"$@\"\n");  // Remaining arguments are the process-wrapper's ones.
+            + "shift\n" // Skip -f flag.
+            + "shift\n" // Skip target of -f flag.
+            + "exec \"$@\"\n"); // Remaining arguments are the process-wrapper's ones.
     sandboxExec.setExecutable(true);
     oldSandboxExec = DarwinSandboxedSpawnRunner.sandboxExecBinary;
     DarwinSandboxedSpawnRunner.sandboxExecBinary = sandboxExec.toString();

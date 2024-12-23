@@ -46,8 +46,8 @@ import com.google.devtools.build.lib.rules.cpp.CppRuleClasses;
 import com.google.devtools.build.lib.rules.cpp.IncludeScanner;
 import com.google.devtools.build.lib.rules.cpp.IncludeScanner.IncludeScanningHeaderData;
 import com.google.devtools.build.lib.skyframe.TreeArtifactValue;
+import com.google.devtools.build.lib.testutil.TestUtils;
 import com.google.devtools.build.lib.util.io.FileOutErr;
-import com.google.devtools.build.lib.vfs.FileSystemUtils;
 import com.google.devtools.build.lib.vfs.Path;
 import com.google.devtools.build.skyframe.AbstractSkyFunctionEnvironmentForTesting;
 import com.google.devtools.build.skyframe.SkyFunction.Environment;
@@ -204,7 +204,7 @@ public final class CppIncludeScanningContextImplTest extends BuildViewTestCase {
   }
 
   private static void writeTreeRuleBzl(Path file) throws IOException {
-    FileSystemUtils.writeIsoLatin1(
+    TestUtils.writeLines(
         file,
         "def _tree(ctx):",
         "  dir = ctx.actions.declare_directory(ctx.label.name)",

@@ -102,7 +102,7 @@ public class FsApparatus {
           + file);
     }
     String fileContent = StringUtilities.joinLines(lines);
-    FileSystemUtils.writeContentAsLatin1(file, fileContent);
+    FileSystemUtils.writeContent(file, fileContent);
     return file;
   }
 

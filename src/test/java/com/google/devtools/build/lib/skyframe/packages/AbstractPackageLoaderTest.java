@@ -489,7 +489,7 @@ public abstract class AbstractPackageLoaderTest {
 
   protected Path file(Path path, String... contents) throws Exception {
     path.getParentDirectory().createDirectoryAndParents();
-    FileSystemUtils.writeContentAsLatin1(path, Joiner.on("\n").join(contents));
+    FileSystemUtils.writeContent(path, Joiner.on("\n").join(contents));
     return path;
   }
 

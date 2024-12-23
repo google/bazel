@@ -15,7 +15,6 @@
 package com.google.devtools.build.lib.skyframe.config;
 
 import static com.google.common.base.Preconditions.checkNotNull;
-import static java.nio.charset.StandardCharsets.UTF_8;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableList;
@@ -111,8 +110,7 @@ public final class PlatformMappingFunction implements SkyFunction {
 
       List<String> lines;
       try {
-        lines =
-            FileSystemUtils.readLines(fileValue.realRootedPath(rootedMappingPath).asPath(), UTF_8);
+        lines = FileSystemUtils.readLines(fileValue.realRootedPath(rootedMappingPath).asPath());
       } catch (IOException e) {
         throw new PlatformMappingFunctionException(e);
       }

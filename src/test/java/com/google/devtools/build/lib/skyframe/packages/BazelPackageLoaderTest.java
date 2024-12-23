@@ -25,7 +25,7 @@ import com.google.devtools.build.lib.packages.NoSuchPackageException;
 import com.google.devtools.build.lib.packages.NoSuchTargetException;
 import com.google.devtools.build.lib.packages.Package;
 import com.google.devtools.build.lib.packages.semantics.BuildLanguageOptions;
-import com.google.devtools.build.lib.vfs.FileSystemUtils;
+import com.google.devtools.build.lib.testutil.TestUtils;
 import com.google.devtools.build.lib.vfs.Path;
 import com.google.devtools.build.lib.vfs.PathFragment;
 import com.google.devtools.build.lib.vfs.Root;
@@ -66,25 +66,25 @@ public final class BazelPackageLoaderTest extends AbstractPackageLoaderTest {
     Path tools = embeddedBinaries.getRelative("embedded_tools");
     tools.getRelative("tools/cpp").createDirectoryAndParents();
     tools.getRelative("tools/osx").createDirectoryAndParents();
-    FileSystemUtils.writeIsoLatin1(tools.getRelative("WORKSPACE"), "");
-    FileSystemUtils.writeIsoLatin1(tools.getRelative("MODULE.bazel"), "module(name='bazel_tools')");
-    FileSystemUtils.writeIsoLatin1(tools.getRelative("tools/cpp/BUILD"), "");
-    FileSystemUtils.writeIsoLatin1(
+    TestUtils.writeLines(tools.getRelative("WORKSPACE"), "");
+    TestUtils.writeLines(tools.getRelative("MODULE.bazel"), "module(name='bazel_tools')");
+    TestUtils.writeLines(tools.getRelative("tools/cpp/BUILD"), "");
+    TestUtils.writeLines(
         tools.getRelative("tools/cpp/cc_configure.bzl"),
         "def cc_configure(*args, **kwargs):",
         "    pass");
-    FileSystemUtils.writeIsoLatin1(tools.getRelative("tools/osx/BUILD"), "");
-    FileSystemUtils.writeIsoLatin1(
+    TestUtils.writeLines(tools.getRelative("tools/osx/BUILD"), "");
+    TestUtils.writeLines(
         tools.getRelative("tools/osx/xcode_configure.bzl"),
         "def xcode_configure(*args, **kwargs):",
         "    pass");
-    FileSystemUtils.writeIsoLatin1(tools.getRelative("tools/sh/BUILD"), "");
-    FileSystemUtils.writeIsoLatin1(
+    TestUtils.writeLines(tools.getRelative("tools/sh/BUILD"), "");
+    TestUtils.writeLines(
         tools.getRelative("tools/sh/sh_configure.bzl"),
         "def sh_configure(*args, **kwargs):",
         "    pass");
-    FileSystemUtils.writeIsoLatin1(tools.getRelative("tools/build_defs/repo/BUILD"));
-    FileSystemUtils.writeIsoLatin1(
+    TestUtils.writeLines(tools.getRelative("tools/build_defs/repo/BUILD"));
+    TestUtils.writeLines(
         tools.getRelative("tools/build_defs/repo/http.bzl"),
         "def http_archive(**kwargs):",
         "  pass",
@@ -94,26 +94,26 @@ public final class BazelPackageLoaderTest extends AbstractPackageLoaderTest {
         "",
         "def http_jar(**kwargs):",
         "  pass");
-    FileSystemUtils.writeIsoLatin1(
+    TestUtils.writeLines(
         tools.getRelative("tools/build_defs/repo/local.bzl"),
         "def local_repository(**kwargs):",
         "  pass",
         "",
         "def new_local_repository(**kwargs):",
         "  pass");
-    FileSystemUtils.writeIsoLatin1(
+    TestUtils.writeLines(
         tools.getRelative("tools/build_defs/repo/utils.bzl"),
         "def maybe(repo_rule, name, **kwargs):",
         "  if name not in native.existing_rules():",
         "    repo_rule(name = name, **kwargs)");
-    FileSystemUtils.writeIsoLatin1(tools.getRelative("tools/jdk/BUILD"));
-    FileSystemUtils.writeIsoLatin1(
+    TestUtils.writeLines(tools.getRelative("tools/jdk/BUILD"));
+    TestUtils.writeLines(
         tools.getRelative("tools/jdk/jdk_build_file.bzl"), "JDK_BUILD_TEMPLATE = ''");
-    FileSystemUtils.writeIsoLatin1(
+    TestUtils.writeLines(
         tools.getRelative("tools/jdk/local_java_repository.bzl"),
         "def local_java_repository(**kwargs):",
         "  pass");
-    FileSystemUtils.writeIsoLatin1(
+    TestUtils.writeLines(
         tools.getRelative("tools/jdk/remote_java_repository.bzl"),
         "def remote_java_repository(**kwargs):",
         "  pass");

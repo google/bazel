@@ -39,8 +39,8 @@ import com.google.devtools.build.lib.collect.nestedset.Order;
 import com.google.devtools.build.lib.events.StoredEventHandler;
 import com.google.devtools.build.lib.exec.BinTools;
 import com.google.devtools.build.lib.exec.util.TestExecutorBuilder;
+import com.google.devtools.build.lib.testutil.TestUtils;
 import com.google.devtools.build.lib.util.io.FileOutErr;
-import com.google.devtools.build.lib.vfs.FileSystemUtils;
 import com.google.devtools.build.lib.vfs.PathFragment;
 import com.google.devtools.build.lib.vfs.SyscallCache;
 import java.util.HashMap;
@@ -229,7 +229,7 @@ public class LtoBackendActionTest extends BuildViewTestCase {
 
   @Test
   public void discoverInputs_missingInputErrorMessage() throws Exception {
-    FileSystemUtils.writeIsoLatin1(imports1Artifact.getPath(), "file1.o", "file2.o", "file3.o");
+    TestUtils.writeLines(imports1Artifact.getPath(), "file1.o", "file2.o", "file3.o");
 
     SpawnAction action =
         new LtoBackendAction.Builder()

@@ -526,7 +526,7 @@ public class GrpcServerImpl extends CommandServerGrpc.CommandServerImplBase impl
   private void writeServerFile(String name, String contents) throws AbruptExitException {
     Path file = serverDirectory.getChild(name);
     try {
-      FileSystemUtils.writeContentAsLatin1(file, contents);
+      FileSystemUtils.writeContent(file, contents);
     } catch (IOException e) {
       throw createFilesystemFailureException("Server file (" + file + ") write failed", e);
     }

@@ -22,11 +22,11 @@ import com.google.common.io.ByteSource;
 import com.google.common.io.ByteStreams;
 import com.google.devtools.build.lib.concurrent.ThreadSafety.ConditionallyThreadSafe;
 import com.google.devtools.build.lib.concurrent.ThreadSafety.ThreadSafe;
+import com.google.devtools.build.lib.unsafe.StringUnsafe;
 import com.google.devtools.build.lib.util.StringEncoding;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -648,50 +648,13 @@ public class FileSystemUtils {
   }
 
   /**
-   * Decodes the given byte array assumed to be encoded with ISO-8859-1 encoding (isolatin1).
-   */
-  public static char[] convertFromLatin1(byte[] content) {
-    char[] latin1 = new char[content.length];
-    for (int i = 0; i < latin1.length; i++) { // yeah, latin1 is this easy! :-)
-      latin1[i] = (char) (0xff & content[i]);
-    }
-    return latin1;
-  }
-
-  /**
-   * Writes lines to file using ISO-8859-1 encoding (isolatin1).
-   */
-  @ThreadSafe // but not atomic
-  public static void writeIsoLatin1(Path file, String... lines) throws IOException {
-    writeLinesAs(file, ISO_8859_1, lines);
-  }
-
-  /**
-   * Append lines to file using ISO-8859-1 encoding (isolatin1).
-   */
-  @ThreadSafe // but not atomic
-  public static void appendIsoLatin1(Path file, String... lines) throws IOException {
-    appendLinesAs(file, ISO_8859_1, lines);
-  }
-
-  /**
-   * Writes the specified String as ISO-8859-1 (latin1) encoded bytes to the
-   * file. Follows symbolic links.
+   * Writes the specified String in Bazel's internal string encoding to the given path. Follows
+   * symbolic links.
    *
    * @throws IOException if there was an error
    */
-  public static void writeContentAsLatin1(Path outputFile, String content) throws IOException {
-    writeContent(outputFile, ISO_8859_1, content);
-  }
-
-  /**
-   * Writes the specified String using the specified encoding to the file. Follows symbolic links.
-   *
-   * @throws IOException if there was an error
-   */
-  public static void writeContent(Path outputFile, Charset charset, String content)
-      throws IOException {
-    asByteSink(outputFile).asCharSink(charset).write(content);
+  public static void writeContent(Path outputFile, String content) throws IOException {
+    asByteSink(outputFile).write(StringUnsafe.getInstance().getInternalStringBytes(content));
   }
 
   /**
@@ -703,55 +666,11 @@ public class FileSystemUtils {
     asByteSink(outputFile).write(content);
   }
 
-  /**
-   * Writes lines to file using the given encoding, ending every line with a system specific line
-   * break character.
-   */
+  /** Writes lines in Bazel's internal string encoding to file, ending every line with '\n'. */
   @ThreadSafe // but not atomic
-  public static void writeLinesAs(Path file, Charset charset, String... lines) throws IOException {
-    writeLinesAs(file, charset, Arrays.asList(lines));
-  }
-
-  /**
-   * Writes lines to file using the given encoding, ending every line with a system specific line
-   * break character.
-   */
-  @ThreadSafe // but not atomic
-  public static void writeLinesAs(Path file, Charset charset, Iterable<String> lines)
-      throws IOException {
+  public static void writeLines(Path file, Iterable<String> lines) throws IOException {
     file.getParentDirectory().createDirectoryAndParents();
-    asByteSink(file).asCharSink(charset).writeLines(lines);
-  }
-
-  /**
-   * Writes lines to file using the given encoding, ending every line with a given line break
-   * character.
-   */
-  @ThreadSafe // but not atomic
-  public static void writeLinesAs(
-      Path file, Charset charset, Iterable<String> lines, String lineBreak) throws IOException {
-    file.getParentDirectory().createDirectoryAndParents();
-    asByteSink(file).asCharSink(charset).writeLines(lines, lineBreak);
-  }
-
-  /**
-   * Appends lines to file using the given encoding, ending every line with a system specific line
-   * break character.
-   */
-  @ThreadSafe // but not atomic
-  public static void appendLinesAs(Path file, Charset charset, String... lines) throws IOException {
-    appendLinesAs(file, charset, Arrays.asList(lines));
-  }
-
-  /**
-   * Appends lines to file using the given encoding, ending every line with a system specific line
-   * break character.
-   */
-  @ThreadSafe // but not atomic
-  public static void appendLinesAs(Path file, Charset charset, Iterable<String> lines)
-      throws IOException {
-    file.getParentDirectory().createDirectoryAndParents();
-    asByteSink(file, true).asCharSink(charset).writeLines(lines);
+    asByteSink(file).asCharSink(ISO_8859_1).writeLines(lines, "\n");
   }
 
   /**
@@ -787,44 +706,13 @@ public class FileSystemUtils {
   }
 
   /**
-   * Returns the entirety of the specified input stream and returns it as a char
-   * array, decoding characters using ISO-8859-1 (Latin1).
+   * Returns a list of the lines in a text file, with each line using Bazel's internal string
+   * encoding (see {@link com.google.devtools.build.lib.util.StringEncoding}).
    *
    * @throws IOException if there was an error
    */
-  public static char[] readContentAsLatin1(InputStream in) throws IOException {
-    return convertFromLatin1(ByteStreams.toByteArray(in));
-  }
-
-  /**
-   * Returns the entirety of the specified file and returns it as a char array,
-   * decoding characters using ISO-8859-1 (Latin1).
-   *
-   * @throws IOException if there was an error
-   */
-  public static char[] readContentAsLatin1(Path inputFile) throws IOException {
-    return convertFromLatin1(readContent(inputFile));
-  }
-
-  /**
-   * Returns a list of the lines in an ISO-8859-1 (Latin1) text file. If the file ends in a line
-   * break, the list will contain an empty string as the last element.
-   *
-   * @throws IOException if there was an error
-   */
-  public static ImmutableList<String> readLinesAsLatin1(Path inputFile) throws IOException {
-    return readLines(inputFile, ISO_8859_1);
-  }
-
-  /**
-   * Returns a list of the lines in a text file in the given {@link Charset}. If the file ends in a
-   * line break, the list will contain an empty string as the last element.
-   *
-   * @throws IOException if there was an error
-   */
-  public static ImmutableList<String> readLines(Path inputFile, Charset charset)
-      throws IOException {
-    return asByteSource(inputFile).asCharSource(charset).readLines();
+  public static ImmutableList<String> readLines(Path inputFile) throws IOException {
+    return asByteSource(inputFile).asCharSource(ISO_8859_1).readLines();
   }
 
   /**
@@ -837,10 +725,11 @@ public class FileSystemUtils {
   }
 
   /**
-   * Reads the entire file using the given charset and returns the contents as a string
+   * Reads the entire file and returns its contents as a string uses Bazel's internal string
+   * encoding (see {@link com.google.devtools.build.lib.util.StringEncoding}).
    */
-  public static String readContent(Path inputFile, Charset charset) throws IOException {
-    return asByteSource(inputFile).asCharSource(charset).read();
+  public static String readContentToString(Path inputFile) throws IOException {
+    return asByteSource(inputFile).asCharSource(ISO_8859_1).read();
   }
 
   /**

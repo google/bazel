@@ -30,7 +30,7 @@ import com.google.devtools.build.lib.runtime.BlazeCommandDispatcher;
 import com.google.devtools.build.lib.runtime.BlazeRuntime;
 import com.google.devtools.build.lib.runtime.NoSpawnCacheModule;
 import com.google.devtools.build.lib.testutil.BlazeTestUtils;
-import com.google.devtools.build.lib.vfs.FileSystemUtils;
+import com.google.devtools.build.lib.testutil.TestUtils;
 import com.google.devtools.build.lib.vfs.Path;
 import java.io.File;
 import java.io.FileInputStream;
@@ -145,7 +145,7 @@ public class TargetSummaryEventTest extends BuildIntegrationTestCase {
             cmd = 'false',
         )
         """;
-    FileSystemUtils.appendIsoLatin1(toolsTestBuildPath, bogusTestSetupGenrule);
+    TestUtils.appendLines(toolsTestBuildPath, bogusTestSetupGenrule);
 
     File bep = testTargetAndCaptureBuildEventProtocol("//foo:good_test");
 

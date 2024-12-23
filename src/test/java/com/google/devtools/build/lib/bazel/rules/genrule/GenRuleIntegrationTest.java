@@ -98,7 +98,7 @@ public class GenRuleIntegrationTest extends BuildIntegrationTestCase {
   }
 
   private String getContents(Path outputFile) throws IOException {
-    return new String(FileSystemUtils.readContentAsLatin1(outputFile));
+    return FileSystemUtils.readContentToString(outputFile);
   }
 
   @Test
@@ -108,8 +108,7 @@ public class GenRuleIntegrationTest extends BuildIntegrationTestCase {
     buildTarget("//test:gen_small");
     OutputFileConfiguredTarget output =
         (OutputFileConfiguredTarget) getConfiguredTarget("//test:small");
-    assertThat(readContentAsLatin1String(output.getArtifact()))
-        .isEqualTo("Smaller than 40 characters\n");
+    assertThat(readToString(output.getArtifact())).isEqualTo("Smaller than 40 characters\n");
   }
 
   @Test
@@ -119,7 +118,7 @@ public class GenRuleIntegrationTest extends BuildIntegrationTestCase {
     buildTarget("//test:gen_large");
     OutputFileConfiguredTarget output =
         (OutputFileConfiguredTarget) getConfiguredTarget("//test:large");
-    assertThat(readContentAsLatin1String(output.getArtifact()))
+    assertThat(readToString(output.getArtifact()))
         .isEqualTo("Larger than 40 characters............................\n");
 
     Path script = output.getArtifact().getPath().getParentDirectory().getRelative(
@@ -141,7 +140,7 @@ public class GenRuleIntegrationTest extends BuildIntegrationTestCase {
 
     OutputFileConfiguredTarget output =
         (OutputFileConfiguredTarget) getConfiguredTarget("//test:all.txt");
-    assertThat(cleanNewlines(readContentAsLatin1String(output.getArtifact())))
+    assertThat(cleanNewlines(readToString(output.getArtifact())))
         .isEqualTo(
             "The number 0\nThe number 1\nThe number 2\nThe number 3\nThe number 4\n"
                 + "The number 5\nThe number 6\nThe number 7\nThe number 8\nThe number 9\n");
@@ -165,7 +164,7 @@ public class GenRuleIntegrationTest extends BuildIntegrationTestCase {
 
     OutputFileConfiguredTarget output =
         (OutputFileConfiguredTarget) getConfiguredTarget("//test:all2.txt");
-    assertThat(cleanNewlines(readContentAsLatin1String(output.getArtifact())))
+    assertThat(cleanNewlines(readToString(output.getArtifact())))
         .isEqualTo(
             "The number 0\nThe number 1\nThe number 2\nThe number 3\nThe number 4\n"
                 + "The number 5\nThe number 6\nThe number 7\nThe number 8\nThe number 9\n");
@@ -228,7 +227,7 @@ public class GenRuleIntegrationTest extends BuildIntegrationTestCase {
     buildTarget("//test:g");
     OutputFileConfiguredTarget output =
         (OutputFileConfiguredTarget) getConfiguredTarget("//test:g.out");
-    assertThat(readContentAsLatin1String(output.getArtifact())).isEqualTo("foo: bar\n");
+    assertThat(readToString(output.getArtifact())).isEqualTo("foo: bar\n");
   }
 
   @Test
@@ -291,7 +290,7 @@ genrule(
     buildTarget("//test:g");
     OutputFileConfiguredTarget output =
         (OutputFileConfiguredTarget) getConfiguredTarget("//test:g.out");
-    assertThat(readContentAsLatin1String(output.getArtifact())).isEqualTo("foo: bar\n");
+    assertThat(readToString(output.getArtifact())).isEqualTo("foo: bar\n");
   }
 
   @Test
@@ -348,7 +347,6 @@ genrule(
     buildTarget("//test:g");
     OutputFileConfiguredTarget output =
         (OutputFileConfiguredTarget) getConfiguredTarget("//test:g.out");
-    assertThat(readContentAsLatin1String(output.getArtifact()))
-        .isEqualTo("no template variables used\n");
+    assertThat(readToString(output.getArtifact())).isEqualTo("no template variables used\n");
   }
 }

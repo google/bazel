@@ -1044,7 +1044,7 @@ public final class TreeArtifactBuildTest extends TimestampBuilderTestCase {
     if (path.exists()) {
       path.setWritable(true);
     }
-    FileSystemUtils.writeContentAsLatin1(path, contents);
+    FileSystemUtils.writeContent(path, contents);
   }
 
   private static void writeFile(Artifact file, String contents) throws IOException {

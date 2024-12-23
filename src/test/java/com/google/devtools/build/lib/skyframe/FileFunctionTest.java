@@ -570,7 +570,7 @@ public class FileFunctionTest {
     FileValue a = valueForPath(p);
     p.setLastModifiedTime(1L);
     assertThat(valueForPath(p)).isEqualTo(a);
-    FileSystemUtils.writeContentAsLatin1(p, "content");
+    FileSystemUtils.writeContent(p, "content");
     // Same digest, but now non-empty.
     assertThat(valueForPath(p)).isNotEqualTo(a);
   }
@@ -618,7 +618,7 @@ public class FileFunctionTest {
     fastDigest = true;
     Path p = file("file");
     FileValue a = valueForPath(p);
-    FileSystemUtils.writeContentAsLatin1(p, "goop");
+    FileSystemUtils.writeContent(p, "goop");
     FileValue b = valueForPath(p);
     assertThat(a.equals(b)).isFalse();
   }
@@ -673,7 +673,7 @@ public class FileFunctionTest {
   public void testSymlinkTargetContentsChangeCTime() throws Exception {
     fastDigest = false;
     Path fooPath = file("foo");
-    FileSystemUtils.writeContentAsLatin1(fooPath, "foo");
+    FileSystemUtils.writeContent(fooPath, "foo");
     Path p = symlink("symlink", "foo");
     FileValue a = valueForPath(p);
     manualClock.advanceMillis(1);
@@ -687,10 +687,10 @@ public class FileFunctionTest {
   public void testSymlinkTargetContentsChangeDigest() throws Exception {
     fastDigest = true;
     Path fooPath = file("foo");
-    FileSystemUtils.writeContentAsLatin1(fooPath, "foo");
+    FileSystemUtils.writeContent(fooPath, "foo");
     Path p = symlink("symlink", "foo");
     FileValue a = valueForPath(p);
-    FileSystemUtils.writeContentAsLatin1(fooPath, "bar");
+    FileSystemUtils.writeContent(fooPath, "bar");
     FileValue b = valueForPath(p);
     assertThat(b).isNotEqualTo(a);
   }
@@ -874,7 +874,7 @@ public class FileFunctionTest {
   public void testSize() throws Exception {
     Path file = file("file");
     int fileSize = 20;
-    FileSystemUtils.writeContentAsLatin1(file, "a".repeat(fileSize));
+    FileSystemUtils.writeContent(file, "a".repeat(fileSize));
     assertThat(valueForPath(file).getSize()).isEqualTo(fileSize);
     Path dir = directory("directory");
     file(dir.getChild("child").getPathString());
@@ -908,7 +908,7 @@ public class FileFunctionTest {
         };
     pkgRoot = Root.fromPath(fs.getPath("/root"));
     Path file = file("file");
-    FileSystemUtils.writeContentAsLatin1(file, "a".repeat(20));
+    FileSystemUtils.writeContent(file, "a".repeat(20));
     byte[] digest = file.getDigest();
     expectedCalls++;
     assertThat(digestCalls.get()).isEqualTo(expectedCalls);
@@ -1118,7 +1118,7 @@ public class FileFunctionTest {
     pkgRoot = Root.absoluteRoot(fs);
     FileValue a = valueForPath(fs.getPath("/"));
     Path tmp = fs.getPath("/file.txt");
-    FileSystemUtils.writeContentAsLatin1(tmp, "test contents");
+    FileSystemUtils.writeContent(tmp, "test contents");
     FileValue b = valueForPath(tmp);
     Preconditions.checkState(b.isFile());
     FileValue c = valueForPath(fs.getPath("/does/not/exist"));
@@ -1771,7 +1771,7 @@ public class FileFunctionTest {
   private Path file(String fileName, String contents) throws Exception {
     Path path = path(fileName);
     path.getParentDirectory().createDirectoryAndParents();
-    FileSystemUtils.writeContentAsLatin1(path, contents);
+    FileSystemUtils.writeContent(path, contents);
     return path;
   }
 

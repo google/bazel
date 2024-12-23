@@ -212,7 +212,7 @@ public class CompactPersistentActionCacheTest {
   private FileArtifactValue createLocalMetadata(Artifact artifact, String content)
       throws IOException {
     artifact.getPath().getParentDirectory().createDirectoryAndParents();
-    FileSystemUtils.writeContentAsLatin1(artifact.getPath(), content);
+    FileSystemUtils.writeContent(artifact.getPath(), content);
     return FileArtifactValue.createForTesting(artifact.getPath());
   }
 

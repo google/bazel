@@ -325,7 +325,7 @@ public class StarlarkRepositoryContext extends StarlarkBaseExternalContext {
       makeDirectories(p.getPath());
       // Read and write files as raw bytes by using the Latin-1 encoding, which matches the encoding
       // used by Bazel for strings.
-      String tpl = FileSystemUtils.readContent(t.getPath(), ISO_8859_1);
+      String tpl = FileSystemUtils.readContentToString(t.getPath());
       for (Map.Entry<String, String> substitution : substitutionMap.entrySet()) {
         tpl =
             StringUtilities.replaceAllLiteral(tpl, substitution.getKey(), substitution.getValue());

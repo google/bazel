@@ -698,7 +698,7 @@ launcher_flag_alias(
   public void setupMockWorkspaceFiles(Path embeddedBinariesRoot) throws IOException {
     embeddedBinariesRoot.createDirectoryAndParents();
     Path jdkWorkspacePath = embeddedBinariesRoot.getRelative("jdk.WORKSPACE");
-    FileSystemUtils.writeContentAsLatin1(jdkWorkspacePath, "");
+    FileSystemUtils.writeContent(jdkWorkspacePath, "");
   }
 
   @Override

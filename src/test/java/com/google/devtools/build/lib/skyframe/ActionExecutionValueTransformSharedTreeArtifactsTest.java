@@ -35,7 +35,7 @@ import com.google.devtools.build.lib.collect.nestedset.NestedSetBuilder;
 import com.google.devtools.build.lib.collect.nestedset.Order;
 import com.google.devtools.build.lib.skyframe.TreeArtifactValue.ArchivedRepresentation;
 import com.google.devtools.build.lib.testutil.Scratch;
-import com.google.devtools.build.lib.vfs.FileSystemUtils;
+import com.google.devtools.build.lib.testutil.TestUtils;
 import com.google.devtools.build.lib.vfs.Path;
 import com.google.devtools.build.lib.vfs.PathFragment;
 import com.google.testing.junit.testparameterinjector.TestParameter;
@@ -267,6 +267,6 @@ public final class ActionExecutionValueTransformSharedTreeArtifactsTest {
   }
 
   private static void createFile(Path file) throws IOException {
-    FileSystemUtils.writeIsoLatin1(file);
+    TestUtils.writeLines(file);
   }
 }

@@ -265,7 +265,7 @@ public final class PersistentStringIndexerTest {
   @Test
   public void testCorruptedJournal() throws Exception {
     journalPath.getParentDirectory().createDirectoryAndParents();
-    FileSystemUtils.writeContentAsLatin1(journalPath, "bogus content");
+    FileSystemUtils.writeContent(journalPath, "bogus content");
     IOException e =
         assertThrows(
             IOException.class,

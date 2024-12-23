@@ -238,7 +238,7 @@ public final class FilesetOutputTree {
         PathFragment location = e.getKey();
         Path locationPath = root.getRelative(location);
         locationPath.getParentDirectory().createDirectoryAndParents();
-        FileSystemUtils.writeContentAsLatin1(locationPath, e.getValue());
+        FileSystemUtils.writeContent(locationPath, e.getValue());
       }
       for (Map.Entry<PathFragment, String> e : relativeLinks.entrySet()) {
         PathFragment location = e.getKey();
@@ -262,7 +262,7 @@ public final class FilesetOutputTree {
         if (path.isDirectory()) {
           addSymlinks(path, resolvedLinks);
         } else {
-          String contents = new String(FileSystemUtils.readContentAsLatin1(path));
+          String contents = FileSystemUtils.readContentToString(path);
           resolvedLinks.put(path.asFragment().toRelative(), contents);
         }
       } catch (IOException e) {

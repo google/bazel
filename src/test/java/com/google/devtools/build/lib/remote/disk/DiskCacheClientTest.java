@@ -130,18 +130,18 @@ public class DiskCacheClientTest {
   public void uploadFile_whenMissing_populatesCas() throws Exception {
     assertThat(root.exists()).isTrue();
     Path file = fs.getPath("/file");
-    FileSystemUtils.writeContent(file, UTF_8, "contents");
+    FileSystemUtils.writeContent(file, "contents");
     Digest digest = getDigest("contents");
 
     var unused = getFromFuture(client.uploadFile(digest, file));
 
-    assertThat(FileSystemUtils.readContent(getCasPath(digest), UTF_8)).isEqualTo("contents");
+    assertThat(FileSystemUtils.readContentToString(getCasPath(digest))).isEqualTo("contents");
   }
 
   @Test
   public void uploadFile_whenPresent_updatesMtime() throws Exception {
     Path file = fs.getPath("/file");
-    FileSystemUtils.writeContent(file, UTF_8, "contents");
+    FileSystemUtils.writeContent(file, "contents");
     Digest digest = getDigest("contents");
 
     // The contents would match under normal operation. This serves to check that we don't
@@ -150,7 +150,7 @@ public class DiskCacheClientTest {
 
     var unused = getFromFuture(client.uploadFile(digest, file));
 
-    assertThat(FileSystemUtils.readContent(path, UTF_8)).isEqualTo("existing contents");
+    assertThat(FileSystemUtils.readContentToString(path)).isEqualTo("existing contents");
     assertThat(path.getLastModifiedTime()).isNotEqualTo(0);
   }
 
@@ -161,7 +161,7 @@ public class DiskCacheClientTest {
 
     var unused = getFromFuture(client.uploadBlob(digest, blob));
 
-    assertThat(FileSystemUtils.readContent(getCasPath(digest), UTF_8)).isEqualTo("contents");
+    assertThat(FileSystemUtils.readContentToString(getCasPath(digest))).isEqualTo("contents");
   }
 
   @Test
@@ -175,7 +175,7 @@ public class DiskCacheClientTest {
 
     var unused = getFromFuture(client.uploadBlob(digest, blob));
 
-    assertThat(FileSystemUtils.readContent(path, UTF_8)).isEqualTo("existing contents");
+    assertThat(FileSystemUtils.readContentToString(path)).isEqualTo("existing contents");
     assertThat(path.getLastModifiedTime()).isNotEqualTo(0);
   }
 
@@ -214,7 +214,7 @@ public class DiskCacheClientTest {
 
     var unused = getFromFuture(client.downloadBlob(digest, out.getOutputStream()));
 
-    assertThat(FileSystemUtils.readContent(out, UTF_8)).isEqualTo("contents");
+    assertThat(FileSystemUtils.readContentToString(out)).isEqualTo("contents");
   }
 
   @Test

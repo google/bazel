@@ -328,9 +328,9 @@ public class TestSummaryTest {
   @Test
   public void testCoverageDataReferences() throws Exception {
     List<Path> paths = getPathList("/cov1.dat", "/cov2.dat", "/cov3.dat", "/cov4.dat");
-    FileSystemUtils.writeContentAsLatin1(paths.get(1), "something");
-    FileSystemUtils.writeContentAsLatin1(paths.get(3), "");
-    FileSystemUtils.writeContentAsLatin1(paths.get(3), "something else");
+    FileSystemUtils.writeContent(paths.get(1), "something");
+    FileSystemUtils.writeContent(paths.get(3), "");
+    FileSystemUtils.writeContent(paths.get(3), "something else");
     TestSummary summary = basicBuilder.addCoverageFiles(paths).build();
 
     AnsiTerminalPrinter terminalPrinter = Mockito.mock(AnsiTerminalPrinter.class);

@@ -44,7 +44,7 @@ public final class FileArtifactValueTest {
   private Path scratchFile(String name, long mtime, String content) throws IOException {
     Path path = fs.getPath(name);
     path.getParentDirectory().createDirectoryAndParents();
-    FileSystemUtils.writeContentAsLatin1(path, content);
+    FileSystemUtils.writeContent(path, content);
     path.setLastModifiedTime(mtime);
     return path;
   }
@@ -199,7 +199,7 @@ public final class FileArtifactValueTest {
         };
     Path path = fs.getPath("/some/path");
     path.getParentDirectory().createDirectoryAndParents();
-    FileSystemUtils.writeContentAsLatin1(path, "content");
+    FileSystemUtils.writeContent(path, "content");
     IOException e = assertThrows(IOException.class, () -> createForTesting(path));
     assertThat(e).isSameInstanceAs(exception);
   }

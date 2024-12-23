@@ -14,7 +14,6 @@
 
 package com.google.devtools.build.lib.bazel.repository.starlark;
 
-import static java.nio.charset.StandardCharsets.ISO_8859_1;
 import static java.nio.charset.StandardCharsets.UTF_8;
 
 import com.google.common.base.Ascii;
@@ -1518,7 +1517,7 @@ the same path on case-insensitive filesystems.
       throw Starlark.errorf("attempting to read() a directory: %s", p);
     }
     try {
-      return FileSystemUtils.readContent(p.getPath(), ISO_8859_1);
+      return FileSystemUtils.readContentToString(p.getPath());
     } catch (IOException e) {
       throw new RepositoryFunctionException(e, Transience.TRANSIENT);
     }

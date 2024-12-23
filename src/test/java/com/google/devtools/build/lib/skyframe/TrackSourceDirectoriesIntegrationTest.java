@@ -100,7 +100,7 @@ public final class TrackSourceDirectoriesIntegrationTest extends BuildIntegratio
     CHANGE_FILE_CONTENT {
       @Override
       void apply(Path sourceDirectory) throws IOException {
-        FileSystemUtils.writeContentAsLatin1(sourceDirectory.getChild("file"), "changed");
+        FileSystemUtils.writeContent(sourceDirectory.getChild("file"), "changed");
       }
     };
 

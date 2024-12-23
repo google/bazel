@@ -98,7 +98,7 @@ public class ParamFileWriteActionTest extends BuildViewTestCase {
     ActionExecutionContext context = actionExecutionContext();
     ActionResult actionResult = action.execute(context);
     assertThat(actionResult.spawnResults()).isEmpty();
-    String content = new String(FileSystemUtils.readContentAsLatin1(outputArtifact.getPath()));
+    String content = FileSystemUtils.readContentToString(outputArtifact.getPath());
     assertThat(content.trim()).isEqualTo("--flag1\n--flag2\n--flag3\nvalue1\nvalue2");
   }
 
@@ -111,7 +111,7 @@ public class ParamFileWriteActionTest extends BuildViewTestCase {
     ActionExecutionContext context = actionExecutionContext();
     ActionResult actionResult = action.execute(context);
     assertThat(actionResult.spawnResults()).isEmpty();
-    String content = new String(FileSystemUtils.readContentAsLatin1(outputArtifact.getPath()));
+    String content = FileSystemUtils.readContentToString(outputArtifact.getPath());
     assertThat(content.trim())
         .isEqualTo(
             """

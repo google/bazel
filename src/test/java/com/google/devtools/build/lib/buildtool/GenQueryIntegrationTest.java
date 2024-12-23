@@ -922,7 +922,7 @@ public class GenQueryIntegrationTest extends BuildIntegrationTestCase {
 
     buildTarget("//fruits:q");
     Artifact output = Iterables.getOnlyElement(getArtifacts("//fruits:q"));
-    ByteString compressedContent = readContentAsByteArray(output);
+    ByteString compressedContent = readToBytes(output);
 
     ByteArrayOutputStream decompressedOut = new ByteArrayOutputStream();
     try (GZIPInputStream gzipIn = new GZIPInputStream(compressedContent.newInput())) {
@@ -1017,7 +1017,7 @@ public class GenQueryIntegrationTest extends BuildIntegrationTestCase {
     Artifact output = Iterables.getOnlyElement(getArtifacts(queryTarget));
     assertThat(getAllKeysInGraph().stream().anyMatch(key -> key instanceof TransitiveTargetKey))
         .isEqualTo(!ttvFree);
-    return readContentAsLatin1String(output);
+    return readToString(output);
   }
 
   private Class<? extends Throwable> expectedExceptionClass() {

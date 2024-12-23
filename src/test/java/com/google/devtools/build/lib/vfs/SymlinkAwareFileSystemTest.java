@@ -481,9 +481,8 @@ public abstract class SymlinkAwareFileSystemTest extends FileSystemTest {
     Path testLink = absolutize("a-link");
     createSymbolicLink(testLink, testFile);
 
-    FileSystemUtils.writeContentAsLatin1(testLink, testData);
-    String resultData =
-      new String(FileSystemUtils.readContentAsLatin1(testFile));
+    FileSystemUtils.writeContent(testLink, testData);
+    String resultData = FileSystemUtils.readContentToString(testFile);
 
     assertThat(resultData).isEqualTo(testData);
   }

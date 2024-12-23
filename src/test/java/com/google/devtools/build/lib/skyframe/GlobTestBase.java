@@ -46,6 +46,7 @@ import com.google.devtools.build.lib.skyframe.ExternalFilesHelper.ExternalFileAc
 import com.google.devtools.build.lib.skyframe.PackageLookupFunction.CrossRepositoryLabelViolationStrategy;
 import com.google.devtools.build.lib.testutil.ManualClock;
 import com.google.devtools.build.lib.testutil.TestConstants;
+import com.google.devtools.build.lib.testutil.TestUtils;
 import com.google.devtools.build.lib.util.io.TimestampGranularityMonitor;
 import com.google.devtools.build.lib.vfs.DigestHashFunction;
 import com.google.devtools.build.lib.vfs.Dirent;
@@ -242,7 +243,7 @@ public abstract class GlobTestBase {
 
   @Test
   public void testIgnoreList() throws Exception {
-    FileSystemUtils.writeContentAsLatin1(root.getRelative(".bazelignore"), "pkg/foo/bar");
+    FileSystemUtils.writeContent(root.getRelative(".bazelignore"), "pkg/foo/bar");
     assertSingleGlobMatches("foo/**", "foo/barnacle/wiz", "foo/barnacle", "foo");
     differencer.invalidate(
         ImmutableList.of(
@@ -396,7 +397,7 @@ public abstract class GlobTestBase {
 
   @Test
   public void testGlobDoesNotCrossRepositoryBoundary() throws Exception {
-    FileSystemUtils.appendIsoLatin1(
+    TestUtils.appendLines(
         root.getRelative("WORKSPACE"), "local_repository(name='local', path='pkg/foo')");
     FileSystemUtils.createEmptyFile(pkgPath.getRelative("foo/WORKSPACE"));
     FileSystemUtils.createEmptyFile(pkgPath.getRelative("foo/BUILD"));
@@ -406,7 +407,7 @@ public abstract class GlobTestBase {
 
   @Test
   public void testGlobDirectoryMatchDoesNotCrossRepositoryBoundary() throws Exception {
-    FileSystemUtils.appendIsoLatin1(
+    TestUtils.appendLines(
         root.getRelative("WORKSPACE"), "local_repository(name='local', path='pkg/foo/bar')");
     FileSystemUtils.createEmptyFile(pkgPath.getRelative("foo/bar/WORKSPACE"));
     FileSystemUtils.createEmptyFile(pkgPath.getRelative("foo/bar/BUILD"));
@@ -416,7 +417,7 @@ public abstract class GlobTestBase {
 
   @Test
   public void testStarStarDoesNotCrossRepositoryBoundary() throws Exception {
-    FileSystemUtils.appendIsoLatin1(
+    TestUtils.appendLines(
         root.getRelative("WORKSPACE"), "local_repository(name='local', path='pkg/foo/bar')");
     FileSystemUtils.createEmptyFile(pkgPath.getRelative("foo/bar/WORKSPACE"));
     FileSystemUtils.createEmptyFile(pkgPath.getRelative("foo/bar/BUILD"));
@@ -426,7 +427,7 @@ public abstract class GlobTestBase {
 
   @Test
   public void testGlobDoesNotCrossRepositoryBoundaryUnderOtherPackagePath() throws Exception {
-    FileSystemUtils.appendIsoLatin1(
+    TestUtils.appendLines(
         root.getRelative("WORKSPACE"),
         "local_repository(name='local', path='"
             + writableRoot.getRelative("pkg/foo/bar").getPathString()

@@ -80,7 +80,7 @@ class SandboxHelper {
     addInputFile(relativePath, workspacePath);
     Path absPath = execRoot.getRelative(workspacePath);
     absPath.getParentDirectory().createDirectoryAndParents();
-    FileSystemUtils.writeContentAsLatin1(absPath, contents);
+    FileSystemUtils.writeContent(absPath, contents);
     return this;
   }
 
@@ -143,7 +143,7 @@ class SandboxHelper {
     addWorkerFile(relativePath);
     Path absPath = execRoot.getRelative(relativePath);
     absPath.getParentDirectory().createDirectoryAndParents();
-    FileSystemUtils.writeContentAsLatin1(absPath, contents);
+    FileSystemUtils.writeContent(absPath, contents);
     return this;
   }
 
@@ -155,7 +155,7 @@ class SandboxHelper {
   public SandboxHelper createExecRootFile(String relativePath, String contents) throws IOException {
     Path absPath = workDir.getRelative(relativePath);
     absPath.getParentDirectory().createDirectoryAndParents();
-    FileSystemUtils.writeContentAsLatin1(absPath, contents);
+    FileSystemUtils.writeContent(absPath, contents);
     return this;
   }
 
@@ -168,7 +168,7 @@ class SandboxHelper {
       throws IOException {
     Path absPath = execRoot.getRelative(workspaceDirPath);
     absPath.getParentDirectory().createDirectoryAndParents();
-    FileSystemUtils.writeContentAsLatin1(absPath, contents);
+    FileSystemUtils.writeContent(absPath, contents);
     return this;
   }
 

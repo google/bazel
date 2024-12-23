@@ -13,8 +13,6 @@
 // limitations under the License.
 package com.google.devtools.build.lib.bazel.bzlmod;
 
-import static java.nio.charset.StandardCharsets.UTF_8;
-
 import com.google.common.collect.ImmutableList;
 import com.google.common.hash.HashCode;
 import com.google.common.hash.Hasher;
@@ -212,8 +210,8 @@ public class VendorManager {
     if (!markerUnderVendor.exists()) {
       return false;
     }
-    String vendorMarkerContent = FileSystemUtils.readContent(markerUnderVendor, UTF_8);
-    String externalMarkerContent = FileSystemUtils.readContent(markerUnderExternal, UTF_8);
+    String vendorMarkerContent = FileSystemUtils.readContentToString(markerUnderVendor);
+    String externalMarkerContent = FileSystemUtils.readContentToString(markerUnderExternal);
     return Objects.equals(vendorMarkerContent, externalMarkerContent);
   }
 

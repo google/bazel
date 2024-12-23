@@ -227,7 +227,7 @@ public class LocalDiffAwarenessIntegrationTest extends SkyframeIntegrationTestBa
             "foo/BUILD",
             "genrule(name = 'foo', outs = ['out'], cmd = 'cp $< $@', srcs = ['link'])");
     Path outputFile = directories.getOutputBase().getChild("linkTarget");
-    FileSystemUtils.writeContentAsLatin1(outputFile, "one");
+    FileSystemUtils.writeContent(outputFile, "one");
     buildFile.getParentDirectory().getChild("link").createSymbolicLink(outputFile.asFragment());
 
     buildTarget("//foo:foo");
@@ -235,7 +235,7 @@ public class LocalDiffAwarenessIntegrationTest extends SkyframeIntegrationTestBa
     assertContents("one", "//foo:foo");
 
     addOptions("--noexperimental_check_output_files");
-    FileSystemUtils.writeContentAsLatin1(outputFile, "two");
+    FileSystemUtils.writeContent(outputFile, "two");
 
     buildTarget("//foo:foo");
 

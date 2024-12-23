@@ -14,6 +14,7 @@
 package com.google.devtools.build.lib.vfs;
 
 import static com.google.common.truth.Truth.assertThat;
+import static java.nio.charset.StandardCharsets.ISO_8859_1;
 import static org.junit.Assert.assertThrows;
 
 import com.google.common.collect.Lists;
@@ -176,15 +177,15 @@ public class NativePathTest {
     }
     Path path = fs.getPath(aFile.getPath());
     String latin1String = new String(allLatin1Chars);
-    FileSystemUtils.writeContentAsLatin1(path, latin1String);
-    String fileContent = new String(FileSystemUtils.readContentAsLatin1(path));
+    FileSystemUtils.writeContent(path, latin1String);
+    String fileContent = FileSystemUtils.readContentToString(path);
     assertThat(latin1String).isEqualTo(fileContent);
   }
 
   /**
    * Verify that the encoding implemented by {@link
-   * com.google.devtools.build.lib.vfs.FileSystemUtils#writeContentAsLatin1(Path, String)} really is
-   * 8859-1 (latin1).
+   * com.google.devtools.build.lib.vfs.FileSystemUtils#writeContent(Path, String)} really is 8859-1
+   * (latin1).
    */
   @Test
   public void testVerifyLatin1() throws IOException {
@@ -194,9 +195,9 @@ public class NativePathTest {
     }
     Path path = fs.getPath(aFile.getPath());
     String latin1String = new String(allLatin1Chars);
-    FileSystemUtils.writeContentAsLatin1(path, latin1String);
+    FileSystemUtils.writeContent(path, latin1String);
     byte[] bytes = FileSystemUtils.readContent(path);
-    assertThat(latin1String).isEqualTo(new String(bytes, "ISO-8859-1"));
+    assertThat(latin1String).isEqualTo(new String(bytes, ISO_8859_1));
   }
 
   @Test

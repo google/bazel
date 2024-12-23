@@ -20,6 +20,7 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.flogger.GoogleLogger;
 import com.google.common.util.concurrent.Uninterruptibles;
 import com.google.devtools.build.lib.util.ExitCode;
+import com.google.devtools.build.lib.util.StringEncoding;
 import com.google.devtools.build.lib.vfs.FileSystemUtils;
 import com.google.devtools.build.lib.vfs.Path;
 import java.io.IOException;
@@ -97,7 +98,8 @@ public class PidFileWatcher extends Thread {
   private static boolean pidFileValid(Path pidFile, int expectedPid) {
     String pidFileContents;
     try {
-      pidFileContents = new String(FileSystemUtils.readContentAsLatin1(pidFile));
+      pidFileContents =
+          StringEncoding.internalToUnicode(FileSystemUtils.readContentToString(pidFile));
     } catch (IOException e) {
       logger.atInfo().log("Cannot read PID file: %s", e.getMessage());
       return false;

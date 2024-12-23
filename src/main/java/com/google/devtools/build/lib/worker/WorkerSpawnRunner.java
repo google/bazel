@@ -15,7 +15,6 @@
 package com.google.devtools.build.lib.worker;
 
 import static com.google.common.base.Preconditions.checkNotNull;
-import static java.nio.charset.StandardCharsets.UTF_8;
 
 import com.google.common.base.Stopwatch;
 import com.google.common.collect.ImmutableMap;
@@ -316,7 +315,7 @@ final class WorkerSpawnRunner implements SpawnRunner {
                 "Failed to read @-argument '%s': file is not a declared input", argValue));
       }
       try {
-        for (String line : FileSystemUtils.readLines(path, UTF_8)) {
+        for (String line : FileSystemUtils.readLines(path)) {
           expandArgument(inputs, line, requestBuilder);
         }
       } catch (IOException e) {

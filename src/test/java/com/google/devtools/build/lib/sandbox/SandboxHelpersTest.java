@@ -16,7 +16,6 @@ package com.google.devtools.build.lib.sandbox;
 
 import static com.google.common.collect.ImmutableMap.toImmutableMap;
 import static com.google.common.truth.Truth.assertThat;
-import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.concurrent.TimeUnit.SECONDS;
 
 import com.google.common.collect.ImmutableList;
@@ -103,7 +102,7 @@ public class SandboxHelpersTest {
     assertThat(inputs.getFiles())
         .containsExactly(PathFragment.create("paramFile"), execRoot.getChild("paramFile"));
     assertThat(inputs.getSymlinks()).isEmpty();
-    assertThat(FileSystemUtils.readLines(execRoot.getChild("paramFile"), UTF_8))
+    assertThat(FileSystemUtils.readLines(execRoot.getChild("paramFile")))
         .containsExactly("-a", "-b")
         .inOrder();
     assertThat(execRoot.getChild("paramFile").isExecutable()).isTrue();
@@ -123,7 +122,7 @@ public class SandboxHelpersTest {
         .containsExactly(
             PathFragment.create("_bin/say_hello"), execRoot.getRelative("_bin/say_hello"));
     assertThat(inputs.getSymlinks()).isEmpty();
-    assertThat(FileSystemUtils.readLines(execRoot.getRelative("_bin/say_hello"), UTF_8))
+    assertThat(FileSystemUtils.readLines(execRoot.getRelative("_bin/say_hello")))
         .containsExactly("#!/bin/bash", "echo hello")
         .inOrder();
     assertThat(execRoot.getRelative("_bin/say_hello").isExecutable()).isTrue();
@@ -175,7 +174,7 @@ public class SandboxHelpersTest {
     assertThat(customExecRoot.readdir(Symlinks.NOFOLLOW))
         .containsExactly(new Dirent("file", Dirent.Type.FILE));
     Path outputFile = customExecRoot.getChild("file");
-    assertThat(FileSystemUtils.readLines(outputFile, UTF_8)).containsExactly("hello");
+    assertThat(FileSystemUtils.readLines(outputFile)).containsExactly("hello");
     assertThat(outputFile.isExecutable()).isTrue();
   }
 
@@ -197,7 +196,7 @@ public class SandboxHelpersTest {
     assertThat(scratch.resolve("/outputs").readdir(Symlinks.NOFOLLOW))
         .containsExactly(new Dirent("paramFile", Dirent.Type.FILE));
     Path outputFile = scratch.resolve("/outputs/paramFile");
-    assertThat(FileSystemUtils.readLines(outputFile, UTF_8)).containsExactly("-a", "-b").inOrder();
+    assertThat(FileSystemUtils.readLines(outputFile)).containsExactly("-a", "-b").inOrder();
     assertThat(outputFile.isExecutable()).isTrue();
   }
 
@@ -212,7 +211,7 @@ public class SandboxHelpersTest {
     assertThat(scratch.resolve("/outputs").readdir(Symlinks.NOFOLLOW))
         .containsExactly(new Dirent("tools", Dirent.Type.DIRECTORY));
     Path outputFile = scratch.resolve("/outputs/tools/tool");
-    assertThat(FileSystemUtils.readLines(outputFile, UTF_8)).containsExactly("tool_code");
+    assertThat(FileSystemUtils.readLines(outputFile)).containsExactly("tool_code");
     assertThat(outputFile.isExecutable()).isTrue();
   }
 
@@ -225,7 +224,7 @@ public class SandboxHelpersTest {
     assertThat(scratch.resolve("/outputs").readdir(Symlinks.NOFOLLOW))
         .containsExactly(new Dirent("file", Dirent.Type.FILE));
     Path outputFile = scratch.resolve("/outputs/file");
-    assertThat(FileSystemUtils.readLines(outputFile, UTF_8)).containsExactly("hello");
+    assertThat(FileSystemUtils.readLines(outputFile)).containsExactly("hello");
     assertThat(outputFile.isExecutable()).isTrue();
   }
 
@@ -340,15 +339,13 @@ public class SandboxHelpersTest {
     Path sandboxBase = execRoot.getRelative("sandbox");
     PathFragment mappedOutputPath = PathFragment.create("bin/output");
     sandboxBase.getRelative(mappedOutputPath).getParentDirectory().createDirectoryAndParents();
-    FileSystemUtils.writeLinesAs(
-        sandboxBase.getRelative(mappedOutputPath), UTF_8, "hello", "pathmapper");
+    Path file = sandboxBase.getRelative(mappedOutputPath);
+    TestUtils.writeLines(file, "hello", "pathmapper");
 
     Path realBase = execRoot.getRelative("real");
     SandboxHelpers.moveOutputs(sandboxHelpers.getOutputs(spawn), sandboxBase, realBase);
 
-    assertThat(
-            FileSystemUtils.readLines(
-                realBase.getRelative(unmappedOutputPath.getPathString()), UTF_8))
+    assertThat(FileSystemUtils.readLines(realBase.getRelative(unmappedOutputPath.getPathString())))
         .containsExactly("hello", "pathmapper")
         .inOrder();
     assertThat(sandboxBase.getRelative(mappedOutputPath).exists()).isFalse();

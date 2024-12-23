@@ -16,7 +16,6 @@ package com.google.devtools.build.lib.remote;
 import static com.google.common.collect.Iterables.getOnlyElement;
 import static com.google.common.truth.Truth.assertThat;
 import static com.google.devtools.build.lib.remote.util.IntegrationTestUtils.startWorker;
-import static com.google.devtools.build.lib.vfs.FileSystemUtils.readContent;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.junit.Assert.assertThrows;
 import static org.junit.Assume.assumeFalse;
@@ -95,7 +94,7 @@ public class BuildWithoutTheBytesIntegrationTest extends BuildWithoutTheBytesInt
 
   @Override
   protected void assertOutputEquals(Path path, String expectedContent) throws Exception {
-    assertThat(readContent(path, UTF_8)).isEqualTo(expectedContent);
+    assertThat(FileSystemUtils.readContentToString(path)).isEqualTo(expectedContent);
   }
 
   @Override
@@ -345,7 +344,7 @@ public class BuildWithoutTheBytesIntegrationTest extends BuildWithoutTheBytesInt
 
     // Populate remote cache
     buildTarget("//a:bar");
-    var bytes = readContent(getOutputPath("a/foo.out"));
+    var bytes = FileSystemUtils.readContent(getOutputPath("a/foo.out"));
     var hashCode = getDigestHashFunction().getHashFunction().hashBytes(bytes);
     getOutputPath("a/foo.out").delete();
     getOutputPath("a/bar.out").delete();
@@ -399,7 +398,7 @@ public class BuildWithoutTheBytesIntegrationTest extends BuildWithoutTheBytesInt
     setDownloadAll();
     buildTarget("//a:bar");
     waitDownloads();
-    var bytes = readContent(getOutputPath("a/foo.out"));
+    var bytes = FileSystemUtils.readContent(getOutputPath("a/foo.out"));
     var hashCode = getDigestHashFunction().getHashFunction().hashBytes(bytes);
     getOutputPath("a/foo.out").delete();
     getOutputPath("a/bar.out").delete();

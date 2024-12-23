@@ -15,7 +15,6 @@ package com.google.devtools.build.lib.sandbox;
 
 import static com.google.common.truth.Truth.assertThat;
 import static com.google.common.truth.TruthJUnit.assume;
-import static java.nio.charset.StandardCharsets.UTF_8;
 
 import com.google.common.collect.ImmutableList;
 import com.google.devtools.build.lib.actions.Artifact;
@@ -71,7 +70,7 @@ public final class LinuxSandboxedSpawnRunnerTest extends SandboxedSpawnRunnerTes
     assertThat(spawnResult.exitCode()).isEqualTo(0);
     assertThat(spawnResult.setupSuccess()).isTrue();
     assertThat(spawnResult.getWallTimeInMs()).isGreaterThan(0);
-    assertThat(FileSystemUtils.readLines(stdout, UTF_8)).containsExactly("echolalia");
+    assertThat(FileSystemUtils.readLines(stdout)).containsExactly("echolalia");
   }
 
   @Test
@@ -94,9 +93,7 @@ public final class LinuxSandboxedSpawnRunnerTest extends SandboxedSpawnRunnerTes
     assertThat(spawnResult.status()).isEqualTo(SpawnResult.Status.SUCCESS);
     Path paramFile = commandEnvironment.getExecRoot().getRelative("out");
     assertThat(paramFile.exists()).isTrue();
-    assertThat(FileSystemUtils.readLines(paramFile, UTF_8))
-        .containsExactly("--foo", "--bar")
-        .inOrder();
+    assertThat(FileSystemUtils.readLines(paramFile)).containsExactly("--foo", "--bar").inOrder();
   }
 
   @Test
@@ -122,7 +119,7 @@ public final class LinuxSandboxedSpawnRunnerTest extends SandboxedSpawnRunnerTes
     SpawnResult spawnResult = runner.exec(spawn, policy);
 
     assertThat(spawnResult.status()).isEqualTo(SpawnResult.Status.SUCCESS);
-    assertThat(FileSystemUtils.readLines(output.getPath(), UTF_8)).containsExactly("hello");
+    assertThat(FileSystemUtils.readLines(output.getPath())).containsExactly("hello");
   }
 
   @Test

@@ -24,7 +24,6 @@ import static com.google.common.collect.MoreCollectors.onlyElement;
 import static com.google.common.truth.Truth.assertThat;
 import static com.google.common.truth.Truth.assertWithMessage;
 import static java.nio.charset.StandardCharsets.ISO_8859_1;
-import static java.nio.charset.StandardCharsets.UTF_8;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
@@ -948,7 +947,7 @@ public abstract class BuildIntegrationTestCase {
         pathStr.equals(new String(pathStr.getBytes(ISO_8859_1), ISO_8859_1)),
         "Path strings must be encoded as latin-1: %s",
         path);
-    FileSystemUtils.writeLinesAs(path, UTF_8, lines);
+    TestUtils.writeLines(path, lines);
     return path;
   }
 
@@ -1022,24 +1021,26 @@ public abstract class BuildIntegrationTestCase {
   }
 
   protected void assertContents(String expectedContents, Path path) throws Exception {
-    String actualContents = new String(FileSystemUtils.readContentAsLatin1(path));
+    String actualContents = FileSystemUtils.readContentToString(path);
     // .indent(0) doesn't change the indentation, but normalizes all OS-specific endings.
     assertThat(actualContents.indent(0).trim()).isEqualTo(expectedContents);
   }
 
-  protected String readContentAsLatin1String(Artifact artifact) throws IOException {
-    return new String(FileSystemUtils.readContentAsLatin1(artifact.getPath()));
+  protected String readToString(Artifact artifact) throws IOException {
+    return FileSystemUtils.readContentToString(artifact.getPath());
   }
 
-  protected ByteString readContentAsByteArray(Artifact artifact) throws IOException {
+  protected ByteString readToBytes(Artifact artifact) throws IOException {
     return ByteString.copyFrom(FileSystemUtils.readContent(artifact.getPath()));
   }
 
   protected String readInlineOutput(Artifact output) throws IOException, InterruptedException {
     FileArtifactValue metadata = getOutputMetadata(output);
     assertThat(metadata).isInstanceOf(InlineFileArtifactValue.class);
+    // Use Bazel's internal string encoding by storing raw bytes in a Latin-1 string (see
+    // StringEncoding for details).
     return new String(
-        FileSystemUtils.readContentAsLatin1(((InlineFileArtifactValue) metadata).getInputStream()));
+        ((InlineFileArtifactValue) metadata).getInputStream().readAllBytes(), ISO_8859_1);
   }
 
   protected FileArtifactValue getOutputMetadata(Artifact output)

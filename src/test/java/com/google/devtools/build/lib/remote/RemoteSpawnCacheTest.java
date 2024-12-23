@@ -18,7 +18,6 @@ import static com.google.common.truth.Truth.assertThat;
 import static com.google.common.truth.extensions.proto.ProtoTruth.assertThat;
 import static com.google.common.util.concurrent.Futures.immediateVoidFuture;
 import static com.google.common.util.concurrent.MoreExecutors.directExecutor;
-import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.eq;
@@ -810,8 +809,8 @@ public class RemoteSpawnCacheTest {
 
     // act
     try (CacheHandle firstCacheHandle = cache.lookup(firstSpawn, firstPolicy)) {
-      FileSystemUtils.writeContent(
-          fs.getPath("/exec/root/bazel-bin/k8-fastbuild/bin/output"), UTF_8, "hello");
+      Path outputFile = fs.getPath("/exec/root/bazel-bin/k8-fastbuild/bin/output");
+      FileSystemUtils.writeContent(outputFile, "hello");
       firstCacheHandle.store(
           new SpawnResult.Builder()
               .setExitCode(0)
@@ -825,8 +824,8 @@ public class RemoteSpawnCacheTest {
     assertThat(secondCacheHandle.hasResult()).isTrue();
     assertThat(secondCacheHandle.getResult().getRunnerName()).isEqualTo("deduplicated");
     assertThat(
-            FileSystemUtils.readContent(
-                fs.getPath("/exec/root/bazel-bin/k8-opt/bin/output"), UTF_8))
+            FileSystemUtils.readContentToString(
+                fs.getPath("/exec/root/bazel-bin/k8-opt/bin/output")))
         .isEqualTo("hello");
     assertThat(secondCacheHandle.willStore()).isFalse();
   }
@@ -886,8 +885,8 @@ public class RemoteSpawnCacheTest {
     // act
     // Simulate the first spawn writing to the output, but delay its completion.
     CacheHandle firstCacheHandle = cache.lookup(firstSpawn, firstPolicy);
-    FileSystemUtils.writeContent(
-        fs.getPath("/exec/root/bazel-bin/k8-fastbuild/bin/output"), UTF_8, "hello");
+    Path outputFile1 = fs.getPath("/exec/root/bazel-bin/k8-fastbuild/bin/output");
+    FileSystemUtils.writeContent(outputFile1, "hello");
 
     // Start the second spawn and wait for it to deduplicate against the first one.
     AtomicReference<CacheHandle> secondCacheHandleRef = new AtomicReference<>();
@@ -917,8 +916,8 @@ public class RemoteSpawnCacheTest {
                         .setStatus(Status.SUCCESS)
                         .setRunnerName("test")
                         .build());
-                FileSystemUtils.writeContent(
-                    fs.getPath("/exec/root/bazel-bin/k8-fastbuild/bin/output"), UTF_8, "corrupted");
+                Path outputFile = fs.getPath("/exec/root/bazel-bin/k8-fastbuild/bin/output");
+                FileSystemUtils.writeContent(outputFile, "corrupted");
               } catch (IOException | ExecException | InterruptedException e) {
                 throw new IllegalStateException(e);
               }
@@ -940,8 +939,8 @@ public class RemoteSpawnCacheTest {
     assertThat(secondCacheHandle.hasResult()).isTrue();
     assertThat(secondCacheHandle.getResult().getRunnerName()).isEqualTo("deduplicated");
     assertThat(
-            FileSystemUtils.readContent(
-                fs.getPath("/exec/root/bazel-bin/k8-opt/bin/output"), UTF_8))
+            FileSystemUtils.readContentToString(
+                fs.getPath("/exec/root/bazel-bin/k8-opt/bin/output")))
         .isEqualTo("hello");
     assertThat(secondCacheHandle.willStore()).isFalse();
   }
@@ -1019,8 +1018,8 @@ public class RemoteSpawnCacheTest {
 
     // act
     try (CacheHandle firstCacheHandle = cache.lookup(firstSpawn, firstPolicy)) {
-      FileSystemUtils.writeContent(
-          fs.getPath("/exec/root/bazel-bin/k8-fastbuild/bin/output"), UTF_8, "hello");
+      Path outputFile = fs.getPath("/exec/root/bazel-bin/k8-fastbuild/bin/output");
+      FileSystemUtils.writeContent(outputFile, "hello");
       firstCacheHandle.store(
           new SpawnResult.Builder()
               .setExitCode(1)

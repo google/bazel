@@ -72,6 +72,7 @@ java_library(
     ],
     deps = [
         "//src/main/java/com/google/devtools/build/lib/util:exit_code",
+        "//src/main/java/com/google/devtools/build/lib/util:string_encoding",
         "//src/main/java/com/google/devtools/build/lib/vfs",
         "//third_party:flogger",
         "//third_party:guava",

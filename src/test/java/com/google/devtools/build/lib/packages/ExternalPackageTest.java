@@ -18,7 +18,7 @@ import static com.google.common.truth.Truth.assertThat;
 import com.google.devtools.build.lib.analysis.util.BuildViewTestCase;
 import com.google.devtools.build.lib.cmdline.Label;
 import com.google.devtools.build.lib.skyframe.ConfiguredTargetAndData;
-import com.google.devtools.build.lib.vfs.FileSystemUtils;
+import com.google.devtools.build.lib.testutil.TestUtils;
 import com.google.devtools.build.lib.vfs.Path;
 import org.junit.Before;
 import org.junit.Test;
@@ -40,7 +40,8 @@ public class ExternalPackageTest extends BuildViewTestCase {
 
   @Test
   public void testMultipleRulesWithSameName() throws Exception {
-    FileSystemUtils.writeIsoLatin1(workspacePath,
+    TestUtils.writeLines(
+        workspacePath,
         "local_repository(",
         "    name = 'my_rule',",
         "    path = '/foo/bar',",
@@ -59,7 +60,8 @@ public class ExternalPackageTest extends BuildViewTestCase {
 
   @Test
   public void testOverridingBindRules() throws Exception {
-    FileSystemUtils.writeIsoLatin1(workspacePath,
+    TestUtils.writeLines(
+        workspacePath,
         "bind(",
         "    name = 'my_rule',",
         "    actual = '//foo:bar',",
@@ -78,13 +80,9 @@ public class ExternalPackageTest extends BuildViewTestCase {
 
   @Test
   public void testBindToConfigSetting() throws Exception {
-    FileSystemUtils.appendIsoLatin1(
-        workspacePath,
-        "bind(",
-        "    name = 'condition',",
-        "    actual = '//:setting',",
-        ")");
-    FileSystemUtils.writeIsoLatin1(
+    TestUtils.appendLines(
+        workspacePath, "bind(", "    name = 'condition',", "    actual = '//:setting',", ")");
+    TestUtils.writeLines(
         rootDirectory.getRelative("BUILD"),
         "load('@rules_java//java:defs.bzl', 'java_library')",
         "config_setting(",

@@ -75,7 +75,7 @@ public class TimestampBuilderWithCompactPersistentActionCacheTest extends Timest
   public void testUnneededInputs() throws Exception {
     Artifact hello = createSourceArtifact("hello");
     hello.getPath().getParentDirectory().createDirectoryAndParents();
-    FileSystemUtils.writeContentAsLatin1(hello.getPath(), "content1");
+    FileSystemUtils.writeContent(hello.getPath(), "content1");
     Artifact optional = createSourceArtifact("hello.optional");
     Artifact goodbye = createDerivedArtifact("goodbye");
     Button button = createActionButton(asNestedSet(hello, optional), ImmutableSet.of(goodbye));
@@ -96,7 +96,7 @@ public class TimestampBuilderWithCompactPersistentActionCacheTest extends Timest
     assertThat(button.pressed).isFalse(); // not rebuilt
 
     BlazeTestUtils.makeEmptyFile(optional.getPath());
-    FileSystemUtils.writeContentAsLatin1(hello.getPath(), "content2");
+    FileSystemUtils.writeContent(hello.getPath(), "content2");
 
     button.pressed = false;
     buildArtifacts(persistentBuilder(cache), goodbye);
@@ -107,7 +107,7 @@ public class TimestampBuilderWithCompactPersistentActionCacheTest extends Timest
     assertThat(button.pressed).isFalse(); // not rebuilt
 
     optional.getPath().delete();
-    FileSystemUtils.writeContentAsLatin1(hello.getPath(), "content3");
+    FileSystemUtils.writeContent(hello.getPath(), "content3");
 
     button.pressed = false;
     buildArtifacts(persistentBuilder(cache), goodbye);
@@ -138,7 +138,7 @@ public class TimestampBuilderWithCompactPersistentActionCacheTest extends Timest
     assertThat(button.pressed).isFalse(); // not rebuilt
 
     hello.getPath().setWritable(true);
-    FileSystemUtils.writeContentAsLatin1(hello.getPath(), "new content");
+    FileSystemUtils.writeContent(hello.getPath(), "new content");
 
     button.pressed = false;
     buildArtifacts(persistentBuilder(cache), goodbye);
@@ -159,7 +159,7 @@ public class TimestampBuilderWithCompactPersistentActionCacheTest extends Timest
     // /hello -> [action] -> /goodbye
     Artifact hello = createSourceArtifact("hello");
     hello.getPath().getParentDirectory().createDirectoryAndParents();
-    FileSystemUtils.writeContentAsLatin1(hello.getPath(), "content1");
+    FileSystemUtils.writeContent(hello.getPath(), "content1");
     Artifact goodbye = createDerivedArtifact("goodbye");
     Button button = createActionButton(asNestedSet(hello), ImmutableSet.of(goodbye));
 
@@ -175,7 +175,7 @@ public class TimestampBuilderWithCompactPersistentActionCacheTest extends Timest
     buildArtifacts(persistentBuilder(cache), goodbye);
     assertThat(button.pressed).isFalse(); // still not rebuilt
 
-    FileSystemUtils.writeContentAsLatin1(hello.getPath(), "content2");
+    FileSystemUtils.writeContent(hello.getPath(), "content2");
 
     button.pressed = false;
     buildArtifacts(persistentBuilder(cache), goodbye);
@@ -198,8 +198,8 @@ public class TimestampBuilderWithCompactPersistentActionCacheTest extends Timest
     Artifact hello = createSourceArtifact("hello");
     Artifact there = createSourceArtifact("there");
     hello.getPath().getParentDirectory().createDirectoryAndParents();
-    FileSystemUtils.writeContentAsLatin1(hello.getPath(), "hello");
-    FileSystemUtils.writeContentAsLatin1(there.getPath(), "there");
+    FileSystemUtils.writeContent(hello.getPath(), "hello");
+    FileSystemUtils.writeContent(there.getPath(), "there");
     Artifact goodbye = createDerivedArtifact("goodbye");
     Button button = createActionButton(asNestedSet(hello, there), ImmutableSet.of(goodbye));
 
@@ -226,7 +226,7 @@ public class TimestampBuilderWithCompactPersistentActionCacheTest extends Timest
     // [action1] -> (/goodbye), cache key will be /goodbye
     Artifact goodbye = createDerivedArtifact("goodbye");
     goodbye.getPath().getParentDirectory().createDirectoryAndParents();
-    FileSystemUtils.writeContentAsLatin1(goodbye.getPath(), "test");
+    FileSystemUtils.writeContent(goodbye.getPath(), "test");
     Button button = createActionButton(emptyNestedSet, ImmutableSet.of(goodbye));
 
     button.pressed = false;
@@ -259,7 +259,7 @@ public class TimestampBuilderWithCompactPersistentActionCacheTest extends Timest
 
     Artifact hello = createSourceArtifact("hello");
     hello.getPath().getParentDirectory().createDirectoryAndParents();
-    FileSystemUtils.writeContentAsLatin1(hello.getPath(), "hello");
+    FileSystemUtils.writeContent(hello.getPath(), "hello");
     Artifact goodbye = createDerivedArtifact("goodbye");
     Button button = createActionButton(asNestedSet(hello), ImmutableSet.of(goodbye));
 
@@ -275,7 +275,7 @@ public class TimestampBuilderWithCompactPersistentActionCacheTest extends Timest
     clearActions();
     Artifact hi = createSourceArtifact("hi");
     hi.getPath().getParentDirectory().createDirectoryAndParents();
-    FileSystemUtils.writeContentAsLatin1(hi.getPath(), "hello");
+    FileSystemUtils.writeContent(hi.getPath(), "hello");
     Artifact goodbye2 = createDerivedArtifact("goodbye");
     Button button2 = createActionButton(asNestedSet(hi), ImmutableSet.of(goodbye2));
 
@@ -294,7 +294,7 @@ public class TimestampBuilderWithCompactPersistentActionCacheTest extends Timest
     // /hello -> [action] -> /goodbye
     Artifact hello = createSourceArtifact("hello");
     hello.getPath().getParentDirectory().createDirectoryAndParents();
-    FileSystemUtils.writeContentAsLatin1(hello.getPath(), "content1");
+    FileSystemUtils.writeContent(hello.getPath(), "content1");
     Artifact goodbye = createDerivedArtifact("goodbye");
     Button button = createActionButton(asNestedSet(hello), ImmutableSet.of(goodbye));
 
@@ -329,7 +329,7 @@ public class TimestampBuilderWithCompactPersistentActionCacheTest extends Timest
     assertThat(button.pressed).isFalse(); // not rebuilt
 
     hello.getPath().setWritable(true);
-    FileSystemUtils.writeContentAsLatin1(hello.getPath(), "new content");
+    FileSystemUtils.writeContent(hello.getPath(), "new content");
 
     button.pressed = false;
     buildArtifacts(persistentBuilder(cache), hello);
@@ -360,7 +360,7 @@ public class TimestampBuilderWithCompactPersistentActionCacheTest extends Timest
     assertThat(button.pressed).isFalse(); // not rebuilt
 
     hello.getPath().setWritable(true);
-    FileSystemUtils.writeContentAsLatin1(hello.getPath(), "new content");
+    FileSystemUtils.writeContent(hello.getPath(), "new content");
 
     button.pressed = false;
     buildArtifacts(persistentBuilder(cache), hello);
@@ -408,7 +408,7 @@ public class TimestampBuilderWithCompactPersistentActionCacheTest extends Timest
     assertThat(button.pressed).isFalse(); // not rebuilt
 
     hello.getPath().setWritable(true);
-    FileSystemUtils.writeContentAsLatin1(hello.getPath(), "new content");
+    FileSystemUtils.writeContent(hello.getPath(), "new content");
 
     button.pressed = false;
     buildArtifacts(persistentBuilder(cache), hello);

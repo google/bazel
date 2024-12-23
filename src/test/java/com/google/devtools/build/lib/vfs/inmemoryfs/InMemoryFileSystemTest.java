@@ -14,7 +14,6 @@
 package com.google.devtools.build.lib.vfs.inmemoryfs;
 
 import static com.google.common.truth.Truth.assertThat;
-import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.junit.Assert.assertThrows;
 
 import com.google.common.collect.Lists;
@@ -405,7 +404,7 @@ public final class InMemoryFileSystemTest extends SymlinkAwareFileSystemTest {
   public void getxattr_symlink_returnsNull() throws Exception {
     Path dir = testFS.getPath("/any/dir");
     dir.createDirectoryAndParents();
-    FileSystemUtils.writeContentAsLatin1(dir.getRelative("file.txt"), "contents");
+    FileSystemUtils.writeContent(dir.getRelative("file.txt"), "contents");
     Path symlink = dir.getRelative("link");
     symlink.createSymbolicLink(PathFragment.create("file.txt"));
 
@@ -417,7 +416,7 @@ public final class InMemoryFileSystemTest extends SymlinkAwareFileSystemTest {
     Path file = testFS.getPath("/file");
 
     String largeStr = "abcdefghijklmnopqrstuvwxyz".repeat(1000000);
-    FileSystemUtils.writeContent(file, UTF_8, largeStr);
-    assertThat(FileSystemUtils.readContent(file, UTF_8)).isEqualTo(largeStr);
+    FileSystemUtils.writeContent(file, largeStr);
+    assertThat(FileSystemUtils.readContentToString(file)).isEqualTo(largeStr);
   }
 }

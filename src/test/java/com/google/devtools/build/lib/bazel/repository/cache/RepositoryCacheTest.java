@@ -121,8 +121,8 @@ public class RepositoryCacheTest {
     Path cacheEntry = keyType.getCachePath(contentAddressableCachePath).getChild(hash);
     Path cacheValue = cacheEntry.getChild(RepositoryCache.DEFAULT_CACHE_FILENAME);
 
-    assertThat(FileSystemUtils.readContent(downloadedFile, Charset.defaultCharset()))
-        .isEqualTo(FileSystemUtils.readContent(cacheValue, Charset.defaultCharset()));
+    assertThat(FileSystemUtils.readContentToString(downloadedFile))
+        .isEqualTo(FileSystemUtils.readContentToString(cacheValue));
   }
 
   /**
@@ -136,8 +136,8 @@ public class RepositoryCacheTest {
     Path cacheEntry = keyType.getCachePath(contentAddressableCachePath).getChild(hash);
     Path cacheValue = cacheEntry.getChild(RepositoryCache.DEFAULT_CACHE_FILENAME);
 
-    assertThat(FileSystemUtils.readContent(downloadedFile, Charset.defaultCharset()))
-        .isEqualTo(FileSystemUtils.readContent(cacheValue, Charset.defaultCharset()));
+    assertThat(FileSystemUtils.readContentToString(downloadedFile))
+        .isEqualTo(FileSystemUtils.readContentToString(cacheValue));
   }
 
   /**
@@ -152,8 +152,8 @@ public class RepositoryCacheTest {
     Path cacheEntry = keyType.getCachePath(contentAddressableCachePath).getChild(hash);
     Path cacheValue = cacheEntry.getChild(RepositoryCache.DEFAULT_CACHE_FILENAME);
 
-    assertThat(FileSystemUtils.readContent(downloadedFile, Charset.defaultCharset()))
-        .isEqualTo(FileSystemUtils.readContent(cacheValue, Charset.defaultCharset()));
+    assertThat(FileSystemUtils.readContentToString(downloadedFile))
+        .isEqualTo(FileSystemUtils.readContentToString(cacheValue));
   }
 
   /** Test that the get method correctly retrieves the cached file from the cache. */
@@ -167,8 +167,8 @@ public class RepositoryCacheTest {
     Path actualTargetPath = repositoryCache.get(hash, targetPath, keyType, /* canonicalId= */ null);
 
     // Check that the contents are the same.
-    assertThat(FileSystemUtils.readContent(downloadedFile, Charset.defaultCharset()))
-        .isEqualTo(FileSystemUtils.readContent(actualTargetPath, Charset.defaultCharset()));
+    assertThat(FileSystemUtils.readContentToString(downloadedFile))
+        .isEqualTo(FileSystemUtils.readContentToString(actualTargetPath));
 
     // Check that the returned value is stored under outputBaseExternal.
     assertThat((Object) actualTargetPath).isEqualTo(targetPath);

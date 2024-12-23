@@ -111,7 +111,7 @@ public class TimestampBuilderTest extends TimestampBuilderTestCase {
   public void testUnneededInputs() throws Exception {
     Artifact hello = createSourceArtifact("hello");
     hello.getPath().getParentDirectory().createDirectoryAndParents();
-    FileSystemUtils.writeContentAsLatin1(hello.getPath(), "content1");
+    FileSystemUtils.writeContent(hello.getPath(), "content1");
     Artifact optional = createSourceArtifact("hello.optional");
     Artifact goodbye = createDerivedArtifact("goodbye");
     Button button = createActionButton(asNestedSet(hello, optional), ImmutableSet.of(goodbye));
@@ -125,7 +125,7 @@ public class TimestampBuilderTest extends TimestampBuilderTestCase {
     assertThat(button.pressed).isFalse(); // not rebuilt
 
     BlazeTestUtils.makeEmptyFile(optional.getPath());
-    FileSystemUtils.writeContentAsLatin1(hello.getPath(), "content2");
+    FileSystemUtils.writeContent(hello.getPath(), "content2");
 
     button.pressed = false;
     buildArtifacts(cachingBuilder(), goodbye);
@@ -136,7 +136,7 @@ public class TimestampBuilderTest extends TimestampBuilderTestCase {
     assertThat(button.pressed).isFalse(); // not rebuilt
 
     optional.getPath().delete();
-    FileSystemUtils.writeContentAsLatin1(hello.getPath(), "content3");
+    FileSystemUtils.writeContent(hello.getPath(), "content3");
 
     button.pressed = false;
     buildArtifacts(cachingBuilder(), goodbye);
@@ -164,7 +164,7 @@ public class TimestampBuilderTest extends TimestampBuilderTestCase {
     assertThat(button.pressed).isFalse(); // not rebuilt
 
     hello.getPath().setWritable(true);
-    FileSystemUtils.writeContentAsLatin1(hello.getPath(), "new content");
+    FileSystemUtils.writeContent(hello.getPath(), "new content");
 
     button.pressed = false;
     buildArtifacts(cachingBuilder(), goodbye);
@@ -181,7 +181,7 @@ public class TimestampBuilderTest extends TimestampBuilderTestCase {
     Artifact hello = createSourceArtifact("hello");
     // touch file to create the directory structure
     BlazeTestUtils.makeEmptyFile(hello.getPath());
-    FileSystemUtils.writeContentAsLatin1(hello.getPath(), "content1");
+    FileSystemUtils.writeContent(hello.getPath(), "content1");
 
     Artifact goodbye = createDerivedArtifact("goodbye");
     Button button = createActionButton(asNestedSet(hello), ImmutableSet.of(goodbye));
@@ -200,7 +200,7 @@ public class TimestampBuilderTest extends TimestampBuilderTestCase {
     buildArtifacts(cachingBuilder(), goodbye);
     assertThat(button.pressed).isFalse(); // still not rebuilt
 
-    FileSystemUtils.writeContentAsLatin1(hello.getPath(), "content2");
+    FileSystemUtils.writeContent(hello.getPath(), "content2");
 
     button.pressed = false;
     buildArtifacts(cachingBuilder(), goodbye);
@@ -228,7 +228,7 @@ public class TimestampBuilderTest extends TimestampBuilderTestCase {
     // Changing the *output* file 'hello' causes 'action' to re-execute, to make things consistent
     // again.
     hello.getPath().setWritable(true);
-    FileSystemUtils.writeContentAsLatin1(hello.getPath(), "new content");
+    FileSystemUtils.writeContent(hello.getPath(), "new content");
 
     button.pressed = false;
     buildArtifacts(cachingBuilder(), hello);
@@ -271,7 +271,7 @@ public class TimestampBuilderTest extends TimestampBuilderTestCase {
     assertThat(button2.pressed).isFalse(); // goodbye not rebuilt
 
     hello.getPath().setWritable(true);
-    FileSystemUtils.writeContentAsLatin1(hello.getPath(), "new content");
+    FileSystemUtils.writeContent(hello.getPath(), "new content");
 
     button1.pressed = button2.pressed = false;
     buildArtifacts(cachingBuilder(), goodbye);

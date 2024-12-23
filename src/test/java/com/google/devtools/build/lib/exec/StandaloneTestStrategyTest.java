@@ -636,14 +636,14 @@ public final class StandaloneTestStrategyTest extends BuildViewTestCase {
     // check that the rigged SpawnResult was returned
     assertThat(spawnResults).contains(expectedSpawnResult);
     // check that the test log contains all the output
-    String logData = FileSystemUtils.readContent(testRunnerAction.getTestLog().getPath(), UTF_8);
+    String logData = FileSystemUtils.readContentToString(testRunnerAction.getTestLog().getPath());
     assertThat(logData).contains("bla");
     assertThat(logData).contains(TestLogHelper.HEADER_DELIMITER);
     assertThat(logData).contains("foo");
     // check that the test stdout contains all the expected output
     outErr.close(); // Create the output files.
 
-    String outData = FileSystemUtils.readContent(outErr.getOutputPath(), UTF_8);
+    String outData = FileSystemUtils.readContentToString(outErr.getOutputPath());
     assertThat(outData).contains("==================== Test output for //standalone:failing_test:");
     assertThat(outData).doesNotContain("bla");
     assertThat(outData).doesNotContain(TestLogHelper.HEADER_DELIMITER);
@@ -730,13 +730,13 @@ public final class StandaloneTestStrategyTest extends BuildViewTestCase {
     // check that the rigged SpawnResult was returned
     assertThat(spawnResults).containsExactly(testSpawnResult, xmlGeneratorSpawnResult);
     // check that the test log contains all the output
-    String logData = FileSystemUtils.readContent(testRunnerAction.getTestLog().getPath(), UTF_8);
+    String logData = FileSystemUtils.readContentToString(testRunnerAction.getTestLog().getPath());
     assertThat(logData).contains("bla");
     assertThat(logData).contains(TestLogHelper.HEADER_DELIMITER);
     assertThat(logData).contains("foo");
     // check that the test stdout contains all the expected output
     outErr.close(); // Create the output files.
-    String outData = FileSystemUtils.readContent(outErr.getOutputPath(), UTF_8);
+    String outData = FileSystemUtils.readContentToString(outErr.getOutputPath());
     assertThat(outData)
         .contains("==================== Test output for //standalone:failing_test:");
     assertThat(outData).doesNotContain("bla");
@@ -791,11 +791,11 @@ public final class StandaloneTestStrategyTest extends BuildViewTestCase {
     // check that the rigged SpawnResult was returned
     assertThat(spawnResults).contains(expectedSpawnResult);
     // check that the test log contains all the output
-    String logData = FileSystemUtils.readContent(testRunnerAction.getTestLog().getPath(), UTF_8);
+    String logData = FileSystemUtils.readContentToString(testRunnerAction.getTestLog().getPath());
     assertThat(logData).isEmpty();
     // check that the test stdout contains all the expected output
     outErr.close(); // Create the output files.
-    String outData = FileSystemUtils.readContent(outErr.getOutputPath(), UTF_8);
+    String outData = FileSystemUtils.readContentToString(outErr.getOutputPath());
     String emptyOutput =
         "==================== Test output for"
             + " //standalone:empty_test:(\\s)*================================================================================(\\s)*";
@@ -846,7 +846,7 @@ public final class StandaloneTestStrategyTest extends BuildViewTestCase {
     execute(testRunnerAction, actionExecutionContext, standaloneTestStrategy);
 
     // check that the test stdout contains all the expected output
-    String outData = FileSystemUtils.readContent(outErr.getOutputPath(), UTF_8);
+    String outData = FileSystemUtils.readContentToString(outErr.getOutputPath());
     assertThat(outData).contains("Foo");
   }
 

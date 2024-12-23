@@ -976,7 +976,7 @@ public class RunCommand implements BlazeCommand {
       CommandEnvironment env, PathFragment scriptPathFrag, String scriptContent)
       throws IOException {
     Path scriptPath = env.getWorkingDirectory().getRelative(scriptPathFrag);
-    FileSystemUtils.writeContent(scriptPath, ISO_8859_1, scriptContent);
+    FileSystemUtils.writeContent(scriptPath, scriptContent);
     scriptPath.setExecutable(true);
   }
 

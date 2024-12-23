@@ -57,9 +57,9 @@ import com.google.devtools.build.lib.exec.local.LocalEnvProvider;
 import com.google.devtools.build.lib.sandbox.SandboxHelpers;
 import com.google.devtools.build.lib.sandbox.SandboxHelpers.SandboxInputs;
 import com.google.devtools.build.lib.sandbox.SandboxHelpers.SandboxOutputs;
+import com.google.devtools.build.lib.testutil.TestUtils;
 import com.google.devtools.build.lib.vfs.DigestHashFunction;
 import com.google.devtools.build.lib.vfs.FileSystem;
-import com.google.devtools.build.lib.vfs.FileSystemUtils;
 import com.google.devtools.build.lib.vfs.Path;
 import com.google.devtools.build.lib.vfs.PathFragment;
 import com.google.devtools.build.lib.vfs.inmemoryfs.InMemoryFileSystem;
@@ -355,7 +355,7 @@ public class WorkerSpawnRunnerTest {
     when(worker.getRecordingStreamMessage()).thenReturn(recordedResponse);
     when(worker.getExitValue()).thenReturn(Optional.of(2));
     String workerLog = "Log from worker\n";
-    FileSystemUtils.writeIsoLatin1(logFile, workerLog);
+    TestUtils.writeLines(logFile, workerLog);
     UserExecException execException =
         assertThrows(
             UserExecException.class,
@@ -403,8 +403,8 @@ public class WorkerSpawnRunnerTest {
   @Test
   public void testExpandArgument_expandsArgumentsRecursively() throws Exception {
     WorkRequest.Builder requestBuilder = WorkRequest.newBuilder();
-    FileSystemUtils.writeIsoLatin1(fs.getPath("/file"), "arg1\n@file2\nmulti arg\n");
-    FileSystemUtils.writeIsoLatin1(fs.getPath("/file2"), "arg2\narg3");
+    TestUtils.writeLines(fs.getPath("/file"), "arg1\n@file2\nmulti arg\n");
+    TestUtils.writeLines(fs.getPath("/file2"), "arg2\narg3");
     SandboxInputs inputs =
         new SandboxInputs(
             ImmutableMap.of(
@@ -422,7 +422,7 @@ public class WorkerSpawnRunnerTest {
   @Test
   public void testExpandArgument_expandsOnlyProperArguments() throws Exception {
     WorkRequest.Builder requestBuilder = WorkRequest.newBuilder();
-    FileSystemUtils.writeIsoLatin1(fs.getPath("/file"), "arg1\n@@nonfile\n@foo//bar\narg2");
+    TestUtils.writeLines(fs.getPath("/file"), "arg1\n@@nonfile\n@foo//bar\narg2");
     SandboxInputs inputs =
         new SandboxInputs(
             ImmutableMap.of(PathFragment.create("file"), fs.getPath("/file")),

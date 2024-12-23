@@ -599,8 +599,8 @@ public abstract class AbstractBuildEventServiceTransportTest extends FoundationT
     InMemoryFileSystem inMemoryFs = new InMemoryFileSystem(makeVfsHashFunction());
     Path file1 = inMemoryFs.getPath("/file1");
     Path file2 = inMemoryFs.getPath("/file2");
-    FileSystemUtils.writeContentAsLatin1(file1, "file1");
-    FileSystemUtils.writeContentAsLatin1(file2, "file2");
+    FileSystemUtils.writeContent(file1, "file1");
+    FileSystemUtils.writeContent(file2, "file2");
     BuildEvent withFiles =
         new BuildEventWithFiles(
             ImmutableList.of(
@@ -679,7 +679,7 @@ public abstract class AbstractBuildEventServiceTransportTest extends FoundationT
   public void testFileUploadWithDuplicatePaths() throws Exception {
     InMemoryFileSystem inMemoryFs = new InMemoryFileSystem(new JavaClock(), makeVfsHashFunction());
     Path file1 = inMemoryFs.getPath("/file1");
-    FileSystemUtils.writeContentAsLatin1(file1, "file1");
+    FileSystemUtils.writeContent(file1, "file1");
     BuildEvent withFiles =
         new BuildEventWithFiles(
             ImmutableList.of(

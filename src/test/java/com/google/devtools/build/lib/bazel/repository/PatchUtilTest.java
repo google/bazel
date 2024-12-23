@@ -15,7 +15,6 @@
 package com.google.devtools.build.lib.bazel.repository;
 
 import static com.google.common.truth.Truth.assertThat;
-import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.junit.Assert.assertThrows;
 
 import com.github.difflib.patch.PatchFailedException;
@@ -63,7 +62,7 @@ public final class PatchUtilTest {
     PatchUtil.apply(patchFile, 1, root);
     Path newFile = root.getRelative("newfile");
     ImmutableList<String> newFileContent = ImmutableList.of("I'm a new file", "hello, world");
-    assertThat(FileSystemUtils.readLines(newFile, UTF_8)).isEqualTo(newFileContent);
+    assertThat(FileSystemUtils.readLines(newFile)).isEqualTo(newFileContent);
     // Make sure file permission is set as specified.
     assertThat(newFile.isReadable()).isTrue();
     assertThat(newFile.isWritable()).isFalse();
@@ -85,7 +84,7 @@ public final class PatchUtilTest {
     PatchUtil.apply(patchFile, 1, root);
     Path newFile = root.getRelative("newfile");
     ImmutableList<String> newFileContent = ImmutableList.of("hello, world");
-    assertThat(FileSystemUtils.readLines(newFile, UTF_8)).isEqualTo(newFileContent);
+    assertThat(FileSystemUtils.readLines(newFile)).isEqualTo(newFileContent);
   }
 
   @Test
@@ -132,7 +131,7 @@ public final class PatchUtilTest {
             "-bye, world");
     PatchUtil.apply(patchFile, 1, root);
     assertThat(oldFile.exists()).isTrue();
-    assertThat(FileSystemUtils.readLines(oldFile, UTF_8)).isEmpty();
+    assertThat(FileSystemUtils.readLines(oldFile)).isEmpty();
   }
 
   @Test
@@ -150,9 +149,9 @@ public final class PatchUtilTest {
             "+line two");
     PatchUtil.apply(patchFile, 0, root);
     ImmutableList<String> newContent = ImmutableList.of("line one", "line two");
-    assertThat(FileSystemUtils.readLines(oldFile, UTF_8)).isEqualTo(newContent);
+    assertThat(FileSystemUtils.readLines(oldFile)).isEqualTo(newContent);
     // new file should not change
-    assertThat(FileSystemUtils.readLines(newFile, UTF_8)).containsExactly("line one");
+    assertThat(FileSystemUtils.readLines(newFile)).containsExactly("line one");
   }
 
   @Test
@@ -172,7 +171,7 @@ public final class PatchUtilTest {
             "+line two");
     PatchUtil.apply(patchFile, 0, root);
     ImmutableList<String> newContent = ImmutableList.of("line one", "line two");
-    assertThat(FileSystemUtils.readLines(newFile, UTF_8)).isEqualTo(newContent);
+    assertThat(FileSystemUtils.readLines(newFile)).isEqualTo(newContent);
     // Make sure file permission is preserved.
     assertThat(newFile.isReadable()).isTrue();
     assertThat(newFile.isWritable()).isTrue();
@@ -192,7 +191,7 @@ public final class PatchUtilTest {
             "old mode 100644",
             "new mode 100755");
     PatchUtil.apply(patchFile, 1, root);
-    assertThat(FileSystemUtils.readLines(myFile, UTF_8)).containsExactly("line one");
+    assertThat(FileSystemUtils.readLines(myFile)).containsExactly("line one");
     assertThat(myFile.isReadable()).isTrue();
     assertThat(myFile.isWritable()).isTrue();
     assertThat(myFile.isExecutable()).isTrue();
@@ -256,8 +255,8 @@ public final class PatchUtilTest {
             "}");
     ImmutableList<String> newBar =
         ImmutableList.of("void lib(){", "  printf(\"Hello patch\");", "}");
-    assertThat(FileSystemUtils.readLines(foo, UTF_8)).isEqualTo(newFoo);
-    assertThat(FileSystemUtils.readLines(bar, UTF_8)).isEqualTo(newBar);
+    assertThat(FileSystemUtils.readLines(foo)).isEqualTo(newFoo);
+    assertThat(FileSystemUtils.readLines(bar)).isEqualTo(newBar);
   }
 
   @Test
@@ -300,8 +299,8 @@ public final class PatchUtilTest {
     Path barCpp = root.getRelative("bar.cpp");
     assertThat(foo.exists()).isFalse();
     assertThat(bar.exists()).isFalse();
-    assertThat(FileSystemUtils.readLines(fooCpp, UTF_8)).isEqualTo(newFoo);
-    assertThat(FileSystemUtils.readLines(barCpp, UTF_8)).isEqualTo(newBar);
+    assertThat(FileSystemUtils.readLines(fooCpp)).isEqualTo(newFoo);
+    assertThat(FileSystemUtils.readLines(barCpp)).isEqualTo(newBar);
   }
 
   @Test
@@ -336,7 +335,7 @@ public final class PatchUtilTest {
             "  printf(\"Hello foo\");",
             "  printf(\"Hello from patch\");",
             "}");
-    assertThat(FileSystemUtils.readLines(foo, UTF_8)).isEqualTo(newFoo);
+    assertThat(FileSystemUtils.readLines(foo)).isEqualTo(newFoo);
   }
 
   @Test
@@ -395,7 +394,7 @@ public final class PatchUtilTest {
     ImmutableList<String> newFoo =
         ImmutableList.of(
             "1", "2", "10", "11", "12", "13", "14", "15", "16", "17", "a", "b", "c", "18");
-    assertThat(FileSystemUtils.readLines(foo, UTF_8)).isEqualTo(newFoo);
+    assertThat(FileSystemUtils.readLines(foo)).isEqualTo(newFoo);
   }
 
   @Test
@@ -425,7 +424,7 @@ public final class PatchUtilTest {
     PatchUtil.apply(patchFile, 1, root);
     ImmutableList<String> newFoo =
         ImmutableList.of("1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14");
-    assertThat(FileSystemUtils.readLines(foo, UTF_8)).isEqualTo(newFoo);
+    assertThat(FileSystemUtils.readLines(foo)).isEqualTo(newFoo);
   }
 
   @Test

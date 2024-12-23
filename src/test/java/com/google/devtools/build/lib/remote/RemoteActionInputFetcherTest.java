@@ -41,7 +41,6 @@ import com.google.devtools.build.lib.vfs.Path;
 import com.google.devtools.build.lib.vfs.SyscallCache;
 import com.google.devtools.common.options.Options;
 import java.io.IOException;
-import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Map;
 import org.junit.Test;
@@ -107,7 +106,7 @@ public class RemoteActionInputFetcherTest extends ActionInputPrefetcherTestBase 
 
     // assert
     Path p = execRoot.getRelative(a.getExecPath());
-    assertThat(FileSystemUtils.readContent(p, StandardCharsets.UTF_8)).isEqualTo("hello world");
+    assertThat(FileSystemUtils.readContentToString(p)).isEqualTo("hello world");
     assertThat(p.isExecutable()).isTrue();
     assertThat(actionInputFetcher.downloadedFiles()).isEmpty();
     assertThat(actionInputFetcher.downloadsInProgress()).isEmpty();

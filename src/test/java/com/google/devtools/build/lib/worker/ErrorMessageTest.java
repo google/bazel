@@ -15,7 +15,6 @@
 package com.google.devtools.build.lib.worker;
 
 import static com.google.common.truth.Truth.assertThat;
-import static java.nio.charset.StandardCharsets.UTF_8;
 
 import com.google.devtools.build.lib.vfs.DigestHashFunction;
 import com.google.devtools.build.lib.vfs.FileSystemUtils;
@@ -87,7 +86,7 @@ public class ErrorMessageTest {
   public void testErrorMessageWithLogFile() throws Exception {
     InMemoryFileSystem fs = new InMemoryFileSystem(DigestHashFunction.SHA256);
     Path logFile = fs.getPath("/log.txt");
-    FileSystemUtils.writeContent(logFile, UTF_8, logText);
+    FileSystemUtils.writeContent(logFile, logText);
     ErrorMessage errorMessage =
         ErrorMessage.builder().message("Error with log file").logFile(logFile).build();
     assertThat(errorMessage.toString())

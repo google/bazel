@@ -25,6 +25,7 @@ import com.google.devtools.build.lib.cmdline.IgnoredSubdirectories;
 import com.google.devtools.build.lib.skyframe.DiffAwareness.View;
 import com.google.devtools.build.lib.skyframe.LocalDiffAwareness.SequentialView;
 import com.google.devtools.build.lib.testing.common.FakeOptions;
+import com.google.devtools.build.lib.testutil.TestUtils;
 import com.google.devtools.build.lib.util.OS;
 import com.google.devtools.build.lib.vfs.FileSystemUtils;
 import com.google.devtools.build.lib.vfs.ModifiedFileSet;
@@ -314,7 +315,7 @@ public class LocalDiffAwarenessTest extends BuildIntegrationTestCase {
   private void touch(String pathString) throws IOException {
     Path path = testCaseRoot.getRelative(pathString);
     FileSystemUtils.createEmptyFile(path);
-    FileSystemUtils.writeIsoLatin1(path, "Sunshine, sunshine, ladybugs awake!");
+    TestUtils.writeLines(path, "Sunshine, sunshine, ladybugs awake!");
   }
 
   private void mkdir(String pathString) throws IOException {

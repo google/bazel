@@ -1886,7 +1886,7 @@ public final class LoadingPhaseRunnerTest {
       }
 
       buildFile.getParentDirectory().createDirectoryAndParents();
-      FileSystemUtils.writeContentAsLatin1(buildFile, Joiner.on('\n').join(content));
+      FileSystemUtils.writeContent(buildFile, Joiner.on('\n').join(content));
     }
 
     private void sync() throws InterruptedException, AbruptExitException {

@@ -14,8 +14,6 @@
 
 package com.google.devtools.build.lib.bazel.bzlmod;
 
-import static java.nio.charset.StandardCharsets.ISO_8859_1;
-
 import com.google.common.collect.ImmutableList;
 import com.google.devtools.build.lib.actions.FileValue;
 import com.google.devtools.build.lib.cmdline.LabelConstants;
@@ -140,7 +138,7 @@ public class VendorFileFunction implements SkyFunction {
       throws VendorFileFunctionException {
     try {
       vendorPath.createDirectoryAndParents();
-      FileSystemUtils.writeContent(vendorFilePath, ISO_8859_1, VENDOR_FILE_HEADER);
+      FileSystemUtils.writeContent(vendorFilePath, VENDOR_FILE_HEADER);
     } catch (IOException e) {
       throw new VendorFileFunctionException(
           new IOException("error creating VENDOR.bazel file", e), Transience.TRANSIENT);

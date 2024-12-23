@@ -31,7 +31,7 @@ public class SymlinkDependencyAnalysisTest extends BuildIntegrationTestCase {
 
   private String buildAndReturnOutput() throws Exception {
     buildTarget("//symlink");
-    return readContentAsLatin1String(getOnlyElement(getArtifacts("//symlink:out")));
+    return readToString(getOnlyElement(getArtifacts("//symlink:out")));
   }
 
   @Test

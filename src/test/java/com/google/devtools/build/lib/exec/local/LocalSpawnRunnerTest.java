@@ -74,7 +74,6 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.Map;
 import java.util.concurrent.ExecutorService;
@@ -397,7 +396,7 @@ public class LocalSpawnRunnerTest {
         .containsExactly(file("input1"));
     Path inputPath = execRoot.getRelative(virtualInput.getExecPath());
     assertThat(inputPath.isExecutable()).isTrue();
-    assertThat(FileSystemUtils.readLinesAsLatin1(inputPath)).containsExactly("hello");
+    assertThat(FileSystemUtils.readLines(inputPath)).containsExactly("hello");
   }
 
   @Test
@@ -530,7 +529,7 @@ public class LocalSpawnRunnerTest {
     assertThat(result.getSystemTimeInMs()).isEqualTo(0);
     assertThat(result.getExecutorHostName()).isEqualTo(NetUtil.getCachedShortHostName());
 
-    assertThat(FileSystemUtils.readContent(fs.getPath("/out/stderr"), UTF_8))
+    assertThat(FileSystemUtils.readContentToString(fs.getPath("/out/stderr")))
         .isEqualTo("Action failed to execute: java.io.IOException: I'm sorry, Dave\n");
 
     assertThat(context.lockOutputFilesCalled).isTrue();
@@ -684,11 +683,11 @@ public class LocalSpawnRunnerTest {
         interruptCaught.acquireUninterruptibly();
         // At this point, the subprocess must have fully stopped so write some content to the file
         // and expect that these contents remain unmodified.
-        FileSystemUtils.writeContent(content, StandardCharsets.UTF_8, "bar");
+        FileSystemUtils.writeContent(content, "bar");
         // Wait for longer than the spawn takes to exit before we check the file contents to ensure
         // that we properly awaited for termination of the subprocess.
         Thread.sleep(delaySeconds * 2 * 1000);
-        assertThat(FileSystemUtils.readContent(content, StandardCharsets.UTF_8)).isEqualTo("bar");
+        assertThat(FileSystemUtils.readContentToString(content)).isEqualTo("bar");
       }
     } finally {
       executor.shutdown();

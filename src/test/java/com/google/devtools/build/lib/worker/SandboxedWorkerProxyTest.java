@@ -17,7 +17,6 @@ package com.google.devtools.build.lib.worker;
 import static com.google.common.truth.Truth.assertThat;
 import static com.google.devtools.build.lib.actions.ExecutionRequirements.SUPPORTS_MULTIPLEX_SANDBOXING;
 import static com.google.devtools.build.lib.actions.ExecutionRequirements.WorkerProtocolFormat.PROTO;
-import static java.nio.charset.StandardCharsets.UTF_8;
 
 import com.google.common.base.Joiner;
 import com.google.common.collect.ImmutableMap;
@@ -142,11 +141,11 @@ public class SandboxedWorkerProxyTest {
     worker.finishExecution(globalExecRoot, sandboxHelper.getSandboxOutputs());
 
     assertThat(globalExecRoot.getChild("randomFile").exists()).isFalse();
-    assertThat(FileSystemUtils.readContent(globalExecRoot.getChild("rootFile"), UTF_8))
+    assertThat(FileSystemUtils.readContentToString(globalExecRoot.getChild("rootFile")))
         .isEqualTo("some output in root");
     assertThat(
-            FileSystemUtils.readContent(
-                globalExecRoot.getChild("very").getChild("output.txt"), UTF_8))
+            FileSystemUtils.readContentToString(
+                globalExecRoot.getChild("very").getChild("output.txt")))
         .isEqualTo("some output");
   }
 

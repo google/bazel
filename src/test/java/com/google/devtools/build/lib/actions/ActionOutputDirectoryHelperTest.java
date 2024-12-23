@@ -16,7 +16,6 @@ package com.google.devtools.build.lib.actions;
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.google.common.truth.Truth.assertThat;
 import static com.google.devtools.build.lib.testing.common.DirectoryListingHelper.leafDirectoryEntries;
-import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.junit.Assert.assertThrows;
 
 import com.github.benmanes.caffeine.cache.CaffeineSpec;
@@ -147,7 +146,7 @@ public class ActionOutputDirectoryHelperTest {
     Artifact fileOutput = createOutput("dir/file");
     Path parentPath = fileOutput.getPath().getParentDirectory();
     parentPath.getParentDirectory().createDirectoryAndParents();
-    FileSystemUtils.writeContent(parentPath, UTF_8, "garbage");
+    FileSystemUtils.writeContent(parentPath, "garbage");
     parentPath.setWritable(false);
 
     outputDirectoryHelper.createOutputDirectories(ImmutableSet.of(fileOutput));
@@ -165,7 +164,7 @@ public class ActionOutputDirectoryHelperTest {
     Path parentPath = fileOutput.getPath().getParentDirectory();
     Path grandparentPath = parentPath.getParentDirectory();
     grandparentPath.getParentDirectory().createDirectoryAndParents();
-    FileSystemUtils.writeContent(grandparentPath, UTF_8, "garbage");
+    FileSystemUtils.writeContent(grandparentPath, "garbage");
     grandparentPath.setWritable(false);
 
     outputDirectoryHelper.createOutputDirectories(ImmutableSet.of(fileOutput));

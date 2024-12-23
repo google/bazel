@@ -211,14 +211,14 @@ public abstract class SkyframeQueryHelper extends AbstractQueryHelper<Target> {
       throw new IOException("Could not create scratch file (file exists) " + fileName);
     }
     file.getParentDirectory().createDirectoryAndParents();
-    FileSystemUtils.writeContentAsLatin1(file, Joiner.on('\n').join(lines));
+    FileSystemUtils.writeContent(file, Joiner.on('\n').join(lines));
   }
 
   @Override
   public void overwriteFile(String fileName, String... lines) throws IOException {
     Path file = rootDirectory.getRelative(fileName);
     file.getParentDirectory().createDirectoryAndParents();
-    FileSystemUtils.writeContentAsLatin1(file, Joiner.on('\n').join(lines));
+    FileSystemUtils.writeContent(file, Joiner.on('\n').join(lines));
   }
 
   @Override

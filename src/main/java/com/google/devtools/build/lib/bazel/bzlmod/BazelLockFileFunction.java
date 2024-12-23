@@ -15,8 +15,6 @@
 
 package com.google.devtools.build.lib.bazel.bzlmod;
 
-import static java.nio.charset.StandardCharsets.UTF_8;
-
 import com.google.devtools.build.lib.actions.FileValue;
 import com.google.devtools.build.lib.bazel.repository.RepositoryOptions.LockfileMode;
 import com.google.devtools.build.lib.cmdline.LabelConstants;
@@ -100,7 +98,7 @@ public class BazelLockFileFunction implements SkyFunction {
       RootedPath lockfilePath, LockfileMode lockfileMode)
       throws IOException, BazelLockfileFunctionException {
     try {
-      String json = FileSystemUtils.readContent(lockfilePath.asPath(), UTF_8);
+      String json = FileSystemUtils.readContentToString(lockfilePath.asPath());
       Matcher matcher = LOCKFILE_VERSION_PATTERN.matcher(json);
       int version = matcher.find() ? Integer.parseInt(matcher.group(1)) : -1;
       if (version == BazelLockFileValue.LOCK_FILE_VERSION) {

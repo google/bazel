@@ -556,7 +556,7 @@ public class IncrementalLoadingTest {
       }
 
       buildFile.getParentDirectory().createDirectoryAndParents();
-      FileSystemUtils.writeContentAsLatin1(buildFile, Joiner.on('\n').join(content));
+      FileSystemUtils.writeContent(buildFile, Joiner.on('\n').join(content));
       return buildFile;
     }
 
@@ -578,7 +578,7 @@ public class IncrementalLoadingTest {
       Path path = workspace.getRelative(fileName);
       Preconditions.checkState(path.exists());
       Preconditions.checkState(path.delete());
-      FileSystemUtils.writeContentAsLatin1(path, Joiner.on('\n').join(content));
+      FileSystemUtils.writeContent(path, Joiner.on('\n').join(content));
       changes.add(path);
     }
 

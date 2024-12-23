@@ -16,7 +16,6 @@ package com.google.devtools.build.lib.exec;
 
 import static com.google.common.truth.Truth.assertThat;
 import static com.google.devtools.build.lib.testutil.TestConstants.WORKSPACE_NAME;
-import static java.nio.charset.StandardCharsets.UTF_8;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
@@ -140,7 +139,8 @@ public final class SymlinkTreeHelperTest {
     Artifact file = ActionsTestUtil.createArtifact(outputRoot, "file");
     Artifact symlink = ActionsTestUtil.createUnresolvedSymlinkArtifact(outputRoot, "symlink");
 
-    FileSystemUtils.writeContent(file.getPath(), UTF_8, "content");
+    Path outputFile = file.getPath();
+    FileSystemUtils.writeContent(outputFile, "content");
     FileSystemUtils.ensureSymbolicLink(symlink.getPath(), "/path/to/target");
 
     Path treeWorkspace = treeRoot.getRelative(WORKSPACE_NAME);

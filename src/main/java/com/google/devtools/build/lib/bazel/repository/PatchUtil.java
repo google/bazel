@@ -14,8 +14,6 @@
 
 package com.google.devtools.build.lib.bazel.repository;
 
-import static java.nio.charset.StandardCharsets.UTF_8;
-
 import com.github.difflib.UnifiedDiffUtils;
 import com.github.difflib.patch.AbstractDelta;
 import com.github.difflib.patch.Patch;
@@ -158,11 +156,11 @@ public class PatchUtil {
   }
 
   private static ImmutableList<String> readFile(Path file) throws IOException {
-    return FileSystemUtils.readLines(file, UTF_8);
+    return FileSystemUtils.readLines(file);
   }
 
   private static void writeFile(Path file, List<String> content) throws IOException {
-    FileSystemUtils.writeLinesAs(file, UTF_8, content, "\n");
+    FileSystemUtils.writeLines(file, content);
   }
 
   private static boolean getReadPermission(int permission) {

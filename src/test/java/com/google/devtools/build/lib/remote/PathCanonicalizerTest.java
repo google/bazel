@@ -14,7 +14,6 @@
 package com.google.devtools.build.lib.remote;
 
 import static com.google.common.truth.Truth.assertThat;
-import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.junit.Assert.assertThrows;
 import static org.junit.Assume.assumeTrue;
 
@@ -272,7 +271,7 @@ public final class PathCanonicalizerTest {
   private void createNonSymlink(String pathStr) throws Exception {
     Path path = fs.getPath(pathFragment(pathStr));
     path.getParentDirectory().createDirectoryAndParents();
-    FileSystemUtils.writeContent(path, UTF_8, "");
+    FileSystemUtils.writeContent(path, "");
   }
 
   private void deleteTree(String pathStr) throws Exception {

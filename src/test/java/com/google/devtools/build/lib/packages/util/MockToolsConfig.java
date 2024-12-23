@@ -16,6 +16,7 @@ package com.google.devtools.build.lib.packages.util;
 import com.google.common.base.Preconditions;
 import com.google.devtools.build.lib.testutil.BlazeTestUtils;
 import com.google.devtools.build.lib.testutil.TestConstants;
+import com.google.devtools.build.lib.testutil.TestUtils;
 import com.google.devtools.build.lib.vfs.FileSystemUtils;
 import com.google.devtools.build.lib.vfs.Path;
 import com.google.devtools.build.lib.vfs.PathFragment;
@@ -73,9 +74,9 @@ public final class MockToolsConfig {
   public Path create(String relativePath, String... lines) throws IOException {
     Path path = getPath(relativePath);
     if (!path.exists()) {
-      FileSystemUtils.writeIsoLatin1(path, lines);
+      TestUtils.writeLines(path, lines);
     } else if (lines.length > 0) {
-      String existingContent = new String(FileSystemUtils.readContentAsLatin1(path));
+      String existingContent = FileSystemUtils.readContentToString(path);
 
       StringBuilder newContent = new StringBuilder();
       for (String line : lines) {
@@ -111,7 +112,7 @@ public final class MockToolsConfig {
       return create(relativePath, lines);
     }
 
-    FileSystemUtils.appendIsoLatin1(path, lines);
+    TestUtils.appendLines(path, lines);
     return path;
   }
 
@@ -172,7 +173,7 @@ public final class MockToolsConfig {
     Path source =
         FileSystems.getNativeFileSystem()
             .getPath(runfiles.rlocation(rlocationPath.getPathString()));
-    overwrite(dest, FileSystemUtils.readLinesAsLatin1(source).toArray(String[]::new));
+    overwrite(dest, FileSystemUtils.readLines(source).toArray(String[]::new));
   }
 
   /**

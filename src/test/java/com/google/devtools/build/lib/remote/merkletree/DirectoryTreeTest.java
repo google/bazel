@@ -114,7 +114,7 @@ public abstract class DirectoryTreeTest {
   protected Path createFile(String path, String content) throws IOException {
     Path p = execRoot.getRelative(path);
     p.getParentDirectory().createDirectoryAndParents();
-    FileSystemUtils.writeContentAsLatin1(p, content);
+    FileSystemUtils.writeContent(p, content);
     return p;
   }
 

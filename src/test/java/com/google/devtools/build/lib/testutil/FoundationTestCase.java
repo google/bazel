@@ -13,7 +13,6 @@
 // limitations under the License.
 package com.google.devtools.build.lib.testutil;
 
-import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.junit.Assert.fail;
 
 import com.google.common.base.Splitter;
@@ -89,7 +88,8 @@ public abstract class FoundationTestCase {
         () ->
             loc -> {
               try {
-                String content = FileSystemUtils.readContent(fileSystem.getPath(loc.file()), UTF_8);
+                String content =
+                    FileSystemUtils.readContentToString(fileSystem.getPath(loc.file()));
                 return Iterables.get(Splitter.on("\n").split(content), loc.line() - 1, null);
               } catch (Exception ignored) {
                 // ignore any exceptions reading the file -- this is just for extra info

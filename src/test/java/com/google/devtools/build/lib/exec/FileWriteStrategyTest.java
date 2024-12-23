@@ -80,7 +80,7 @@ public final class FileWriteStrategyTest {
             /* makeExecutable= */ false,
             /* isRemotable= */ false);
 
-    assertThat(FileSystemUtils.readContent(action.getPrimaryOutput().getPath(), UTF_8))
+    assertThat(FileSystemUtils.readContentToString(action.getPrimaryOutput().getPath()))
         .isEqualTo(content);
   }
 

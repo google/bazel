@@ -172,7 +172,7 @@ public final class ActionListenerIntegrationTest extends BuildIntegrationTestCas
         if (path.toString().endsWith(testArtifactPath)) {
           hasTestArtifact = true;
           if (shouldBePresent) {
-            String contents = readContentAsLatin1String(extraArtifact);
+            String contents = readToString(extraArtifact);
             String[] lines = contents.split("\n");
             assertThat(lines).isNotEmpty();
             String firstLine = lines[0];
@@ -373,7 +373,7 @@ public final class ActionListenerIntegrationTest extends BuildIntegrationTestCas
         if (path.toString().endsWith(testArtifactPath)) {
           hasTestArtifact = true;
 
-          String contents = readContentAsLatin1String(extraArtifact);
+          String contents = readToString(extraArtifact);
           String[] lines = contents.split("\n");
           assertThat(lines).isNotEmpty();
           String firstLine = lines[0];

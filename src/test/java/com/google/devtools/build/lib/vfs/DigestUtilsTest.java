@@ -55,7 +55,7 @@ public final class DigestUtilsTest {
     DigestUtils.configureCache(/*maximumSize=*/ 100);
 
     Path file = tracingFileSystem.getPath("/file.txt");
-    FileSystemUtils.writeContentAsLatin1(file, "some contents");
+    FileSystemUtils.writeContent(file, "some contents");
 
     byte[] digest = DigestUtils.getDigestWithManualFallback(file, SyscallCache.NO_CACHE);
     assertThat(getFastDigestCounter.get()).isEqualTo(1);
@@ -90,7 +90,7 @@ public final class DigestUtilsTest {
           }
         };
     Path file = noDigestFileSystem.getPath("/f.txt");
-    FileSystemUtils.writeContentAsLatin1(file, "contents");
+    FileSystemUtils.writeContent(file, "contents");
 
     assertThat(DigestUtils.manuallyComputeDigest(file)).isEqualTo(digest);
   }

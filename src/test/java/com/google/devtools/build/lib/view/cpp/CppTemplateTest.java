@@ -113,15 +113,15 @@ public class CppTemplateTest extends BuildIntegrationTestCase {
     // happen in practice.
     actionNamesBzl =
         getWorkspace().getRelative("third_party/bazel_rules/rules_cc/cc/action_names.bzl");
-    String oldContents = new String(FileSystemUtils.readContentAsLatin1(actionNamesBzl));
+    String oldContents = FileSystemUtils.readContentToString(actionNamesBzl);
     // Don't overwrite the user's source tree on a local test run when this is a symlink.
     assertThat(actionNamesBzl.delete()).isTrue();
     String originalActionName = "CPP_COMPILE_ACTION_NAME = \"c++-compile\"";
     assertThat(oldContents).contains(originalActionName);
-    FileSystemUtils.writeContentAsLatin1(
+    FileSystemUtils.writeContent(
         actionNamesBzl,
         oldContents.replace(originalActionName, "CPP_COMPILE_ACTION_NAME = \"c++++++-compile\""));
-    String writtenContents = new String(FileSystemUtils.readContentAsLatin1(actionNamesBzl));
+    String writtenContents = FileSystemUtils.readContentToString(actionNamesBzl);
     assertThat(writtenContents).contains("\"c++++++-compile\"");
     assertThrows(BuildFailedException.class, () -> buildTarget("//tree:cc"));
     events.assertContainsError(
