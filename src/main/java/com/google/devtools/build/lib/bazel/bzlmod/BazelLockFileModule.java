@@ -136,7 +136,7 @@ public class BazelLockFileModule extends BlazeModule {
             () -> {
               var nonReproducibleExtensionInfos =
                   combineModuleExtensions(
-                      oldPersistentLockfile.getModuleExtensions(),
+                      oldLockfile.getModuleExtensions(),
                       newExtensionInfos,
                       /* hasUsages= */ depGraphValue.getExtensionUsagesTable()::containsRow,
                       /* reproducible= */ false);
