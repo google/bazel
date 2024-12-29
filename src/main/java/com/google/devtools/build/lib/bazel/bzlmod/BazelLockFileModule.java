@@ -134,7 +134,7 @@ public class BazelLockFileModule extends BlazeModule {
     Thread updateLockfile =
         Thread.startVirtualThread(
             () -> {
-              var nonReproducibleExtensionInfos =
+              var notReproducibleExtensionInfos =
                   combineModuleExtensions(
                       oldLockfile.getModuleExtensions(),
                       newExtensionInfos,
@@ -142,14 +142,14 @@ public class BazelLockFileModule extends BlazeModule {
                       /* reproducible= */ false);
 
               // Create an updated version of the lockfile, keeping only the extension results from
-              // the old
-              // lockfile that are still up-to-date and adding the newly resolved extension results.
+              // the old lockfile that are still up-to-date and adding the newly resolved
+              // extension results, as long as any of them are not known to be reproducible.
               BazelLockFileValue newLockfile =
                   BazelLockFileValue.builder()
                       .setRegistryFileHashes(
                           ImmutableSortedMap.copyOf(moduleResolutionValue.getRegistryFileHashes()))
                       .setSelectedYankedVersions(moduleResolutionValue.getSelectedYankedVersions())
-                      .setModuleExtensions(nonReproducibleExtensionInfos)
+                      .setModuleExtensions(notReproducibleExtensionInfos)
                       .build();
 
               // Write the new values to the files, but only if needed. This is not just a
@@ -165,6 +165,8 @@ public class BazelLockFileModule extends BlazeModule {
     Thread updatePersistentLockfile =
         Thread.startVirtualThread(
             () -> {
+              // Results of reproducible extensions do not need to be stored for reproducibility,
+              // but avoiding reevaluations on server startups helps cold build performance.
               var reproducibleExtensionInfos =
                   combineModuleExtensions(
                       oldLockfile.getModuleExtensions(),
@@ -174,7 +176,18 @@ public class BazelLockFileModule extends BlazeModule {
 
               var persistentRegistryFileHashes =
                   ImmutableMap.<String, Optional<Checksum>>builder()
+                      // While the hashes in the regular lockfile are trimmed down to those needed
+                      // for the current build, the persistent lockfile does not need to be a
+                      // deterministic function of the current build and can thus keep the extra
+                      // hashes. This speeds up resolution when switching branches and also provides
+                      // better (although not guaranteed) protection against retroactive changes to
+                      // registries.
+                      // TODO: Consider moving this information to the "true repository cache" once
+                      //  it is implemented as it can be reused across workspaces.
                       .putAll(oldPersistentLockfile.getRegistryFileHashes())
+                      // Do not add "not found" entries to the persistent lockfile as they may
+                      // become invalid over time, which would violate the contract of the
+                      // persistent lockfile.
                       .putAll(
                           Maps.filterValues(
                               moduleResolutionValue.getRegistryFileHashes(), Optional::isPresent))

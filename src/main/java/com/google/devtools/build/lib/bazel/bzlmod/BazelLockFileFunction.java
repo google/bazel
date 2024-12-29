@@ -41,7 +41,11 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import javax.annotation.Nullable;
 
-/** Reads the contents of the lock file into its value. */
+/**
+ * Reads the contents of the lockfiles into {@link BazelLockFileValue}s.
+ *
+ * See {@link BazelLockFileValue} for more information.
+ */
 public class BazelLockFileFunction implements SkyFunction {
 
   public static final Precomputed<LockfileMode> LOCKFILE_MODE = new Precomputed<>("lockfile_mode");
