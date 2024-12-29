@@ -212,21 +212,18 @@ public class SingleExtensionEvalFunction implements SkyFunction {
                         extensionId, nonVisibleRepoNames)));
       }
     }
-    if (lockfileMode.equals(LockfileMode.ERROR)) {
-      boolean extensionShouldHaveBeenLocked =
-          moduleExtensionMetadata.map(metadata -> !metadata.getReproducible()).orElse(true);
-      // If this extension was not found in the lockfile, and after evaluation we found that it is
-      // not reproducible, then error indicating that it was expected to be in the lockfile.
-      if (lockedExtension == null && extensionShouldHaveBeenLocked) {
-        throw new SingleExtensionEvalFunctionException(
-            ExternalDepsException.withMessage(
-                Code.BAD_LOCKFILE,
-                "The module extension '%s'%s does not exist in the lockfile",
-                extensionId,
-                extension.getEvalFactors().isEmpty()
-                    ? ""
-                    : " for platform " + extension.getEvalFactors()));
-      }
+    if (lockfileMode.equals(LockfileMode.ERROR)
+        && !moduleExtensionMetadata.map(ModuleExtensionMetadata::getReproducible).orElse(false)) {
+      // The extension is not reproducible and can't be in the lockfile, since an existing (but
+      // possibly out-of-date) entry would have been handled by tryGettingValueFromLockFile above.
+      throw new SingleExtensionEvalFunctionException(
+          ExternalDepsException.withMessage(
+              Code.BAD_LOCKFILE,
+              "The module extension '%s'%s does not exist in the lockfile",
+              extensionId,
+              extension.getEvalFactors().isEmpty()
+                  ? ""
+                  : " for platform " + extension.getEvalFactors()));
     }
 
     Optional<LockFileModuleExtension.WithFactors> lockFileInfo;
