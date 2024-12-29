@@ -2080,4 +2080,77 @@ EOF
   bazel build //pkg:testCodegen &> "$TEST_log" || fail "Build failed"
 }
 
+function test_builtin_include_directories_invalidate_action_cache() {
+  local include_dir=$(mktemp -d "/tmp/bazel_test_include.XXXXXXXX")
+  trap "rm -fr $include_dir" EXIT
+  cat > "$include_dir/header.h" <<'EOF'
+#define FOO 1
+EOF
+
+  local cc_dir=$(mktemp -d "/tmp/bazel_test_cc.XXXXXXXX")
+  trap "rm -fr $cc_dir" EXIT
+  fake_cc="$cc_dir/fake_cc.sh"
+  cat > "$fake_cc" <<EOF
+#!/bin/bash
+# Emit the temp directory after "#include <...>" is seen in the stderr of clang.
+"${CC:-gcc}" "\$@" 2> >(
+while IFS=$'\n' read -r line; do
+    if [[ "\$line" == "#include <...>"* ]]; then
+        echo "\$line" 1>&2
+        echo "$include_dir" 1>&2
+    else
+        echo "\$line" 1>&2
+    fi
+done
+)
+EOF
+  chmod +x "$fake_cc"
+  # Use yet another wrapper to mask the content of fake_cc from Bazel.
+  cc_wrapper="$cc_dir/cc_wrapper.sh"
+  cat > "$cc_wrapper" <<EOF
+#!/bin/bash
+exec "$fake_cc" "\$@"
+EOF
+  chmod +x "$cc_wrapper"
+
+  mkdir -p pkg
+  cat > pkg/BUILD <<'EOF'
+cc_binary(
+    name = "main",
+    srcs = ["main.cc"],
+)
+EOF
+  cat > pkg/main.cc <<EOF
+#include "$include_dir/header.h"
+int main() {
+  return FOO;
+}
+EOF
+
+  bazel build \
+    --sandbox_add_mount_pair="$cc_dir" \
+    --sandbox_add_mount_pair="$include_dir" \
+    --repo_env=CC="$cc_wrapper" \
+    //pkg:main &> "$TEST_log" || fail "Build failed"
+  expect_not_log "$include_dir/header.h"
+
+  cat > "$fake_cc" <<EOF
+#!/bin/bash
+"${CC:-gcc}" "\$@"
+EOF
+
+  # Force Bazel to update the detected built-in include directories.
+  bazel fetch \
+    --sandbox_add_mount_pair="$cc_dir" \
+    --sandbox_add_mount_pair="$include_dir" \
+    --repo_env=CC="$cc_wrapper" \
+    --configure --force
+  bazel build \
+    --sandbox_add_mount_pair="$cc_dir" \
+    --sandbox_add_mount_pair="$include_dir" \
+    --repo_env=CC="$cc_wrapper" \
+    //pkg:main &> "$TEST_log" && fail "Build succeeded"
+  expect_log "$include_dir/header.h"
+}
+
 run_suite "cc_integration_test"
