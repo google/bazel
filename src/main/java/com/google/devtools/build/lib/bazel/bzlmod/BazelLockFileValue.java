@@ -26,9 +26,17 @@ import com.ryanharter.auto.value.gson.GenerateTypeAdapter;
 import java.util.Optional;
 
 /**
- * The result of reading the lockfile. Contains the lockfile version, module hash, definitions of
- * module repositories, post-resolution dependency graph and module extensions data (ID, hash,
- * definition, usages)
+ * The result of reading a lockfile. Contains the lockfile version as well as registry and module
+ * extensions data (ID, usages hash, generated repos, ...).
+ *
+ * <p>Bazel maintains two separate lockfiles:
+ *
+ * <ul>
+ *   <li>the (regular) lockfile stored as MODULE.bazel.lock under the workspace directory;
+ *   <li>the persistent lockfile stored as MODULE.bazel.lock under the output base.
+ * </ul>
+ *
+ * See the javadoc of the two {@link SkyKey}s for more information.
  */
 @AutoValue
 @GenerateTypeAdapter
@@ -40,7 +48,37 @@ public abstract class BazelLockFileValue implements SkyValue {
   // keep this number even).
   public static final int LOCK_FILE_VERSION = 16;
 
+  /**
+   * The (regular) lockfile, stored as MODULE.bazel.lock under the workspace directory. This file is
+   * visible to the user and meant to be committed to source control. Thus, it should
+   *
+   * <ul>
+   *   <li>should only contain the minimal amount of information necessary to make module resolution
+   *       and module extension evaluation deterministic;
+   *   <li>should be as deterministic as possible to reduce the risk of merge conflicts.
+   * </ul>
+   */
   @SerializationConstant public static final SkyKey KEY = () -> SkyFunctions.BAZEL_LOCK_FILE;
+
+  /**
+   * The persistent lockfile, stored as MODULE.bazel.lock under the output base. This file is not
+   * visible to the user and is only removed on a {@code bazel clean --expunge}, similar to the
+   * persistent action cache. Thus, it
+   *
+   * <ul>
+   *   <li>should only contain information that is known to be correct indefinitely and never needs
+   *       to be invalidated for a correct build;
+   *   <li>is not subject to the same space and mergeability constraints as the regular lockfile and
+   *       can thus contain more extensive information;
+   *   <li>may differ between users and checkouts of the same project as long as it doesn't affect
+   *       the outcome of the build, with one exception: the build may fail with an error due to
+   *       additional information in the persistent lockfile, e.g. if a module in a registry is
+   *       changed retroactively and thus causes a mismatch with the hash in the persistent
+   *       lockfile.
+   * </ul>
+   */
+  @SerializationConstant
+  public static final SkyKey PERSISTENT_KEY = () -> SkyFunctions.BAZEL_LOCK_FILE;
 
   static Builder builder() {
     return new AutoValue_BazelLockFileValue.Builder()

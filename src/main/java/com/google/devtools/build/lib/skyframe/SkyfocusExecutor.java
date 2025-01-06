@@ -25,6 +25,7 @@ import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Sets;
 import com.google.devtools.build.lib.actions.cache.ActionCache;
 import com.google.devtools.build.lib.cmdline.Label;
+import com.google.devtools.build.lib.cmdline.LabelConstants;
 import com.google.devtools.build.lib.cmdline.PackageIdentifier;
 import com.google.devtools.build.lib.cmdline.RepositoryName;
 import com.google.devtools.build.lib.collect.PathFragmentPrefixTrie;
@@ -181,12 +182,17 @@ public class SkyfocusExecutor {
 
       ImmutableSet<RootedPath> workingSetRootedPaths =
           Stream.concat(
-                  skyfocusState.options().workingSet.stream(),
-                  // The Bzlmod lockfile can be created after a build without having existed
-                  // before
-                  // and must always be kept in the working set if it is used.
-                  Stream.of("MODULE.bazel.lock"))
-              .map(k -> toFileStateKey(pkgLocator, k))
+                  Stream.concat(
+                          skyfocusState.options().workingSet.stream(),
+                          // The Bzlmod lockfile can be created after a build without having existed
+                          // before
+                          // and must always be kept in the working set if it is used.
+                          Stream.of(LabelConstants.MODULE_LOCKFILE_NAME.toString()))
+                      .map(k -> toFileStateKey(pkgLocator, k)),
+                  Stream.of(
+                      RootedPath.toRootedPath(
+                          Root.fromPath(pkgLocator.getOutputBase()),
+                          LabelConstants.MODULE_LOCKFILE_NAME)))
               .collect(toImmutableSet());
       evaluator
           .getInMemoryGraph()

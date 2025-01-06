@@ -785,7 +785,7 @@ public class ModuleFileGlobals {
     ModuleThreadContext context = ModuleThreadContext.fromOrFail(thread, "use_repo_rule()");
     context.setNonModuleCalled();
     // Not a valid Starlark identifier so that it can't collide with a real extension.
-    String extensionName = bzlFile + '%' + ruleName;
+    String extensionName = bzlFile + ' ' + ruleName;
     // Find or create the builder for the singular "innate" extension of this repo rule for this
     // module.
     for (ModuleExtensionUsageBuilder usageBuilder : context.getExtensionUsageBuilders()) {

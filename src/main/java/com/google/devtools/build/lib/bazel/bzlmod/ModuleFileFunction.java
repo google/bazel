@@ -577,7 +577,7 @@ public class ModuleFileFunction implements SkyFunction {
         new ModuleThreadContext.ModuleExtensionUsageBuilder(
             context,
             "//:MODULE.bazel",
-            "@bazel_tools//tools/build_defs/repo:local.bzl%local_repository",
+            "@bazel_tools//tools/build_defs/repo:local.bzl local_repository",
             /* isolate= */ false);
     ModuleFileGlobals.ModuleExtensionProxy extensionProxy =
         new ModuleFileGlobals.ModuleExtensionProxy(

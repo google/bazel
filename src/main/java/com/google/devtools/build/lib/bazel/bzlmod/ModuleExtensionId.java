@@ -80,7 +80,7 @@ public record ModuleExtensionId(
   }
 
   public boolean isInnate() {
-    return extensionName().contains("%");
+    return extensionName().contains(" ");
   }
 
   @Override

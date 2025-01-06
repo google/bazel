@@ -70,6 +70,15 @@ The lockfile offers several benefits and can be utilized in various ways:
     preventing unexpected updates or breaking changes in external libraries. By
     locking the dependencies to specific versions, the risk of introducing bugs
     due to incompatible or untested updates is reduced.
+-
+
+### Persistent lockfile {:#persistent-lockfile}
+
+Bazel also maintains another lockfile at
+`"$(bazel info output_base)"/MODULE.bazel.lock`. The format and contents of this
+lockfile are explicitly unspecified. It is only used as a performance
+optimization. While it can be deleted together with the output base, any need to
+do so is a bug in either Bazel itself or a module extension.
 
 ## Lockfile Contents {:#lockfile-contents}
 

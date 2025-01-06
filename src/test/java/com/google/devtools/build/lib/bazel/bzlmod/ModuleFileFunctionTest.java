@@ -148,7 +148,9 @@ public class ModuleFileFunctionTest extends FoundationTestCase {
                             new TimestampGranularityMonitor(BlazeClock.instance())),
                         SyscallCache.NO_CACHE,
                         externalFilesHelper))
-                .put(SkyFunctions.BAZEL_LOCK_FILE, new BazelLockFileFunction(rootDirectory))
+                .put(
+                    SkyFunctions.BAZEL_LOCK_FILE,
+                    new BazelLockFileFunction(rootDirectory, directories.getOutputBase()))
                 .put(
                     SkyFunctions.MODULE_FILE,
                     new ModuleFileFunction(
@@ -1205,7 +1207,7 @@ public class ModuleFileFunctionTest extends FoundationTestCase {
                 .addExtensionUsage(
                     ModuleExtensionUsage.builder()
                         .setExtensionBzlFile("//:MODULE.bazel")
-                        .setExtensionName("//:repo.bzl%repo")
+                        .setExtensionName("//:repo.bzl repo")
                         .setIsolationKey(Optional.empty())
                         .setRepoOverrides(ImmutableMap.of())
                         .addProxy(
@@ -1234,7 +1236,7 @@ public class ModuleFileFunctionTest extends FoundationTestCase {
                 .addExtensionUsage(
                     ModuleExtensionUsage.builder()
                         .setExtensionBzlFile("//:MODULE.bazel")
-                        .setExtensionName("@bazel_tools//:http.bzl%http_archive")
+                        .setExtensionName("@bazel_tools//:http.bzl http_archive")
                         .setIsolationKey(Optional.empty())
                         .setRepoOverrides(ImmutableMap.of())
                         .addProxy(
