@@ -53,6 +53,7 @@ public class ObjcConfiguration extends Fragment implements ObjcConfigurationApi 
 
   private final DottedVersion iosSimulatorVersion;
   private final String iosSimulatorDevice;
+  private final String iosDevice;
   private final boolean runMemleaks;
   private final CompilationMode compilationMode;
   private final ImmutableList<String> fastbuildOptions;
@@ -70,6 +71,7 @@ public class ObjcConfiguration extends Fragment implements ObjcConfigurationApi 
 
     this.iosSimulatorDevice = objcOptions.iosSimulatorDevice;
     this.iosSimulatorVersion = DottedVersion.maybeUnwrap(objcOptions.iosSimulatorVersion);
+    this.iosDevice = objcOptions.iosDevice;
     this.runMemleaks = objcOptions.runMemleaks;
     this.compilationMode = Preconditions.checkNotNull(options.compilationMode, "compilationMode");
     this.fastbuildOptions = ImmutableList.copyOf(objcOptions.fastbuildOptions);
@@ -96,6 +98,14 @@ public class ObjcConfiguration extends Fragment implements ObjcConfigurationApi 
   public DottedVersion getIosSimulatorVersion() {
     // TODO(bazel-team): Deprecate in favor of getSimulatorVersionForPlatformType(IOS).
     return iosSimulatorVersion;
+  }
+
+  /**
+   * Returns the device when running an application on a physical device.
+   */
+  @Override
+  public String getIosDevice() {
+    return iosDevice;
   }
 
   @Override
