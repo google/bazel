@@ -17,6 +17,7 @@ package com.google.devtools.build.lib.analysis.config;
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.google.common.collect.ImmutableMap.toImmutableMap;
 
+import com.google.common.base.Joiner;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.devtools.build.lib.analysis.config.CoreOptionConverters.LabelListConverter;
@@ -281,6 +282,22 @@ public class CoreOptions extends FragmentOptions implements Cloneable {
               + "with '-' are excluded instead. Note that only non-test rules are "
               + "instrumented unless --instrument_test_targets is enabled.")
   public RegexFilter instrumentationFilter;
+
+  @Option(
+      name = "experimental_instrumentation_filter_fragment",
+      allowMultiple = true,
+      defaultValue = "null",
+      documentationCategory = OptionDocumentationCategory.OUTPUT_PARAMETERS,
+      effectTags = {OptionEffectTag.AFFECTS_OUTPUTS},
+      help =
+          "When coverage is enabled, only rules with names included by the "
+              + "specified regex-based filter will be instrumented. Rules prefixed "
+              + "with '-' are excluded instead. Note that only non-test rules are "
+              + "instrumented unless --instrument_test_targets is enabled. "
+              + "Excluded filters always override included ones. This option can be used "
+              + "multiple times. If this option is provided --instrumentation_filter "
+              + "has no effect.")
+  public List<String> instrumentationFilterFragment;
 
   @Option(
       name = "instrument_test_targets",
