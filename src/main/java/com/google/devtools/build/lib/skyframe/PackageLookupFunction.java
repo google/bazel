@@ -152,10 +152,10 @@ public class PackageLookupFunction implements SkyFunction {
    */
   public static String explainNoBuildFileValue(PackageIdentifier packageKey, Environment env)
       throws InterruptedException {
+    StringBuilder message = new StringBuilder();
     String educationalMessage = "Add a BUILD file to a directory to mark it as a package.";
     if (packageKey.getRepository().isMain()) {
       PathPackageLocator pkgLocator = PrecomputedValue.PATH_PACKAGE_LOCATOR.get(env);
-      StringBuilder message = new StringBuilder();
       message.append("BUILD file not found in any of the following directories. ");
       message.append(educationalMessage);
       for (Root root : pkgLocator.getPathEntries()) {
@@ -166,15 +166,21 @@ public class PackageLookupFunction implements SkyFunction {
                     ? packageKey.getPackageFragment().getPathString()
                     : root.asPath().getRelative(packageKey.getPackageFragment()).getPathString());
       }
-      return message.toString();
     } else {
-      return "BUILD file not found in directory '"
-          + packageKey.getPackageFragment()
-          + "' of external repository "
-          + packageKey.getRepository()
-          + ". "
-          + educationalMessage;
+      message.append("BUILD file not found in directory '");
+
+      if (!packageKey.getPackageFragment().isEmpty()) {
+        message.append(packageKey.getPackageFragment());
+      } else {
+        message.append(packageKey.getCanonicalForm());
+      }
+
+      message.append("' of external repository ");
+      message.append(packageKey.getRepository());
+      message.append(". " + educationalMessage);
     }
+
+    return message.toString();
   }
 
   @Nullable
