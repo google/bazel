@@ -165,7 +165,7 @@ def _PyInfo_init(
         "imports": imports,
         "uses_shared_libraries": uses_shared_libraries,
         "has_py2_only_sources": has_py2_only_sources,
-        "has_py3_only_sources": has_py2_only_sources,
+        "has_py3_only_sources": has_py3_only_sources,
     }
 
 PyInfo, _unused_raw_py_info_ctor = provider(
