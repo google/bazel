@@ -2242,4 +2242,57 @@ EOF
   bazel run "${FLAGS[@]}" //:foo >& $TEST_log || fail "Failed to run //:foo"
 }
 
+function test_symlink_to_file() {
+  # Regression test for https://github.com/bazelbuild/bazel/issues/21747.
+  cat > BUILD <<'EOF'
+load(":defs.bzl", "wrapper")
+cc_binary(
+  name = "foo",
+  srcs = ["foo.cc"],
+)
+wrapper(
+  name = "wrapper",
+  target = ":foo",
+)
+EOF
+  cat > defs.bzl <<'EOF'
+def _wrapper_impl(ctx):
+  out = ctx.actions.declare_file(ctx.label.name)
+  ctx.actions.symlink(
+    output = out,
+    target_file = ctx.file.target,
+    is_executable = True,
+  )
+  return [
+    DefaultInfo(executable = out),
+  ]
+
+wrapper = rule(
+  implementation = _wrapper_impl,
+  attrs = {
+    "target": attr.label(allow_single_file = True),
+  },
+  executable = True
+)
+EOF
+  cat > foo.cc <<'EOF'
+#include <iostream>
+int main() {
+  std::cout << "Hello, World!" << std::endl;
+  return 0;
+}
+EOF
+
+  CACHEDIR=$(mktemp -d)
+  FLAGS=("--remote_cache=grpc://localhost:${worker_port}" --remote_download_toplevel)
+
+  # Populate the disk cache.
+  bazel build "${FLAGS[@]}" //:wrapper >& $TEST_log || fail "Failed to build //:wrapper"
+
+    # Clean build, with the foo binary not considered top-level.
+    bazel clean "${FLAGS[@]}"
+    bazel run "${FLAGS[@]}" //:wrapper >& $TEST_log || fail "Failed to run //:wrapper"
+    expect_log "Hello, World!"
+}
+
 run_suite "Build without the Bytes tests"
