@@ -19,6 +19,7 @@ import sys
 del sys.path[0]
 
 import os
+import signal
 import subprocess
 
 def IsRunningFromZip():
@@ -354,11 +355,21 @@ def ExecuteFile(python_program, main_filename, args, env, module_space,
     ret_code = _RunForCoverage(python_program, main_filename, args, env,
                                coverage_entrypoint, workspace)
   else:
-    ret_code = subprocess.call(
-      [python_program, main_filename] + args,
-      env=env,
-      cwd=workspace
-    )
+    # Temporarily ignoring SIGINT to not interfere with python_program's own
+    # interrupt handling. SIGINT does not need to be forwarded to python_program.
+    # It will receive the signal automatically as part of the same process group.
+    def noop(sig, frame):
+      pass
+    signal.signal(signal.SIGINT, noop)
+
+    try:
+      ret_code = subprocess.call(
+        [python_program, main_filename] + args,
+        env=env,
+        cwd=workspace
+      )
+    finally:
+      signal.signal(signal.SIGINT, signal.SIG_DFL)
 
   if delete_module_space:
     # NOTE: dirname() is called because CreateModuleSpace() creates a
