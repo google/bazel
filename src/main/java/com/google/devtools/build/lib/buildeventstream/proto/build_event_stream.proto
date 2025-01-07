@@ -251,6 +251,9 @@ message BuildEventId {
   // Identifier of an event providing the ExecRequest of a run command.
   message ExecRequestId {}
 
+  // Identifier of an event providing custom event data.
+  message CustomEventDataId {}
+
   reserved 27;
 
   oneof id {
@@ -282,6 +285,7 @@ message BuildEventId {
     BuildMetadataId build_metadata = 24;
     ConvenienceSymlinksIdentifiedId convenience_symlinks_identified = 25;
     ExecRequestId exec_request = 28;
+    CustomEventDataId custom_event_data = 30;
   }
 }
 
@@ -1405,6 +1409,15 @@ message EnvironmentVariable {
   bytes value = 2;
 }
 
+// Event used to transmit custom data via the build event stream. This is
+// intended to be used for messages that need to be sent with forked versions
+// of Bazel, but that can for whatever reason not be added to the upstream
+// version. Reserving a message for custom data prevents field numbers in forked
+// Bazel versions from colliding with future upstream field numbers.
+message CustomEventData {
+  google.protobuf.Any data = 1;
+}
+
 // Message describing a build event. Events will have an identifier that
 // is unique within a given build invocation; they also announce follow-up
 // events as children. More details, which are specific to the kind of event
@@ -1441,5 +1454,6 @@ message BuildEvent {
     BuildMetadata build_metadata = 26;
     ConvenienceSymlinksIdentified convenience_symlinks_identified = 27;
     ExecRequestConstructed exec_request = 29;
+    CustomEventData custom_event_data = 31;
   }
 }
