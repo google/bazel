@@ -63,6 +63,12 @@ build --java_language_version=21
 build --tool_java_language_version=21
 build --tool_java_runtime_version=21
 
+# Run tests and tools on the same JDK as bundled with Bazel.
+build --java_runtime_version=remotejdk_21
+build --tool_java_runtime_version=remotejdk_21
+# TODO: Remove this when rules_java ships a remotejdk_21 for ARM64 Windows.
+build:windows_arm64 --java_runtime_version=remotejdk_11
+
 # Fail if a glob doesn't match anything (https://github.com/bazelbuild/bazel/issues/8195)
 common --incompatible_disallow_empty_glob
 
