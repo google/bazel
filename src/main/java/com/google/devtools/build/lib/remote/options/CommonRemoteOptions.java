@@ -13,6 +13,7 @@
 // limitations under the License.
 package com.google.devtools.build.lib.remote.options;
 
+import com.google.devtools.build.lib.actions.FileArtifactValue.RemoteFileArtifactValue;
 import com.google.devtools.common.options.Converter;
 import com.google.devtools.common.options.Converters;
 import com.google.devtools.common.options.Converters.RegexPatternConverter;
@@ -42,6 +43,8 @@ public class CommonRemoteOptions extends OptionsBase {
               + " repeating this flag.")
   public List<RegexPatternOption> remoteDownloadRegex;
 
+  private static final String SERVER_KEYWORD = "server";
+
   @Option(
       name = "experimental_remote_cache_ttl",
       defaultValue = "3h",
@@ -54,7 +57,8 @@ public class CommonRemoteOptions extends OptionsBase {
               + " optimizations based on the blobs' TTL e.g. doesn't repeatedly call"
               + " GetActionResult in an incremental build. The value should be set slightly less"
               + " than the real TTL since there is a gap between when the server returns the"
-              + " digests and when Bazel receives them.")
+              + " digests and when Bazel receives them. The special value \"" + SERVER_KEYWORD + "\" allows entries"
+              + " to remain in the remote cache for the lifetime of the Bazel server, but no longer.")
   public Duration remoteCacheTtl;
 
   /** Returns the specified duration. Assumes seconds if unitless. */
@@ -64,6 +68,10 @@ public class CommonRemoteOptions extends OptionsBase {
 
     @Override
     public Duration convert(String input) throws OptionsParsingException {
+      /* We recognize the magic value SERVER_KEYWORD as a way to specify server lifetime ttl. */
+      if (input.equals(SERVER_KEYWORD)) {
+        return Duration.ofSeconds(RemoteFileArtifactValue.SERVER_EXPIRATION_SENTINEL);
+      }
       if (UNITLESS_REGEX.matcher(input).matches()) {
         input += "s";
       }

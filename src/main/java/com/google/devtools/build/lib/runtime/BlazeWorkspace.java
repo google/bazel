@@ -22,6 +22,7 @@ import com.google.common.collect.Range;
 import com.google.common.eventbus.EventBus;
 import com.google.common.eventbus.SubscriberExceptionHandler;
 import com.google.common.flogger.GoogleLogger;
+import com.google.devtools.build.lib.actions.FileArtifactValue.RemoteFileArtifactValue;
 import com.google.devtools.build.lib.actions.cache.ActionCache;
 import com.google.devtools.build.lib.actions.cache.CompactPersistentActionCache;
 import com.google.devtools.build.lib.analysis.BlazeDirectories;
@@ -88,6 +89,14 @@ public final class BlazeWorkspace {
    * command with {@code --nouse_action_cache} to save memory.
    */
   @Nullable private ActionCache actionCache;
+
+  /**
+   * We unconditionally clear server-lifetime entries from the action cache when we first load the
+   * action cache. We do not know whether the previous instance of the server might have written
+   * such entries, and if it did, we want to be sure to prune them from the action cache even if the
+   * current server will not write any such entries.
+   */
+  private boolean clearActionCacheServerLifetimeEntries = true;
 
   /** The execution time range of the previous build command in this server, if any. */
   @Nullable private Range<Long> lastExecutionRange = null;
@@ -304,6 +313,22 @@ public final class BlazeWorkspace {
       try (AutoProfiler p = profiledAndLogged("Loading action cache", ProfilerTask.INFO)) {
         actionCache =
             CompactPersistentActionCache.create(getCacheDirectory(), runtime.getClock(), reporter);
+      }
+
+      // Here we clear any server-lifetime entries in the action cache that a previous instance of
+      // the server might have created.
+      if (clearActionCacheServerLifetimeEntries) {
+        // We only exercise this code at most once during the lifetime of the server.
+        clearActionCacheServerLifetimeEntries = false;
+        try (AutoProfiler p = profiledAndLogged("pruning server-lifetime entries from action cache", ProfilerTask.INFO)) {
+          actionCache.removeIf(
+            entry ->
+            entry.getOutputFiles().values().stream().filter(e -> e.getExpireAtEpochMilli() == RemoteFileArtifactValue.SERVER_EXPIRATION_SENTINEL).count() > 0 ||
+            entry.getOutputTrees().values().stream().filter(
+              tv -> tv.childValues().values().stream().filter(e -> e.getExpireAtEpochMilli() == RemoteFileArtifactValue.SERVER_EXPIRATION_SENTINEL).count() > 0
+            ).count() > 0
+          );
+        }
       }
     }
     return actionCache;
