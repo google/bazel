@@ -264,6 +264,13 @@ public class RuleDocumentationAttribute
     return tryExpand(htmlDocumentation);
   }
 
+  /**
+   * Returns the unexpanded html documentation of the rule attribute.
+   */
+  public String getUnexpandedHtmlDocumentation() {
+    return htmlDocumentation;
+  }
+
   public String tryExpand(String html) throws BuildEncyclopediaDocException {
     if (linkExpander == null) {
       return html;
@@ -304,6 +311,24 @@ public class RuleDocumentationAttribute
       sb.append("; optional");
     }
     return sb.toString();
+  }
+
+  /**
+   * Returns a string description for this attribute's type.
+   */
+  public String getTypeDesc() throws BuildEncyclopediaDocException {
+    if (type == null) {
+      return "";
+    }
+    String rawType = TYPE_DESC.get(type);
+    return rawType == null ? "" : tryExpand(rawType);
+  }
+
+  /**
+   * Returns the default value of this attribute as a Starlark snippet.
+   */
+  public String getDefaultValue() throws BuildEncyclopediaDocException {
+    return defaultValue == null ? "" : defaultValue;
   }
 
   /**

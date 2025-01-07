@@ -290,7 +290,11 @@ public class ApiExporter {
     // to be added separately.
     callable.addParam(newParam("name", true));
     for (RuleDocumentationAttribute attr : rule.getAttributes()) {
-      callable.addParam(newParam(attr.getAttributeName(), attr.isMandatory()));
+      Param.Builder param = newParam(attr.getAttributeName(), attr.isMandatory());
+      param.setType(attr.getTypeDesc());
+      param.setDefaultValue(attr.getDefaultValue());
+      param.setDoc(attr.getUnexpandedHtmlDocumentation());
+      callable.addParam(param);
     }
     value.setCallable(callable);
     return value;
