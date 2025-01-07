@@ -414,21 +414,8 @@ public final class AspectsList {
       AspectDetails<?> oldAspect = this.aspects.get(aspectName);
 
       if (oldAspect != null) {
-        if (requiredByAspect != null) {
-          // If the aspect to be added already exists and it is required by another aspect, no need
-          // to
-          // add it again.
-          return false;
-        } else {
-          // If the aspect to be added is not required by another aspect, then we should throw error
-          String oldAspectBaseAspectName = oldAspect.requiredByAspect;
-          if (oldAspectBaseAspectName != null) {
-            throw Starlark.errorf(
-                "aspect %s was added before as a required aspect of aspect %s",
-                oldAspect.getName(), oldAspectBaseAspectName);
-          }
-          throw Starlark.errorf("aspect %s added more than once", oldAspect.getName());
-        }
+        // If the aspect added already, no need to add it again.
+        return false;
       }
 
       return true; // we need to add the new aspect
