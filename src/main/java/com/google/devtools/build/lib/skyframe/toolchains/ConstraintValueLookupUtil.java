@@ -14,6 +14,8 @@
 
 package com.google.devtools.build.lib.skyframe.toolchains;
 
+import com.google.common.collect.ImmutableSet;
+import com.google.common.collect.Iterables;
 import com.google.devtools.build.lib.actions.ActionConflictException;
 import com.google.devtools.build.lib.analysis.ConfiguredTarget;
 import com.google.devtools.build.lib.analysis.ConfiguredTargetValue;
@@ -42,9 +44,9 @@ public class ConstraintValueLookupUtil {
     boolean valuesMissing = env.valuesMissing();
     List<ConstraintValueInfo> constraintValues = valuesMissing ? null : new ArrayList<>();
     for (ConfiguredTargetKey key : constraintValueKeys) {
-      ConstraintValueInfo constraintValueInfo = findConstraintValueInfo(key, values);
+      var constraintValueInfo = findConstraintValueInfo(key, values);
       if (!valuesMissing && constraintValueInfo != null) {
-        constraintValues.add(constraintValueInfo);
+        constraintValues.addAll(constraintValueInfo);
       }
     }
     if (valuesMissing) {
@@ -60,7 +62,7 @@ public class ConstraintValueLookupUtil {
    * InvalidConstraintValueException} is thrown.
    */
   @Nullable
-  private static ConstraintValueInfo findConstraintValueInfo(
+  private static ImmutableSet<ConstraintValueInfo> findConstraintValueInfo(
       ConfiguredTargetKey key, SkyframeLookupResult values) throws InvalidConstraintValueException {
     try {
       ConfiguredTargetValue ctv =
@@ -74,14 +76,20 @@ public class ConstraintValueLookupUtil {
         return null;
       }
 
-      ConfiguredTarget configuredTarget = ctv.getConfiguredTarget();
-      ConstraintValueInfo constraintValueInfo =
-          PlatformProviderUtils.constraintValue(configuredTarget);
-      if (constraintValueInfo == null) {
-        throw new InvalidConstraintValueException(configuredTarget.getLabel());
+      var configuredTarget = ctv.getConfiguredTarget();
+
+      var constraintValueInfo = PlatformProviderUtils.constraintValue(configuredTarget);
+      if (constraintValueInfo != null) {
+        return ImmutableSet.of(constraintValueInfo);
       }
 
-      return constraintValueInfo;
+      var platformInfo = PlatformProviderUtils.platform(configuredTarget);
+      if (platformInfo != null) {
+        var constraints = platformInfo.constraints();
+        return ImmutableSet.copyOf(Iterables.transform(constraints.transitiveConstraintSettings(), constraints::get));
+      }
+
+      throw new InvalidConstraintValueException(configuredTarget.getLabel());
     } catch (ConfiguredValueCreationException e) {
       throw new InvalidConstraintValueException(key.getLabel(), e);
     } catch (NoSuchThingException e) {

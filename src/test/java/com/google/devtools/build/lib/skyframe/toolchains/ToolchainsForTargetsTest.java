@@ -524,6 +524,60 @@ public final class ToolchainsForTargetsTest extends AnalysisTestCase {
   }
 
   @Test
+  public void execPlatform_withPlatformExecConstraint() throws Exception {
+    // Add some platforms and custom constraints.
+    scratch.file(
+        "platforms/BUILD",
+        """
+        constraint_setting(name = "local_setting")
+
+        constraint_value(
+            name = "local_value_a",
+            constraint_setting = ":local_setting",
+        )
+
+        constraint_value(
+            name = "local_value_b",
+            constraint_setting = ":local_setting",
+        )
+
+        platform(
+            name = "local_platform_a",
+            constraint_values = [":local_value_a"],
+        )
+
+        platform(
+            name = "local_platform_b",
+            constraint_values = [":local_value_b"],
+        )
+        """);
+
+    // Test normal resolution, and with a per-target exec constraint.
+    scratch.file(
+        "a/BUILD",
+        """
+        load("//toolchain:rule.bzl", "my_rule")
+
+        my_rule(
+            name = "a",
+            exec_compatible_with = ["//platforms:local_platform_a"],
+        )
+        """);
+
+    useConfiguration(
+        "--extra_execution_platforms=//platforms:local_platform_a,//platforms:local_platform_b");
+
+    ToolchainCollection<UnloadedToolchainContext> toolchainCollection =
+        getToolchainCollection("//a");
+    assertThat(toolchainCollection).isNotNull();
+    assertThat(toolchainCollection).hasDefaultExecGroup();
+    assertThat(toolchainCollection)
+        .defaultToolchainContext()
+        // Exec constraint forces the use of this exec platform.
+        .hasExecutionPlatform("//platforms:local_platform_a");
+  }
+
+  @Test
   public void execGroups_named() throws Exception {
     // Write a rule with exec groups.
     scratch.appendFile(
