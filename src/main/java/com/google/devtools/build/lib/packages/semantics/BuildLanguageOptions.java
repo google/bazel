@@ -397,7 +397,7 @@ public final class BuildLanguageOptions extends OptionsBase {
 
   @Option(
       name = "experimental_sibling_repository_layout",
-      defaultValue = "false",
+      defaultValue = "true",
       documentationCategory = OptionDocumentationCategory.STARLARK_SEMANTICS,
       effectTags = {
         OptionEffectTag.ACTION_COMMAND_LINES,
