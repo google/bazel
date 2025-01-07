@@ -25,10 +25,12 @@ import com.google.errorprone.ErrorProneError;
 import com.google.errorprone.ErrorProneOptions;
 import com.google.errorprone.ErrorProneTimings;
 import com.google.errorprone.InvalidCommandLineOptionException;
+import com.google.errorprone.RefactoringCollection;
 import com.google.errorprone.scanner.BuiltInCheckerSuppliers;
 import com.google.errorprone.scanner.ScannerSupplier;
 import com.sun.source.util.TaskEvent;
 import com.sun.source.util.TaskEvent.Kind;
+import com.sun.tools.javac.api.MultiTaskListener;
 import com.sun.tools.javac.code.DeferredCompletionFailureHandler;
 import com.sun.tools.javac.comp.AttrContext;
 import com.sun.tools.javac.comp.Env;
@@ -105,8 +107,14 @@ public final class ErrorPronePlugin extends BlazeJavaCompilerPlugin {
     if (epOptions == null) {
       epOptions = ErrorProneOptions.empty();
     }
+    RefactoringCollection[] refactoringCollection = {null};
     errorProneAnalyzer =
-        ErrorProneAnalyzer.createByScanningForPlugins(scannerSupplier, epOptions, context);
+        ErrorProneAnalyzer.createAnalyzer(scannerSupplier, epOptions, context, refactoringCollection);
+    if (refactoringCollection[0] != null) {
+      ErrorProneAnalyzer.RefactoringTask refactoringTask =
+          new ErrorProneAnalyzer.RefactoringTask(context, refactoringCollection[0]);
+      MultiTaskListener.instance(context).add(refactoringTask);
+    }
     timings = ErrorProneTimings.instance(context);
     deferredCompletionFailureHandler = DeferredCompletionFailureHandler.instance(context);
   }
