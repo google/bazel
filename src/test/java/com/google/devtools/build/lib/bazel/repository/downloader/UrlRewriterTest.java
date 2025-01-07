@@ -316,9 +316,15 @@ public class UrlRewriterTest {
                 new URL("https://my.example.com/from_netrc/bar"),
                 new URL("https://my.example.com/from_other_netrc_entry/bar"),
                 new URL("https://my.example.com/no_creds/bar"),
+                new URL("https://my.example.com/no_creds/with_auth"),
                 new URL("https://should-not-be-overridden.com/")));
+
+    Map<String, List<String>> customAuthHeaders
+        = ImmutableMap.of("Authorization", ImmutableList.of("MyToken"));
+    Map<URI, Map<String, List<String>>> originalAuthHeaders 
+        = ImmutableMap.of(new URI("https://my.example.com/no_creds/with_auth"), customAuthHeaders);
     Map<URI, Map<String, List<String>>> updatedAuthHeaders =
-        munger.updateAuthHeaders(amended, ImmutableMap.of(), netrc);
+        munger.updateAuthHeaders(amended, originalAuthHeaders, netrc);
 
     String expectedToken =
         "Basic " + Base64.getEncoder().encodeToString(creds.getBytes(ISO_8859_1));
@@ -326,25 +332,42 @@ public class UrlRewriterTest {
         "Basic " + Base64.getEncoder().encodeToString(firstNetrcCreds.getBytes(ISO_8859_1));
     String expectedSecondNetrcToken =
         "Basic " + Base64.getEncoder().encodeToString(secondNetrcCreds.getBytes(ISO_8859_1));
-    // only three URLs should have auth headers
+    // The headers should be updated as following:
+    // 1. Original auth headers remain
+    // 2. The URL that was rewritten and had the entry in originalAuthHeaders should have a corresponding, 
+    //    rewritten url entry.
+    // 3. The urls that have user or netrc should have the corresponding entry in the updatedAuthHeaders.
     assertThat(updatedAuthHeaders)
         .containsExactly(
+            new URI("https://my.example.com/no_creds/with_auth"), 
+            customAuthHeaders,
+            new URI("https://myopencorp.com/no_creds/with_auth"),
+            customAuthHeaders,
             new URI("https://user:password@mycorp.com/foo/bar"),
             ImmutableMap.of("Authorization", ImmutableList.of(expectedToken)),
             new URI("https://mycorp.com/from_netrc/bar"),
             ImmutableMap.of("Authorization", ImmutableList.of(expectedFirstNetrcToken)),
             new URI("https://myothercorp.com/from_netrc/bar"),
             ImmutableMap.of("Authorization", ImmutableList.of(expectedSecondNetrcToken)));
-    // yet all four urls should be present
     assertThat(amended)
         .containsExactly(
             UrlRewriter.RewrittenURL.create(
+                new URL("https://my.example.com/foo/bar"),
                 new URL("https://user:password@mycorp.com/foo/bar"), true),
-            UrlRewriter.RewrittenURL.create(new URL("https://mycorp.com/from_netrc/bar"), true),
             UrlRewriter.RewrittenURL.create(
+                new URL("https://my.example.com/from_netrc/bar"),
+                new URL("https://mycorp.com/from_netrc/bar"), true),
+            UrlRewriter.RewrittenURL.create(
+                new URL("https://my.example.com/from_other_netrc_entry/bar"),
                 new URL("https://myothercorp.com/from_netrc/bar"), true),
-            UrlRewriter.RewrittenURL.create(new URL("https://myopencorp.com/no_creds/bar"), true),
             UrlRewriter.RewrittenURL.create(
+                new URL("https://my.example.com/no_creds/bar"),
+                new URL("https://myopencorp.com/no_creds/bar"), true),
+            UrlRewriter.RewrittenURL.create(
+                new URL("https://my.example.com/no_creds/with_auth"),
+                new URL("https://myopencorp.com/no_creds/with_auth"), true),
+            UrlRewriter.RewrittenURL.create(
+                new URL("https://should-not-be-overridden.com/"),
                 new URL("https://should-not-be-overridden.com/"), false));
   }
 
