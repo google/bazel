@@ -185,7 +185,7 @@ public class BuildRequestOptions extends OptionsBase {
 
   @Option(
       name = "experimental_use_validation_aspect",
-      defaultValue = "false",
+      defaultValue = "true",
       documentationCategory = OptionDocumentationCategory.OUTPUT_SELECTION,
       effectTags = {OptionEffectTag.EXECUTION, OptionEffectTag.AFFECTS_OUTPUTS},
       help = "Whether to run validation actions using aspect (for parallelism with tests).")

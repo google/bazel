@@ -21,6 +21,7 @@ import static com.google.common.collect.ImmutableSetMultimap.toImmutableSetMulti
 import static com.google.common.collect.MoreCollectors.onlyElement;
 import static com.google.common.truth.Truth.assertThat;
 import static com.google.common.truth.Truth.assertWithMessage;
+import static com.google.common.truth.Truth8.assertThat;
 import static com.google.devtools.build.lib.vfs.FileSystemUtils.readContentAsLatin1;
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.junit.Assert.assertThrows;
@@ -3313,7 +3314,15 @@ public class RewindingTestsHelper {
               || (isActionExecutionKey(key, lostLabel) && type == EventType.SET_VALUE)) {
             // Completion events for lost outputs should not be emitted until after rewinding
             // completes. Otherwise, we may publish stale artifact URIs to the BEP.
-            assertThat(events).isEmpty();
+            assertThat(
+                    events.entrySet().stream()
+                        .filter(
+                            e ->
+                                !(e.getValue() instanceof AspectCompleteEvent aspectCompleteEvent
+                                    && aspectCompleteEvent
+                                        .getAspectName()
+                                        .equals("ValidateTarget"))))
+                .isEmpty();
           }
         });
   }
@@ -3410,6 +3419,9 @@ public class RewindingTestsHelper {
               @SuppressWarnings("unused")
               public void accept(AspectCompleteEvent event) {
                 // If we need to track targets with multiple aspects, we could change the key type.
+                if (event.getAspectName().equals("ValidateTarget")) {
+                  return;
+                }
                 var prev = aspectCompleteEvents.put(event.getLabel(), event);
                 checkState(prev == null, "Duplicate AspectCompleteEvent for %s", event.getLabel());
               }

@@ -197,7 +197,8 @@ EOF
   aspect_count="$(extract_histogram_count histo.txt 'lib.packages.Aspect$')"
   [[ "$ct_count" -ge 2 ]] \
       || fail "Too few configured targets: $ct_count. Did you move/rename the class?"
-  [[ "$aspect_count" -ge 1 ]] \
+  # ValidateTarget will always be around.
+  [[ "$aspect_count" -ge 2 ]] \
       || fail "Too few aspects: $aspect_count. Did you move/rename the class?"
   bazel --batch clean >& "$TEST_log" || fail "Expected success"
   server_pid="$(bazel info server_pid 2> /dev/null)"
@@ -210,7 +211,7 @@ EOF
   # Several top-level configured targets are allowed to stick around.
   [[ "$ct_count" -le 17 ]] \
       || fail "Too many configured targets: $ct_count"
-  [[ "$aspect_count" -eq 0 ]] || fail "Too many aspects: $aspect_count"
+  [[ "$aspect_count" -eq 1 ]] || fail "Too many aspects: $aspect_count"
   bazel --batch clean >& "$TEST_log" || fail "Expected success"
   server_pid="$(bazel info server_pid 2> /dev/null)"
   bazel build --discard_analysis_cache \
@@ -226,7 +227,7 @@ EOF
   ct_count="$(extract_histogram_count histo.txt 'RuleConfiguredTarget$')"
   aspect_count="$(extract_histogram_count histo.txt 'lib.packages.Aspect$')"
   # One top-level aspect is allowed to stick around.
-  [[ "$aspect_count" -le 1 ]] || fail "Too many aspects: $aspect_count"
+  [[ "$aspect_count" -le 2 ]] || fail "Too many aspects: $aspect_count"
   [[ "$ct_count" -le 17 ]] || fail "Too many configured targets: $ct_count"
 }
 
