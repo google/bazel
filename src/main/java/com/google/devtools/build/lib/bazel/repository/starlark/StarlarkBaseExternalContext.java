@@ -1855,7 +1855,7 @@ the same path on case-insensitive filesystems.
       doc =
           """
           Executes the command given by the list of arguments. The execution time of the command \
-          is limited by <code>timeout</code> (in seconds, default 600 seconds). This method \
+          is limited by <code>timeout</code> (in seconds, default 86400 seconds). This method \
           returns an <code>exec_result</code> structure containing the output of the \
           command. The <code>environment</code> map can be used to override some \
           environment variables to be passed to the process.
@@ -1872,8 +1872,8 @@ the same path on case-insensitive filesystems.
         @Param(
             name = "timeout",
             named = true,
-            defaultValue = "600",
-            doc = "Maximum duration of the command in seconds (default is 600 seconds)."),
+            defaultValue = "86400",
+            doc = "Maximum duration of the command in seconds (default is 86400 seconds)."),
         @Param(
             name = "environment",
             defaultValue = "{}",
