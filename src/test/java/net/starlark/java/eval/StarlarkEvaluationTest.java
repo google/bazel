@@ -1961,6 +1961,35 @@ public final class StarlarkEvaluationTest {
   }
 
   @Test
+  public void testPrintWithTrace() throws Exception {
+    ParserInput input = ParserInput.fromLines(
+        "def foo(value):",
+        "    if value:",
+        "        print(value, with_trace = True)",
+        "def bar(value):",
+        "    foo(value)",
+        "def baz(value):",
+        "    bar(value)",
+        "baz(42)"
+    );
+    List<String> prints = new ArrayList<>();
+    try (Mutability mu = Mutability.create("test")) {
+      StarlarkThread thread = new StarlarkThread(mu, StarlarkSemantics.DEFAULT);
+      thread.setPrintHandler((unused, msg) -> prints.add(msg));
+      Starlark.execFile(input, FileOptions.DEFAULT, Module.create(), thread);
+    }
+    assertThat(prints).hasSize(1);
+    assertThat(prints.get(0).split("\n")).asList().containsExactly(
+        "Traceback (most recent call last):",
+        "\tFile \"\", line 8, column 4, in <toplevel>",
+        "\tFile \"\", line 7, column 8, in baz",
+        "\tFile \"\", line 5, column 8, in bar",
+        "\tFile \"\", line 3, column 14, in foo",
+        "print: 42"
+    ).inOrder();
+  }
+
+  @Test
   public void testPrintBadKwargs() throws Exception {
     ev.new Scenario()
         .testIfErrorContains(

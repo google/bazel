@@ -130,7 +130,7 @@ public class EvalException extends Exception {
    */
   public final String getMessageWithStack(SourceReader src) {
     if (callstack != null) {
-      return formatCallStack(callstack, getMessage(), src);
+      return formatCallStack(callstack, getMessage(), src, /*isPrint=*/false);
     }
     return getMessage();
   }
@@ -174,12 +174,16 @@ public class EvalException extends Exception {
       };
 
   /**
-   * Formats the given call stack and error message. Provided as a separate function from {@link
-   * #getMessageWithStack} so that clients may modify the stack and/or error before formatting it.
-   * The source line for each stack frame is obtained from the provided SourceReader.
+   * Formats the given call stack and error or print message. Provided as a separate function from
+   * {@link #getMessageWithStack} so that clients may modify the stack and/or error before
+   * formatting it. The source line for each stack frame is obtained from the provided
+   * SourceReader.
+   *
+   * @param isPrint True if invoked from the built-in 'print' function rather than an error.
    */
   public static String formatCallStack(
-      List<StarlarkThread.CallStackEntry> callstack, String message, SourceReader src) {
+      List<StarlarkThread.CallStackEntry> callstack, String message, SourceReader src,
+      boolean isPrint) {
     StringBuilder buf = new StringBuilder();
     int n = callstack.size(); // n > 0
     String prefix = "Error: ";
@@ -187,7 +191,12 @@ public class EvalException extends Exception {
     // Instead just prefix the name of the built-in onto the error message.
     StarlarkThread.CallStackEntry leaf = callstack.get(n - 1);
     if (leaf.location.equals(Location.BUILTIN)) {
-      prefix = "Error in " + leaf.name + ": ";
+      if (isPrint) {
+        // This is reached when using print(..., with_trace=True).
+        prefix = "print: ";
+      } else {
+        prefix = "Error in " + leaf.name + ": ";
+      }
       n--;
     }
     if (n > 0) {
