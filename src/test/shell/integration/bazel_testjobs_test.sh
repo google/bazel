@@ -102,21 +102,21 @@ EOF
 function test_local_test_jobs_constrains_test_execution() {
   create_test_files
   # 3 local test jobs, so no more than 3 tests in parallel.
-  bazel test --local_test_jobs=3 --local_cpu_resources=10 --runs_per_test=10 \
+  bazel test --local_test_jobs=3 --local_resources=cpu=10 --runs_per_test=10 \
       //dir:test >& $TEST_log || fail "Expected success"
 }
 
 function test_no_local_test_jobs_causes_local_resources_to_constrain_test_execution() {
   create_test_files
   # unlimited local test jobs, so local resources enforces 3 tests in parallel.
-  bazel test --local_cpu_resources=3 --runs_per_test=10 \
+  bazel test --local_resources=cpu=3 --runs_per_test=10 \
       //dir:test >& $TEST_log || fail "Expected success"
 }
 
 function test_local_test_jobs_exceeds_jobs_causes_warning() {
   create_test_files
   # 10 local test jobs, but only 3 jobs, so warning is printed, and only 3 tests run concurrently
-  bazel test --jobs=3 --local_test_jobs=10 --local_cpu_resources=10 \
+  bazel test --jobs=3 --local_test_jobs=10 --local_resources=cpu=10 \
   --runs_per_test=10 //dir:test >& $TEST_log || fail "Expected success"
 
   expect_log 'High value for --local_test_jobs'

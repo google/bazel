@@ -140,7 +140,7 @@ public class DynamicExecutionOptions extends OptionsBase {
           "Controls how much load from dynamic execution to put on the local machine."
               + " This flag adjusts how many actions in dynamic execution we will schedule"
               + " concurrently. It is based on the number of CPUs Blaze thinks is available,"
-              + " which can be controlled with the --local_cpu_resources flag."
+              + " which can be controlled with the --local_resources flag."
               + "\nIf this flag is 0, all actions are scheduled locally immediately. If > 0,"
               + " the amount of actions scheduled locally is limited by the number of CPUs"
               + " available. If < 1, the load factor is used to reduce the number of locally"

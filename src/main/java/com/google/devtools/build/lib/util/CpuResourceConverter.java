@@ -16,7 +16,7 @@ package com.google.devtools.build.lib.util;
 import com.google.common.collect.ImmutableMap;
 
 /**
- * Converter for --local_cpu_resources, which takes an integer greater than or equal to 1, or
+ * Converter for cpu resources, which takes an integer greater than or equal to 1, or
  * "HOST_CPUS", optionally followed by [-|*]<float>.
  */
 public final class CpuResourceConverter extends ResourceConverter.IntegerConverter {

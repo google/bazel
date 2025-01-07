@@ -149,8 +149,8 @@ public class ProgressReportingTest extends BuildIntegrationTestCase {
     // in order to keep exactly one genrule running at a time.
     addOptions(
         "--progress_report_interval=1",
-        "--local_ram_resources=1000",
-        "--local_cpu_resources=1",
+        "--local_resources=memory=1000",
+        "--local_resources=cpu=1",
         "--show_progress_rate_limit=-1");
     buildTarget("//x:x", "//x:y");
 

@@ -139,7 +139,7 @@ management option. It takes a value from 0 to 1, 0 turning off this feature.
 When set to a value above 0, Bazel adjusts the number of
 locally scheduled actions when many actions waiting to
 be scheduled. Setting it to 1 allows as many actions to be scheduled as there
-are CPUs available (as per `--local_cpu_resources`). Lower values set the number
+are CPUs available (as per `--local_resources`). Lower values set the number
 of actions scheduled to correspondingly fewer as higher numbers of actions are
 available to run. This may sound counter-intuitive, but with a good remote
 system, local execution does not help much when many actions are being run, and

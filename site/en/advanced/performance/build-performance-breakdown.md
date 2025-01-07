@@ -146,8 +146,7 @@ system load average during the invocation.
 A high load during a Bazel invocation can be an indication that Bazel schedules
 too many local actions in parallel for your machine. You might want to look into
 adjusting
-[`--local_cpu_resources`](/reference/command-line-reference#flag--local_cpu_resources)
-and [`--local_ram_resources`](/reference/command-line-reference#flag--local_ram_resources),
+[`--local_resources`](/reference/command-line-reference#flag--local_resources),
 especially in container environments (at least until
 [#16512](https://github.com/bazelbuild/bazel/pull/16512) is merged).
 
