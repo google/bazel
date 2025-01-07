@@ -257,6 +257,14 @@ public class SandboxOptions extends OptionsBase {
   public String dockerImage;
 
   @Option(
+          name = "experimental_container_runtime",
+          defaultValue = "",
+          documentationCategory = OptionDocumentationCategory.EXECUTION_STRATEGY,
+          effectTags = {OptionEffectTag.EXECUTION},
+          help = "specify a custom container runtime like sysbox-runc")
+  public String containerRuntime;
+
+  @Option(
       name = "experimental_docker_use_customized_images",
       defaultValue = "true",
       documentationCategory = OptionDocumentationCategory.EXECUTION_STRATEGY,
