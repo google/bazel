@@ -106,14 +106,6 @@ def _get_cc_runtimes(ctx, is_library):
 def _get_cc_runtimes_copts(ctx):
     return []
 
-def _get_implementation_deps_allowed_attr():
-    return {}
-
-def _check_can_use_implementation_deps(ctx):
-    experimental_cc_implementation_deps = ctx.fragments.cpp.experimental_cc_implementation_deps()
-    if (not experimental_cc_implementation_deps and ctx.attr.implementation_deps):
-        fail("requires --experimental_cc_implementation_deps", attr = "implementation_deps")
-
 _WINDOWS_PLATFORM = Label("@platforms//os:windows")  # Resolve the label within builtins context
 
 def _get_linkstatic_default_for_test():
@@ -173,8 +165,6 @@ semantics = struct(
     get_stl = _get_stl,
     should_create_empty_archive = _should_create_empty_archive,
     get_grep_includes = _get_grep_includes,
-    get_implementation_deps_allowed_attr = _get_implementation_deps_allowed_attr,
-    check_can_use_implementation_deps = _check_can_use_implementation_deps,
     get_linkstatic_default_for_test = _get_linkstatic_default_for_test,
     get_cc_link_memlimit = _get_cc_link_memlimit,
     get_runtimes_toolchain = _get_runtimes_toolchain,

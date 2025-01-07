@@ -7471,7 +7471,6 @@ public class StarlarkCcCommonTest extends BuildViewTestCase {
             "incompatible_enable_cc_test_feature()",
             "build_test_dwp()",
             "grte_top()",
-            "experimental_cc_implementation_deps()",
             "experimental_cpp_modules()",
             "share_native_deps()",
             "experimental_platform_cc_test()");

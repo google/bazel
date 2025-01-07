@@ -301,7 +301,6 @@ bazel_fragments["CppOptions"] = fragment(
         "//command_line_option:host_linkopt",
         "//command_line_option:target libcTop label",
         "//command_line_option:experimental_link_static_libraries_once",
-        "//command_line_option:experimental_cc_implementation_deps",
         "//command_line_option:experimental_cpp_modules",
         "//command_line_option:start_end_lib",
         "//command_line_option:experimental_inmemory_dotd_files",
