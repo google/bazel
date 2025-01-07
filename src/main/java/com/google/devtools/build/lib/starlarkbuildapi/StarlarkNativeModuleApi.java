@@ -232,7 +232,8 @@ public interface StarlarkNativeModuleApi extends StarlarkValue {
               + "For example, in the BUILD file <code>some/package/BUILD</code>, its value "
               + "will be <code>some/package</code>. "
               + "If the BUILD file calls a function defined in a .bzl file, "
-              + "<code>package_name()</code> will match the caller BUILD file package.",
+              + "<code>package_name()</code> will match the caller BUILD file package."
+              + "The value will always be an empty string for the root package.",
       useStarlarkThread = true)
   String packageName(StarlarkThread thread) throws EvalException;
 
