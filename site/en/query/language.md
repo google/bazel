@@ -904,6 +904,15 @@ linkshared attribute (such as, `cc_binary` rule) and have it either
 explicitly set to 0 or do not set it at all but default value is 0 (such as for
 `cc_binary` rules).
 
+The values `True` and `False` set for a boolean attribute are converted to 
+`1` and `0`, respectively. For example,
+
+```
+attr(flaky, 1, //...)
+```
+
+will select all targets in a Bazel workspace that have their `flaky` property set to `True`.
+
 List-type attributes (such as `srcs`, `data`, etc) are
 converted to strings of the form `[value<sub>1</sub>, ..., value<sub>n</sub>]`,
 starting with a `[` bracket, ending with a `]` bracket
