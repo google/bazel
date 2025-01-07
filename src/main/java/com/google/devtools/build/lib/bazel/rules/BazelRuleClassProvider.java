@@ -76,7 +76,7 @@ public class BazelRuleClassProvider {
     @Option(
         name = "incompatible_strict_action_env",
         oldName = "experimental_strict_action_env",
-        defaultValue = "false",
+        defaultValue = "true",
         documentationCategory = OptionDocumentationCategory.UNCATEGORIZED,
         effectTags = {OptionEffectTag.LOADING_AND_ANALYSIS},
         metadataTags = {OptionMetadataTag.INCOMPATIBLE_CHANGE},
