@@ -66,6 +66,8 @@ build --tool_java_runtime_version=21
 # Fail if a glob doesn't match anything (https://github.com/bazelbuild/bazel/issues/8195)
 common --incompatible_disallow_empty_glob
 
+build --incompatible_strict_action_env
+
 # User-specific .bazelrc
 try-import %workspace%/user.bazelrc
 
