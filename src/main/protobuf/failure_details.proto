@@ -312,8 +312,9 @@ message RemoteOptions {
 
 message ClientEnvironment {
   enum Code {
-    CLIENT_ENVIRONMENT_UNKNOWN = 0 [(metadata) = { exit_code: 37 }];
-    CLIENT_CWD_MALFORMED = 1 [(metadata) = { exit_code: 2 }];
+    CLIENT_ENVIRONMENT_UNKNOWN = 0 [ (metadata) = {exit_code : 37} ];
+    CLIENT_CWD_MALFORMED = 1 [ (metadata) = {exit_code : 2} ];
+    CLIENT_INVALID_CLOCK = 2 [ (metadata) = {exit_code : 36} ];
   }
 
   Code code = 1;
