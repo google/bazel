@@ -30,6 +30,7 @@ import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 import javax.annotation.Nullable;
@@ -91,7 +92,27 @@ public class TestSuiteModel {
 
   private TestNode getTest(Description description) {
     // The description shouldn't be null, but in the test runner code we avoid throwing exceptions.
-    return description == null ? null : testsMap.get(description);
+    if (description == null) {
+      return null;
+    }
+
+    TestNode test = testsMap.get(description);
+    if (test != null) {
+      return test;
+    }
+
+    final Optional<Description> matchingSuite = testsMap.keySet().stream()
+            .filter(d -> d != null && d.getTestClass() != null && d.isSuite() && d.getTestClass().equals(description.getTestClass()))
+            .findAny();
+    if (matchingSuite.isPresent()) {
+      final TestSuiteNode suite = (TestSuiteNode)testsMap.get(matchingSuite.get());
+      test = new TestCaseNode(description, suite);
+      suite.addTestCase((TestCaseNode)test);
+      testsMap.put(description, test);
+      return test;
+    }
+
+    return null;
   }
 
   // VisibleForTesting
