@@ -174,7 +174,7 @@ public class JavaOptions extends FragmentOptions {
   @Option(
       name = "experimental_java_classpath",
       allowMultiple = false,
-      defaultValue = "javabuilder",
+      defaultValue = "bazel",
       converter = JavaClasspathModeConverter.class,
       documentationCategory = OptionDocumentationCategory.UNCATEGORIZED,
       effectTags = {OptionEffectTag.UNKNOWN},
