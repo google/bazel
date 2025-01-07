@@ -1051,6 +1051,24 @@ EOF
   expect_log "cannot run local tests with --nobuild_runfile_manifests"
 }
 
+function test_test_with_reserved_env_variable() {
+  mkdir -p dir
+
+  touch dir/test.sh
+  chmod u+x dir/test.sh
+  cat <<'EOF' > dir/BUILD
+sh_test(
+    name = 'test',
+    srcs = ['test.sh'],
+    env = {
+      "TEST_NAME": "foo"
+    },
+)
+EOF
+  bazel test //dir:test >& $TEST_log && fail "should have failed"
+  expect_log "cannot set env variable TEST_NAME=foo because TEST_NAME is reserved"
+}
+
 function test_run_from_external_repo_sibling_repository_layout() {
   cat <<EOF > MODULE.bazel
 local_repository = use_repo_rule("@bazel_tools//tools/build_defs/repo:local.bzl", "local_repository")
