@@ -49,8 +49,7 @@ public class CoverageConfiguration extends Fragment implements CoverageConfigura
         },
         help =
             "Location of the binary that is used to postprocess raw coverage reports. This must "
-                + "currently be a filegroup that contains a single file, the binary. Defaults to "
-                + "'//tools/test:lcov_merger'.")
+                + "be a binary target. Defaults to '//tools/test:lcov_merger'.")
     public Label coverageOutputGenerator;
 
     @Option(
@@ -65,8 +64,7 @@ public class CoverageConfiguration extends Fragment implements CoverageConfigura
         },
         help =
             "Location of the binary that is used to generate coverage reports. This must "
-                + "currently be a filegroup that contains a single file, the binary. Defaults to "
-                + "'//tools/test:coverage_report_generator'.")
+                + "be a binary target. Defaults to '//tools/test:coverage_report_generator'.")
     public Label coverageReportGenerator;
   }
 
