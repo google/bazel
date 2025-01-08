@@ -134,7 +134,7 @@ wstring MakeErrorMessage(const wchar_t* file, int line,
 wstring GetLastErrorString(DWORD error_code);
 
 // Same as `AsExecutablePathForCreateProcess` except it won't quote the result.
-wstring AsShortPath(wstring path, wstring* result);
+wstring AsShortPath(wstring path, wstring* result, bool ensure_short = true);
 
 // Computes a path suitable as the executable part in CreateProcessA's cmdline.
 //
@@ -158,8 +158,12 @@ wstring AsShortPath(wstring path, wstring* result);
 // Otherwise this method attempts to compute an 8dot3 style short name for
 // `path`, and if that succeeds and the result is at most MAX_PATH - 1 long (not
 // including null terminator), then that will be the result (plus quotes).
-// Otherwise this function fails and returns an error message.
-wstring AsExecutablePathForCreateProcess(wstring path, wstring* result);
+
+// If ensure_short is set to true, this function fails and returns an error message when
+// the path is still too long after 8dot3 shortening.
+// If ensure_short is set to false, the input path is simply returned and the caller must check
+// the length of the path.
+wstring AsExecutablePathForCreateProcess(wstring path, wstring* result, bool ensure_short = true);
 
 }  // namespace windows
 }  // namespace bazel

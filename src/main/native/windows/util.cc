@@ -194,7 +194,7 @@ static bool Contains(const wstring& s, const WCHAR* substr) {
   return s.find(substr) != wstring::npos;
 }
 
-wstring AsShortPath(wstring path, wstring* result) {
+wstring AsShortPath(wstring path, wstring *result, bool ensure_short) {
   // Using `MAX_PATH` - 4 (256) instead of `MAX_PATH` to fix
   // https://github.com/bazelbuild/bazel/issues/12310
   static const size_t kMaxPath = MAX_PATH - 4;
@@ -249,7 +249,6 @@ wstring AsShortPath(wstring path, wstring* result) {
   // it and which we'll omit from `result`, plus a null terminator.
   static const size_t kMaxShortPath = kMaxPath + 4;
 
-  WCHAR wshort[kMaxShortPath];
   DWORD wshort_size = ::GetShortPathNameW(wlong.c_str(), nullptr, 0);
   if (wshort_size == 0) {
     DWORD err_code = GetLastError();
@@ -258,16 +257,26 @@ wstring AsShortPath(wstring path, wstring* result) {
     return res;
   }
 
-  if (wshort_size >= kMaxShortPath) {
+  if (ensure_short && (wshort_size >= kMaxShortPath)) {
     return MakeErrorMessage(WSTR(__FILE__), __LINE__, L"GetShortPathNameW",
                             wlong, L"cannot shorten the path enough");
   }
-  GetShortPathNameW(wlong.c_str(), wshort, kMaxShortPath);
-  result->assign(wshort + 4);
+
+  std::unique_ptr<WCHAR[]> wshort(new WCHAR[wshort_size]);
+  if (wshort_size - 1 !=
+      ::GetShortPathNameW(wlong.c_str(), wshort.get(), wshort_size)) {
+    DWORD err_code = GetLastError();
+    wstring res = MakeErrorMessage(WSTR(__FILE__), __LINE__,
+                                   L"GetShortPathNameW", wlong, err_code);
+    return res;
+  }
+
+  result->assign(wshort.get() + 4);
   return L"";
 }
 
-wstring AsExecutablePathForCreateProcess(wstring path, wstring* result) {
+wstring AsExecutablePathForCreateProcess(wstring path, wstring *result,
+                                         bool ensure_short) {
   if (path.empty()) {
     return MakeErrorMessage(WSTR(__FILE__), __LINE__,
                             L"AsExecutablePathForCreateProcess", path,
@@ -287,7 +296,7 @@ wstring AsExecutablePathForCreateProcess(wstring path, wstring* result) {
     }
     path = cwd + L"\\" + path;
   }
-  wstring error = AsShortPath(path, result);
+  wstring error = AsShortPath(path, result, ensure_short);
   if (!error.empty()) {
     return MakeErrorMessage(WSTR(__FILE__), __LINE__,
                             L"AsExecutablePathForCreateProcess", path, error);
