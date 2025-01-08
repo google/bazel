@@ -18,6 +18,7 @@ import com.google.common.collect.ImmutableList;
 import com.google.devtools.build.lib.analysis.actions.FileWriteActionContext;
 import com.google.devtools.build.lib.analysis.actions.TemplateExpansionContext;
 import com.google.devtools.build.lib.buildtool.BuildRequest;
+import com.google.devtools.build.lib.cmdline.Label;
 import com.google.devtools.build.lib.exec.ExecutionOptions;
 import com.google.devtools.build.lib.exec.ModuleActionContextRegistry;
 import com.google.devtools.build.lib.exec.SpawnCache;
@@ -89,6 +90,10 @@ public class BazelStrategyModule extends BlazeModule {
 
     for (Map.Entry<RegexFilter, List<String>> entry : options.strategyByRegexp) {
       registryBuilder.addDescriptionFilter(entry.getKey(), entry.getValue());
+    }
+
+    for (Map.Entry<String, List<String>> strategy : options.allowedStrategiesByExecPlatform) {
+      registryBuilder.addExecPlatformFilter(Label.parseCanonicalUnchecked(strategy.getKey()), strategy.getValue());
     }
   }
 }

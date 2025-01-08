@@ -555,7 +555,7 @@ public class RemoteSpawnRunner implements SpawnRunner {
         context.getContext(RemoteLocalFallbackRegistry.class);
     checkNotNull(localFallbackRegistry, "Expected a RemoteLocalFallbackRegistry to be registered");
     AbstractSpawnStrategy remoteLocalFallbackStrategy =
-        localFallbackRegistry.getRemoteLocalFallbackStrategy();
+        localFallbackRegistry.getRemoteLocalFallbackStrategy(spawn);
     checkNotNull(
         remoteLocalFallbackStrategy,
         "A remote local fallback strategy must be set if using remote fallback.");

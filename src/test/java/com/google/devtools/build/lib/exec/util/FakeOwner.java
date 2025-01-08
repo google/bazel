@@ -80,7 +80,19 @@ public class FakeOwner implements ActionExecutionMetadata {
   }
 
   public FakeOwner(String mnemonic, String progressMessage, String ownerLabel) {
-    this(mnemonic, progressMessage, checkNotNull(ownerLabel), null);
+    this(
+        mnemonic,
+        progressMessage,
+        checkNotNull(ownerLabel),
+        createPlatformInfo());
+  }
+
+  private static PlatformInfo createPlatformInfo() {
+    try {
+      return PlatformInfo.builder().setLabel(Label.parseCanonical("//:dummy_platform")).build();
+    } catch (Exception ex) {
+      throw new RuntimeException("Fake PlatformInfo construction failed.", ex);
+    }
   }
 
   @Override
