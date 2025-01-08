@@ -58,6 +58,7 @@ public final class TargetUtils {
         || tag.startsWith("disable-")
         || tag.startsWith("cpu:")
         || tag.equals(ExecutionRequirements.LOCAL)
+        || tag.startsWith("timeout")
         || tag.equals(ExecutionRequirements.WORKER_KEY_MNEMONIC)
         || tag.startsWith("resources:");
   }

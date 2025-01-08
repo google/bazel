@@ -222,6 +222,8 @@ message Spawn {
     COMMAND_LINE_EXPANSION_FAILURE = 7 [(metadata) = { exit_code: 1 }];
     EXEC_IO_EXCEPTION = 8 [(metadata) = { exit_code: 36 }];
     INVALID_TIMEOUT = 9 [(metadata) = { exit_code: 1 }];
+    DUPLICATE_TIMEOUT_TAGS = 16 [(metadata) = { exit_code: 1 }];
+    INVALID_TIMEOUT_TAG = 17 [(metadata) = { exit_code: 1 }];
     INVALID_REMOTE_EXECUTION_PROPERTIES = 10 [(metadata) = { exit_code: 1 }];
     NO_USABLE_STRATEGY_FOUND = 11 [(metadata) = { exit_code: 1 }];
     // TODO(b/138456686): this code should be deprecated when SpawnResult is

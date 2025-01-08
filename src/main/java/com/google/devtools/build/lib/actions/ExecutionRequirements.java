@@ -118,7 +118,31 @@ public class ExecutionRequirements {
   }
 
   /** If specified, the timeout of this action in seconds. Must be decimal integer. */
-  public static final String TIMEOUT = "timeout";
+  public static final ParseableRequirement TIMEOUT =
+      ParseableRequirement.create(
+          "timeout:<int>",
+          Pattern.compile("timeout:(.+)"),
+          s -> {
+            Preconditions.checkNotNull(s);
+
+            int value;
+            try {
+              value = Integer.parseInt(s);
+            } catch (NumberFormatException e) {
+              return "can't be parsed as an integer";
+            }
+
+            // De-and-reserialize & compare to only allow canonical integer formats.
+            if (!Integer.toString(value).equals(s)) {
+              return "must be in canonical format (e.g. '4' instead of '+04')";
+            }
+
+            if (value < 1) {
+              return "can't be zero or negative";
+            }
+
+            return null;
+          });
 
   /** If an action would not successfully run other than on Darwin. */
   public static final String REQUIRES_DARWIN = "requires-darwin";

@@ -415,7 +415,7 @@ public final class StarlarkRuleImplementationFunctionsTest extends BuildViewTest
         "  inputs = ruleContext.files.srcs,",
         "  outputs = ruleContext.files.srcs,",
         "  env = {'a' : 'b'},",
-        "  execution_requirements = {'timeout' : '10', 'block-network' : 'foo'},",
+        "  execution_requirements = {'block-network' : 'foo'},",
         "  mnemonic = 'DummyMnemonic',",
         "  command = 'dummy_command',",
         "  progress_message = 'dummy_message')");
@@ -424,8 +424,29 @@ public final class StarlarkRuleImplementationFunctionsTest extends BuildViewTest
             Iterables.getOnlyElement(
                 ruleContext.getRuleContext().getAnalysisEnvironment().getRegisteredActions());
     assertThat(action.getIncompleteEnvironmentForTesting()).containsExactly("a", "b");
-    // We expect "timeout" to be filtered by TargetUtils.
     assertThat(action.getExecutionInfo()).containsExactly("block-network", "foo");
+  }
+
+  @Test
+  public void testCreateSpawnActionEnvAndExecInfo_withTimeout() throws Exception {
+    StarlarkRuleContext ruleContext = createRuleContext("//foo:foo");
+    setRuleContext(ruleContext);
+    ev.exec(
+        "ruleContext.actions.run_shell(",
+        "  inputs = ruleContext.files.srcs,",
+        "  outputs = ruleContext.files.srcs,",
+        "  execution_requirements = {",
+        "    'timeout': '42',",
+        "  },",
+        "  mnemonic = 'DummyMnemonic',",
+        "  command = 'dummy_command',",
+        "  progress_message = 'dummy_message')");
+    SpawnAction action =
+        (SpawnAction)
+            Iterables.getOnlyElement(
+                ruleContext.getRuleContext().getAnalysisEnvironment().getRegisteredActions());
+    assertThat(action.getExecutionInfo())
+        .containsExactly("timeout", "42");
   }
 
   @Test

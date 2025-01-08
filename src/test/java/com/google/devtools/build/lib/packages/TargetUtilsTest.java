@@ -224,6 +224,19 @@ public class TargetUtilsTest extends PackageLoadingTestCase {
   }
 
   @Test
+  public void testExecutionInfo_withPrefixTimeout() throws Exception {
+    scratch.file(
+        "tests/BUILD",
+        "load('//test_defs:foo_binary.bzl', 'foo_binary')",
+        "foo_binary(name = 'with-prefix-timeout', srcs=['sh.sh'], tags=['timeout:123', 'wrong-tag'])");
+
+    Rule withCpuPrefix = (Rule) getTarget("//tests:with-prefix-timeout");
+
+    Map<String, String> execInfo = TargetUtils.getExecutionInfo(withCpuPrefix);
+    assertThat(execInfo).containsExactly("timeout:123", "");
+  }
+
+  @Test
   public void testExecutionInfo_withLocalTag() throws Exception {
     scratch.file(
         "tests/BUILD",

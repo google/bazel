@@ -120,7 +120,7 @@ public class StandaloneTestStrategy extends TestStrategy {
       // for this.
       executionInfo.put(ExecutionRequirements.NO_CACHE, "");
     }
-    executionInfo.put(ExecutionRequirements.TIMEOUT, "" + getTimeout(action).toSeconds());
+    executionInfo.put("timeout", "" + getTimeout(action).toSeconds());
 
     SimpleSpawn.LocalResourcesSupplier localResourcesSupplier =
         () ->
