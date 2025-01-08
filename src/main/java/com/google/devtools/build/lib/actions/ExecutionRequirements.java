@@ -308,4 +308,7 @@ public class ExecutionRequirements {
    * segment from the paths of all inputs and outputs.
    */
   public static final String SUPPORTS_PATH_MAPPING = "supports-path-mapping";
+
+  /** Disables cgroups for a sandbox spawn */
+  public static final String NO_SUPPORTS_CGROUPS = "no-supports-cgroups";
 }
