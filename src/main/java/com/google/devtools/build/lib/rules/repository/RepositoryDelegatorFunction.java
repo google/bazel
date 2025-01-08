@@ -722,7 +722,9 @@ public final class RepositoryDelegatorFunction implements SkyFunction {
             // Break early, need to reload anyway. This also detects marker file version changes
             // so that unknown formats are not parsed.
             return ImmutableMap.of(
-                new RepoRecordedInput.NeverUpToDateRepoRecordedInput("repo rule changed"), "");
+                new RepoRecordedInput.NeverUpToDateRepoRecordedInput(
+                    "Bazel version, flags, repo rule definition or attributes changed"),
+                "");
           }
           firstLineVerified = true;
           recordedInputValues = new TreeMap<>();
