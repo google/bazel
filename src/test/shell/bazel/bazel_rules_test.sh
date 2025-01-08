@@ -1293,4 +1293,51 @@ EOF
   expect_log "in copy of external/other_repo/pkg/binary.sh: '+_repo_rules+other_repo'"
 }
 
+function test_bash_runfiles_rlocation_can_be_evald() {
+  mkdir -p pkg
+  cat > pkg/BUILD.bazel <<'EOF'
+sh_test(
+    name = "test",
+    srcs = ["test.sh"],
+    args = [
+        "$(rlocationpath hello.sh)",
+    ],
+    data = [
+        "hello.sh",
+        "@bazel_tools//tools/bash/runfiles",
+    ],
+)
+EOF
+  cat > pkg/test.sh <<'EOF'
+#!/usr/bin/env bash
+
+# --- begin runfiles.bash initialization v3 ---
+# Copy-pasted from the Bazel Bash runfiles library v3.
+set -uo pipefail; set +e; f=bazel_tools/tools/bash/runfiles/runfiles.bash
+# shellcheck disable=SC1090
+source "${RUNFILES_DIR:-/dev/null}/$f" 2>/dev/null || \
+  source "$(grep -sm1 "^$f " "${RUNFILES_MANIFEST_FILE:-/dev/null}" | cut -f2- -d' ')" 2>/dev/null || \
+  source "$0.runfiles/$f" 2>/dev/null || \
+  source "$(grep -sm1 "^$f " "$0.runfiles_manifest" | cut -f2- -d' ')" 2>/dev/null || \
+  source "$(grep -sm1 "^$f " "$0.exe.runfiles_manifest" | cut -f2- -d' ')" 2>/dev/null || \
+  { echo>&2 "ERROR: cannot find $f"; exit 1; }; f=; set -e
+# --- end runfiles.bash initialization v3 ---
+
+hello_path=$(rlocation $1)
+result=$(eval "$hello_path")
+if [[ "$result" != "Hello, world!" ]]; then
+  echo "Expected 'Hello, world!', got '$result'"
+  exit 1
+fi
+EOF
+  chmod +x pkg/test.sh
+  cat > pkg/hello.sh <<'EOF'
+#!/usr/bin/env bash
+echo "Hello, world!"
+EOF
+  chmod +x pkg/hello.sh
+
+  bazel test --test_output=errors //pkg:test &>"$TEST_log" || fail "Test should succeed"
+}
+
 run_suite "rules test"
