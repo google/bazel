@@ -1,4 +1,4 @@
-// Copyright 2014 The Bazel Authors. All rights reserved.
+// Copyright 2024 The Bazel Authors. All rights reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -14,8 +14,6 @@
 package com.google.devtools.common.options;
 
 /**
- * Enum used to represent tri-state options (yes/no/auto).
+ * HasNegativeFlag is a marker interface to show that a flag may be negated.
  */
-public enum TriState implements HasNegativeFlag {
-  YES, NO, AUTO
-}
+public interface HasNegativeFlag {}

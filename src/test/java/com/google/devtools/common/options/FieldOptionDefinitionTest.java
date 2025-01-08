@@ -19,6 +19,7 @@ import static org.junit.Assert.assertThrows;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
+import com.google.devtools.build.lib.actions.ActionExecutionContext;
 import com.google.devtools.common.options.Converters.AssignmentConverter;
 import com.google.devtools.common.options.Converters.IntegerConverter;
 import com.google.devtools.common.options.Converters.StringConverter;
@@ -208,6 +209,27 @@ public class FieldOptionDefinitionTest {
         documentationCategory = OptionDocumentationCategory.UNCATEGORIZED,
         effectTags = OptionEffectTag.NO_OP)
     public List<String> nonEmptyStringMultipleOption;
+
+    @Option(
+        name = "custom_negatable_option",
+        allowMultiple = false,
+        converter = CustomNegatableOptionConverter.class,
+        defaultValue = "yes",
+        documentationCategory = OptionDocumentationCategory.UNCATEGORIZED,
+        effectTags = OptionEffectTag.NO_OP
+    )
+    public CustomNegatableOption customNegatableOption;
+  }
+
+  enum CustomNegatableOption implements HasNegativeFlag {
+    YES, NO, PERHAPS
+  }
+
+  public static class CustomNegatableOptionConverter extends BoolOrEnumConverter<CustomNegatableOption> {
+    public CustomNegatableOptionConverter() {
+      super(
+              CustomNegatableOption.class, "custom negatable option", CustomNegatableOption.YES, CustomNegatableOption.NO);
+    }
   }
 
   @Test
@@ -267,5 +289,19 @@ public class FieldOptionDefinitionTest {
 
     // assert
     assertThat(result).containsExactly("text");
+  }
+
+  @Test
+  public void customFlagWithNegative() throws Exception {
+    // arrange
+    OptionDefinition optionDef =
+            FieldOptionDefinition.extractOptionDefinition(
+                    DefaultValueTestOptions.class.getField("customNegatableOption"));
+
+    // act
+    boolean hasNegative = optionDef.hasNegativeOption();
+
+    // assert
+    assertThat(hasNegative).isTrue();
   }
 }

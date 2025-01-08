@@ -126,7 +126,7 @@ public abstract class OptionDefinition implements Comparable<OptionDefinition> {
 
   /** Returns whether an option --foo has a negative equivalent --nofoo. */
   public boolean hasNegativeOption() {
-    return getType().equals(boolean.class) || getType().equals(TriState.class);
+    return getType().equals(boolean.class) || HasNegativeFlag.class.isAssignableFrom(getType());
   }
 
   /** The type of the optionDefinition. */
