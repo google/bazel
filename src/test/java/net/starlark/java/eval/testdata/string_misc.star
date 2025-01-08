@@ -150,6 +150,7 @@ assert_eq("abc".count("c", -1), 1)
 assert_eq("abc".count("c", 0, 5), 1)
 assert_eq("abc".count("c", 0, -1), 0)
 assert_eq("abc".count("a", 0, -1), 1)
+assert_eq("ababab".count("ab", 0, 5), 2)
 
 # isalpha
 assert_eq("".isalpha(), False)
