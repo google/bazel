@@ -102,11 +102,12 @@ public class IndexRegistryTest extends FoundationTestCase {
             ImmutableMap.of(),
             Optional.empty());
     assertThat(registry.getModuleFile(createModuleKey("foo", "1.0"), reporter, downloadManager))
-        .hasValue(
+        .isEqualTo(
             ModuleFile.create(
                 "lol".getBytes(UTF_8), server.getUrl() + "/myreg/modules/foo/1.0/MODULE.bazel"));
-    assertThat(registry.getModuleFile(createModuleKey("bar", "1.0"), reporter, downloadManager))
-        .isEmpty();
+    assertThrows(
+        Registry.NotFoundException.class,
+        () -> registry.getModuleFile(createModuleKey("bar", "1.0"), reporter, downloadManager));
   }
 
   @Test
@@ -137,11 +138,12 @@ public class IndexRegistryTest extends FoundationTestCase {
 
     downloadManager.setNetrcCreds(new NetrcCredentials(netrc));
     assertThat(registry.getModuleFile(createModuleKey("foo", "1.0"), reporter, downloadManager))
-        .hasValue(
+        .isEqualTo(
             ModuleFile.create(
                 "lol".getBytes(UTF_8), server.getUrl() + "/myreg/modules/foo/1.0/MODULE.bazel"));
-    assertThat(registry.getModuleFile(createModuleKey("bar", "1.0"), reporter, downloadManager))
-        .isEmpty();
+    assertThrows(
+        Registry.NotFoundException.class,
+        () -> registry.getModuleFile(createModuleKey("bar", "1.0"), reporter, downloadManager));
   }
 
   @Test
@@ -160,9 +162,10 @@ public class IndexRegistryTest extends FoundationTestCase {
             ImmutableMap.of(),
             Optional.empty());
     assertThat(registry.getModuleFile(createModuleKey("foo", "1.0"), reporter, downloadManager))
-        .hasValue(ModuleFile.create("lol".getBytes(UTF_8), file.toURI().toString()));
-    assertThat(registry.getModuleFile(createModuleKey("bar", "1.0"), reporter, downloadManager))
-        .isEmpty();
+        .isEqualTo(ModuleFile.create("lol".getBytes(UTF_8), file.toURI().toString()));
+    assertThrows(
+        Registry.NotFoundException.class,
+        () -> registry.getModuleFile(createModuleKey("bar", "1.0"), reporter, downloadManager));
   }
 
   @Test
@@ -444,15 +447,20 @@ public class IndexRegistryTest extends FoundationTestCase {
             ImmutableMap.of(),
             Optional.empty());
     assertThat(registry.getModuleFile(createModuleKey("foo", "1.0"), reporter, downloadManager))
-        .hasValue(
+        .isEqualTo(
             ModuleFile.create(
                 "old".getBytes(UTF_8), server.getUrl() + "/myreg/modules/foo/1.0/MODULE.bazel"));
     assertThat(registry.getModuleFile(createModuleKey("foo", "2.0"), reporter, downloadManager))
-        .hasValue(
+        .isEqualTo(
             ModuleFile.create(
                 "new".getBytes(UTF_8), server.getUrl() + "/myreg/modules/foo/2.0/MODULE.bazel"));
-    assertThat(registry.getModuleFile(createModuleKey("bar", "1.0"), reporter, downloadManager))
-        .isEmpty();
+    var e =
+        assertThrows(
+            Registry.NotFoundException.class,
+            () -> registry.getModuleFile(createModuleKey("bar", "1.0"), reporter, downloadManager));
+    assertThat(e)
+        .hasMessageThat()
+        .isEqualTo(server.getUrl() + "/myreg/modules/bar/1.0/MODULE.bazel: not found");
 
     var recordedChecksums = eventRecorder.getRecordedHashes();
     assertThat(
@@ -467,7 +475,7 @@ public class IndexRegistryTest extends FoundationTestCase {
             Optional.empty())
         .inOrder();
 
-    registry =
+    Registry registry2 =
         registryFactory.createRegistry(
             server.getUrl() + "/myreg",
             LockfileMode.UPDATE,
@@ -479,16 +487,25 @@ public class IndexRegistryTest extends FoundationTestCase {
     server.unserve("/myreg/modules/foo/1.0/MODULE.bazel");
     server.unserve("/myreg/modules/foo/2.0/MODULE.bazel");
     server.serve("/myreg/modules/bar/1.0/MODULE.bazel", "no longer 404");
-    assertThat(registry.getModuleFile(createModuleKey("foo", "1.0"), reporter, downloadManager))
-        .hasValue(
+    assertThat(registry2.getModuleFile(createModuleKey("foo", "1.0"), reporter, downloadManager))
+        .isEqualTo(
             ModuleFile.create(
                 "old".getBytes(UTF_8), server.getUrl() + "/myreg/modules/foo/1.0/MODULE.bazel"));
-    assertThat(registry.getModuleFile(createModuleKey("foo", "2.0"), reporter, downloadManager))
-        .hasValue(
+    assertThat(registry2.getModuleFile(createModuleKey("foo", "2.0"), reporter, downloadManager))
+        .isEqualTo(
             ModuleFile.create(
                 "new".getBytes(UTF_8), server.getUrl() + "/myreg/modules/foo/2.0/MODULE.bazel"));
-    assertThat(registry.getModuleFile(createModuleKey("bar", "1.0"), reporter, downloadManager))
-        .isEmpty();
+    e =
+        assertThrows(
+            Registry.NotFoundException.class,
+            () ->
+                registry2.getModuleFile(createModuleKey("bar", "1.0"), reporter, downloadManager));
+    assertThat(e)
+        .hasMessageThat()
+        .isEqualTo(
+            server.getUrl()
+                + "/myreg/modules/bar/1.0/MODULE.bazel: previously not found (as recorded in"
+                + " MODULE.bazel.lock, refresh with --lockfile_mode=refresh)");
   }
 
   @Test
