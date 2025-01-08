@@ -73,7 +73,7 @@ static int global_child_pid;
 
 // Helper methods
 static void CreateFile(const char *path) {
-  int handle = open(path, O_CREAT | O_WRONLY | O_EXCL, 0666);
+  int handle = open(path, O_CREAT | O_WRONLY | O_TRUNC | O_NOFOLLOW, 0666);
   if (handle < 0) {
     DIE("open");
   }
@@ -87,6 +87,15 @@ static void CreateFile(const char *path) {
 // certain filesystems (e.g. XFS).
 static void LinkFile(const char *path) {
   if (link("tmp/empty_file", path) < 0) {
+    if (errno == EEXIST) {
+      // Try to remove the existing file first.
+      if (unlink(path) < 0) {
+        DIE("unlink %s", path);
+      }
+      if (link("tmp/empty_file", path) == 0) {
+        return;
+      }
+    }
     DIE("link %s", path);
   }
 }
