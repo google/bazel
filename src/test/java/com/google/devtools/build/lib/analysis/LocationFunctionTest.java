@@ -155,6 +155,18 @@ public class LocationFunctionTest {
   }
 
   @Test
+  public void execPathDirname() throws Exception {
+    LocationFunction func =
+        new LocationFunctionBuilder("//foo", true)
+            .setPathType(LocationFunction.PathType.EXEC)
+            .setDirnameOnly(true)
+            .add("//foo", "/exec/bar", "/exec/out/subdir/foobar")
+            .build();
+    assertThat(func.apply("//foo", RepositoryMapping.ALWAYS_FALLBACK, null))
+        .isEqualTo(". out/subdir");
+  }
+
+  @Test
   public void rlocationPath() throws Exception {
     LocationFunction func =
         new LocationFunctionBuilder("//foo", true)
@@ -195,16 +207,18 @@ final class LocationFunctionBuilder {
   private final boolean multiple;
   private LocationFunction.PathType pathType = LocationFunction.PathType.LOCATION;
   private boolean legacyExternalRunfiles;
+  private boolean dirnameOnly;
   private final Map<Label, Collection<Artifact>> labelMap = new HashMap<>();
 
   LocationFunctionBuilder(String rootLabel, boolean multiple) {
     this.root = Label.parseCanonicalUnchecked(rootLabel);
     this.multiple = multiple;
+    this.dirnameOnly = false;
   }
 
   public LocationFunction build() {
     return new LocationFunction(
-        root, Suppliers.ofInstance(labelMap), pathType, legacyExternalRunfiles, multiple);
+        root, Suppliers.ofInstance(labelMap), pathType, legacyExternalRunfiles, multiple, dirnameOnly);
   }
 
   @CanIgnoreReturnValue
@@ -216,6 +230,12 @@ final class LocationFunctionBuilder {
   @CanIgnoreReturnValue
   public LocationFunctionBuilder setLegacyExternalRunfiles(boolean legacyExternalRunfiles) {
     this.legacyExternalRunfiles = legacyExternalRunfiles;
+    return this;
+  }
+
+  @CanIgnoreReturnValue
+  public LocationFunctionBuilder setDirnameOnly(boolean dirnameOnly) {
+    this.dirnameOnly = dirnameOnly;
     return this;
   }
 

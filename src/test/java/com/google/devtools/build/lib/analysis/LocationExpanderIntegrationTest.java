@@ -180,10 +180,14 @@ public class LocationExpanderIntegrationTest extends BuildViewTestCase {
         .matches("foo .*-out/.*/expansion/foo\\.txt bar");
     assertThat(expander.expand("foo $(execpaths :foo) bar"))
         .matches("foo .*-out/.*/expansion/foo\\.txt bar");
+    assertThat(expander.expand("foo $(execpath_dirname :foo) bar"))
+        .matches("foo .*-out/.*/expansion bar");
     assertThat(expander.expand("foo $(rootpath :foo) bar"))
         .matches("foo expansion/foo.txt bar");
     assertThat(expander.expand("foo $(rootpaths :foo) bar"))
         .matches("foo expansion/foo.txt bar");
+    assertThat(expander.expand("foo $(rootpath_dirname :foo) bar"))
+        .matches("foo ./expansion bar");
     assertThat(expander.expand("foo $(rlocationpath :foo) bar"))
         .isEqualTo("foo " + ruleClassProvider.getRunfilesPrefix() + "/expansion/foo.txt bar");
     assertThat(expander.expand("foo $(rlocationpaths :foo) bar"))

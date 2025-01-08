@@ -67,6 +67,9 @@ public final class LocationExpander {
   private static final boolean EXACTLY_ONE = false;
   private static final boolean ALLOW_MULTIPLE = true;
 
+  private static final boolean FULL_PATH = false;
+  private static final boolean DIRNAME_ONLY = true;
+
   private final RuleErrorConsumer ruleErrorConsumer;
   private final ImmutableMap<String, LocationFunction> functions;
   private final RepositoryMapping repositoryMapping;
@@ -253,18 +256,21 @@ public final class LocationExpander {
     private final PathType pathType;
     private final boolean legacyExternalRunfiles;
     private final boolean multiple;
+    private final boolean dirnameOnly;
 
     LocationFunction(
         Label root,
         Supplier<Map<Label, Collection<Artifact>>> locationMapSupplier,
         PathType pathType,
         boolean legacyExternalRunfiles,
-        boolean multiple) {
+        boolean multiple,
+        boolean dirnameOnly) {
       this.root = root;
       this.locationMapSupplier = locationMapSupplier;
       this.pathType = Preconditions.checkNotNull(pathType);
       this.legacyExternalRunfiles = legacyExternalRunfiles;
       this.multiple = multiple;
+      this.dirnameOnly = dirnameOnly;
     }
 
     /**
@@ -348,7 +354,7 @@ public final class LocationExpander {
     }
 
     private PathFragment getPath(Artifact artifact, String workspaceRunfilesDirectory) {
-      return switch (pathType) {
+      PathFragment path = switch (pathType) {
         case LOCATION ->
             legacyExternalRunfiles
                 ? artifact.getPathForLocationExpansion()
@@ -363,6 +369,10 @@ public final class LocationExpander {
           }
         }
       };
+      if (dirnameOnly) {
+        return path.getParentDirectory();
+      }
+      return path;
     }
 
     private String joinPaths(Collection<String> paths) {
@@ -387,7 +397,8 @@ public final class LocationExpander {
                 locationMap,
                 execPaths ? PathType.EXEC : PathType.LOCATION,
                 legacyExternalRunfiles,
-                EXACTLY_ONE))
+                EXACTLY_ONE,
+                FULL_PATH))
         .put(
             "locations",
             new LocationFunction(
@@ -395,31 +406,40 @@ public final class LocationExpander {
                 locationMap,
                 execPaths ? PathType.EXEC : PathType.LOCATION,
                 legacyExternalRunfiles,
-                ALLOW_MULTIPLE))
+                ALLOW_MULTIPLE,
+                FULL_PATH))
         .put(
             "rootpath",
             new LocationFunction(
-                root, locationMap, PathType.LOCATION, legacyExternalRunfiles, EXACTLY_ONE))
+                root, locationMap, PathType.LOCATION, legacyExternalRunfiles, EXACTLY_ONE, FULL_PATH))
         .put(
             "rootpaths",
             new LocationFunction(
-                root, locationMap, PathType.LOCATION, legacyExternalRunfiles, ALLOW_MULTIPLE))
+                root, locationMap, PathType.LOCATION, legacyExternalRunfiles, ALLOW_MULTIPLE, FULL_PATH))
+        .put(
+            "rootpath_dirname",
+            new LocationFunction(
+                root, locationMap, PathType.LOCATION, legacyExternalRunfiles, EXACTLY_ONE, DIRNAME_ONLY))
         .put(
             "execpath",
             new LocationFunction(
-                root, locationMap, PathType.EXEC, legacyExternalRunfiles, EXACTLY_ONE))
+                root, locationMap, PathType.EXEC, legacyExternalRunfiles, EXACTLY_ONE, FULL_PATH))
         .put(
             "execpaths",
             new LocationFunction(
-                root, locationMap, PathType.EXEC, legacyExternalRunfiles, ALLOW_MULTIPLE))
+                root, locationMap, PathType.EXEC, legacyExternalRunfiles, ALLOW_MULTIPLE, FULL_PATH))
+        .put(
+            "execpath_dirname",
+            new LocationFunction(
+                root, locationMap, PathType.EXEC, legacyExternalRunfiles, EXACTLY_ONE, DIRNAME_ONLY))
         .put(
             "rlocationpath",
             new LocationFunction(
-                root, locationMap, PathType.RLOCATION, legacyExternalRunfiles, EXACTLY_ONE))
+                root, locationMap, PathType.RLOCATION, legacyExternalRunfiles, EXACTLY_ONE, FULL_PATH))
         .put(
             "rlocationpaths",
             new LocationFunction(
-                root, locationMap, PathType.RLOCATION, legacyExternalRunfiles, ALLOW_MULTIPLE))
+                root, locationMap, PathType.RLOCATION, legacyExternalRunfiles, ALLOW_MULTIPLE, FULL_PATH))
         .buildOrThrow();
   }
 
