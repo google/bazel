@@ -678,7 +678,7 @@ def _compile(
         conly_flags = [],
         cxx_flags = [],
         compilation_contexts = [],
-        implementation_compilation_contexts = _UNBOUND,
+        implementation_compilation_contexts = [],
         disallow_pic_outputs = False,
         disallow_nopic_outputs = False,
         additional_include_scanning_roots = [],
@@ -704,7 +704,6 @@ def _compile(
        code_coverage_enabled != _UNBOUND or \
        purpose != _UNBOUND or \
        hdrs_checking_mode != _UNBOUND or \
-       implementation_compilation_contexts != _UNBOUND or \
        copts_filter != _UNBOUND or \
        separate_module_headers != _UNBOUND or \
        module_interfaces != _UNBOUND or \
@@ -727,8 +726,6 @@ def _compile(
         purpose = None
     if hdrs_checking_mode == _UNBOUND:
         hdrs_checking_mode = None
-    if implementation_compilation_contexts == _UNBOUND:
-        implementation_compilation_contexts = []
     if copts_filter == _UNBOUND:
         copts_filter = None
     if separate_module_headers == _UNBOUND:
