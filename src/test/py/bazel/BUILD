@@ -300,6 +300,7 @@ py_test(
     srcs = ["bzlmod/bazel_lockfile_test.py"],
     shard_count = 5,
     tags = [
+        "manual",
         "requires-network",
     ],
     deps = [

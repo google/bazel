@@ -106,6 +106,8 @@ class TestBase(absltest.TestCase):
       # Disable WORKSPACE in python tests by default
       # TODO(pcloudy): Remove when --enable_workspace defaults to false
       f.write('common --noenable_workspace\n')
+      f.write('common --registry=http://localhost:8000/\n')
+      f.write('common --registry=https://bcr.bazel.build/\n')
 
     # An empty MODULE.bazel and a corresponding MODULE.bazel.lock will prevent
     # tests from accessing BCR

@@ -55,6 +55,8 @@ public class DefaultToolsSetup implements ToolsSetup {
     }
 
     lines.add("common --noenable_workspace");
+    lines.add("common --registry=http://localhost:8000/");
+    lines.add("common --registry=https://bcr.bazel.build/");
 
     context.write(".bazelrc", lines);
   }

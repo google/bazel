@@ -104,3 +104,6 @@ test:ci-windows --test_env=JAVA_HOME
 test:ci-windows --test_env=TEST_INSTALL_BASE=C:/b/bazeltest_install_base
 test:ci-windows --test_env=REPOSITORY_CACHE=C:/b/bazeltest_repo_cache
 test:ci-windows --test_tag_filters=-no_windows,-slow
+
+common --registry=http://localhost:8000/
+common --registry=https://bcr.bazel.build/

@@ -1,0 +1,103 @@
+module(
+    name = "rules_java",
+    version = "999.999.999",
+    bazel_compatibility = [">=6.4.0"],
+    compatibility_level = 1,
+)
+
+bazel_dep(name = "platforms", version = "0.0.4")
+bazel_dep(name = "rules_cc", version = "0.0.15")
+bazel_dep(name = "bazel_features", version = "1.11.0")
+bazel_dep(name = "bazel_skylib", version = "1.6.1")
+bazel_dep(name = "protobuf", version = "27.0", repo_name = "com_google_protobuf")
+
+# Required by @remote_java_tools, which is loaded via module extension.
+bazel_dep(name = "rules_license", version = "0.0.3")
+bazel_dep(name = "abseil-cpp", version = "20230802.1", repo_name = "com_google_absl")
+
+register_toolchains("//toolchains:all")
+
+toolchains = use_extension("//java:extensions.bzl", "toolchains")
+
+# Declare remote java tools repos
+use_repo(toolchains, "remote_java_tools")
+use_repo(toolchains, "remote_java_tools_linux")
+use_repo(toolchains, "remote_java_tools_windows")
+use_repo(toolchains, "remote_java_tools_darwin_x86_64")
+use_repo(toolchains, "remote_java_tools_darwin_arm64")
+
+# Declare local jdk repo
+use_repo(toolchains, "local_jdk")
+
+register_toolchains(
+    "@local_jdk//:runtime_toolchain_definition",
+    "@local_jdk//:bootstrap_runtime_toolchain_definition",
+)
+
+# Declare all remote jdk toolchain config repos
+JDKS = {
+    # Must match JDK repos defined in remote_jdk8_repos()
+    "8": [
+        "linux",
+        "linux_aarch64",
+        "linux_s390x",
+        "macos",
+        "macos_aarch64",
+        "windows",
+    ],
+    # Must match JDK repos defined in remote_jdk11_repos()
+    "11": [
+        "linux",
+        "linux_aarch64",
+        "linux_ppc64le",
+        "linux_s390x",
+        "macos",
+        "macos_aarch64",
+        "win",
+        "win_arm64",
+    ],
+    # Must match JDK repos defined in remote_jdk17_repos()
+    "17": [
+        "linux",
+        "linux_aarch64",
+        "linux_ppc64le",
+        "linux_s390x",
+        "macos",
+        "macos_aarch64",
+        "win",
+        "win_arm64",
+    ],
+    # Must match JDK repos defined in remote_jdk21_repos()
+    "21": [
+        "linux",
+        "linux_aarch64",
+        "linux_ppc64le",
+        "linux_s390x",
+        "macos",
+        "macos_aarch64",
+        "win",
+        "win_arm64",
+    ],
+}
+
+REMOTE_JDK_REPOS = [(("remote_jdk" if version == "8" else "remotejdk") + version + "_" + platform) for version in JDKS for platform in JDKS[version]]
+
+[use_repo(
+    toolchains,
+    repo + "_toolchain_config_repo",
+) for repo in REMOTE_JDK_REPOS]
+
+[register_toolchains("@" + name + "_toolchain_config_repo//:all") for name in REMOTE_JDK_REPOS]
+
+# Compatibility layer
+compat = use_extension("//java:rules_java_deps.bzl", "compatibility_proxy")
+use_repo(compat, "compatibility_proxy")
+
+# Dev dependencies
+bazel_dep(name = "rules_pkg", version = "0.9.1", dev_dependency = True)
+bazel_dep(name = "stardoc", version = "0.7.1", dev_dependency = True)
+bazel_dep(name = "rules_shell", version = "0.2.0", dev_dependency = True)
+bazel_dep(name = "rules_testing", version = "0.7.0", dev_dependency = True)
+
+test_repositories = use_extension("//test:repositories.bzl", "test_repositories_ext", dev_dependency = True)
+use_repo(test_repositories, "guava", "truth")

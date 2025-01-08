@@ -80,6 +80,8 @@ filegroup(
 genrule(
     name = "generate_dist_lockfile",
     srcs = [
+        ".bazelrc",
+        "bazel_downloader.cfg",
         "MODULE.bazel",
         "//third_party/remoteapis:MODULE.bazel",
         "//third_party:BUILD",
@@ -102,7 +104,10 @@ genrule(
         "$$ROOT/$(location //src:bazel) --batch --output_user_root=$$TMPDIR/output_user_root query --check_direct_dependencies=error --lockfile_mode=update :all",
         "mv MODULE.bazel.lock $$ROOT/$@",
     ]),
-    tags = ["requires-network"],
+    tags = [
+        "local",
+        "requires-network",
+    ],
     tools = ["//src:bazel"],
 )
 

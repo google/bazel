@@ -102,6 +102,8 @@ def _repo_cache_tar_impl(ctx):
 
         if "sha256" in artifact:
             sha256 = artifact["sha256"]
+            if sha256 == "not found" and "localhost:8000" in url:
+                continue
             output_file = "content_addressable/sha256/%s/file" % sha256
             ctx.download(url, output_file, sha256, executable = False)
             archive_files.append(output_file)

@@ -321,6 +321,9 @@ common --nolegacy_external_runfiles
 build --java_runtime_version=21
 build --tool_java_runtime_version=21
 
+common --registry=http://localhost:8000/
+common --registry=https://bcr.bazel.build/
+
 ${EXTRA_BAZELRC:-}
 EOF
 
