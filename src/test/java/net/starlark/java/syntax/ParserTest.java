@@ -1018,7 +1018,7 @@ public final class ParserTest {
     parseExpression("lambda a, b=1, *args, **kwargs: a+b");
     parseExpression("lambda *, a, *b: 0");
 
-    // lambda has lower predecence than binary or.
+    // lambda has lower precedence than binary or.
     assertThat(parseExpression("lambda: x or y").toString()).isEqualTo("lambda: (x or y)");
 
     // This is a well known parsing ambiguity in Python.

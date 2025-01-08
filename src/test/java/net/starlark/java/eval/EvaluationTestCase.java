@@ -261,7 +261,7 @@ class EvaluationTestCase {
       return this;
     }
 
-    /** Evaluates the expresson and checks whether it fails with the expected error. */
+    /** Evaluates the expression and checks whether it fails with the expected error. */
     @CanIgnoreReturnValue
     Scenario testIfErrorContains(String expectedError, String... lines) throws Exception {
       runTest(errorTestable(false, expectedError, lines));

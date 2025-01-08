@@ -1277,7 +1277,7 @@ class Main {
 EOF
   write_java_custom_rule
 
-  bazel run java/com/google/sandwich:Main &> "$TEST_log" && fail "Java sandwich build shold have failed" || true
+  bazel run java/com/google/sandwich:Main &> "$TEST_log" && fail "Java sandwich build should have failed" || true
   expect_log "Using type com.google.sandwich.B from an indirect dependency"
   expect_log "Using type com.google.sandwich.C from an indirect dependency"
 }
@@ -1352,7 +1352,7 @@ class Main {
 EOF
   write_java_custom_rule
 
-  bazel run java/com/google/sandwich:Main &> "$TEST_log" && fail "Java sandwich build shold have failed" || true
+  bazel run java/com/google/sandwich:Main &> "$TEST_log" && fail "Java sandwich build should have failed" || true
   expect_log "Using type com.google.sandwich.B from an indirect dependency"
   expect_log "Using type com.google.sandwich.C from an indirect dependency"
 }
