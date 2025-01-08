@@ -689,7 +689,7 @@ public final class Label implements Comparable<Label>, StarlarkValue, SkyKey, Co
         // ignore
       }
     }
-    printer.append(getDisplayForm(mainRepoMapping));
+    printer.append(getShorthandDisplayForm(mainRepoMapping));
   }
 
   @Override

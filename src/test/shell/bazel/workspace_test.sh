@@ -724,8 +724,8 @@ EOF
   cd main
   bazel build @foo//:bar \
       >& "$TEST_log" || fail "Expected build to succeed"
-  expect_log "@b//blah:blah"
-  expect_not_log "@a//blah:blah"
+  expect_log "@b//blah"
+  expect_not_log "@a//blah"
 }
 
 function test_workspace_addition_change_aspect() {
