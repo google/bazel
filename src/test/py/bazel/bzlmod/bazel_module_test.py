@@ -323,10 +323,10 @@ class BazelModuleTest(test_base.TestBase):
     )
     stderr = '\n'.join(stderr)
     self.assertIn(
-        'WARNING: For repository \'aaa\', the root module requires module version aaa@1.0, but got aaa@1.1 in the resolved dependency graph.',
+        'WARNING: For repository \'aaa\', the root module requires module version aaa@1.0, but got aaa@1.1 in the resolved dependency graph. Source module(s): bbb@1.1, ccc@1.1',
         stderr)
     self.assertIn(
-        'WARNING: For repository \'bbb\', the root module requires module version bbb@1.0, but got bbb@1.1 in the resolved dependency graph.',
+        'WARNING: For repository \'bbb\', the root module requires module version bbb@1.0, but got bbb@1.1 in the resolved dependency graph. Source module(s): ccc@1.1',
         stderr)
     self.assertIn('main function => aaa@1.1', stdout)
     self.assertIn('main function => bbb@1.1', stdout)
@@ -338,10 +338,10 @@ class BazelModuleTest(test_base.TestBase):
     self.AssertExitCode(exit_code, 48, stderr)
     stderr = '\n'.join(stderr)
     self.assertIn(
-        'ERROR: For repository \'aaa\', the root module requires module version aaa@1.0, but got aaa@1.1 in the resolved dependency graph.',
+        'ERROR: For repository \'aaa\', the root module requires module version aaa@1.0, but got aaa@1.1 in the resolved dependency graph. Source module(s): bbb@1.1, ccc@1.1',
         stderr)
     self.assertIn(
-        'ERROR: For repository \'bbb\', the root module requires module version bbb@1.0, but got bbb@1.1 in the resolved dependency graph.',
+        'ERROR: For repository \'bbb\', the root module requires module version bbb@1.0, but got bbb@1.1 in the resolved dependency graph. Source module(s): ccc@1.1',
         stderr)
 
   def testRepositoryRuleErrorInModuleExtensionFailsTheBuild(self):

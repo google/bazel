@@ -185,7 +185,7 @@ public class BazelModuleResolutionFunction implements SkyFunction {
     try (SilentCloseable c =
         Profiler.instance().profile(ProfilerTask.BZLMOD, "verify root module direct deps")) {
       verifyRootModuleDirectDepsAreAccurate(
-          discoveryResult.depGraph().get(ModuleKey.ROOT),
+          discoveryResult.depGraph(),
           resolvedDepGraph.get(ModuleKey.ROOT),
           Objects.requireNonNull(CHECK_DIRECT_DEPENDENCIES.get(env)),
           env.getListener());
@@ -259,7 +259,7 @@ public class BazelModuleResolutionFunction implements SkyFunction {
   }
 
   private static void verifyRootModuleDirectDepsAreAccurate(
-      InterimModule discoveredRootModule,
+      ImmutableMap<ModuleKey, InterimModule> discoveredDepGraph,
       InterimModule resolvedRootModule,
       CheckDirectDepsMode mode,
       EventHandler eventHandler)
@@ -268,16 +268,34 @@ public class BazelModuleResolutionFunction implements SkyFunction {
       return;
     }
 
+    InterimModule discoveredRootModule = discoveredDepGraph.get(ModuleKey.ROOT);
     boolean failure = false;
     for (Map.Entry<String, DepSpec> dep : discoveredRootModule.getDeps().entrySet()) {
+      String depName = dep.getKey();
       ModuleKey resolved = resolvedRootModule.getDeps().get(dep.getKey()).toModuleKey();
       if (!dep.getValue().toModuleKey().equals(resolved)) {
+        // Find source(s) of unsupported version
+        Set<String> sourceModules = Sets.newHashSet();
+        for (Map.Entry<ModuleKey, InterimModule> module : discoveredDepGraph.entrySet()) {
+          ModuleKey discovered = module.getKey();
+          if (discovered.equals(discoveredRootModule)) {
+            continue;
+          }
+          InterimModule discoveredModule = module.getValue();
+          DepSpec resolvedDep = discoveredModule.getDeps().get(depName);
+          if (resolvedDep != null && resolvedDep.toModuleKey().equals(resolved)) {
+            sourceModules.add(discovered.toString());
+          }
+        }
+
         String message =
             String.format(
-                "For repository '%s', the root module requires module version %s, but got %s in the"
-                    + " resolved dependency graph. Please update the version in your MODULE.bazel"
-                    + " or set --check_direct_dependencies=off",
-                dep.getKey(), dep.getValue().toModuleKey(), resolved);
+                """
+                For repository '%s', the root module requires module version %s, but got %s in the \
+                resolved dependency graph. Source module(s): %s. Please update the version in your MODULE.bazel \
+                or set --check_direct_dependencies=off
+                """,
+                depName, dep.getValue().toModuleKey(), resolved, Joiner.on(", ").join(sourceModules));
         if (mode == CheckDirectDepsMode.WARNING) {
           eventHandler.handle(Event.warn(message));
         } else {
