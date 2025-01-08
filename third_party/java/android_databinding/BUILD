@@ -26,9 +26,3 @@ filegroup(
         "//third_party/java/android_databinding/v3_4_0:srcs",
     ],
 )
-
-# Executable for the databinding resource compiler.
-alias(
-    name = "exec",
-    actual = "//third_party/java/android_databinding/v3_4_0:exec",
-)
