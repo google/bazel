@@ -212,8 +212,7 @@ public class ActionGraphDump {
 
 
     if (action instanceof UnresolvedSymlinkAction) {
-      actionBuilder.setUnresolvedSymlinkTarget(
-          ((UnresolvedSymlinkAction) action).getTarget().toString());
+      actionBuilder.setUnresolvedSymlinkTarget(((UnresolvedSymlinkAction) action).getTarget());
     }
 
     // Include the content of param files in output.
