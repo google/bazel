@@ -577,4 +577,66 @@ end_of_record"
   assert_llvm_cc_coverage_result "$expected_foo_cc" "$cov_file"
 }
 
+function test_coverage_for_header_file() {
+  setup_llvm_coverage_tools_for_lcov || return 0
+
+  # Use llvm-cov in gcov mode.
+  add_to_bazelrc "common --repo_env=BAZEL_USE_LLVM_NATIVE_COVERAGE=0"
+  add_to_bazelrc "common --repo_env=GCOV=$(which llvm-cov)"
+
+  mkdir -p foo
+  cat > foo/BUILD <<'EOF'
+cc_library(
+    name = "a",
+    hdrs = ["a.h"],
+)
+
+cc_test(
+    name = "t",
+    srcs = ["t.cc"],
+    linkstatic = True,
+    deps = [":a"],
+)
+EOF
+
+  cat > foo/a.h <<'EOF'
+int a(bool what) {
+  if (what) {
+    return 2;
+  } else {
+    return 1;
+  }
+}
+EOF
+
+  cat > foo/t.cc <<'EOF'
+#include <stdio.h>
+#include "a.h"
+
+int main(void) {
+  a(true);
+}
+EOF
+
+  bazel coverage --combined_report=lcov --test_output=all \
+    //foo:t --instrumentation_filter=// &>$TEST_log || fail "Coverage failed"
+
+  local expected_result='SF:foo/a.h
+FN:1,_Z1ab
+FNDA:1,_Z1ab
+FNF:1
+FNH:1
+DA:1,1
+DA:2,1
+DA:3,1
+DA:5,0
+DA:7,1
+LH:4
+LF:5
+end_of_record'
+
+  assert_equals "$expected_result" "$(cat $(get_coverage_file_path_from_test_log) | grep -v '^BR')"
+  assert_equals "$expected_result" "$(cat bazel-out/_coverage/_coverage_report.dat | grep -v '^BR')"
+}
+
 run_suite "test tests"
