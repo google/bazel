@@ -176,11 +176,18 @@ public class Retrier {
     }
   }
 
+  /* Treating all retriable errors as successful api call. */
+  public static final Predicate<? super Exception> ALWAYS_SUCCESS =
+      e -> {
+        return true;
+      };
+
   private final Supplier<Backoff> backoffSupplier;
   private final Predicate<? super Exception> shouldRetry;
   private final CircuitBreaker circuitBreaker;
   private final ListeningScheduledExecutorService retryService;
   private final Sleeper sleeper;
+  private final Predicate<? super Exception> isSuccess;
 
   public Retrier(
       Supplier<Backoff> backoffSupplier,
@@ -189,6 +196,20 @@ public class Retrier {
       CircuitBreaker circuitBreaker) {
     this(
         backoffSupplier, shouldRetry, retryScheduler, circuitBreaker, TimeUnit.MILLISECONDS::sleep);
+  }
+
+  public Retrier(
+      Supplier<Backoff> backoffSupplier,
+      Predicate<? super Exception> shouldRetry,
+      ListeningScheduledExecutorService retryScheduler,
+      CircuitBreaker circuitBreaker,
+      Predicate<? super Exception> isSuccess) {
+    this.backoffSupplier = backoffSupplier;
+    this.shouldRetry = shouldRetry;
+    this.retryService = retryScheduler;
+    this.circuitBreaker = circuitBreaker;
+    this.sleeper = TimeUnit.MILLISECONDS::sleep;
+    this.isSuccess = isSuccess;
   }
 
   @VisibleForTesting
@@ -203,6 +224,7 @@ public class Retrier {
     this.retryService = retryService;
     this.circuitBreaker = circuitBreaker;
     this.sleeper = sleeper;
+    this.isSuccess = ALWAYS_SUCCESS;
   }
 
   ListeningScheduledExecutorService getRetryService() {
@@ -248,8 +270,12 @@ public class Retrier {
       } catch (Exception e) {
         Throwables.throwIfInstanceOf(e, InterruptedException.class);
         if (!shouldRetry.test(e)) {
-          // A non-retriable error doesn't represent server failure.
-          circuitBreaker.recordSuccess();
+          // A non-retriable error may represent either success or server failure.
+          if (isSuccess.test(e)) {
+            circuitBreaker.recordSuccess();
+          } else {
+            circuitBreaker.recordFailure();
+          }
           throw e;
         }
         circuitBreaker.recordFailure();
@@ -321,7 +347,11 @@ public class Retrier {
       // gRPC Errors NOT_FOUND, OUT_OF_RANGE, ALREADY_EXISTS etc. are non-retriable error, and they
       // don't represent an
       // issue in Server. So treating these errors as successful api call.
-      circuitBreaker.recordSuccess();
+      if (isSuccess.test(t)) {
+        circuitBreaker.recordSuccess();
+      } else {
+        circuitBreaker.recordFailure();
+      }
       return Futures.immediateFailedFuture(t);
     }
   }

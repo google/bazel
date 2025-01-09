@@ -67,18 +67,52 @@ public class RemoteRetrier extends Retrier {
         return RemoteRetrierUtils.causedByStatus(e, Status.Code.NOT_FOUND);
       };
 
+  public static final Predicate<? super Exception> GRPC_SUCCESS_CODES =
+      e -> {
+        Status s = fromException(e);
+        if (s == null) {
+          // It's not a gRPC error.
+          return false;
+        }
+        switch (s.getCode()) {
+          case INVALID_ARGUMENT:
+          case NOT_FOUND:
+          case ALREADY_EXISTS:
+          case OUT_OF_RANGE:
+            return true;
+          default:
+            return false;
+        }
+      };
+
   public RemoteRetrier(
       RemoteOptions options,
       Predicate<? super Exception> shouldRetry,
       ListeningScheduledExecutorService retryScheduler,
       CircuitBreaker circuitBreaker) {
-    this(
+    super(
         options.remoteMaxRetryAttempts > 0
             ? () -> new ExponentialBackoff(options)
             : () -> RETRIES_DISABLED,
         shouldRetry,
         retryScheduler,
         circuitBreaker);
+  }
+
+  public RemoteRetrier(
+      RemoteOptions options,
+      Predicate<? super Exception> shouldRetry,
+      ListeningScheduledExecutorService retryScheduler,
+      CircuitBreaker circuitBreaker,
+      Predicate<? super Exception> isSuccess) {
+    super(
+        options.remoteMaxRetryAttempts > 0
+            ? () -> new ExponentialBackoff(options)
+            : () -> RETRIES_DISABLED,
+        shouldRetry,
+        retryScheduler,
+        circuitBreaker,
+        isSuccess);
   }
 
   public RemoteRetrier(

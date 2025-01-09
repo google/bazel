@@ -19,6 +19,7 @@ import com.google.devtools.build.lib.remote.options.RemoteOptions;
 /** Factory for {@link Retrier.CircuitBreaker} */
 public class CircuitBreakerFactory {
   public static final int DEFAULT_MIN_CALL_COUNT_TO_COMPUTE_FAILURE_RATE = 100;
+  public static final int DEFAULT_MIN_FAIL_COUNT_TO_COMPUTE_FAILURE_RATE = 12;
 
   private CircuitBreakerFactory() {}
 
