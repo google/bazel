@@ -17,6 +17,7 @@ package com.google.devtools.build.lib.starlarkbuildapi.cpp;
 import com.google.devtools.build.docgen.annot.DocCategory;
 import com.google.devtools.build.docgen.annot.StarlarkConstructor;
 import com.google.devtools.build.lib.cmdline.Label;
+import com.google.devtools.build.lib.collect.nestedset.Depset;
 import com.google.devtools.build.lib.starlarkbuildapi.FileApi;
 import com.google.devtools.build.lib.starlarkbuildapi.core.ProviderApi;
 import com.google.devtools.build.lib.starlarkbuildapi.core.StructApi;
@@ -67,6 +68,14 @@ public interface DebugPackageInfoApi<FileT extends FileApi> extends StructApi {
   @Nullable
   FileT getDwpArtifact();
 
+  @StarlarkMethod(
+      name = "dwo_files",
+      doc = "Returns the .dwo files (for fission builds) or empty if --fission=no.",
+      structField = true,
+      allowReturnNones = true)
+  @Nullable
+  Depset getDwoFiles();
+
   /** The provider implementing this can construct DebugPackageInfo objects. */
   @StarlarkBuiltin(name = "Provider", doc = "", documented = false)
   interface Provider<FileT extends FileApi> extends ProviderApi {
@@ -98,12 +107,19 @@ public interface DebugPackageInfoApi<FileT extends FileApi> extends StructApi {
               positional = false,
               named = true,
               defaultValue = "None",
-              allowedTypes = {@ParamType(type = FileApi.class), @ParamType(type = NoneType.class)})
+              allowedTypes = {@ParamType(type = FileApi.class), @ParamType(type = NoneType.class)}),
+          @Param(
+              name = "dwo_files",
+              doc = "The depset of .dwo files (for fission builds) or null if --fission=no.",
+              positional = false,
+              named = true,
+              defaultValue = "None",
+              allowedTypes = {@ParamType(type = Depset.class), @ParamType(type = NoneType.class)})
         },
         selfCall = true)
     @StarlarkConstructor
     DebugPackageInfoApi<FileT> createDebugPackageInfo(
-        Label targetLabel, Object strippedFile, FileT unstrippedFile, Object dwpFile)
+        Label targetLabel, Object strippedFile, FileT unstrippedFile, Object dwpFile, Object dwoFiles)
         throws EvalException;
   }
 }
