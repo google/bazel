@@ -66,13 +66,17 @@ public class FakeRegistry implements Registry {
   }
 
   @Override
-  public Optional<ModuleFile> getModuleFile(
-      ModuleKey key, ExtendedEventHandler eventHandler, DownloadManager downloadManager) {
+  public ModuleFile getModuleFile(
+      ModuleKey key, ExtendedEventHandler eventHandler, DownloadManager downloadManager)
+      throws NotFoundException {
     String uri =
         String.format("%s/modules/%s/%s/MODULE.bazel", url, key.getName(), key.getVersion());
     var maybeContent = Optional.ofNullable(modules.get(key)).map(value -> value.getBytes(UTF_8));
     eventHandler.post(RegistryFileDownloadEvent.create(uri, maybeContent));
-    return maybeContent.map(content -> ModuleFile.create(content, uri));
+    if (maybeContent.isEmpty()) {
+      throw new NotFoundException("module not found: " + key);
+    }
+    return ModuleFile.create(maybeContent.get(), uri);
   }
 
   @Override

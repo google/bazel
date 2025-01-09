@@ -74,7 +74,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.Optional;
 import java.util.stream.Stream;
 import javax.annotation.Nullable;
 import net.starlark.java.eval.EvalException;
@@ -88,6 +87,7 @@ import net.starlark.java.eval.StarlarkThread;
  */
 public class ModuleFileFunction implements SkyFunction {
 
+  // Never empty.
   public static final Precomputed<ImmutableSet<String>> REGISTRIES =
       new Precomputed<>("registries");
   public static final Precomputed<Boolean> IGNORE_DEV_DEPS =
@@ -622,14 +622,21 @@ public class ModuleFileFunction implements SkyFunction {
     // Now go through the list of registries and use the first one that contains the requested
     // module.
     StoredEventHandler downloadEventHandler = new StoredEventHandler();
+    List<String> notFoundTrace = null;
     for (Registry registry : registryObjects) {
       try {
-        Optional<ModuleFile> maybeModuleFile =
-            registry.getModuleFile(key, downloadEventHandler, this.downloadManager);
-        if (maybeModuleFile.isEmpty()) {
+        ModuleFile originalModuleFile;
+        try {
+          originalModuleFile =
+              registry.getModuleFile(key, downloadEventHandler, this.downloadManager);
+        } catch (Registry.NotFoundException e) {
+          if (notFoundTrace == null) {
+            notFoundTrace = new ArrayList<>();
+          }
+          notFoundTrace.add(e.getMessage());
           continue;
         }
-        ModuleFile moduleFile = maybePatchModuleFile(maybeModuleFile.get(), override, env);
+        ModuleFile moduleFile = maybePatchModuleFile(originalModuleFile, override, env);
         if (moduleFile == null) {
           return null;
         }
@@ -643,7 +650,11 @@ public class ModuleFileFunction implements SkyFunction {
       }
     }
 
-    throw errorf(Code.MODULE_NOT_FOUND, "module not found in registries: %s", key);
+    throw errorf(
+        Code.MODULE_NOT_FOUND,
+        "module %s not found in registries:\n* %s",
+        key,
+        String.join("\n* ", notFoundTrace));
   }
 
   /**

@@ -494,8 +494,8 @@ class BazelOverridesTest(test_base.TestBase):
         allow_failure=True,
     )
     self.assertIn(
-        'ERROR: Error computing the main repository mapping: module not found'
-        ' in registries: ss@1.0',
+        'ERROR: Error computing the main repository mapping: module ss@1.0 not'
+        ' found in registries:',
         stderr,
     )
 

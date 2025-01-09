@@ -26,6 +26,7 @@ import com.google.devtools.build.lib.bazel.bzlmod.Version.ParseException;
 import com.google.devtools.build.lib.bazel.repository.downloader.Checksum;
 import com.google.devtools.build.lib.bazel.repository.downloader.Checksum.MissingChecksumException;
 import com.google.devtools.build.lib.bazel.repository.downloader.DownloadManager;
+import com.google.devtools.build.lib.cmdline.LabelConstants;
 import com.google.devtools.build.lib.events.ExtendedEventHandler;
 import com.google.devtools.build.lib.events.StoredEventHandler;
 import com.google.devtools.build.lib.profiler.Profiler;
@@ -131,28 +132,32 @@ public class IndexRegistry implements Registry {
     return url.toString();
   }
 
-  /** Grabs a file from the given URL. Returns {@link Optional#empty} if the file doesn't exist. */
-  private Optional<byte[]> grabFile(
+  /** Grabs a file from the given URL. Throws {@link NotFoundException} if it doesn't exist. */
+  private byte[] grabFile(
       String url,
       ExtendedEventHandler eventHandler,
       DownloadManager downloadManager,
       boolean useChecksum)
-      throws IOException, InterruptedException {
-    var maybeContent = doGrabFile(downloadManager, url, eventHandler, useChecksum);
-    if ((knownFileHashesMode == KnownFileHashesMode.USE_AND_UPDATE
-            || knownFileHashesMode == KnownFileHashesMode.USE_IMMUTABLE_AND_UPDATE)
-        && useChecksum) {
-      eventHandler.post(RegistryFileDownloadEvent.create(url, maybeContent));
+      throws IOException, InterruptedException, NotFoundException {
+    Optional<byte[]> maybeContent = Optional.empty();
+    try {
+      maybeContent = Optional.of(doGrabFile(downloadManager, url, eventHandler, useChecksum));
+      return maybeContent.get();
+    } finally {
+      if ((knownFileHashesMode == KnownFileHashesMode.USE_AND_UPDATE
+              || knownFileHashesMode == KnownFileHashesMode.USE_IMMUTABLE_AND_UPDATE)
+          && useChecksum) {
+        eventHandler.post(RegistryFileDownloadEvent.create(url, maybeContent));
+      }
     }
-    return maybeContent;
   }
 
-  private Optional<byte[]> doGrabFile(
+  private byte[] doGrabFile(
       DownloadManager downloadManager,
       String rawUrl,
       ExtendedEventHandler eventHandler,
       boolean useChecksum)
-      throws IOException, InterruptedException {
+      throws IOException, InterruptedException, NotFoundException {
     Optional<Checksum> checksum;
     if (knownFileHashesMode != KnownFileHashesMode.IGNORE && useChecksum) {
       Optional<Checksum> knownChecksum = knownFileHashes.get(rawUrl);
@@ -174,7 +179,11 @@ public class IndexRegistry implements Registry {
           checksum = Optional.empty();
         } else {
           // Guarantee reproducibility by assuming that the file still doesn't exist.
-          return Optional.empty();
+          throw new NotFoundException(
+              String.format(
+                  "%s: previously not found (as recorded in %s, refresh with"
+                      + " --lockfile_mode=refresh)",
+                  rawUrl, LabelConstants.MODULE_LOCKFILE_NAME));
         }
       } else {
         // The file is known, download with a checksum to potentially obtain a repository cache hit
@@ -203,7 +212,7 @@ public class IndexRegistry implements Registry {
         && !url.getProtocol().equals("file")
         && vendorManager.isUrlVendored(url)) {
       try {
-        return Optional.of(vendorManager.readRegistryUrl(url, checksum.get()));
+        return vendorManager.readRegistryUrl(url, checksum.get());
       } catch (IOException e) {
         throw new IOException(
             String.format(
@@ -216,10 +225,9 @@ public class IndexRegistry implements Registry {
 
     try (SilentCloseable c =
         Profiler.instance().profile(ProfilerTask.BZLMOD, () -> "download file: " + rawUrl)) {
-      return Optional.of(
-          downloadManager.downloadAndReadOneUrlForBzlmod(url, eventHandler, clientEnv, checksum));
+      return downloadManager.downloadAndReadOneUrlForBzlmod(url, eventHandler, clientEnv, checksum);
     } catch (FileNotFoundException e) {
-      return Optional.empty();
+      throw new NotFoundException(String.format("%s: not found", rawUrl));
     } catch (IOException e) {
       // Include the URL in the exception message for easier debugging.
       throw new IOException(
@@ -228,15 +236,14 @@ public class IndexRegistry implements Registry {
   }
 
   @Override
-  public Optional<ModuleFile> getModuleFile(
+  public ModuleFile getModuleFile(
       ModuleKey key, ExtendedEventHandler eventHandler, DownloadManager downloadManager)
-      throws IOException, InterruptedException {
+      throws IOException, InterruptedException, NotFoundException {
     String url =
         constructUrl(
             getUrl(), "modules", key.getName(), key.getVersion().toString(), "MODULE.bazel");
-    Optional<byte[]> maybeContent =
-        grabFile(url, eventHandler, downloadManager, /* useChecksum= */ true);
-    return maybeContent.map(content -> ModuleFile.create(content, url));
+    byte[] content = grabFile(url, eventHandler, downloadManager, /* useChecksum= */ true);
+    return ModuleFile.create(content, url);
   }
 
   /** Represents fields available in {@code bazel_registry.json} for the registry. */
@@ -287,8 +294,12 @@ public class IndexRegistry implements Registry {
       DownloadManager downloadManager,
       boolean useChecksum)
       throws IOException, InterruptedException {
-    return grabFile(url, eventHandler, downloadManager, useChecksum)
-        .map(value -> new String(value, UTF_8));
+    try {
+      return Optional.of(
+          new String(grabFile(url, eventHandler, downloadManager, useChecksum), UTF_8));
+    } catch (NotFoundException e) {
+      return Optional.empty();
+    }
   }
 
   /**
