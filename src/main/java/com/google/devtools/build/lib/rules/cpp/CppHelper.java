@@ -253,6 +253,17 @@ public class CppHelper {
       throw new EvalException(e);
     }
   }
+  // the DerivedArtifact type is required when using restart mechanism
+  static Artifact.DerivedArtifact getCompileModuleOutputArtifact(
+          ActionConstructionContext actionConstructionContext,
+          Label label,
+          String outputName,
+          BuildConfigurationValue config
+  ) {
+    PathFragment objectDir = getObjDirectory(label, config.isSiblingRepositoryLayout());
+    return actionConstructionContext.getDerivedArtifact(
+            objectDir.getRelative(outputName), config.getBinDirectory(label.getRepository()));
+  }
 
   static Artifact getCompileOutputArtifact(
       ActionConstructionContext actionConstructionContext,
