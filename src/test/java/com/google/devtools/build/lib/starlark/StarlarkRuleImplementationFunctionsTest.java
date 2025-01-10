@@ -81,6 +81,7 @@ import java.util.Optional;
 import java.util.regex.Pattern;
 import net.starlark.java.annot.Param;
 import net.starlark.java.annot.StarlarkMethod;
+import net.starlark.java.eval.Dict;
 import net.starlark.java.eval.EvalException;
 import net.starlark.java.eval.Mutability;
 import net.starlark.java.eval.Printer;
@@ -4154,5 +4155,12 @@ args.add_all(d, map_each = _map_each, uniquify = True)
     assertThat(a2).isNotNull();
     assertThat(a2.getRoot().getExecPathString())
         .matches(getRelativeOutputPath() + "/[\\w\\-]+\\-exec/bin");
+  }
+
+  @Test
+  public void testHashableProviders() throws Exception {
+    ev.execAndExport("p = provider()");
+    Dict<?, ?> dict = (Dict<?, ?>) ev.eval("{k: None for k in [DefaultInfo, p, DefaultInfo, p]}");
+    assertThat(dict.size()).isEqualTo(2);
   }
 }
