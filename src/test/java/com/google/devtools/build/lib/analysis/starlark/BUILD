@@ -196,6 +196,7 @@ java_test(
         "//src/test/java/com/google/devtools/build/lib/exec/util",
         "//third_party:guava",
         "//third_party:junit4",
+        "//third_party:mockito",
         "//third_party:truth",
     ],
 )

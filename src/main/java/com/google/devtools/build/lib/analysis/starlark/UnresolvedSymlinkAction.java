@@ -24,6 +24,7 @@ import com.google.devtools.build.lib.actions.ActionOwner;
 import com.google.devtools.build.lib.actions.ActionResult;
 import com.google.devtools.build.lib.actions.Artifact;
 import com.google.devtools.build.lib.actions.ArtifactExpander;
+import com.google.devtools.build.lib.actions.FileArtifactValue;
 import com.google.devtools.build.lib.analysis.actions.SymlinkAction;
 import com.google.devtools.build.lib.collect.nestedset.NestedSetBuilder;
 import com.google.devtools.build.lib.collect.nestedset.Order;
@@ -76,6 +77,16 @@ public final class UnresolvedSymlinkAction extends AbstractAction {
               getPrimaryOutput().getExecPathString(), target, e.getMessage());
       DetailedExitCode code = createDetailedExitCode(message, Code.LINK_CREATION_IO_EXCEPTION);
       throw new ActionExecutionException(message, e, this, false, code);
+    }
+
+    // Action filesystems are responsible for their own metadata injection.
+    if (actionExecutionContext.getActionFileSystem() == null) {
+      actionExecutionContext
+          .getOutputMetadataStore()
+          .injectFile(
+              getPrimaryOutput(),
+              FileArtifactValue.createForUnresolvedSymlinkWithKnownTarget(
+                  getPrimaryOutput().getPath(), target.getPathString()));
     }
 
     return ActionResult.EMPTY;

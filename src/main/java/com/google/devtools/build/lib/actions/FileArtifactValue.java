@@ -30,6 +30,7 @@ import com.google.devtools.build.lib.util.Fingerprint;
 import com.google.devtools.build.lib.util.HashCodes;
 import com.google.devtools.build.lib.vfs.DigestUtils;
 import com.google.devtools.build.lib.vfs.FileStatus;
+import com.google.devtools.build.lib.vfs.FileSystem;
 import com.google.devtools.build.lib.vfs.Path;
 import com.google.devtools.build.lib.vfs.PathFragment;
 import com.google.devtools.build.lib.vfs.Symlinks;
@@ -277,13 +278,20 @@ public abstract class FileArtifactValue implements SkyValue, HasDigest {
     return new RegularFileArtifactValue(digest, /* proxy= */ null, size);
   }
 
+  @VisibleForTesting
   public static FileArtifactValue createForUnresolvedSymlink(Artifact artifact) throws IOException {
     checkArgument(artifact.isSymlink());
     return createForUnresolvedSymlink(artifact.getPath());
   }
 
   public static FileArtifactValue createForUnresolvedSymlink(Path symlink) throws IOException {
-    return new UnresolvedSymlinkArtifactValue(symlink);
+    return new UnresolvedSymlinkArtifactValue(
+        symlink.readSymbolicLink().getPathString(), symlink.getFileSystem());
+  }
+
+  public static FileArtifactValue createForUnresolvedSymlinkWithKnownTarget(
+      Path symlink, String symlinkTarget) {
+    return new UnresolvedSymlinkArtifactValue(symlinkTarget, symlink.getFileSystem());
   }
 
   public static FileArtifactValue createForNormalFile(
@@ -726,16 +734,9 @@ public abstract class FileArtifactValue implements SkyValue, HasDigest {
     private final String symlinkTarget;
     private final byte[] digest;
 
-    private UnresolvedSymlinkArtifactValue(Path symlink) throws IOException {
-      String symlinkTarget = symlink.readSymbolicLink().getPathString();
-
+    private UnresolvedSymlinkArtifactValue(String symlinkTarget, FileSystem fs) {
       byte[] digest =
-          symlink
-              .getFileSystem()
-              .getDigestFunction()
-              .getHashFunction()
-              .hashString(symlinkTarget, ISO_8859_1)
-              .asBytes();
+          fs.getDigestFunction().getHashFunction().hashString(symlinkTarget, ISO_8859_1).asBytes();
 
       // We need to be able to tell the difference between a symlink and a file containing the same
       // text. So we transform the digest a bit. This works because if one wants to craft a file

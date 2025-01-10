@@ -15,6 +15,7 @@ package com.google.devtools.build.lib.analysis.starlark;
 
 import static com.google.common.truth.Truth.assertThat;
 import static com.google.devtools.build.lib.actions.util.ActionsTestUtil.NULL_ACTION_OWNER;
+import static org.mockito.Mockito.mock;
 
 import com.google.common.collect.ImmutableMap;
 import com.google.devtools.build.lib.actions.ActionExecutionContext;
@@ -28,6 +29,7 @@ import com.google.devtools.build.lib.actions.ArtifactRoot;
 import com.google.devtools.build.lib.actions.DiscoveredModulesPruner;
 import com.google.devtools.build.lib.actions.Executor;
 import com.google.devtools.build.lib.actions.ThreadStateReceiver;
+import com.google.devtools.build.lib.actions.cache.OutputMetadataStore;
 import com.google.devtools.build.lib.actions.util.ActionsTestUtil;
 import com.google.devtools.build.lib.analysis.util.BuildViewTestCase;
 import com.google.devtools.build.lib.cmdline.RepositoryName;
@@ -106,7 +108,7 @@ public class UnresolvedSymlinkActionTest extends BuildViewTestCase {
                 /* actionInputFileCache= */ null,
                 ActionInputPrefetcher.NONE,
                 actionKeyContext,
-                /* outputMetadataStore= */ null,
+                mock(OutputMetadataStore.class),
                 /* rewindingEnabled= */ false,
                 LostInputsCheck.NONE,
                 /* fileOutErr= */ null,
