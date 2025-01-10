@@ -114,6 +114,24 @@ Running with remote test execution currently has a few caveats:
 
 ## Language-specific configuration
 
+### C++
+
+#### Linux
+
+C++ coverage should work out-of-the-box with the default configuration.
+
+#### MacOS
+
+The default value of `GCOV_PREFIX_STRIP` is almost certainly incorrect and needs
+adjusting manually because the correct value depends on your setup.
+
+When the value is incorrect, no coverage data will be found.
+
+Example to set `GCOV_PREFIX_STRIP=10`
+```
+bazel coverage //foo:foo_test --test_env=GCOV_PREFIX_STRIP=10`
+```
+
 ### Java
 
 Java should work out-of-the-box with the default configuration. The
