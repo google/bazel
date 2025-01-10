@@ -309,6 +309,10 @@ public class RemoteActionFileSystem extends AbstractFileSystemWithCustomStat
     remoteOutputTree.injectFile(path, metadata);
   }
 
+  void injectUnresolvedSymlink(PathFragment symlink, PathFragment target) throws IOException {
+    remoteOutputTree.injectSymlink(symlink, target);
+  }
+
   @Override
   public String getFileSystemType(PathFragment path) {
     return "remoteActionFS";
@@ -935,6 +939,11 @@ public class RemoteActionFileSystem extends AbstractFileSystemWithCustomStat
       }
 
       remoteInMemoryFileInfo.set(metadata);
+    }
+
+    protected void injectSymlink(PathFragment path, PathFragment target) throws IOException {
+      createDirectoryAndParents(path.getParentDirectory());
+      createSymbolicLink(path, target);
     }
 
     // Override for access within this class

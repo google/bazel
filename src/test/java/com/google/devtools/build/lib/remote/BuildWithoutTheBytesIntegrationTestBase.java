@@ -38,6 +38,7 @@ import com.google.devtools.build.lib.util.OS;
 import com.google.devtools.build.lib.util.io.RecordingOutErr;
 import com.google.devtools.build.lib.vfs.Path;
 import com.google.devtools.build.lib.vfs.PathFragment;
+import com.google.devtools.build.lib.vfs.Symlinks;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
@@ -1798,7 +1799,7 @@ public abstract class BuildWithoutTheBytesIntegrationTestBase extends BuildInteg
     for (Artifact output : getArtifacts(target)) {
       assertWithMessage(
               "output %s for target %s should not exist", output.getExecPathString(), target)
-          .that(output.getPath().exists())
+          .that(output.getPath().exists(Symlinks.NOFOLLOW))
           .isFalse();
     }
   }
@@ -1813,7 +1814,7 @@ public abstract class BuildWithoutTheBytesIntegrationTestBase extends BuildInteg
 
   protected void assertOutputDoesNotExist(String binRelativePath) {
     Path output = getOutputPath(binRelativePath);
-    assertThat(output.exists()).isFalse();
+    assertThat(output.exists(Symlinks.NOFOLLOW)).isFalse();
   }
 
   protected void assertOnlyOutputContent(String target, String filename, String content)
@@ -1834,9 +1835,11 @@ public abstract class BuildWithoutTheBytesIntegrationTestBase extends BuildInteg
 
   protected void assertSymlink(String binRelativeLinkPath, PathFragment targetPath)
       throws Exception {
+    Path output = getOutputPath(binRelativeLinkPath);
     // On Windows, symlinks might be implemented as a file copy.
-    if (OS.getCurrent() != OS.WINDOWS) {
-      Path output = getOutputPath(binRelativeLinkPath);
+    if (OS.getCurrent() == OS.WINDOWS) {
+      assertThat(output.exists()).isTrue();
+    } else {
       assertThat(output.isSymbolicLink()).isTrue();
       assertThat(output.readSymbolicLink()).isEqualTo(targetPath);
     }
