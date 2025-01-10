@@ -33,6 +33,7 @@ import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
 import com.google.common.flogger.GoogleLogger;
 import com.google.common.util.concurrent.ListenableFuture;
+import com.google.devtools.build.lib.actions.cache.VirtualActionInput;
 import com.google.devtools.build.lib.events.Reporter;
 import com.google.devtools.build.lib.profiler.Profiler;
 import com.google.devtools.build.lib.profiler.SilentCloseable;
@@ -42,7 +43,7 @@ import com.google.devtools.build.lib.remote.common.RemoteActionExecutionContext;
 import com.google.devtools.build.lib.remote.common.RemoteCacheClient;
 import com.google.devtools.build.lib.remote.disk.DiskCacheClient;
 import com.google.devtools.build.lib.remote.merkletree.MerkleTree;
-import com.google.devtools.build.lib.remote.merkletree.MerkleTree.PathOrBytes;
+import com.google.devtools.build.lib.remote.merkletree.MerkleTree.ContentSource;
 import com.google.devtools.build.lib.remote.options.RemoteOptions;
 import com.google.devtools.build.lib.remote.util.DigestUtil;
 import com.google.devtools.build.lib.remote.util.RxUtils.TransferResult;
@@ -183,25 +184,29 @@ public class RemoteExecutionCache extends CombinedCache {
       return remoteCacheClient.uploadBlob(context, digest, node.toByteString());
     }
 
-    PathOrBytes file = merkleTree.getFileByDigest(digest);
+    ContentSource file = merkleTree.getFileByDigest(digest);
     if (file != null) {
-      if (file.getBytes() != null) {
-        return remoteCacheClient.uploadBlob(context, digest, file.getBytes());
-      }
-
-      var path = checkNotNull(file.getPath());
-      try {
-        if (remotePathChecker.isRemote(context, path)) {
-          // If we get here, the remote input was determined to exist in the remote or disk cache at
-          // some point before action execution, but reported to be missing when querying the remote
-          // for missing action inputs; possibly because it was evicted in the interim.
-          reporter.post(new LostInputsEvent(digest));
-          throw new CacheNotFoundException(digest, path.getPathString());
+      return switch (file) {
+        case ContentSource.VirtualActionInput(VirtualActionInput virtualActionInput) ->
+            // TODO: Avoid materializing the entire file in memory.
+            remoteCacheClient.uploadBlob(context, digest, virtualActionInput.getBytes());
+        case ContentSource.Path(Path path) -> {
+          try {
+            if (remotePathChecker.isRemote(context, path)) {
+              // If we get here, the remote input was determined to exist in the remote or disk
+              // cache at
+              // some point before action execution, but reported to be missing when querying the
+              // remote
+              // for missing action inputs; possibly because it was evicted in the interim.
+              reporter.post(new LostInputsEvent(digest));
+              throw new CacheNotFoundException(digest, path.getPathString());
+            }
+          } catch (IOException e) {
+            yield immediateFailedFuture(e);
+          }
+          yield remoteCacheClient.uploadFile(context, digest, path);
         }
-      } catch (IOException e) {
-        return immediateFailedFuture(e);
-      }
-      return remoteCacheClient.uploadFile(context, digest, path);
+      };
     }
 
     Message message = additionalInputs.get(digest);

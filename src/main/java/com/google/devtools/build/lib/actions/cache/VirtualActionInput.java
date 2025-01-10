@@ -120,9 +120,14 @@ public abstract class VirtualActionInput implements ActionInput, StreamWriter {
    *
    * <p>Prefer {@link #writeTo} to this method to avoid materializing the entire file in memory.
    */
-  public ByteString getBytes() throws IOException {
+  public ByteString getBytes() {
     ByteString.Output out = ByteString.newOutput();
-    writeTo(out);
+    try {
+      writeTo(out);
+    } catch (IOException e) {
+      // ByteString.Output doesn't throw IOExceptions.
+      throw new IllegalStateException(e);
+    }
     return out.toByteString();
   }
 
@@ -180,7 +185,7 @@ public abstract class VirtualActionInput implements ActionInput, StreamWriter {
     }
 
     @Override
-    public ByteString getBytes() throws IOException {
+    public ByteString getBytes() {
       return ByteString.EMPTY;
     }
 

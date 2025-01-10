@@ -38,7 +38,6 @@ import com.google.devtools.build.lib.remote.Scrubber.SpawnScrubber;
 import com.google.devtools.build.lib.remote.util.DigestUtil;
 import com.google.devtools.build.lib.vfs.Path;
 import com.google.devtools.build.lib.vfs.PathFragment;
-import com.google.protobuf.ByteString;
 import java.io.IOException;
 import java.util.Collection;
 import java.util.HashMap;
@@ -55,31 +54,12 @@ import javax.annotation.Nullable;
 public class MerkleTree {
   private static final String BAZEL_TOOL_INPUT_MARKER = "bazel_tool_input";
 
-  /** A path or contents */
-  public static class PathOrBytes {
+  public sealed interface ContentSource {
+    record Path(com.google.devtools.build.lib.vfs.Path path) implements ContentSource {}
 
-    private final Path path;
-    private final ByteString bytes;
-
-    public PathOrBytes(Path path) {
-      this.path = Preconditions.checkNotNull(path, "path");
-      this.bytes = null;
-    }
-
-    public PathOrBytes(ByteString bytes) {
-      this.bytes = Preconditions.checkNotNull(bytes, "bytes");
-      this.path = null;
-    }
-
-    @Nullable
-    public Path getPath() {
-      return path;
-    }
-
-    @Nullable
-    public ByteString getBytes() {
-      return bytes;
-    }
+    record VirtualActionInput(
+        com.google.devtools.build.lib.actions.cache.VirtualActionInput virtualActionInput)
+        implements ContentSource {}
   }
 
   private interface MerkleTreeDirectoryVisitor {
@@ -95,7 +75,7 @@ public class MerkleTree {
   }
 
   private Map<Digest, Directory> digestDirectoryMap;
-  private Map<Digest, PathOrBytes> digestFileMap;
+  private Map<Digest, ContentSource> digestFileMap;
   @Nullable private final Directory rootProto;
   private final Digest rootDigest;
   private final SortedSet<DirectoryTree.FileNode> files;
@@ -177,13 +157,19 @@ public class MerkleTree {
     return this.digestDirectoryMap;
   }
 
-  private Map<Digest, PathOrBytes> getDigestFileMap() {
+  private Map<Digest, ContentSource> getDigestFileMap() {
     if (this.digestFileMap == null) {
-      Map<Digest, PathOrBytes> newDigestMap = Maps.newHashMap();
+      Map<Digest, ContentSource> newDigestMap = Maps.newHashMap();
       visitTree(
           (dir) -> {
             for (DirectoryTree.FileNode file : dir.getFiles()) {
-              newDigestMap.put(file.getDigest(), toPathOrBytes(file));
+              ContentSource contentSource;
+              if (file.getPath() != null) {
+                contentSource = new ContentSource.Path(file.getPath());
+              } else {
+                contentSource = new ContentSource.VirtualActionInput(file.getVirtualActionInput());
+              }
+              newDigestMap.put(file.getDigest(), contentSource);
             }
           });
       this.digestFileMap = newDigestMap;
@@ -197,7 +183,7 @@ public class MerkleTree {
   }
 
   @Nullable
-  public PathOrBytes getFileByDigest(Digest digest) {
+  public ContentSource getFileByDigest(Digest digest) {
     return getDigestFileMap().get(digest);
   }
 
@@ -419,11 +405,5 @@ public class MerkleTree {
         .setName(internalToUnicode(symlink.getPathSegment()))
         .setTarget(internalToUnicode(symlink.getTarget()))
         .build();
-  }
-
-  private static PathOrBytes toPathOrBytes(DirectoryTree.FileNode file) {
-    return file.getPath() != null
-        ? new PathOrBytes(file.getPath())
-        : new PathOrBytes(file.getBytes());
   }
 }
