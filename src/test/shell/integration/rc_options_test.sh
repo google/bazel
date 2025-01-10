@@ -96,4 +96,13 @@ function test_options_override() {
   expect_not_log '^xxxxxxxxxxx'
 }
 
+function test_bep_option_source() {
+  local -r build_event_text_file="$(pwd)/bep.txt"
+  local -r pkg=$FUNCNAME
+  create_pkg $pkg
+  bazel build --build_event_text_file="$build_event_text_file" \
+      $pkg:xxxxxxxxxxxxxxxxxxxxxxxxxtrue || fail "build failed"
+  assert_contains "source: \"$bazelrc\"" "$build_event_text_file"
+}
+
 run_suite "Integration tests for rc options handling"
