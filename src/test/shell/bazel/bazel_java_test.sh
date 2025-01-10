@@ -282,6 +282,12 @@ function test_build_hello_world_reduced_classpath() {
   bazel build --experimental_java_classpath=bazel //java/main:main &> $TEST_log || fail "build failed"
 }
 
+function test_build_hello_world_reduced_classpath_no_fallback() {
+  write_hello_library_files
+
+  bazel build --experimental_java_classpath=bazel_no_fallback //java/main:main &> $TEST_log || fail "build failed"
+}
+
 function test_worker_strategy_is_default() {
   write_hello_library_files
 
