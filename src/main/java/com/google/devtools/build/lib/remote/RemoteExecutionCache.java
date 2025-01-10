@@ -187,10 +187,11 @@ public class RemoteExecutionCache extends CombinedCache {
     ContentSource file = merkleTree.getFileByDigest(digest);
     if (file != null) {
       return switch (file) {
-        case ContentSource.VirtualActionInput(VirtualActionInput virtualActionInput) ->
-            // TODO: Avoid materializing the entire file in memory.
+        case ContentSource.VirtualActionInputSource(VirtualActionInput virtualActionInput) ->
+            // TODO: Avoid materializing the entire file in memory. This requires changing the
+            // upload to be driven by an OutputStream rather than consuming an InputStream.
             remoteCacheClient.uploadBlob(context, digest, virtualActionInput.getBytes());
-        case ContentSource.Path(Path path) -> {
+        case ContentSource.PathSource(Path path) -> {
           try {
             if (remotePathChecker.isRemote(context, path)) {
               // If we get here, the remote input was determined to exist in the remote or disk

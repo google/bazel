@@ -118,7 +118,8 @@ public abstract class VirtualActionInput implements ActionInput, StreamWriter {
    * Gets a {@link ByteString} representation of the fake file. Used to avoid copying if the fake
    * file is internally represented as a {@link ByteString}.
    *
-   * <p>Prefer {@link #writeTo} to this method to avoid materializing the entire file in memory.
+   * <p>Prefer {@link #writeTo} to this method to avoid materializing the entire file in memory. The
+   * return value should not be retained.
    */
   public ByteString getBytes() {
     ByteString.Output out = ByteString.newOutput();

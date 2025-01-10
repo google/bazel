@@ -140,13 +140,13 @@ public class MerkleTreeTest {
           digestUtil.computeAsUtf8("fizzbuzz")
         };
     assertThat(tree.getFileByDigest(inputDigests[0]))
-        .isEqualTo(new ContentSource.Path(foo.getPath()));
+        .isEqualTo(new ContentSource.PathSource(foo.getPath()));
     assertThat(tree.getFileByDigest(inputDigests[1]))
-        .isEqualTo(new ContentSource.Path(bar.getPath()));
+        .isEqualTo(new ContentSource.PathSource(bar.getPath()));
     assertThat(tree.getFileByDigest(inputDigests[2]))
-        .isEqualTo(new ContentSource.Path(buzz.getPath()));
+        .isEqualTo(new ContentSource.PathSource(buzz.getPath()));
     assertThat(tree.getFileByDigest(inputDigests[3]))
-        .isEqualTo(new ContentSource.Path(fizzbuzz.getPath()));
+        .isEqualTo(new ContentSource.PathSource(fizzbuzz.getPath()));
 
     Digest[] allDigests = Iterables.toArray(tree.getAllDigests(), Digest.class);
     assertThat(allDigests.length).isEqualTo(dirDigests.length + inputDigests.length);
