@@ -430,11 +430,12 @@ public class SingleExtensionEvalFunction implements SkyFunction {
       BlazeDirectories directories,
       Map<? extends RepoRecordedInput, String> recordedInputs)
       throws InterruptedException, NeedsSkyframeRestartException {
-    boolean upToDate = RepoRecordedInput.areAllValuesUpToDate(env, directories, recordedInputs);
+    Optional<String> outdated =
+        RepoRecordedInput.isAnyValueOutdated(env, directories, recordedInputs);
     if (env.valuesMissing()) {
       throw new NeedsSkyframeRestartException();
     }
-    return !upToDate;
+    return outdated.isPresent();
   }
 
   /**

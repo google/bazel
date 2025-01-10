@@ -185,8 +185,8 @@ public abstract class RepositoryFunction {
    *     fields set.
    * @param recordedInputValues Any recorded inputs (and their values) encountered during the fetch
    *     of the repo. Changes to these inputs will result in the repo being refetched in the future.
-   *     The {@link #verifyRecordedInputs} method is responsible for checking the value added to
-   *     that map when checking the content of a marker file. Not an ImmutableMap, because
+   *     The {@link #isAnyRecordedInputOutdated} method is responsible for checking the value added
+   *     to that map when checking the content of a marker file. Not an ImmutableMap, because
    *     regrettably the values can be null sometimes.
    */
   public record FetchResult(
@@ -215,17 +215,16 @@ public abstract class RepositoryFunction {
   }
 
   /**
-   * Verify the data provided by the marker file to check if a refetch is needed. Returns true if
-   * the data is up to date and no refetch is needed and false if the data is obsolete and a refetch
-   * is needed.
+   * Verify the data provided by the marker file to check if a refetch is needed. Returns an empty
+   * Optional if the data is up to date and no refetch is needed and an Optional with a
+   * human-readable reason if the data is obsolete and a refetch is needed.
    */
-  public boolean verifyRecordedInputs(
-      Rule rule,
+  public Optional<String> isAnyRecordedInputOutdated(
       BlazeDirectories directories,
       Map<RepoRecordedInput, String> recordedInputValues,
       Environment env)
       throws InterruptedException {
-    return RepoRecordedInput.areAllValuesUpToDate(env, directories, recordedInputValues);
+    return RepoRecordedInput.isAnyValueOutdated(env, directories, recordedInputValues);
   }
 
   public static RootedPath getRootedPathFromLabel(Label label, Environment env)
