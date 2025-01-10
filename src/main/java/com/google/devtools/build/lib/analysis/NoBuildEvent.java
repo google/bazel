@@ -22,6 +22,7 @@ import com.google.devtools.build.lib.buildeventstream.BuildEventStreamProtos;
 import com.google.devtools.build.lib.buildeventstream.BuildEventStreamProtos.BuildEventId;
 import com.google.devtools.build.lib.buildeventstream.GenericBuildEvent;
 import com.google.devtools.build.lib.buildeventstream.ProgressEvent;
+import com.google.protobuf.util.Timestamps;
 
 /** This event raised to indicate that no build will be happening for the given command. */
 public final class NoBuildEvent implements BuildEvent {
@@ -76,7 +77,7 @@ public final class NoBuildEvent implements BuildEvent {
       started.setCommand(command);
     }
     if (startTimeMillis != null) {
-      started.setStartTimeMillis(startTimeMillis);
+      started.setStartTimeMillis(startTimeMillis).setStartTime(Timestamps.fromMillis(startTimeMillis));
     }
     if (id != null) {
       started.setUuid(id);
