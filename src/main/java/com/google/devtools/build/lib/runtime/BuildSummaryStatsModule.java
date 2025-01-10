@@ -19,6 +19,7 @@ import com.google.common.eventbus.AllowConcurrentEvents;
 import com.google.common.eventbus.EventBus;
 import com.google.common.eventbus.Subscribe;
 import com.google.common.flogger.GoogleLogger;
+import com.google.devtools.build.lib.actions.Action;
 import com.google.devtools.build.lib.actions.ActionCompletionEvent;
 import com.google.devtools.build.lib.actions.ActionKeyContext;
 import com.google.devtools.build.lib.actions.ActionResultReceivedEvent;
@@ -38,6 +39,7 @@ import com.google.devtools.build.lib.metrics.criticalpath.CriticalPathComputer;
 import com.google.devtools.build.lib.profiler.Profiler;
 import com.google.devtools.build.lib.profiler.ProfilerTask;
 import com.google.devtools.build.lib.profiler.SilentCloseable;
+import com.google.devtools.build.lib.skyframe.ActionUtils;
 import com.google.devtools.build.lib.skyframe.ExecutionFinishedEvent;
 import com.google.devtools.build.lib.skyframe.SkyframeExecutorWrappingWalkableGraph;
 import com.google.devtools.build.lib.skyframe.TopLevelStatusEvents.TopLevelTargetPendingExecutionEvent;
@@ -182,12 +184,17 @@ public class BuildSummaryStatsModule extends BlazeModule {
           // when the actions were executed while critical path computation is stored in the reverse
           // way.
           for (CriticalPathComponent stat : criticalPath.components().reverse()) {
+            Action action = stat.getAction();
             Profiler.instance()
-                .logSimpleTaskDuration(
+                .logAction(
                     stat.getStartTimeNanos(),
                     stat.getElapsedTime(),
                     ProfilerTask.CRITICAL_PATH_COMPONENT,
-                    stat.prettyPrintAction());
+                    action.getMnemonic(),
+                    action.describe(),
+                    action.getPrimaryOutput().getExecPathString(),
+                    ActionUtils.getOwnerLabelAsString(action),
+                    ActionUtils.getOwnerConfigurationAsString(action));
           }
         }
       }

@@ -154,10 +154,6 @@ public class CriticalPathComponent {
     return isRunning;
   }
 
-  public String prettyPrintAction() {
-    return action.prettyPrint();
-  }
-
   @Nullable
   public Label getOwner() {
     ActionOwner owner = action.getOwner();

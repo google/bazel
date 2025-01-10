@@ -1066,18 +1066,22 @@ public class CriticalPathComputerTest extends FoundationTestCase {
       AggregatedCriticalPath criticalPath = computer.aggregate();
       assertThat(criticalPath.components()).hasSize(4);
       // Action 4 has a run time of 3 seconds
-      assertThat(criticalPath.components().get(0).prettyPrintAction()).contains("action4.out");
+      assertThat(criticalPath.components().get(0).getAction().prettyPrint())
+          .contains("action4.out");
       assertThat(criticalPath.components().get(0).getElapsedTime())
           .isEqualTo(Duration.ofSeconds(3));
       // Action 3 has a run time of 0 seconds
-      assertThat(criticalPath.components().get(1).prettyPrintAction()).contains("action3.out");
+      assertThat(criticalPath.components().get(1).getAction().prettyPrint())
+          .contains("action3.out");
       assertThat(criticalPath.components().get(1).getElapsedTime()).isEqualTo(Duration.ZERO);
       // Action 2 has a run time of 2 seconds
-      assertThat(criticalPath.components().get(2).prettyPrintAction()).contains("action2.out");
+      assertThat(criticalPath.components().get(2).getAction().prettyPrint())
+          .contains("action2.out");
       assertThat(criticalPath.components().get(2).getElapsedTime())
           .isEqualTo(Duration.ofSeconds(2));
       // Action 1 has a run time of 1 seconds
-      assertThat(criticalPath.components().get(3).prettyPrintAction()).contains("action1.out");
+      assertThat(criticalPath.components().get(3).getAction().prettyPrint())
+          .contains("action1.out");
       assertThat(criticalPath.components().get(3).getElapsedTime())
           .isEqualTo(Duration.ofSeconds(1));
     } else {
@@ -1088,11 +1092,13 @@ public class CriticalPathComputerTest extends FoundationTestCase {
       AggregatedCriticalPath criticalPath = computer.aggregate();
       assertThat(criticalPath.components()).hasSize(2);
       // Action 4 has a run time of 3 seconds
-      assertThat(criticalPath.components().get(0).prettyPrintAction()).contains("action4.out");
+      assertThat(criticalPath.components().get(0).getAction().prettyPrint())
+          .contains("action4.out");
       assertThat(criticalPath.components().get(0).getElapsedTime())
           .isEqualTo(Duration.ofSeconds(3));
       // Action 1 has a run time of 1 seconds
-      assertThat(criticalPath.components().get(1).prettyPrintAction()).contains("action1.out");
+      assertThat(criticalPath.components().get(1).getAction().prettyPrint())
+          .contains("action1.out");
       assertThat(criticalPath.components().get(1).getElapsedTime())
           .isEqualTo(Duration.ofSeconds(1));
     }

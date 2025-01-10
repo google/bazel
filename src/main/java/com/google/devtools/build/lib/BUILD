@@ -433,6 +433,7 @@ java_library(
         "//src/main/java/com/google/devtools/build/lib/server/signal",
         "//src/main/java/com/google/devtools/build/lib/shell",
         "//src/main/java/com/google/devtools/build/lib/skyframe:action_execution_inactivity_watchdog",
+        "//src/main/java/com/google/devtools/build/lib/skyframe:action_utils",
         "//src/main/java/com/google/devtools/build/lib/skyframe:analysis_progress_receiver",
         "//src/main/java/com/google/devtools/build/lib/skyframe:aspect_completion_value",
         "//src/main/java/com/google/devtools/build/lib/skyframe:aspect_key_creator",

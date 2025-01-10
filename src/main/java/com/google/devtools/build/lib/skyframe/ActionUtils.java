@@ -16,6 +16,8 @@ package com.google.devtools.build.lib.skyframe;
 import com.google.devtools.build.lib.actions.Action;
 import com.google.devtools.build.lib.actions.ActionLookupData;
 import com.google.devtools.build.lib.actions.ActionLookupValue;
+import com.google.devtools.build.lib.actions.ActionOwner;
+import com.google.devtools.build.lib.cmdline.Label;
 import com.google.devtools.build.skyframe.SkyFunction.Environment;
 import javax.annotation.Nullable;
 
@@ -30,6 +32,26 @@ public final class ActionUtils {
     return actionLookupValue != null
         ? actionLookupValue.getAction(actionLookupData.getActionIndex())
         : null;
+  }
+
+  public static String getOwnerLabelAsString(Action action) {
+    ActionOwner owner = action.getOwner();
+    if (owner == null) {
+      return "";
+    }
+    Label ownerLabel = owner.getLabel();
+    if (ownerLabel == null) {
+      return "";
+    }
+    return ownerLabel.getCanonicalForm();
+  }
+
+  public static String getOwnerConfigurationAsString(Action action) {
+    ActionOwner owner = action.getOwner();
+    if (owner == null) {
+      return "";
+    }
+    return owner.getConfigurationChecksum();
   }
 
   private ActionUtils() {}

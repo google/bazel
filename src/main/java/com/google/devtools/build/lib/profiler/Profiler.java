@@ -834,8 +834,8 @@ public final class Profiler {
   }
 
   /**
-   * Similar to {@link #profile}, but specific to action-related events. Takes an extra argument:
-   * primaryOutput.
+   * Similar to {@link #profile}, but specific to action-related events. Takes extra arguments for
+   * action-specific information.
    */
   public SilentCloseable profileAction(
       ProfilerTask type,
@@ -865,6 +865,38 @@ public final class Profiler {
       };
     } else {
       return NOP;
+    }
+  }
+
+  /**
+   * Similar to {@link #profileAction}, but for an already completed action.
+   */
+  public void logAction(
+      long startTimeNanos,
+      Duration duration,
+      ProfilerTask type,
+      String mnemonic,
+      String description,
+      String primaryOutput,
+      String targetLabel,
+      String configuration) {
+    checkNotNull(description);
+    if (isActive() && isProfiling(type)) {
+      var lane = borrowLane();
+      try {
+        completeAction(
+            getLaneId(lane),
+            startTimeNanos,
+            duration.toNanos(),
+            type,
+            description,
+            mnemonic,
+            includePrimaryOutput ? primaryOutput : null,
+            includeTargetLabel ? targetLabel : null,
+            includeConfiguration ? configuration : null);
+      } finally {
+        releaseLane(lane);
+      }
     }
   }
 
@@ -904,9 +936,31 @@ public final class Profiler {
       @Nullable String primaryOutput,
       @Nullable String targetLabel,
       @Nullable String configuration) {
+    long endTimeNanos = clock.nanoTime();
+    long duration = endTimeNanos - startTimeNanos;
+    completeAction(
+        threadId,
+        startTimeNanos,
+        duration,
+        type,
+        description,
+        mnemonic,
+        primaryOutput,
+        targetLabel,
+        configuration);
+  }
+
+  private void completeAction(
+      long threadId,
+      long startTimeNanos,
+      long duration,
+      ProfilerTask type,
+      String description,
+      String mnemonic,
+      @Nullable String primaryOutput,
+      @Nullable String targetLabel,
+      @Nullable String configuration) {
     if (isActive()) {
-      long endTimeNanos = clock.nanoTime();
-      long duration = endTimeNanos - startTimeNanos;
       boolean shouldRecordTask = wasTaskSlowEnoughToRecord(type, duration);
       if (shouldRecordTask) {
         recordTask(
