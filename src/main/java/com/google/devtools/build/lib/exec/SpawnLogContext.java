@@ -35,6 +35,7 @@ import com.google.devtools.build.lib.exec.Protos.Digest;
 import com.google.devtools.build.lib.exec.Protos.EnvironmentVariable;
 import com.google.devtools.build.lib.exec.Protos.Platform;
 import com.google.devtools.build.lib.remote.options.RemoteOptions;
+import com.google.devtools.build.lib.remote.util.DigestUtil;
 import com.google.devtools.build.lib.vfs.DigestHashFunction;
 import com.google.devtools.build.lib.vfs.DigestUtils;
 import com.google.devtools.build.lib.vfs.FileStatus;
@@ -167,11 +168,9 @@ public abstract class SpawnLogContext implements ActionContext {
 
     if (input != null) {
       if (input instanceof VirtualActionInput virtualActionInput) {
-        byte[] blob = virtualActionInput.getBytes().toByteArray();
-        return builder
-            .setHash(digestHashFunction.getHashFunction().hashBytes(blob).toString())
-            .setSizeBytes(blob.length)
-            .build();
+        build.bazel.remote.execution.v2.Digest digest =
+            DigestUtil.compute(virtualActionInput, digestHashFunction.getHashFunction());
+        return builder.setHash(digest.getHash()).setSizeBytes(digest.getSizeBytes()).build();
       }
 
       // Try to obtain a digest from the input metadata.

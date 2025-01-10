@@ -22,9 +22,6 @@ import static java.lang.Math.min;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.io.ByteStreams;
-import com.google.devtools.build.lib.actions.ActionInput;
-import com.google.devtools.build.lib.actions.ActionInputHelper;
-import com.google.devtools.build.lib.actions.cache.VirtualActionInput;
 import com.google.devtools.build.lib.remote.zstd.ZstdCompressingInputStream;
 import com.google.devtools.build.lib.vfs.Path;
 import com.google.errorprone.annotations.CanIgnoreReturnValue;
@@ -318,18 +315,6 @@ public class Chunker {
       checkState(inputStream == null);
       this.size = size;
       inputStream = file::getInputStream;
-      return this;
-    }
-
-    @CanIgnoreReturnValue
-    public Builder setInput(long size, ActionInput actionInput, Path execRoot) {
-      checkState(inputStream == null);
-      this.size = size;
-      if (actionInput instanceof VirtualActionInput virtualActionInput) {
-        inputStream = () -> virtualActionInput.getBytes().newInput();
-      } else {
-        inputStream = () -> ActionInputHelper.toInputPath(actionInput, execRoot).getInputStream();
-      }
       return this;
     }
 
