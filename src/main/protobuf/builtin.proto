@@ -57,10 +57,15 @@ enum ApiContext {
   ALL = 0;
   BZL = 1;
   BUILD = 2;
+  MODULE = 3;
+  REPO = 4;
+  VENDOR = 5;
+  WORKSPACE = 6;
 }
 
 // Generic representation for a Starlark object. If the object is callable
-// (can act as a function), then callable will be set.
+// (can act as a function), then callable will be set. If he object is a module
+// itself, it will have repeated global set for all module's global variables.
 message Value {
   string name = 1;
 
@@ -69,6 +74,9 @@ message Value {
 
   // Set when the object is a function.
   Callable callable = 3;
+
+  // Set when the object is a module.
+  repeated Value global = 6;
 
   // Value documentation.
   string doc = 4;
