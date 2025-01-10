@@ -23,6 +23,8 @@ import com.google.devtools.build.lib.collect.nestedset.Order;
 import com.google.devtools.build.lib.concurrent.ThreadSafety.Immutable;
 import com.google.devtools.build.lib.starlarkbuildapi.FilesToRunProviderApi;
 import javax.annotation.Nullable;
+import net.starlark.java.eval.Printer;
+import net.starlark.java.eval.StarlarkThread;
 
 /** Returns information about executables produced by a target and the files needed to run it. */
 @Immutable
@@ -104,6 +106,17 @@ public class FilesToRunProvider implements TransitiveInfoProvider, FilesToRunPro
   public Artifact getRepoMappingManifest() {
     var runfilesSupport = getRunfilesSupport();
     return runfilesSupport != null ? runfilesSupport.getRepoMappingManifest() : null;
+  }
+
+  @Override
+  public void debugPrint(Printer printer, StarlarkThread thread) {
+    printer.append("FilesToRunProvider(executable = ");
+    printer.debugPrint(getExecutable(), thread);
+    printer.append(", repo_mapping_manifest = ");
+    printer.debugPrint(getRepoMappingManifest(), thread);
+    printer.append(", runfiles_manifest = ");
+    printer.debugPrint(getRunfilesManifest(), thread);
+    printer.append(")");
   }
 
   /** A single executable. */
