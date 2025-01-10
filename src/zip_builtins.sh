@@ -42,7 +42,10 @@ trap "rm -rf $TMPDIR" EXIT
 # doesn't have that flag, so break it out into a loop.
 mkdir -p "$TMPDIR/staging"
 for src in "$@"; do
-    dst="$TMPDIR/staging/$src"
+    src_dir=$(dirname $src)
+    src_file=$(basename $src)
+    # Strip 'zip.' from file names (present to allow BUILD files)
+    dst="$TMPDIR/staging/$src_dir/${src_file#zip.}"
     mkdir -p $(dirname "$dst")
     # Make certain to expand any symlinked files (-L).
     cp -L "$src" "$dst"

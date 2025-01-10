@@ -74,7 +74,7 @@ public class FakeResourceOwner implements ActionExecutionMetadata {
         /* configurationChecksum= */ "fake",
         /* buildConfigurationEvent= */ null,
         /* isToolConfiguration= */ false,
-        /* executionPlatform= */ null,
+        /* executionPlatform= */ PlatformInfo.EMPTY_PLATFORM_INFO,
         /* aspectDescriptors= */ ImmutableList.of(),
         /* execProperties= */ ImmutableMap.of());
   }

@@ -18,7 +18,7 @@ filegroup(
 # - io_bazel is used as a dependency (external/<repo_name>/src/main/starlark/builtins_bzl)
 genrule(
     name = "builtins_bzl_zip",
-    srcs = glob(["**/*.bzl"]),
+    srcs = glob(["**/*.bzl", "**/zip.*"]),
     outs = ["builtins_bzl.zip"],
     # builtins_zip.sh zip output builtins_root files...
     cmd = "$(location //src:zip_builtins)" +

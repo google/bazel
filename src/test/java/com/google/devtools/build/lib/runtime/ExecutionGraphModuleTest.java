@@ -544,7 +544,14 @@ public class ExecutionGraphModuleTest extends FoundationTestCase {
                 "Mnemonic", "Progress message", "//unused:label", "output/foo/out") {
               @Override
               public ActionOwner getOwner() {
-                return ActionOwner.SYSTEM_ACTION_OWNER;
+                return ActionOwner.create(
+                    /* label= */ null,
+                    ActionsTestUtil.NULL_ACTION_OWNER.getLocation(),
+                    ActionsTestUtil.NULL_ACTION_OWNER.getTargetKind(),
+                    ActionsTestUtil.NULL_ACTION_OWNER.getBuildConfigurationInfo(),
+                    ActionsTestUtil.NULL_ACTION_OWNER.getExecutionPlatform(),
+                    ActionsTestUtil.NULL_ACTION_OWNER.getAspectDescriptors(),
+                    ActionsTestUtil.NULL_ACTION_OWNER.getExecProperties());
               }
             },
             ImmutableList.of("cmd"),
