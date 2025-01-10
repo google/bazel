@@ -63,6 +63,7 @@ import java.util.Collection;
 import java.util.Comparator;
 import java.util.List;
 import java.util.SortedMap;
+import java.util.UUID;
 import java.util.concurrent.ForkJoinPool;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.GuardedBy;
@@ -143,6 +144,7 @@ public class CompactSpawnLogContext extends SpawnLogContext {
   @Nullable private final RemoteOptions remoteOptions;
   private final DigestHashFunction digestHashFunction;
   private final XattrProvider xattrProvider;
+  private final UUID invocationId;
 
   // Maps a key identifying an entry into its ID.
   // Each key is either a NestedSet.Node or the String path of a file, directory, symlink or
@@ -166,7 +168,8 @@ public class CompactSpawnLogContext extends SpawnLogContext {
       boolean siblingRepositoryLayout,
       @Nullable RemoteOptions remoteOptions,
       DigestHashFunction digestHashFunction,
-      XattrProvider xattrProvider)
+      XattrProvider xattrProvider,
+      UUID invocationId)
       throws IOException, InterruptedException {
     this.execRoot = execRoot;
     this.workspaceName = workspaceName;
@@ -174,6 +177,7 @@ public class CompactSpawnLogContext extends SpawnLogContext {
     this.remoteOptions = remoteOptions;
     this.digestHashFunction = digestHashFunction;
     this.xattrProvider = xattrProvider;
+    this.invocationId = invocationId;
     this.outputStream = getOutputStream(outputPath);
 
     logInvocation();
@@ -194,7 +198,8 @@ public class CompactSpawnLogContext extends SpawnLogContext {
                     ExecLogEntry.Invocation.newBuilder()
                         .setHashFunctionName(digestHashFunction.toString())
                         .setWorkspaceRunfilesDirectory(workspaceName)
-                        .setSiblingRepositoryLayout(siblingRepositoryLayout)));
+                        .setSiblingRepositoryLayout(siblingRepositoryLayout)
+                        .setId(invocationId.toString())));
   }
 
   @Override

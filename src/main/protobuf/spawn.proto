@@ -232,6 +232,9 @@ message ExecLogEntry {
 
     // Whether --experimental_sibling_repository_layout is enabled.
     bool sibling_repository_layout = 3;
+
+    // The ID of the invocation.
+    string id = 4;
   }
 
   // An input or output file.
