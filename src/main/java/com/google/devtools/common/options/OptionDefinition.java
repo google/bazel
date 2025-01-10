@@ -124,11 +124,6 @@ public abstract class OptionDefinition implements Comparable<OptionDefinition> {
   /** Returns a warning to use with this option if the old name is specified. */
   public abstract boolean getOldNameWarning();
 
-  /** Returns whether an option --foo has a negative equivalent --nofoo. */
-  public boolean hasNegativeOption() {
-    return getType().equals(boolean.class) || getType().equals(TriState.class);
-  }
-
   /** The type of the optionDefinition. */
   public abstract Class<?> getType();
 
