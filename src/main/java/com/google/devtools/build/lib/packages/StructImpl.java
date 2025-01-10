@@ -27,9 +27,8 @@ import net.starlark.java.eval.Starlark;
 import net.starlark.java.eval.Structure;
 
 /**
- * An abstract base class for Starlark values that have fields, have to_json and to_proto methods,
- * have an associated provider (type symbol), and may be returned as the result of analysis from one
- * target to another.
+ * An abstract base class for Starlark values that have fields, have an associated provider (type
+ * symbol), and may be returned as the result of analysis from one target to another.
  *
  * <p>StructImpl does not specify how the fields are represented; subclasses must define {@code
  * getValue} and {@code getFieldNames}. For example, {@code NativeInfo} supplies fields from the
