@@ -82,7 +82,7 @@ test:ci-linux --test_env=TEST_INSTALL_BASE=/var/lib/buildkite-agent/bazeltest/in
 test:ci-linux --test_env=REPOSITORY_CACHE=/var/lib/buildkite-agent/bazeltest/repo_cache
 test:ci-linux --test_env=REMOTE_NETWORK_ADDRESS=bazel.build:80
 test:ci-linux --sandbox_writable_path=/var/lib/buildkite-agent/bazeltest
-test:ci-linux --sandbox_default_allow_network=false
+test:ci-linux --sandbox_default_allow_network=true
 
 ## For macOS
 common:ci-macos --config=ci-common
