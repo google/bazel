@@ -172,7 +172,11 @@ static void MoveToCgroup(pid_t pid, const char* cgroup_path) {
         strcmp(fs_vfstype, "cgroup2") == 0) {
       char* procs_path;
       asprintf(&procs_path, "%s%s/cgroup.procs", fs_file, cgroup_path);
-      WriteFile(procs_path, "%d", pid);
+      FILE* procs = fopen(procs_path, "w");
+      if (procs != NULL) {
+        fprintf(procs, "%d", pid);
+        fclose(procs);
+      }
       free(procs_path);
     }
   }
