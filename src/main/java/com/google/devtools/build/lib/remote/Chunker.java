@@ -23,7 +23,6 @@ import static java.lang.Math.min;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.io.ByteStreams;
 import com.google.devtools.build.lib.remote.zstd.ZstdCompressingInputStream;
-import com.google.devtools.build.lib.vfs.Path;
 import com.google.errorprone.annotations.CanIgnoreReturnValue;
 import com.google.protobuf.ByteString;
 import java.io.ByteArrayInputStream;
@@ -294,27 +293,20 @@ public class Chunker {
     protected ChunkDataSupplier inputStream;
 
     @CanIgnoreReturnValue
+    public Builder setInput(long size, ChunkDataSupplier in) {
+      checkState(inputStream == null);
+      checkNotNull(in);
+      this.size = size;
+      inputStream = in;
+      return this;
+    }
+
+    @CanIgnoreReturnValue
+    @VisibleForTesting
     public Builder setInput(byte[] data) {
       checkState(inputStream == null);
       size = data.length;
       setInputSupplier(() -> new ByteArrayInputStream(data));
-      return this;
-    }
-
-    @CanIgnoreReturnValue
-    public Builder setInput(long size, InputStream in) {
-      checkState(inputStream == null);
-      checkNotNull(in);
-      this.size = size;
-      inputStream = () -> in;
-      return this;
-    }
-
-    @CanIgnoreReturnValue
-    public Builder setInput(long size, Path file) {
-      checkState(inputStream == null);
-      this.size = size;
-      inputStream = file::getInputStream;
       return this;
     }
 

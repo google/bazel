@@ -94,7 +94,7 @@ public class ChunkerTest {
             super.close();
           }
         };
-    Chunker chunker = Chunker.builder().setInput(0, inp).build();
+    Chunker chunker = Chunker.builder().setInput(0, () -> inp).build();
 
     assertThat(chunker.hasNext()).isTrue();
 

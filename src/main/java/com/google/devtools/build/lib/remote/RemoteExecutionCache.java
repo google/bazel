@@ -190,7 +190,8 @@ public class RemoteExecutionCache extends CombinedCache {
         case ContentSource.VirtualActionInputSource(VirtualActionInput virtualActionInput) ->
             // TODO: Avoid materializing the entire file in memory. This requires changing the
             // upload to be driven by an OutputStream rather than consuming an InputStream.
-            remoteCacheClient.uploadBlob(context, digest, virtualActionInput.getBytes());
+            remoteCacheClient.uploadBlob(
+                context, digest, () -> virtualActionInput.getBytes().newInput());
         case ContentSource.PathSource(Path path) -> {
           try {
             if (remotePathChecker.isRemote(context, path)) {

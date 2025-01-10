@@ -37,7 +37,6 @@ import com.google.devtools.build.lib.remote.common.RemoteCacheClient;
 import com.google.devtools.build.lib.remote.util.DigestOutputStream;
 import com.google.devtools.build.lib.remote.util.DigestUtil;
 import com.google.devtools.build.lib.remote.util.Utils;
-import com.google.devtools.build.lib.vfs.Path;
 import com.google.protobuf.ByteString;
 import io.netty.bootstrap.Bootstrap;
 import io.netty.channel.Channel;
@@ -93,6 +92,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Function;
+import java.util.function.Supplier;
 import java.util.regex.Pattern;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.GuardedBy;
@@ -719,24 +719,11 @@ public final class HttpCacheClient implements RemoteCacheClient {
   }
 
   @Override
-  public ListenableFuture<Void> uploadFile(
-      RemoteActionExecutionContext context, Digest digest, Path file) {
-    return retrier.executeAsync(
-        () ->
-            uploadAsync(
-                digest.getHash(),
-                digest.getSizeBytes(),
-                new LazyFileInputStream(file),
-                /* casUpload= */ true));
-  }
-
-  @Override
   public ListenableFuture<Void> uploadBlob(
-      RemoteActionExecutionContext context, Digest digest, ByteString data) {
+      RemoteActionExecutionContext context, Digest digest, Supplier<InputStream> in) {
     return retrier.executeAsync(
         () ->
-            uploadAsync(
-                digest.getHash(), digest.getSizeBytes(), data.newInput(), /* casUpload= */ true));
+            uploadAsync(digest.getHash(), digest.getSizeBytes(), in.get(), /* casUpload= */ true));
   }
 
   @Override

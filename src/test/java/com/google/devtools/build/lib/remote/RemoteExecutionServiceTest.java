@@ -132,6 +132,7 @@ import com.google.protobuf.ByteString;
 import com.google.testing.junit.testparameterinjector.TestParameter;
 import com.google.testing.junit.testparameterinjector.TestParameterInjector;
 import java.io.IOException;
+import java.io.InputStream;
 import java.util.Collection;
 import java.util.Map;
 import java.util.Random;
@@ -140,6 +141,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Supplier;
 import javax.annotation.Nullable;
 import org.junit.Before;
 import org.junit.Rule;
@@ -2162,7 +2164,7 @@ public class RemoteExecutionServiceTest {
               return future;
             })
         .when(cache.remoteCacheClient)
-        .uploadBlob(any(), any(), any());
+        .uploadBlob(any(), any(), (Supplier<InputStream>) any());
     ActionInput input = ActionInputHelper.fromPath("inputs/foo");
     fakeFileCache.createScratchInput(input, "input-foo");
     RemoteExecutionService service = newRemoteExecutionService();
