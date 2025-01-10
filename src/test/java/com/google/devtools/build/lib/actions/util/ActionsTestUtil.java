@@ -319,13 +319,6 @@ public final class ActionsTestUtil {
   public static VirtualActionInput createVirtualActionInput(PathFragment path, String contents) {
     return new VirtualActionInput() {
       @Override
-      public ByteString getBytes() throws IOException {
-        ByteString.Output out = ByteString.newOutput();
-        writeTo(out);
-        return out.toByteString();
-      }
-
-      @Override
       public String getExecPathString() {
         return path.getPathString();
       }
