@@ -1449,10 +1449,13 @@ the same path on case-insensitive filesystems.
       name = "path",
       doc =
           """
-          Returns a path from a string, label or path. If the path is relative, it will resolve \
-          relative to the repository directory. If the path is a label, it will resolve to \
-          the path of the corresponding file. Note that remote repositories are executed \
-          during the analysis phase and thus cannot depends on a target result (the \
+          Returns a path from a string, label, or path. If this context is a \
+          <code>repository_ctx</code>, a relative path will resolve relative to the \
+          repository directory. If it is a <code>module_ctx</code>, a relative path will \
+          resolve relative to a temporary working directory for this module extension. \
+          If the path is a label, it will resolve to \
+          the path of the corresponding file. Note that remote repositories and module extensions \
+          are executed during the analysis phase and thus cannot depends on a target result (the \
           label should point to a non-generated file). If path is a path, it will return \
           that path as is.
           """,
