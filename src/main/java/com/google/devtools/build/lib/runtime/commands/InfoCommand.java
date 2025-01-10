@@ -14,6 +14,7 @@
 package com.google.devtools.build.lib.runtime.commands;
 
 import static com.google.devtools.build.lib.runtime.Command.BuildPhase.NONE;
+import static java.nio.charset.StandardCharsets.ISO_8859_1;
 
 import com.google.common.base.Supplier;
 import com.google.common.base.Suppliers;
@@ -77,7 +78,6 @@ import com.google.devtools.common.options.OptionsBase;
 import com.google.devtools.common.options.OptionsParsingResult;
 import com.google.devtools.common.options.OptionsProvider;
 import java.io.IOException;
-import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
@@ -194,7 +194,7 @@ public class InfoCommand implements BlazeCommand {
               }
               value = infoItem.get(configurationSupplier, env);
               if (residue.size() > 1) {
-                outErr.getOutputStream().write((key + ": ").getBytes(StandardCharsets.UTF_8));
+                outErr.getOutputStream().write((key + ": ").getBytes(ISO_8859_1));
               }
               outErr.getOutputStream().write(value);
             }
@@ -224,8 +224,7 @@ public class InfoCommand implements BlazeCommand {
           if (infoItem.needsSyncPackageLoading()) {
             ensureSyncPackageLoading(env, optionsParsingResult);
           }
-          outErr.getOutputStream().write(
-              (infoItem.getName() + ": ").getBytes(StandardCharsets.UTF_8));
+          outErr.getOutputStream().write((infoItem.getName() + ": ").getBytes(ISO_8859_1));
           try (SilentCloseable c = Profiler.instance().profile(infoItem.getName() + ".infoItem")) {
             outErr.getOutputStream().write(infoItem.get(configurationSupplier, env));
           }

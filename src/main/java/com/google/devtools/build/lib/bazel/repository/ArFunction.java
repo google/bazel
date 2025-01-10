@@ -18,7 +18,6 @@ import com.google.common.io.ByteStreams;
 import com.google.devtools.build.lib.bazel.repository.DecompressorValue.Decompressor;
 import com.google.devtools.build.lib.vfs.Path;
 import java.io.BufferedInputStream;
-import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -37,12 +36,6 @@ public class ArFunction implements Decompressor {
   // This is the same value as picked for .tar files, which appears to have worked well.
   private static final int BUFFER_SIZE = 32 * 1024;
 
-  private InputStream getDecompressorStream(DecompressorDescriptor descriptor) throws IOException {
-    return new BufferedInputStream(
-        new FileInputStream(descriptor.archivePath().getPathFile()), BUFFER_SIZE);
-  }
-  ;
-
   @Override
   public Path decompress(DecompressorDescriptor descriptor)
       throws InterruptedException, IOException {
@@ -52,7 +45,8 @@ public class ArFunction implements Decompressor {
 
     Map<String, String> renameFiles = descriptor.renameFiles();
 
-    try (InputStream decompressorStream = getDecompressorStream(descriptor)) {
+    try (InputStream decompressorStream =
+        new BufferedInputStream(descriptor.archivePath().getInputStream(), BUFFER_SIZE)) {
       ArArchiveInputStream arStream = new ArArchiveInputStream(decompressorStream);
       ArArchiveEntry entry;
       while ((entry = arStream.getNextArEntry()) != null) {

@@ -22,6 +22,7 @@ import com.google.common.hash.Hasher;
 import com.google.devtools.build.lib.concurrent.ThreadSafety.ThreadSafe;
 import com.google.devtools.build.lib.skyframe.serialization.autocodec.AutoCodec;
 import com.google.devtools.build.lib.util.FileType;
+import com.google.devtools.build.lib.util.StringEncoding;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
@@ -454,6 +455,15 @@ public class Path implements Comparable<Path>, FileType.HasFileType {
   }
 
   /**
+   * Returns the path of a new temporary directory with the given prefix created under this path.
+   * This method is only supported by file system implementations that are backed by the local file
+   * system.
+   */
+  public Path createTempDirectory(String prefix) throws IOException {
+    return fileSystem.getPath(fileSystem.createTempDirectory(asFragment(), prefix));
+  }
+
+  /**
    * Creates a symbolic link with the name of the current path, following symbolic links. The
    * referent of the created symlink is is the absolute path "target"; it is not possible to create
    * relative symbolic links via this method.
@@ -772,7 +782,7 @@ public class Path implements Comparable<Path>, FileType.HasFileType {
    * <p>Caveat: the result may be useless if this path's getFileSystem() is not the UNIX filesystem.
    */
   public File getPathFile() {
-    return new File(getPathString());
+    return new File(StringEncoding.internalToPlatform(getPathString()));
   }
 
   /**

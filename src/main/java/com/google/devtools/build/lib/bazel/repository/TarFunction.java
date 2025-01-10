@@ -16,21 +16,16 @@ package com.google.devtools.build.lib.bazel.repository;
 
 import com.google.devtools.build.lib.bazel.repository.DecompressorValue.Decompressor;
 import java.io.BufferedInputStream;
-import java.io.FileInputStream;
-import java.io.IOException;
 import java.io.InputStream;
 
 /** Creates a repository by unarchiving a plain .tar file. */
 public class TarFunction extends CompressedTarFunction {
   public static final Decompressor INSTANCE = new TarFunction();
-  private static final int BUFFER_SIZE = 32 * 1024;
 
   private TarFunction() {}
 
   @Override
-  protected InputStream getDecompressorStream(DecompressorDescriptor descriptor)
-      throws IOException {
-    return new BufferedInputStream(
-        new FileInputStream(descriptor.archivePath().getPathFile()), BUFFER_SIZE);
+  protected InputStream getDecompressorStream(BufferedInputStream compressedInputStream) {
+    return compressedInputStream;
   }
 }

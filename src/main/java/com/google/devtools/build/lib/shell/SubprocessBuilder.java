@@ -20,6 +20,7 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.devtools.build.lib.jni.JniLoader;
 import com.google.devtools.build.lib.util.OS;
+import com.google.devtools.build.lib.util.StringEncoding;
 import com.google.errorprone.annotations.CanIgnoreReturnValue;
 import java.io.File;
 import java.io.IOException;
@@ -110,7 +111,7 @@ public class SubprocessBuilder {
   public SubprocessBuilder setArgv(ImmutableList<String> argv) {
     this.argv = Preconditions.checkNotNull(argv);
     Preconditions.checkArgument(!this.argv.isEmpty());
-    File argv0 = new File(this.argv.get(0));
+    File argv0 = new File(StringEncoding.internalToPlatform(this.argv.get(0)));
     Preconditions.checkArgument(
         argv0.isAbsolute() || argv0.getParent() == null,
         "argv[0] = '%s'; it should be either absolute or just a single file name"

@@ -14,13 +14,14 @@
 
 package com.google.devtools.build.lib.runtime;
 
+import static java.nio.charset.StandardCharsets.ISO_8859_1;
+
 import com.google.common.base.Supplier;
 import com.google.devtools.build.lib.analysis.config.BuildConfigurationValue;
 import com.google.devtools.build.lib.util.AbruptExitException;
 import java.io.ByteArrayOutputStream;
 import java.io.OutputStreamWriter;
 import java.io.PrintWriter;
-import java.nio.charset.StandardCharsets;
 
 /** An item that is returned by <code>blaze info</code>. */
 public abstract class InfoItem {
@@ -78,8 +79,7 @@ public abstract class InfoItem {
       return (byte[]) value;
     }
     ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
-    PrintWriter writer =
-        new PrintWriter(new OutputStreamWriter(outputStream, StandardCharsets.UTF_8));
+    PrintWriter writer = new PrintWriter(new OutputStreamWriter(outputStream, ISO_8859_1));
     writer.print(value + "\n");
     writer.flush();
     return outputStream.toByteArray();

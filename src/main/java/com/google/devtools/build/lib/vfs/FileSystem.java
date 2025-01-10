@@ -23,6 +23,7 @@ import com.google.common.collect.Lists;
 import com.google.common.io.ByteSource;
 import com.google.common.io.CharStreams;
 import com.google.devtools.build.lib.concurrent.ThreadSafety.ThreadSafe;
+import com.google.devtools.build.lib.util.StringEncoding;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
@@ -31,6 +32,7 @@ import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.nio.channels.SeekableByteChannel;
 import java.nio.file.FileAlreadyExistsException;
+import java.nio.file.Files;
 import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
@@ -841,5 +843,19 @@ public abstract class FileSystem {
   protected java.nio.file.Path getNioPath(PathFragment path) {
     throw new UnsupportedOperationException(
         "getNioPath() not supported for " + getClass().getName());
+  }
+
+  /**
+   * Returns the path of a new temporary directory with the given prefix created under the given
+   * parent path. This method is only supported by file system implementations that are backed by
+   * the local file system.
+   */
+  protected PathFragment createTempDirectory(PathFragment parent, String prefix)
+      throws IOException {
+    java.nio.file.Path javaParent = getNioPath(parent);
+    java.nio.file.Path javaTmp =
+        Files.createTempDirectory(javaParent, StringEncoding.internalToPlatform(prefix));
+    return PathFragment.create(
+        StringEncoding.platformToInternal(javaTmp.toAbsolutePath().toString()));
   }
 }
