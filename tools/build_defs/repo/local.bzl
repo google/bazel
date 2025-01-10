@@ -94,6 +94,9 @@ def _new_local_repository_impl(rctx):
             rctx.watch(child)
 
     if rctx.attr.build_file != None:
+        # Remove any existing BUILD.bazel in the repository to ensure
+        # the symlink to the defined build_file doesn't fail.
+        rctx.delete("BUILD.bazel")
         rctx.symlink(rctx.attr.build_file, "BUILD.bazel")
         if rctx.os.name.startswith("windows"):
             rctx.watch(rctx.attr.build_file)  # same reason as above
