@@ -105,6 +105,12 @@ Eclipse projects.
 
 ### C Language Family (C++, C, Objective-C, and Objective-C++)
 
+[`kiron1/bazel-compile-commands`](https://github.com/kiron1/bazel-compile-commands){: .external}
+run `bazel-compile-commands //...` in a Bazel workspace to generate a `compile_commands.json` file.
+The `compile_commands.json` file enables tools like `clang-tidy`, `clangd` (LSP) and other IDEs to
+provide autocomplete, smart navigation, quick fixes, and more. The tool is written in C++ and
+consumes the Protobuf output of Bazel to extract the compile commands.
+
 [`hedronvision/bazel-compile-commands-extractor`](https://github.com/hedronvision/bazel-compile-commands-extractor) enables autocomplete, smart navigation, quick fixes, and more in a wide variety of extensible editors, including VSCode, Vim, Emacs, Atom, and Sublime. It lets language servers, like clangd and ccls, and other types of tooling, draw upon Bazel's understanding of how `cc` and `objc` code will be compiled, including how it configures cross-compilation for other platforms.
 
 ### Java
