@@ -48,6 +48,7 @@ import com.google.devtools.build.lib.remote.options.RemoteOptions;
 import com.google.devtools.build.lib.remote.util.DigestUtil;
 import com.google.devtools.build.lib.remote.util.RxUtils.TransferResult;
 import com.google.devtools.build.lib.vfs.Path;
+import com.google.protobuf.ByteString;
 import com.google.protobuf.Message;
 import io.reactivex.rxjava3.annotations.NonNull;
 import io.reactivex.rxjava3.core.Completable;
@@ -60,6 +61,7 @@ import io.reactivex.rxjava3.core.SingleEmitter;
 import io.reactivex.rxjava3.disposables.Disposable;
 import io.reactivex.rxjava3.subjects.AsyncSubject;
 import java.io.IOException;
+import java.io.InputStream;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicReference;
@@ -173,6 +175,34 @@ public class RemoteExecutionCache extends CombinedCache {
     }
   }
 
+  private static final class VirtualActionInputDataSupplier
+      implements RemoteCacheClient.CloseableBlobSupplier {
+    private VirtualActionInput virtualActionInput;
+    private volatile ByteString data;
+
+    VirtualActionInputDataSupplier(VirtualActionInput virtualActionInput) {
+      this.virtualActionInput = virtualActionInput;
+    }
+
+    @Override
+    public InputStream get() {
+      if (data == null) {
+        synchronized (this) {
+          if (data == null) {
+            data = virtualActionInput.getBytes();
+          }
+        }
+      }
+      return data.newInput();
+    }
+
+    @Override
+    public void close() {
+      virtualActionInput = null;
+      data = null;
+    }
+  }
+
   private ListenableFuture<Void> uploadBlob(
       RemoteActionExecutionContext context,
       Digest digest,
@@ -188,10 +218,8 @@ public class RemoteExecutionCache extends CombinedCache {
     if (file != null) {
       return switch (file) {
         case ContentSource.VirtualActionInputSource(VirtualActionInput virtualActionInput) ->
-            // TODO: Avoid materializing the entire file in memory. This requires changing the
-            // upload to be driven by an OutputStream rather than consuming an InputStream.
             remoteCacheClient.uploadBlob(
-                context, digest, () -> virtualActionInput.getBytes().newInput());
+                context, digest, new VirtualActionInputDataSupplier(virtualActionInput));
         case ContentSource.PathSource(Path path) -> {
           try {
             if (remotePathChecker.isRemote(context, path)) {

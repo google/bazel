@@ -18,7 +18,7 @@ import static org.junit.Assert.assertThrows;
 
 import com.github.luben.zstd.Zstd;
 import com.google.devtools.build.lib.remote.Chunker.Chunk;
-import com.google.devtools.build.lib.remote.Chunker.ChunkDataSupplier;
+import com.google.devtools.build.lib.remote.common.RemoteCacheClient;
 import com.google.protobuf.ByteString;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -136,7 +136,7 @@ public class ChunkerTest {
 
     byte[] data = new byte[] {1, 2};
     final AtomicReference<InputStream> in = new AtomicReference<>();
-    ChunkDataSupplier supplier =
+    RemoteCacheClient.CloseableBlobSupplier supplier =
         () -> {
           in.set(Mockito.spy(new ByteArrayInputStream(data)));
           return in.get();

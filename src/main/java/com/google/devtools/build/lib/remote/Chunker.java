@@ -22,6 +22,7 @@ import static java.lang.Math.min;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.io.ByteStreams;
+import com.google.devtools.build.lib.remote.common.RemoteCacheClient;
 import com.google.devtools.build.lib.remote.zstd.ZstdCompressingInputStream;
 import com.google.errorprone.annotations.CanIgnoreReturnValue;
 import com.google.protobuf.ByteString;
@@ -96,12 +97,7 @@ public class Chunker {
     }
   }
 
-  /** A supplier that provide data as {@link InputStream}. */
-  public interface ChunkDataSupplier {
-    InputStream get() throws IOException;
-  }
-
-  private final ChunkDataSupplier dataSupplier;
+  private final RemoteCacheClient.CloseableBlobSupplier dataSupplier;
   private final long uncompressedSize;
   private final int chunkSize;
   private final Chunk emptyChunk;
@@ -117,7 +113,10 @@ public class Chunker {
   private boolean initialized;
 
   Chunker(
-      ChunkDataSupplier dataSupplier, long uncompressedSize, int chunkSize, boolean compressed) {
+      RemoteCacheClient.CloseableBlobSupplier dataSupplier,
+      long uncompressedSize,
+      int chunkSize,
+      boolean compressed) {
     this.dataSupplier = checkNotNull(dataSupplier);
     this.uncompressedSize = uncompressedSize;
     this.chunkSize = chunkSize;
@@ -142,6 +141,7 @@ public class Chunker {
     close();
     offset = 0;
     initialized = false;
+    dataSupplier.close();
   }
 
   /**
@@ -290,10 +290,10 @@ public class Chunker {
     private int chunkSize = getDefaultChunkSize();
     protected long size;
     private boolean compressed;
-    protected ChunkDataSupplier inputStream;
+    protected RemoteCacheClient.CloseableBlobSupplier inputStream;
 
     @CanIgnoreReturnValue
-    public Builder setInput(long size, ChunkDataSupplier in) {
+    public Builder setInput(long size, RemoteCacheClient.CloseableBlobSupplier in) {
       checkState(inputStream == null);
       checkNotNull(in);
       this.size = size;
@@ -312,7 +312,7 @@ public class Chunker {
 
     @CanIgnoreReturnValue
     @VisibleForTesting
-    protected final Builder setInputSupplier(ChunkDataSupplier inputStream) {
+    protected final Builder setInputSupplier(RemoteCacheClient.CloseableBlobSupplier inputStream) {
       this.inputStream = inputStream;
       return this;
     }

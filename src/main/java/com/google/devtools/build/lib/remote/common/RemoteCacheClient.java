@@ -20,13 +20,13 @@ import build.bazel.remote.execution.v2.Digest;
 import build.bazel.remote.execution.v2.ServerCapabilities;
 import com.google.common.base.Preconditions;
 import com.google.common.util.concurrent.ListenableFuture;
+import com.google.devtools.build.lib.profiler.SilentCloseable;
 import com.google.devtools.build.lib.vfs.Path;
 import com.google.protobuf.ByteString;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.Set;
-import java.util.function.Supplier;
 
 /**
  * An interface for a remote caching protocol.
@@ -113,17 +113,24 @@ public interface RemoteCacheClient extends MissingDigestsFinder {
   ListenableFuture<Void> downloadBlob(
       RemoteActionExecutionContext context, Digest digest, OutputStream out);
 
+  @FunctionalInterface
+  interface CloseableBlobSupplier extends SilentCloseable {
+    InputStream get();
+
+    @Override
+    default void close() {}
+  }
+
   /**
    * Uploads a blob to the CAS.
    *
    * @param context the context for the action.
    * @param digest The digest of the blob.
-   * @param data A supplier for the data to upload. Will be called at most once and as close as as
-   *     possible in time to the actual upload.
+   * @param data A supplier for the data to upload. May be called multiple times.
    * @return A future representing pending completion of the upload.
    */
   ListenableFuture<Void> uploadBlob(
-      RemoteActionExecutionContext context, Digest digest, Supplier<InputStream> data);
+      RemoteActionExecutionContext context, Digest digest, CloseableBlobSupplier data);
 
   /**
    * Uploads a {@code file} to the CAS.

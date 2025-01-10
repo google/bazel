@@ -67,7 +67,6 @@ import io.grpc.StatusRuntimeException;
 import io.grpc.stub.ClientCallStreamObserver;
 import io.grpc.stub.ClientResponseObserver;
 import java.io.IOException;
-import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.List;
@@ -485,12 +484,12 @@ public class GrpcCacheClient implements RemoteCacheClient, MissingDigestsFinder 
 
   @Override
   public ListenableFuture<Void> uploadBlob(
-      RemoteActionExecutionContext context, Digest digest, Supplier<InputStream> data) {
+      RemoteActionExecutionContext context, Digest digest, CloseableBlobSupplier data) {
     return uploadChunker(
         context,
         digest,
         Chunker.builder()
-            .setInput(digest.getSizeBytes(), data::get)
+            .setInput(digest.getSizeBytes(), data)
             .setCompressed(shouldCompress(digest))
             .build());
   }
