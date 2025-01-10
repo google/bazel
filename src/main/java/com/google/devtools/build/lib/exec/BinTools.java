@@ -202,13 +202,6 @@ public final class BinTools {
     }
 
     @Override
-    public ByteString getBytes() throws IOException {
-      ByteString.Output out = ByteString.newOutput();
-      writeTo(out);
-      return out.toByteString();
-    }
-
-    @Override
     public FileArtifactValue getMetadata() throws IOException {
       // We intentionally delay hashing until it is necessary.
       if (metadata == null) {

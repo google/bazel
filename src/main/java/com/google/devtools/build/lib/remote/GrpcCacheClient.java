@@ -59,7 +59,6 @@ import com.google.devtools.build.lib.remote.util.DigestUtil;
 import com.google.devtools.build.lib.remote.util.TracingMetadataUtils;
 import com.google.devtools.build.lib.remote.util.Utils;
 import com.google.devtools.build.lib.remote.zstd.ZstdDecompressingOutputStream;
-import com.google.devtools.build.lib.vfs.Path;
 import com.google.protobuf.ByteString;
 import io.grpc.Channel;
 import io.grpc.Status;
@@ -484,25 +483,13 @@ public class GrpcCacheClient implements RemoteCacheClient, MissingDigestsFinder 
   }
 
   @Override
-  public ListenableFuture<Void> uploadFile(
-      RemoteActionExecutionContext context, Digest digest, Path path) {
-    return uploadChunker(
-        context,
-        digest,
-        Chunker.builder()
-            .setInput(digest.getSizeBytes(), path)
-            .setCompressed(shouldCompress(digest))
-            .build());
-  }
-
-  @Override
   public ListenableFuture<Void> uploadBlob(
-      RemoteActionExecutionContext context, Digest digest, ByteString data) {
+      RemoteActionExecutionContext context, Digest digest, CloseableBlobSupplier data) {
     return uploadChunker(
         context,
         digest,
         Chunker.builder()
-            .setInput(data.toByteArray())
+            .setInput(digest.getSizeBytes(), data)
             .setCompressed(shouldCompress(digest))
             .build());
   }

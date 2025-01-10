@@ -693,7 +693,8 @@ public class ByteStreamUploaderTest {
     // provide only enough data to write a single chunk
     InputStream in = new ByteArrayInputStream(blob, 0, CHUNK_SIZE);
 
-    Chunker chunker = Chunker.builder().setInput(blob.length, in).setChunkSize(CHUNK_SIZE).build();
+    Chunker chunker =
+        Chunker.builder().setInput(blob.length, () -> in).setChunkSize(CHUNK_SIZE).build();
     Digest digest = DIGEST_UTIL.compute(blob);
 
     serviceRegistry.addService(

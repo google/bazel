@@ -20,9 +20,11 @@ import build.bazel.remote.execution.v2.Digest;
 import build.bazel.remote.execution.v2.ServerCapabilities;
 import com.google.common.base.Preconditions;
 import com.google.common.util.concurrent.ListenableFuture;
+import com.google.devtools.build.lib.profiler.SilentCloseable;
 import com.google.devtools.build.lib.vfs.Path;
 import com.google.protobuf.ByteString;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.Set;
 
@@ -111,6 +113,25 @@ public interface RemoteCacheClient extends MissingDigestsFinder {
   ListenableFuture<Void> downloadBlob(
       RemoteActionExecutionContext context, Digest digest, OutputStream out);
 
+  @FunctionalInterface
+  interface CloseableBlobSupplier extends SilentCloseable {
+    InputStream get();
+
+    @Override
+    default void close() {}
+  }
+
+  /**
+   * Uploads a blob to the CAS.
+   *
+   * @param context the context for the action.
+   * @param digest The digest of the blob.
+   * @param data A supplier for the data to upload. May be called multiple times.
+   * @return A future representing pending completion of the upload.
+   */
+  ListenableFuture<Void> uploadBlob(
+      RemoteActionExecutionContext context, Digest digest, CloseableBlobSupplier data);
+
   /**
    * Uploads a {@code file} to the CAS.
    *
@@ -119,7 +140,10 @@ public interface RemoteCacheClient extends MissingDigestsFinder {
    * @param file The file to upload.
    * @return A future representing pending completion of the upload.
    */
-  ListenableFuture<Void> uploadFile(RemoteActionExecutionContext context, Digest digest, Path file);
+  default ListenableFuture<Void> uploadFile(
+      RemoteActionExecutionContext context, Digest digest, Path file) {
+    return uploadBlob(context, digest, () -> new LazyFileInputStream(file));
+  }
 
   /**
    * Uploads a BLOB to the CAS.
@@ -129,8 +153,10 @@ public interface RemoteCacheClient extends MissingDigestsFinder {
    * @param data The BLOB to upload.
    * @return A future representing pending completion of the upload.
    */
-  ListenableFuture<Void> uploadBlob(
-      RemoteActionExecutionContext context, Digest digest, ByteString data);
+  default ListenableFuture<Void> uploadBlob(
+      RemoteActionExecutionContext context, Digest digest, ByteString data) {
+    return uploadBlob(context, digest, data::newInput);
+  }
 
   /** Close resources associated with the remote cache. */
   void close();

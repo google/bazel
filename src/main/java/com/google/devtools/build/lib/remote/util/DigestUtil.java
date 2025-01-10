@@ -21,6 +21,7 @@ import build.bazel.remote.execution.v2.Digest;
 import build.bazel.remote.execution.v2.DigestFunction;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.hash.HashCode;
+import com.google.common.hash.HashFunction;
 import com.google.common.io.BaseEncoding;
 import com.google.devtools.build.lib.actions.cache.VirtualActionInput;
 import com.google.devtools.build.lib.remote.common.RemoteCacheClient.ActionKey;
@@ -30,7 +31,6 @@ import com.google.devtools.build.lib.vfs.FileStatus;
 import com.google.devtools.build.lib.vfs.Path;
 import com.google.devtools.build.lib.vfs.XattrProvider;
 import com.google.protobuf.Message;
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.util.Arrays;
@@ -91,10 +91,19 @@ public class DigestUtil {
         DigestUtils.getDigestWithManualFallback(path, xattrProvider, status), status.getSize());
   }
 
+  public static Digest compute(VirtualActionInput input, HashFunction hashFunction)
+      throws IOException {
+    // Stream the virtual action input as parameter files, which can be very large, are lazily
+    // computed from the in-memory CommandLine object. This avoids allocating large byte arrays.
+    try (DigestOutputStream digestOutputStream =
+        new DigestOutputStream(hashFunction, OutputStream.nullOutputStream())) {
+      input.writeTo(digestOutputStream);
+      return digestOutputStream.digest();
+    }
+  }
+
   public Digest compute(VirtualActionInput input) throws IOException {
-    ByteArrayOutputStream buffer = new ByteArrayOutputStream();
-    input.writeTo(buffer);
-    return compute(buffer.toByteArray());
+    return compute(input, hashFn.getHashFunction());
   }
 
   /**

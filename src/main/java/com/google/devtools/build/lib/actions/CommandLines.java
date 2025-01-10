@@ -240,13 +240,6 @@ public abstract sealed class CommandLines {
     }
 
     @Override
-    public ByteString getBytes() throws IOException {
-      ByteString.Output out = ByteString.newOutput();
-      writeTo(out);
-      return out.toByteString();
-    }
-
-    @Override
     public String getExecPathString() {
       return paramFileExecPath.getPathString();
     }

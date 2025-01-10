@@ -22,11 +22,8 @@ import static java.lang.Math.min;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.io.ByteStreams;
-import com.google.devtools.build.lib.actions.ActionInput;
-import com.google.devtools.build.lib.actions.ActionInputHelper;
-import com.google.devtools.build.lib.actions.cache.VirtualActionInput;
+import com.google.devtools.build.lib.remote.common.RemoteCacheClient;
 import com.google.devtools.build.lib.remote.zstd.ZstdCompressingInputStream;
-import com.google.devtools.build.lib.vfs.Path;
 import com.google.errorprone.annotations.CanIgnoreReturnValue;
 import com.google.protobuf.ByteString;
 import java.io.ByteArrayInputStream;
@@ -100,12 +97,7 @@ public class Chunker {
     }
   }
 
-  /** A supplier that provide data as {@link InputStream}. */
-  public interface ChunkDataSupplier {
-    InputStream get() throws IOException;
-  }
-
-  private final ChunkDataSupplier dataSupplier;
+  private final RemoteCacheClient.CloseableBlobSupplier dataSupplier;
   private final long uncompressedSize;
   private final int chunkSize;
   private final Chunk emptyChunk;
@@ -121,7 +113,10 @@ public class Chunker {
   private boolean initialized;
 
   Chunker(
-      ChunkDataSupplier dataSupplier, long uncompressedSize, int chunkSize, boolean compressed) {
+      RemoteCacheClient.CloseableBlobSupplier dataSupplier,
+      long uncompressedSize,
+      int chunkSize,
+      boolean compressed) {
     this.dataSupplier = checkNotNull(dataSupplier);
     this.uncompressedSize = uncompressedSize;
     this.chunkSize = chunkSize;
@@ -146,6 +141,7 @@ public class Chunker {
     close();
     offset = 0;
     initialized = false;
+    dataSupplier.close();
   }
 
   /**
@@ -294,9 +290,19 @@ public class Chunker {
     private int chunkSize = getDefaultChunkSize();
     protected long size;
     private boolean compressed;
-    protected ChunkDataSupplier inputStream;
+    protected RemoteCacheClient.CloseableBlobSupplier inputStream;
 
     @CanIgnoreReturnValue
+    public Builder setInput(long size, RemoteCacheClient.CloseableBlobSupplier in) {
+      checkState(inputStream == null);
+      checkNotNull(in);
+      this.size = size;
+      inputStream = in;
+      return this;
+    }
+
+    @CanIgnoreReturnValue
+    @VisibleForTesting
     public Builder setInput(byte[] data) {
       checkState(inputStream == null);
       size = data.length;
@@ -305,37 +311,8 @@ public class Chunker {
     }
 
     @CanIgnoreReturnValue
-    public Builder setInput(long size, InputStream in) {
-      checkState(inputStream == null);
-      checkNotNull(in);
-      this.size = size;
-      inputStream = () -> in;
-      return this;
-    }
-
-    @CanIgnoreReturnValue
-    public Builder setInput(long size, Path file) {
-      checkState(inputStream == null);
-      this.size = size;
-      inputStream = file::getInputStream;
-      return this;
-    }
-
-    @CanIgnoreReturnValue
-    public Builder setInput(long size, ActionInput actionInput, Path execRoot) {
-      checkState(inputStream == null);
-      this.size = size;
-      if (actionInput instanceof VirtualActionInput virtualActionInput) {
-        inputStream = () -> virtualActionInput.getBytes().newInput();
-      } else {
-        inputStream = () -> ActionInputHelper.toInputPath(actionInput, execRoot).getInputStream();
-      }
-      return this;
-    }
-
-    @CanIgnoreReturnValue
     @VisibleForTesting
-    protected final Builder setInputSupplier(ChunkDataSupplier inputStream) {
+    protected final Builder setInputSupplier(RemoteCacheClient.CloseableBlobSupplier inputStream) {
       this.inputStream = inputStream;
       return this;
     }

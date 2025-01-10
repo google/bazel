@@ -31,13 +31,11 @@ import com.google.common.util.concurrent.SettableFuture;
 import com.google.devtools.build.lib.authandtls.AuthAndTLSOptions;
 import com.google.devtools.build.lib.remote.RemoteRetrier;
 import com.google.devtools.build.lib.remote.common.CacheNotFoundException;
-import com.google.devtools.build.lib.remote.common.LazyFileInputStream;
 import com.google.devtools.build.lib.remote.common.RemoteActionExecutionContext;
 import com.google.devtools.build.lib.remote.common.RemoteCacheClient;
 import com.google.devtools.build.lib.remote.util.DigestOutputStream;
 import com.google.devtools.build.lib.remote.util.DigestUtil;
 import com.google.devtools.build.lib.remote.util.Utils;
-import com.google.devtools.build.lib.vfs.Path;
 import com.google.protobuf.ByteString;
 import io.netty.bootstrap.Bootstrap;
 import io.netty.channel.Channel;
@@ -719,24 +717,11 @@ public final class HttpCacheClient implements RemoteCacheClient {
   }
 
   @Override
-  public ListenableFuture<Void> uploadFile(
-      RemoteActionExecutionContext context, Digest digest, Path file) {
-    return retrier.executeAsync(
-        () ->
-            uploadAsync(
-                digest.getHash(),
-                digest.getSizeBytes(),
-                new LazyFileInputStream(file),
-                /* casUpload= */ true));
-  }
-
-  @Override
   public ListenableFuture<Void> uploadBlob(
-      RemoteActionExecutionContext context, Digest digest, ByteString data) {
+      RemoteActionExecutionContext context, Digest digest, CloseableBlobSupplier in) {
     return retrier.executeAsync(
         () ->
-            uploadAsync(
-                digest.getHash(), digest.getSizeBytes(), data.newInput(), /* casUpload= */ true));
+            uploadAsync(digest.getHash(), digest.getSizeBytes(), in.get(), /* casUpload= */ true));
   }
 
   @Override

@@ -13,8 +13,15 @@ filegroup(
 
 java_library(
     name = "util",
-    srcs = glob(["*.java"]),
+    srcs = glob(
+        ["*.java"],
+        exclude = [
+            "DigestOutputStream.java",
+            "DigestUtil.java",
+        ],
+    ),
     deps = [
+        ":digest_utils",
         "//src/main/java/com/google/devtools/build/lib/actions",
         "//src/main/java/com/google/devtools/build/lib/actions:artifacts",
         "//src/main/java/com/google/devtools/build/lib/actions:execution_requirements",
@@ -39,6 +46,23 @@ java_library(
         "@com_google_protobuf//:protobuf_java_util",
         "@googleapis//google/rpc:rpc_java_proto",
         "@remoteapis//:build_bazel_remote_execution_v2_remote_execution_java_grpc",
+        "@remoteapis//:build_bazel_remote_execution_v2_remote_execution_java_proto",
+    ],
+)
+
+java_library(
+    name = "digest_utils",
+    srcs = [
+        "DigestOutputStream.java",
+        "DigestUtil.java",
+    ],
+    deps = [
+        "//src/main/java/com/google/devtools/build/lib/actions",
+        "//src/main/java/com/google/devtools/build/lib/remote/common",
+        "//src/main/java/com/google/devtools/build/lib/vfs",
+        "//src/main/protobuf:spawn_java_proto",
+        "//third_party:guava",
+        "@com_google_protobuf//:protobuf_java",
         "@remoteapis//:build_bazel_remote_execution_v2_remote_execution_java_proto",
     ],
 )
