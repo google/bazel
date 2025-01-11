@@ -357,6 +357,11 @@ quantify, but the shift from unexplained build failures being something that
 virtuous cycle of ever-increasing reliability.
 ([We Switched from Maven to Bazel and Builds Got 10x Faster](https://redfin.engineering/we-switched-from-maven-to-bazel-and-builds-got-10x-faster-b265a7845854))
 
+### [Reddit](https://www.reddit.com/){: .external}
+<img src="https://upload.wikimedia.org/wikipedia/commons/2/2f/Reddit_wordmark.svg" width="150" align="right">
+
+Reddit is using Bazel for their iOS ([source](https://www.reddit.com/r/RedditEng/comments/syz5dw/ios_and_bazel_at_reddit_a_journey/)) Apps.
+
 ### [Ritual](https://ritual.co){: .external}
 <img src="https://lh3.googleusercontent.com/7Ir6j25ROnsXhtQXveOzup33cizxLf-TiifSC1cI6op0bQVB-WePmPjJOfXUBQ0L3KpkheObAiS28e-TS8hZtDzxOIc" width="150" align="right">
 
