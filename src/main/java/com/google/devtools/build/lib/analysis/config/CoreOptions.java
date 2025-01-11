@@ -34,11 +34,9 @@ import com.google.devtools.common.options.OptionEffectTag;
 import com.google.devtools.common.options.OptionMetadataTag;
 import com.google.devtools.common.options.OptionsParsingException;
 import com.google.devtools.common.options.TriState;
-import java.util.AbstractMap.SimpleEntry;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeSet;
@@ -419,24 +417,6 @@ public class CoreOptions extends FragmentOptions implements Cloneable {
       },
       help = "Specifies a suffix to be added to the configuration directory.")
   public String platformSuffix;
-
-  // TODO(bazel-team): The test environment is actually computed in BlazeRuntime and this option
-  // is not read anywhere else. Thus, it should be in a different options class, preferably one
-  // specific to the "test" command or maybe in its own configuration fragment.
-  @Option(
-      name = "test_env",
-      converter = Converters.OptionalAssignmentConverter.class,
-      allowMultiple = true,
-      defaultValue = "null",
-      documentationCategory = OptionDocumentationCategory.TESTING,
-      effectTags = {OptionEffectTag.TEST_RUNNER},
-      help =
-          "Specifies additional environment variables to be injected into the test runner "
-              + "environment. Variables can be either specified by name, in which case its value "
-              + "will be read from the Bazel client environment, or by the name=value pair. "
-              + "This option can be used multiple times to specify several variables. "
-              + "Used only by the 'bazel test' command.")
-  public List<Map.Entry<String, String>> testEnvironment;
 
   // TODO(bazel-team): The set of available variables from the client environment for actions
   // is computed independently in CommandEnvironment to inject a more restricted client
@@ -982,20 +962,6 @@ public class CoreOptions extends FragmentOptions implements Cloneable {
         .collect(toImmutableMap(Map.Entry::getKey, Map.Entry::getValue));
   }
 
-  // Normalizes list of map entries by keeping only the last entry for each key.
-  private static List<Map.Entry<String, String>> normalizeEntries(
-      List<Map.Entry<String, String>> entries) {
-    LinkedHashMap<String, String> normalizedEntries = new LinkedHashMap<>();
-    for (Map.Entry<String, String> entry : entries) {
-      normalizedEntries.put(entry.getKey(), entry.getValue());
-    }
-    // If we made no changes, return the same instance we got to reduce churn.
-    if (normalizedEntries.size() == entries.size()) {
-      return entries;
-    }
-    return normalizedEntries.entrySet().stream().map(SimpleEntry::new).collect(toImmutableList());
-  }
-
   // Sort the map entries by key.
   private static List<Map.Entry<String, String>> sortEntries(
       List<Map.Entry<String, String>> entries) {
@@ -1053,7 +1019,6 @@ public class CoreOptions extends FragmentOptions implements Cloneable {
 
     result.actionEnvironment = normalizeEntries(actionEnvironment);
     result.hostActionEnvironment = normalizeEntries(hostActionEnvironment);
-    result.testEnvironment = normalizeEntries(testEnvironment);
     result.commandLineFlagAliases = sortEntries(normalizeEntries(commandLineFlagAliases));
 
     return result;

@@ -34,6 +34,7 @@ import com.google.devtools.build.lib.packages.TestSize;
 import com.google.devtools.build.lib.packages.TestTimeout;
 import com.google.devtools.build.lib.util.Pair;
 import com.google.devtools.build.lib.util.RegexFilter;
+import com.google.devtools.common.options.Converters;
 import com.google.devtools.common.options.Option;
 import com.google.devtools.common.options.OptionDefinition;
 import com.google.devtools.common.options.OptionDocumentationCategory;
@@ -83,6 +84,21 @@ public class TestConfiguration extends Fragment {
             OptionsParser.getOptionDefinitionByName(TestOptions.class, "trim_test_configuration"),
             OptionsParser.getOptionDefinitionByName(
                 TestOptions.class, "experimental_retain_test_configuration_across_testonly"));
+
+    @Option(
+        name = "test_env",
+        converter = Converters.OptionalAssignmentConverter.class,
+        allowMultiple = true,
+        defaultValue = "null",
+        documentationCategory = OptionDocumentationCategory.TESTING,
+        effectTags = {OptionEffectTag.TEST_RUNNER},
+        help =
+            "Specifies additional environment variables to be injected into the test runner "
+                + "environment. Variables can be either specified by name, in which case its value "
+                + "will be read from the Bazel client environment, or by the name=value pair. "
+                + "This option can be used multiple times to specify several variables. "
+                + "Used only by the 'bazel test' command.")
+    public List<Map.Entry<String, String>> testEnvironment;
 
     @Option(
         name = "test_timeout",
@@ -346,6 +362,13 @@ public class TestConfiguration extends Fragment {
         effectTags = {OptionEffectTag.EXECUTION},
         help = "If true, Bazel will allow local tests to run.")
     public boolean allowLocalTests;
+
+    @Override
+    public TestOptions getNormalized() {
+      TestOptions result = (TestOptions) clone();
+      result.testEnvironment = normalizeEntries(testEnvironment);
+      return result;
+    }
   }
 
   private final TestOptions options;

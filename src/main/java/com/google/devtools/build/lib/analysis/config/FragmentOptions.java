@@ -20,7 +20,10 @@ import com.google.common.collect.ImmutableList;
 import com.google.devtools.common.options.Option;
 import com.google.devtools.common.options.Options;
 import com.google.devtools.common.options.OptionsBase;
+import java.util.AbstractMap;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import javax.annotation.Nullable;
 
 /** Command-line build options for a Blaze module. */
@@ -87,6 +90,25 @@ public abstract class FragmentOptions extends OptionsBase implements Cloneable {
 
     // If the value is already deduped and sorted return the exact same instance we got.
     return result.equals(values) ? ImmutableList.copyOf(values) : result;
+  }
+
+  /**
+   * Helper method for subclasses to normalize list of map entries by keeping only the last entry
+   * for each key. The order of the entries is preserved.
+   */
+  protected static List<Map.Entry<String, String>> normalizeEntries(
+      List<Map.Entry<String, String>> entries) {
+    LinkedHashMap<String, String> normalizedEntries = new LinkedHashMap<>();
+    for (Map.Entry<String, String> entry : entries) {
+      normalizedEntries.put(entry.getKey(), entry.getValue());
+    }
+    // If we made no changes, return the same instance we got to reduce churn.
+    if (normalizedEntries.size() == entries.size()) {
+      return entries;
+    }
+    return normalizedEntries.entrySet().stream()
+        .map(AbstractMap.SimpleEntry::new)
+        .collect(toImmutableList());
   }
 
   /** Tracks limitations on referring to an option in a {@code config_setting}. */
