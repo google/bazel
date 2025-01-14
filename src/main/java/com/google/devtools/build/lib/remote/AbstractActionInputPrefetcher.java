@@ -40,6 +40,7 @@ import com.google.devtools.build.lib.actions.Artifact;
 import com.google.devtools.build.lib.actions.Artifact.SpecialArtifact;
 import com.google.devtools.build.lib.actions.Artifact.TreeFileArtifact;
 import com.google.devtools.build.lib.actions.FileArtifactValue;
+import com.google.devtools.build.lib.actions.FileArtifactValue.FileWriteOutputArtifactValue;
 import com.google.devtools.build.lib.actions.FileContentsProxy;
 import com.google.devtools.build.lib.actions.InputMetadataProvider;
 import com.google.devtools.build.lib.actions.cache.OutputMetadataStore;
@@ -562,33 +563,49 @@ public abstract class AbstractActionInputPrefetcher implements ActionInputPrefet
 
     Path finalPath = path;
 
-    Completable download =
-        usingTempPath(
-            (tempPath, alreadyDeleted) ->
-                toCompletable(
-                        () ->
-                            doDownloadFile(
-                                action,
-                                reporter,
-                                tempPath,
-                                finalPath.relativeTo(execRoot),
-                                metadata,
-                                priority,
-                                reason),
-                        directExecutor())
-                    .doOnComplete(
-                        () -> {
-                          finalizeDownload(
-                              metadata, tempPath, finalPath, dirsWithOutputPermissions);
-                          alreadyDeleted.set(true);
-                        })
-                    .doOnError(
-                        error -> {
-                          if (error instanceof CacheNotFoundException cacheNotFoundException) {
-                            reporter.post(
-                                new LostInputsEvent(cacheNotFoundException.getMissingDigest()));
-                          }
-                        }));
+    Completable download;
+    if (metadata instanceof FileWriteOutputArtifactValue fileWriteOutputArtifactValue) {
+      download =
+          usingTempPath(
+              (tempPath, alreadyDeleted) -> {
+                try {
+                  fileWriteOutputArtifactValue.writeTo(tempPath.getOutputStream());
+                  finalizeDownload(tempPath, finalPath, dirsWithOutputPermissions);
+                  alreadyDeleted.set(true);
+                  return Completable.complete();
+                } catch (IOException e) {
+                  return Completable.error(e);
+                }
+              });
+    } else {
+      download =
+          usingTempPath(
+              (tempPath, alreadyDeleted) ->
+                  toCompletable(
+                          () ->
+                              doDownloadFile(
+                                  action,
+                                  reporter,
+                                  tempPath,
+                                  finalPath.relativeTo(execRoot),
+                                  metadata,
+                                  priority,
+                                  reason),
+                          directExecutor())
+                      .doOnComplete(
+                          () -> {
+                            finalizeDownload(
+                                metadata, tempPath, finalPath, dirsWithOutputPermissions);
+                            alreadyDeleted.set(true);
+                          })
+                      .doOnError(
+                          error -> {
+                            if (error instanceof CacheNotFoundException cacheNotFoundException) {
+                              reporter.post(
+                                  new LostInputsEvent(cacheNotFoundException.getMissingDigest()));
+                            }
+                          }));
+    }
 
     return downloadCache.executeIfNot(
         finalPath,

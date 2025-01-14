@@ -22,6 +22,7 @@ import com.google.common.util.concurrent.ListenableFuture;
 import com.google.devtools.build.lib.actions.ActionExecutionMetadata;
 import com.google.devtools.build.lib.actions.ActionOutputDirectoryHelper;
 import com.google.devtools.build.lib.actions.FileArtifactValue;
+import com.google.devtools.build.lib.actions.FileArtifactValue.FileWriteOutputArtifactValue;
 import com.google.devtools.build.lib.actions.cache.VirtualActionInput;
 import com.google.devtools.build.lib.events.Reporter;
 import com.google.devtools.build.lib.remote.common.RemoteActionExecutionContext;
@@ -74,7 +75,7 @@ public class RemoteActionInputFetcher extends AbstractActionInputPrefetcher {
 
   @Override
   protected boolean canDownloadFile(Path path, FileArtifactValue metadata) {
-    return metadata.isRemote();
+    return metadata.isRemote() || metadata instanceof FileWriteOutputArtifactValue;
   }
 
   @Override

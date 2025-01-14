@@ -21,7 +21,10 @@ import static java.nio.charset.StandardCharsets.ISO_8859_1;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.MoreObjects;
 import com.google.common.hash.HashFunction;
+import com.google.common.hash.HashingOutputStream;
 import com.google.common.io.BaseEncoding;
+import com.google.common.io.CountingOutputStream;
+import com.google.devtools.build.lib.analysis.actions.DeterministicWriter;
 import com.google.devtools.build.lib.concurrent.ThreadSafety.Immutable;
 import com.google.devtools.build.lib.concurrent.ThreadSafety.ThreadSafe;
 import com.google.devtools.build.lib.skyframe.serialization.autocodec.SerializationConstant;
@@ -38,6 +41,7 @@ import com.google.devtools.build.skyframe.SkyValue;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.OutputStream;
 import java.time.Instant;
 import java.util.Arrays;
 import java.util.Objects;
@@ -1001,6 +1005,87 @@ public abstract class FileArtifactValue implements SkyValue, HasDigest {
       } catch (IOException e) {
         return true;
       }
+    }
+  }
+
+  public static final class FileWriteOutputArtifactValue extends FileArtifactValue {
+    private final DeterministicWriter writer;
+    private final long size;
+    private final byte[] digest;
+
+    public static FileWriteOutputArtifactValue hashAndCreate(
+        DeterministicWriter writer, HashFunction hashFunction) {
+      long size;
+      byte[] digest;
+      try (CountingOutputStream countingOut =
+              new CountingOutputStream(OutputStream.nullOutputStream());
+          HashingOutputStream hashingOut = new HashingOutputStream(hashFunction, countingOut)) {
+        writer.writeOutputFile(hashingOut);
+        size = countingOut.getCount();
+        digest = hashingOut.hash().asBytes();
+      } catch (IOException e) {
+        // The output streams don't throw IOExceptions, so this should never happen.
+        throw new IllegalStateException(e);
+      }
+      return new FileWriteOutputArtifactValue(writer, size, digest);
+    }
+
+    private FileWriteOutputArtifactValue(DeterministicWriter writer, long size, byte[] digest) {
+      this.writer = writer;
+      this.size = size;
+      this.digest = digest;
+    }
+
+    @Override
+    public FileStateType getType() {
+      return FileStateType.REGULAR_FILE;
+    }
+
+    @Override
+    public byte[] getDigest() {
+      return digest;
+    }
+
+    @Override
+    public long getSize() {
+      return size;
+    }
+
+    public void writeTo(OutputStream out) throws IOException {
+      writer.writeOutputFile(out);
+    }
+
+    @Override
+    public long getModifiedTime() {
+      throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public FileContentsProxy getContentsProxy() {
+      throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public boolean wasModifiedSinceDigest(Path path) {
+      return false;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+      if (this == o) {
+        return true;
+      }
+      if (!(o instanceof FileWriteOutputArtifactValue that)) {
+        return false;
+      }
+      return size == that.size
+          && Objects.equals(writer, that.writer)
+          && Arrays.equals(digest, that.digest);
+    }
+
+    @Override
+    public int hashCode() {
+      return HashCodes.hashObjects(writer, size, Arrays.hashCode(digest));
     }
   }
 

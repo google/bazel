@@ -20,6 +20,7 @@ import com.google.devtools.build.lib.actions.ActionExecutionContext;
 import com.google.devtools.build.lib.actions.Artifact;
 import com.google.devtools.build.lib.actions.EnvironmentalExecException;
 import com.google.devtools.build.lib.actions.ExecException;
+import com.google.devtools.build.lib.actions.FileArtifactValue.FileWriteOutputArtifactValue;
 import com.google.devtools.build.lib.actions.RunningActionEvent;
 import com.google.devtools.build.lib.actions.SpawnResult;
 import com.google.devtools.build.lib.analysis.actions.DeterministicWriter;
@@ -50,20 +51,33 @@ public final class FileWriteStrategy implements FileWriteActionContext {
       Artifact output)
       throws ExecException {
     actionExecutionContext.getEventHandler().post(new RunningActionEvent(action, "local"));
-    // TODO(ulfjack): Consider acquiring local resources here before trying to write the file.
-    try (AutoProfiler p =
-        GoogleAutoProfilerUtils.logged(
-            "running write for action " + action.prettyPrint(), MIN_LOGGING)) {
-      Path outputPath = actionExecutionContext.getInputPath(output);
-      try {
-        try (OutputStream out = new BufferedOutputStream(outputPath.getOutputStream())) {
-          deterministicWriter.writeOutputFile(out);
+    if (isRemotable && actionExecutionContext.getActionFileSystem() != null) {
+      actionExecutionContext
+          .getOutputMetadataStore()
+          .injectFile(
+              output,
+              FileWriteOutputArtifactValue.hashAndCreate(
+                  deterministicWriter,
+                  actionExecutionContext
+                      .getActionFileSystem()
+                      .getDigestFunction()
+                      .getHashFunction()));
+    } else {
+      // TODO(ulfjack): Consider acquiring local resources here before trying to write the file.
+      try (AutoProfiler p =
+          GoogleAutoProfilerUtils.logged(
+              "running write for action " + action.prettyPrint(), MIN_LOGGING)) {
+        Path outputPath = actionExecutionContext.getInputPath(output);
+        try {
+          try (OutputStream out = new BufferedOutputStream(outputPath.getOutputStream())) {
+            deterministicWriter.writeOutputFile(out);
+          }
+          if (makeExecutable) {
+            outputPath.setExecutable(true);
+          }
+        } catch (IOException e) {
+          throw new EnvironmentalExecException(e, Code.FILE_WRITE_IO_EXCEPTION);
         }
-        if (makeExecutable) {
-          outputPath.setExecutable(true);
-        }
-      } catch (IOException e) {
-        throw new EnvironmentalExecException(e, Code.FILE_WRITE_IO_EXCEPTION);
       }
     }
     return ImmutableList.of();

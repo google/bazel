@@ -22,6 +22,9 @@ import java.io.OutputStream;
  * invocation of writeOutputFile().
  */
 public interface DeterministicWriter {
+  /**
+   * @throws IOException only if out throws an IOException
+   */
   void writeOutputFile(OutputStream out) throws IOException;
 
   /**
