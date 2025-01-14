@@ -1030,6 +1030,44 @@ public abstract class BuildWithoutTheBytesIntegrationTestBase extends BuildInteg
   }
 
   @Test
+  public void downloadToplevel_symlinkToWrittenFile() throws Exception {
+    setDownloadToplevel();
+    writeSymlinkRule();
+    writeWriteFileRule();
+    write(
+        "BUILD",
+        "load(':symlink.bzl', 'symlink')",
+        "load(':write_file.bzl', 'write_file')",
+        "write_file(",
+        "  name = 'foo',",
+        "  content = 'hello',",
+        ")",
+        "symlink(",
+        "  name = 'foo-link',",
+        "  target_artifact = ':foo',",
+        ")");
+
+    buildTarget("//:foo-link");
+
+    assertSymlink("foo-link", getOutputPath("foo").asFragment());
+    assertValidOutputFile("foo-link", "hello");
+
+    // Delete link, re-plant symlink
+    getOutputPath("foo-link").delete();
+    buildTarget("//:foo-link");
+
+    assertSymlink("foo-link", getOutputPath("foo").asFragment());
+    assertValidOutputFile("foo-link", "hello");
+
+    // Delete target, re-download it
+    getOutputPath("foo").delete();
+    buildTarget("//:foo-link");
+
+    assertSymlink("foo-link", getOutputPath("foo").asFragment());
+    assertValidOutputFile("foo-link", "hello");
+  }
+
+  @Test
   public void downloadToplevel_unresolvedSymlink() throws Exception {
     // Dangling symlink would require developer mode to be enabled in the CI environment.
     assumeFalse(OS.getCurrent() == OS.WINDOWS);
@@ -1053,6 +1091,55 @@ public abstract class BuildWithoutTheBytesIntegrationTestBase extends BuildInteg
     buildTarget("//:foo-link");
 
     assertSymlink("foo-link", PathFragment.create("/some/path"));
+  }
+
+  @Test
+  public void downloadMinimal_fileWrite() throws Exception {
+    writeWriteFileRule();
+    writeSymlinkRule();
+    write(
+        "BUILD",
+        """
+        load(':write_file.bzl', 'write_file')
+        write_file(
+            name = 'foo',
+            content = 'hello',
+        )
+        genrule(
+            name = 'gen',
+            srcs = [':foo'],
+            outs = ['out/gen.txt'],
+            cmd = 'cat $(location :foo) $(location :foo) > $@',
+        )
+        """);
+
+    buildTarget("//:gen");
+    assertOutputsDoNotExist("//:foo");
+    assertOutputsDoNotExist("//:gen");
+  }
+
+  @Test
+  public void downloadToplevel_fileWrite() throws Exception {
+    setDownloadToplevel();
+    writeWriteFileRule();
+    write(
+        "BUILD",
+        """
+        load(':write_file.bzl', 'write_file')
+        write_file(
+          name = 'foo',
+          content = 'hello',
+        )
+        """);
+
+    buildTarget("//:foo");
+    assertOnlyOutputContent("//:foo", "foo", "hello");
+
+    // Delete file, re-create it
+    getOutputPath("foo-link").delete();
+    buildTarget("//:foo");
+
+    assertOnlyOutputContent("//:foo", "foo", "hello");
   }
 
   @Test
@@ -1993,6 +2080,24 @@ public abstract class BuildWithoutTheBytesIntegrationTestBase extends BuildInteg
         "  attr_aspects = ['srcs'],",
         ")");
     write("rules.bzl", lines.build().toArray(new String[0]));
+  }
+
+  protected void writeWriteFileRule() throws IOException {
+    write(
+        "write_file.bzl",
+        """
+        def _write_file_impl(ctx):
+            out = ctx.actions.declare_file(ctx.label.name)
+            ctx.actions.write(output = out, content = ctx.attr.content)
+            return DefaultInfo(files = depset([out]))
+
+        write_file = rule(
+            implementation = _write_file_impl,
+            attrs = {
+                "content": attr.string(),
+            },
+        )
+        """);
   }
 
   protected static class ActionEventCollector {
