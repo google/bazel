@@ -34,7 +34,6 @@ import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
 import com.google.common.flogger.GoogleLogger;
 import com.google.common.util.concurrent.ListenableFuture;
-import com.google.devtools.build.lib.actions.cache.VirtualActionInput;
 import com.google.devtools.build.lib.events.Reporter;
 import com.google.devtools.build.lib.profiler.Profiler;
 import com.google.devtools.build.lib.profiler.SilentCloseable;
@@ -49,6 +48,7 @@ import com.google.devtools.build.lib.remote.merkletree.MerkleTree.ContentSource;
 import com.google.devtools.build.lib.remote.options.RemoteOptions;
 import com.google.devtools.build.lib.remote.util.DigestUtil;
 import com.google.devtools.build.lib.remote.util.RxUtils.TransferResult;
+import com.google.devtools.build.lib.util.StreamWriter;
 import com.google.devtools.build.lib.vfs.Path;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.Message;
@@ -177,14 +177,14 @@ public class RemoteExecutionCache extends CombinedCache {
     }
   }
 
-  private static final class VirtualActionInputBlob implements Blob {
-    private VirtualActionInput virtualActionInput;
+  private static final class StreamWriterBlob implements Blob {
+    private StreamWriter streamWriter;
     // Can be large compared to the retained size of the VirtualActionInput and thus shouldn't be
     // kept in memory for an extended period of time.
     private volatile ByteString data;
 
-    VirtualActionInputBlob(VirtualActionInput virtualActionInput) {
-      this.virtualActionInput = Preconditions.checkNotNull(virtualActionInput);
+    StreamWriterBlob(StreamWriter streamWriter) {
+      this.streamWriter = Preconditions.checkNotNull(streamWriter);
     }
 
     @Override
@@ -192,7 +192,7 @@ public class RemoteExecutionCache extends CombinedCache {
       if (data == null) {
         synchronized (this) {
           if (data == null) {
-            data = Preconditions.checkNotNull(virtualActionInput, "used after close()").getBytes();
+            data = Preconditions.checkNotNull(streamWriter, "used after close()").getBytes();
           }
         }
       }
@@ -201,7 +201,7 @@ public class RemoteExecutionCache extends CombinedCache {
 
     @Override
     public void close() {
-      virtualActionInput = null;
+      streamWriter = null;
       data = null;
     }
   }
@@ -220,9 +220,8 @@ public class RemoteExecutionCache extends CombinedCache {
     ContentSource file = merkleTree.getFileByDigest(digest);
     if (file != null) {
       return switch (file) {
-        case ContentSource.VirtualActionInputSource(VirtualActionInput virtualActionInput) ->
-            remoteCacheClient.uploadBlob(
-                context, digest, new VirtualActionInputBlob(virtualActionInput));
+        case ContentSource.InMemorySource(StreamWriter streamWriter) ->
+            remoteCacheClient.uploadBlob(context, digest, new StreamWriterBlob(streamWriter));
         case ContentSource.PathSource(Path path) -> {
           try {
             if (remotePathChecker.isRemote(context, path)) {

@@ -30,6 +30,7 @@ import com.google.devtools.build.lib.concurrent.ThreadSafety.ThreadSafe;
 import com.google.devtools.build.lib.skyframe.serialization.autocodec.SerializationConstant;
 import com.google.devtools.build.lib.util.Fingerprint;
 import com.google.devtools.build.lib.util.HashCodes;
+import com.google.devtools.build.lib.util.StreamWriter;
 import com.google.devtools.build.lib.vfs.DigestUtils;
 import com.google.devtools.build.lib.vfs.FileStatus;
 import com.google.devtools.build.lib.vfs.Path;
@@ -1008,7 +1009,8 @@ public abstract class FileArtifactValue implements SkyValue, HasDigest {
     }
   }
 
-  public static final class FileWriteOutputArtifactValue extends FileArtifactValue {
+  public static final class FileWriteOutputArtifactValue extends FileArtifactValue
+      implements StreamWriter {
     private final DeterministicWriter writer;
     private final long size;
     private final byte[] digest;

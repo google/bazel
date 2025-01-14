@@ -38,6 +38,7 @@ import com.google.devtools.build.lib.util.OS;
 import com.google.devtools.build.lib.util.io.RecordingOutErr;
 import com.google.devtools.build.lib.vfs.Path;
 import com.google.devtools.build.lib.vfs.PathFragment;
+import com.google.testing.junit.testparameterinjector.TestParameter;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
@@ -1114,12 +1115,13 @@ public abstract class BuildWithoutTheBytesIntegrationTestBase extends BuildInteg
         """);
 
     buildTarget("//:gen");
+    buildTarget("//:foo");
     assertOutputsDoNotExist("//:foo");
     assertOutputsDoNotExist("//:gen");
   }
 
   @Test
-  public void downloadToplevel_fileWrite() throws Exception {
+  public void downloadToplevel_fileWrite(@TestParameter boolean isExecutable) throws Exception {
     setDownloadToplevel();
     writeWriteFileRule();
     write(
@@ -1129,11 +1131,13 @@ public abstract class BuildWithoutTheBytesIntegrationTestBase extends BuildInteg
         write_file(
           name = 'foo',
           content = 'hello',
+          executable = %s,
         )
-        """);
+        """.formatted(isExecutable ? "True" : "False"));
 
     buildTarget("//:foo");
     assertOnlyOutputContent("//:foo", "foo", "hello");
+    assertThat(getOutputPath("foo").isExecutable()).isEqualTo(isExecutable);
 
     // Delete file, re-create it
     getOutputPath("foo-link").delete();
@@ -2088,13 +2092,14 @@ public abstract class BuildWithoutTheBytesIntegrationTestBase extends BuildInteg
         """
         def _write_file_impl(ctx):
             out = ctx.actions.declare_file(ctx.label.name)
-            ctx.actions.write(output = out, content = ctx.attr.content)
+            ctx.actions.write(output = out, content = ctx.attr.content, is_executable = ctx.attr.executable)
             return DefaultInfo(files = depset([out]))
 
         write_file = rule(
             implementation = _write_file_impl,
             attrs = {
                 "content": attr.string(),
+                "executable": attr.bool(default = False),
             },
         )
         """);
