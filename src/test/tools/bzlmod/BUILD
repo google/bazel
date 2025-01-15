@@ -25,5 +25,6 @@ sh_test(
         "//src:bazel",
         "//src/test/shell/bazel:test-deps",
     ],
+    tags = ["manual"],
     deps = ["@bazel_tools//tools/bash/runfiles"],
 )

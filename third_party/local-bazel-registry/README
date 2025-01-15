@@ -1,0 +1,20 @@
+
+# Prepare a local rules_java release
+
+1. Update the version in the rules_java MODULE.bazel file to 999.999.999
+2. bazel build //distro:rules_java-999.999.999
+3. Note the path to the output tar.gz file and the MODULE.bazel file
+
+# Setting up Bazel
+
+1. Copy both the above rules_java tar.gz file & MODULE.bazel file to
+   third_party/local-bazel-registry/modules/rules_java/999.999.999/
+3. Update the sha256 integrity in modules/rules_java/999.999.999/source.json
+   echo -n sha256-; cat rules_java-999.999.999.tar.gz | openssl dgst -sha256 -binary | base64
+4. Update the rules_java version in MODULE.bazel & MODULE.tools to 999.999.999
+5. Run a local http server to serve the registry
+   python -m http.server 8000 --directory third_party/local-bazel-registry/
+5. Update lock files
+
+Commit & push and run CI! Ignore RBE / Windows because running a local server is
+tricky there.

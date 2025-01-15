@@ -37,6 +37,8 @@ function generate_lock_file() {
   cd "${tmpdir}"
   touch MODULE.bazel
   echo 'common --incompatible_use_plus_in_repo_names' > .bazelrc
+  echo 'common --registry=http://localhost:8000/' >> .bazelrc
+  echo 'common --registry=https://bcr.bazel.build/' >> .bazelrc
   bazel=$(rlocation io_bazel/src/bazel)
 
   echo "Running: $bazel mod deps $@"

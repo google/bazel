@@ -137,7 +137,7 @@ public class BazelRepositoryModule extends BlazeModule {
 
   // Default list of registries.
   public static final ImmutableSet<String> DEFAULT_REGISTRIES =
-      ImmutableSet.of("https://bcr.bazel.build/");
+      ImmutableSet.of("https://bcr.bazel.build/", "http://localhost:8000");
 
   // A map of repository handlers that can be looked up by rule class name.
   private final ImmutableMap<String, RepositoryFunction> repositoryHandlers;
