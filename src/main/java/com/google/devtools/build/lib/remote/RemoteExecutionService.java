@@ -1006,20 +1006,29 @@ public class RemoteExecutionService {
     }
   }
 
-  private void createSymlinks(Iterable<SymlinkMetadata> symlinks) throws IOException {
+  private void createSymlinks(
+      RemoteActionResult result,
+      @Nullable RemoteActionFileSystem remoteActionFileSystem,
+      Iterable<SymlinkMetadata> symlinks)
+      throws IOException {
     for (SymlinkMetadata symlink : symlinks) {
-      Preconditions.checkNotNull(
-              symlink.path().getParentDirectory(),
-              "Failed creating directory and parents for %s",
-              symlink.path())
-          .createDirectoryAndParents();
-      // If a directory output is being materialized as a symlink, we must first delete the
-      // preexisting empty directory.
-      if (symlink.path().exists(Symlinks.NOFOLLOW)
-          && symlink.path().isDirectory(Symlinks.NOFOLLOW)) {
-        symlink.path().delete();
+      if (shouldDownload(result, symlink.path().relativeTo(execRoot))) {
+        Preconditions.checkNotNull(
+                symlink.path().getParentDirectory(),
+                "Failed creating directory and parents for %s",
+                symlink.path())
+            .createDirectoryAndParents();
+        // If a directory output is being materialized as a symlink, we must first delete the
+        // preexisting empty directory.
+        if (symlink.path().exists(Symlinks.NOFOLLOW)
+            && symlink.path().isDirectory(Symlinks.NOFOLLOW)) {
+          symlink.path().delete();
+        }
+        symlink.path().createSymbolicLink(symlink.target());
+      } else if (!(outputService instanceof BazelOutputService)) {
+        checkNotNull(remoteActionFileSystem)
+            .injectUnresolvedSymlink(symlink.path().asFragment(), symlink.target());
       }
-      symlink.path().createSymbolicLink(symlink.target());
     }
   }
 
@@ -1439,7 +1448,7 @@ public class RemoteExecutionService {
 
     // Create the symbolic links after all downloads are finished, because dangling symlinks
     // might not be supported on all platforms.
-    createSymlinks(symlinks);
+    createSymlinks(result, remoteActionFileSystem, symlinks);
 
     if (result.success()) {
       // Check that all mandatory outputs are created.

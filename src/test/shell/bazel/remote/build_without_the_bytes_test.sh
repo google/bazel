@@ -488,7 +488,7 @@ function test_downloads_toplevel_dangling_symlink_output() {
 
   bazel build \
     --remote_executor=grpc://localhost:${worker_port} \
-    --remote_download_minimal \
+    --remote_download_toplevel \
     //pkg:sym >& $TEST_log || fail "Expected build of //pkg:sym to succeed"
 
   if [[ "$(readlink bazel-bin/pkg/sym)" != "target.txt" ]]; then

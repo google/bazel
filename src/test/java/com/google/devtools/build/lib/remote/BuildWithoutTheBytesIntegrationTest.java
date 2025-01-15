@@ -241,7 +241,45 @@ public class BuildWithoutTheBytesIntegrationTest extends BuildWithoutTheBytesInt
   }
 
   @Test
-  public void outputSymlinkHandledGracefully() throws Exception {
+  public void outputSymlinkCreatedWithToplevel() throws Exception {
+    // Dangling symlink would require developer mode to be enabled in the CI environment.
+    assumeFalse(OS.getCurrent() == OS.WINDOWS);
+
+    write(
+        "a/defs.bzl",
+        """
+        def _impl(ctx):
+            out = ctx.actions.declare_symlink(ctx.label.name)
+            ctx.actions.run_shell(
+                inputs = [],
+                outputs = [out],
+                command = "ln -s hello $1",
+                arguments = [out.path],
+            )
+            return DefaultInfo(files = depset([out]))
+
+        my_rule = rule(
+            implementation = _impl,
+        )
+        """);
+
+    write(
+        "a/BUILD",
+        """
+        load(":defs.bzl", "my_rule")
+
+        my_rule(name = "hello")
+        """);
+
+    setDownloadToplevel();
+    buildTarget("//a:hello");
+
+    Path outputPath = getOutputPath("a/hello");
+    assertThat(outputPath.readSymbolicLink()).isEqualTo(PathFragment.create("hello"));
+  }
+
+  @Test
+  public void outputSymlinkNotCreatedWithMinimal() throws Exception {
     // Dangling symlink would require developer mode to be enabled in the CI environment.
     assumeFalse(OS.getCurrent() == OS.WINDOWS);
 
@@ -273,8 +311,152 @@ public class BuildWithoutTheBytesIntegrationTest extends BuildWithoutTheBytesInt
 
     buildTarget("//a:hello");
 
-    Path outputPath = getOutputPath("a/hello");
-    assertThat(outputPath.stat(Symlinks.NOFOLLOW).isSymbolicLink()).isTrue();
+    assertOutputsDoNotExist("//a:hello");
+  }
+
+  private void writeSymlinkProducerConsumeRules() throws Exception {
+    // Dangling symlink would require developer mode to be enabled in the CI environment.
+    assumeFalse(OS.getCurrent() == OS.WINDOWS);
+
+    write(
+        "a/b/producer_consumer.bzl",
+        """
+        def _producer_impl(ctx):
+            dangling = ctx.actions.declare_symlink(ctx.label.name + "_dangling")
+            ctx.actions.run_shell(
+                inputs = [],
+                outputs = [dangling],
+                command = "ln -s dangling $1",
+                arguments = [dangling.path],
+            )
+            not_dangling = ctx.actions.declare_symlink(ctx.label.name + "_not_dangling")
+            relative_target_path = not_dangling.path.count("/") * "../" + ctx.file.target.path
+            ctx.actions.run_shell(
+                inputs = [],
+                outputs = [not_dangling],
+                command = "ln -s $2 $1",
+                arguments = [not_dangling.path, relative_target_path],
+            )
+            return [
+                DefaultInfo(files = depset([dangling, not_dangling])),
+                OutputGroupInfo(
+                    dangling = depset([dangling]),
+                    not_dangling = depset([not_dangling]),
+                    target = depset([ctx.file.target]),
+                ),
+            ]
+
+        producer = rule(
+            implementation = _producer_impl,
+            attrs = {
+                "target": attr.label(allow_single_file = True),
+            },
+        )
+
+        def _consumer_impl(ctx):
+            outputs = ctx.attr.producer[OutputGroupInfo]
+            target = outputs.target.to_list()[0]
+            dangling = outputs.dangling.to_list()[0]
+            not_dangling = outputs.not_dangling.to_list()[0]
+
+            out = ctx.actions.declare_file(ctx.label.name)
+            ctx.actions.run_shell(
+                inputs = [dangling, not_dangling],
+                outputs = [out],
+                command = \"""
+                [[ $(readlink $1) == "dangling" ]]
+                [[ $(readlink $2) == */$3 ]]
+                touch $4
+                \""",
+                arguments = [dangling.path, not_dangling.path, target.basename, out.path],
+            )
+            return DefaultInfo(files = depset([out]))
+
+        consumer = rule(
+            implementation = _consumer_impl,
+            attrs = {
+                "producer": attr.label(),
+            },
+        )
+        """);
+  }
+
+  @Test
+  public void inputSymlinkNotCreatedForRemoteAction() throws Exception {
+    writeSymlinkProducerConsumeRules();
+
+    write(
+        "a/b/BUILD",
+        """
+        load(":producer_consumer.bzl", "producer", "consumer")
+
+        genrule(
+            name = "greeting",
+            srcs = [],
+            outs = ["greeting.txt"],
+            cmd = "echo 'hello world' > $@",
+        )
+
+        producer(
+            name = "producer",
+            target = ":greeting",
+        )
+
+        consumer(
+            name = "consumer",
+            producer = ":producer",
+        )
+        """);
+
+    write("a/b/greeting.in", "hello world");
+
+    buildTarget("//a/b:consumer");
+
+    assertOutputsDoNotExist("//a/b:greeting");
+    assertOutputsDoNotExist("//a/b:producer");
+    assertOutputsDoNotExist("//a/b:consumer");
+  }
+
+  @Test
+  public void inputSymlinkCreatedForLocalAction() throws Exception {
+    writeSymlinkProducerConsumeRules();
+
+    write(
+        "a/b/BUILD",
+        """
+        load(":producer_consumer.bzl", "producer", "consumer")
+
+        genrule(
+            name = "greeting",
+            srcs = [],
+            outs = ["greeting.txt"],
+            cmd = "echo 'hello world' > $@",
+        )
+
+        producer(
+            name = "producer",
+            target = ":greeting",
+        )
+
+        consumer(
+            name = "consumer",
+            producer = ":producer",
+            tags = ["no-remote"],
+        )
+        """);
+
+    write("a/b/greeting.in", "hello world");
+
+    buildTarget("//a/b:consumer");
+
+    Path greetingPath = getOutputPath("a/b/greeting.txt");
+    assertThat(greetingPath.exists(Symlinks.NOFOLLOW)).isFalse();
+    Path danglingPath = getOutputPath("a/b/producer_dangling");
+    assertThat(danglingPath.readSymbolicLink()).isEqualTo(PathFragment.create("dangling"));
+    Path notDanglingPath = getOutputPath("a/b/producer_not_dangling");
+    assertThat(notDanglingPath.getParentDirectory().getRelative(notDanglingPath.readSymbolicLink()))
+        .isEqualTo(greetingPath);
+    assertOnlyOutputContent("//a/b:consumer", "consumer", "");
   }
 
   @Test

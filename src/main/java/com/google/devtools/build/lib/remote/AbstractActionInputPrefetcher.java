@@ -40,6 +40,7 @@ import com.google.devtools.build.lib.actions.Artifact;
 import com.google.devtools.build.lib.actions.Artifact.SpecialArtifact;
 import com.google.devtools.build.lib.actions.Artifact.TreeFileArtifact;
 import com.google.devtools.build.lib.actions.FileArtifactValue;
+import com.google.devtools.build.lib.actions.FileArtifactValue.UnresolvedSymlinkArtifactValue;
 import com.google.devtools.build.lib.actions.InputMetadataProvider;
 import com.google.devtools.build.lib.actions.cache.OutputMetadataStore;
 import com.google.devtools.build.lib.actions.cache.VirtualActionInput;
@@ -374,7 +375,10 @@ public abstract class AbstractActionInputPrefetcher implements ActionInputPrefet
       PathFragment execPath = input.getExecPath();
 
       FileArtifactValue metadata = metadataSupplier.getMetadata(input);
-      if (metadata == null || !canDownloadFile(execRoot.getRelative(execPath), metadata)) {
+      if (metadata instanceof UnresolvedSymlinkArtifactValue unresolvedSymlink) {
+        return toListenableFuture(
+            plantRelativeSymlink(execPath, unresolvedSymlink.getSymlinkTarget()));
+      } else if (metadata == null || !canDownloadFile(execRoot.getRelative(execPath), metadata)) {
         return immediateVoidFuture();
       }
 
@@ -399,7 +403,7 @@ public abstract class AbstractActionInputPrefetcher implements ActionInputPrefet
               priority);
 
       if (symlink != null) {
-        result = result.andThen(plantSymlink(symlink));
+        result = result.andThen(plantAbsoluteSymlink(symlink));
       }
 
       return toListenableFuture(result);
@@ -651,7 +655,21 @@ public abstract class AbstractActionInputPrefetcher implements ActionInputPrefet
     }
   }
 
-  private Completable plantSymlink(Symlink symlink) {
+  private Completable plantRelativeSymlink(PathFragment linkPath, String target) {
+    return downloadCache.executeIfNot(
+        execRoot.getRelative(linkPath),
+        Completable.defer(
+            () -> {
+              Path link = execRoot.getRelative(linkPath);
+              // Delete the link path if it already exists. This is the case for tree artifacts,
+              // whose root directory is created before the action runs.
+              link.delete();
+              link.createSymbolicLink(PathFragment.create(target));
+              return Completable.complete();
+            }));
+  }
+
+  private Completable plantAbsoluteSymlink(Symlink symlink) {
     return downloadCache.executeIfNot(
         execRoot.getRelative(symlink.linkExecPath()),
         Completable.defer(
