@@ -544,6 +544,9 @@ public abstract class FileArtifactValue implements SkyValue, HasDigest {
     private final int locationIndex;
     @Nullable private final PathFragment materializationExecPath;
 
+    // value of expireAtEpochMilli indicating server lifetime expiration
+    public static final long SERVER_EXPIRATION_SENTINEL = -2;
+
     private RemoteFileArtifactValue(
         byte[] digest,
         long size,
@@ -568,6 +571,9 @@ public abstract class FileArtifactValue implements SkyValue, HasDigest {
         int locationIndex,
         long expireAtEpochMilli,
         @Nullable PathFragment materializationExecPath) {
+      if (expireAtEpochMilli == SERVER_EXPIRATION_SENTINEL) {
+        return new RemoteFileArtifactValueWithServerExpiration(digest, size, locationIndex, materializationExecPath);
+      }
       return expireAtEpochMilli < 0
           ? new RemoteFileArtifactValue(digest, size, locationIndex, materializationExecPath)
           : new RemoteFileArtifactValueWithExpiration(
@@ -718,6 +724,30 @@ public abstract class FileArtifactValue implements SkyValue, HasDigest {
     @Override
     public boolean isAlive(Instant now) {
       return now.toEpochMilli() < expireAtEpochMilli;
+    }
+  }
+
+  /** A remote artifact that expires when the Bazel server terminates. */
+  private static final class RemoteFileArtifactValueWithServerExpiration extends RemoteFileArtifactValue {
+    private RemoteFileArtifactValueWithServerExpiration(
+        byte[] digest,
+        long size,
+        int locationIndex,
+        PathFragment materializationExecPath) {
+      super(digest, size, locationIndex, materializationExecPath);
+    }
+
+    @Override
+    public long getExpireAtEpochMilli() {
+      return SERVER_EXPIRATION_SENTINEL;
+    }
+
+    @Override
+    public void extendExpireAtEpochMilli(long expireAtEpochMilli) {}
+
+    @Override
+    public boolean isAlive(Instant now) {
+      return true;
     }
   }
 

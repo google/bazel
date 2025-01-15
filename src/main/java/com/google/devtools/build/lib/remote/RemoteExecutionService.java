@@ -69,6 +69,7 @@ import com.google.devtools.build.lib.actions.ArtifactPathResolver;
 import com.google.devtools.build.lib.actions.EnvironmentalExecException;
 import com.google.devtools.build.lib.actions.ExecException;
 import com.google.devtools.build.lib.actions.ExecutionRequirements;
+import com.google.devtools.build.lib.actions.FileArtifactValue.RemoteFileArtifactValue;
 import com.google.devtools.build.lib.actions.ForbiddenActionInputException;
 import com.google.devtools.build.lib.actions.InputMetadataProvider;
 import com.google.devtools.build.lib.actions.Spawn;
@@ -1280,7 +1281,12 @@ public class RemoteExecutionService {
             combinedCache, digestUtil, context, action.getRemotePathResolver());
 
     // The expiration time for remote cache entries.
-    var expireAtEpochMilli = Instant.now().plus(remoteOptions.remoteCacheTtl).toEpochMilli();
+    //
+    // We use SERVER_EXPIRATION_SENTINEL if the user requested it.  Otherwise, we compute
+    // the expiration time based on the current time and remoteOptions.remoteCacheTtl.
+    var expireAtEpochMilli = remoteOptions.remoteCacheTtl.getSeconds() == RemoteFileArtifactValue.SERVER_EXPIRATION_SENTINEL
+      ? RemoteFileArtifactValue.SERVER_EXPIRATION_SENTINEL
+      : Instant.now().plus(remoteOptions.remoteCacheTtl).toEpochMilli();
 
     ActionInput inMemoryOutput = null;
     AtomicReference<ByteString> inMemoryOutputData = new AtomicReference<>(null);
