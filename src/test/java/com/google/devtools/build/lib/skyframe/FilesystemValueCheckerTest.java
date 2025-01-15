@@ -28,6 +28,7 @@ import com.google.common.collect.ImmutableSet;
 import com.google.common.hash.HashCode;
 import com.google.common.util.concurrent.Runnables;
 import com.google.devtools.build.lib.actions.Action;
+import com.google.devtools.build.lib.actions.ActionInput;
 import com.google.devtools.build.lib.actions.ActionLookupData;
 import com.google.devtools.build.lib.actions.ActionLookupKey;
 import com.google.devtools.build.lib.actions.Artifact;
@@ -119,7 +120,18 @@ import org.mockito.ArgumentCaptor;
 @RunWith(TestParameterInjector.class)
 public final class FilesystemValueCheckerTest {
   private static final OutputChecker CHECK_TTL =
-      (file, metadata) -> metadata.isAlive(Instant.now());
+      new RemoteArtifactChecker() {
+        @Override
+        public boolean shouldDownloadOutput(PathFragment execPath) {
+          return false;
+        }
+
+        @Override
+        public boolean shouldTrustRemoteArtifact(
+            ActionInput file, RemoteFileArtifactValue metadata) {
+          return metadata.isAlive(Instant.now());
+        }
+      };
   private static final int FSVC_THREADS_FOR_TEST = 200;
   private static final ActionLookupKey ACTION_LOOKUP_KEY =
       new ActionLookupKey() {
