@@ -572,6 +572,9 @@ public abstract class AbstractActionInputPrefetcher implements ActionInputPrefet
                   tempPath.getParentDirectory().createDirectoryAndParents();
                   fileWriteOutputArtifactValue.writeTo(tempPath.getOutputStream());
                   finalizeDownload(tempPath, finalPath, dirsWithOutputPermissions);
+                  if (!fileWriteOutputArtifactValue.isExecutable()) {
+                    finalPath.setExecutable(false);
+                  }
                   alreadyDeleted.set(true);
                   return Completable.complete();
                 } catch (IOException e) {

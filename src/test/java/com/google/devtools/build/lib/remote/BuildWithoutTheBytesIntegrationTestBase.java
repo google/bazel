@@ -1095,7 +1095,7 @@ public abstract class BuildWithoutTheBytesIntegrationTestBase extends BuildInteg
   }
 
   @Test
-  public void downloadMinimal_fileWrite() throws Exception {
+  public void downloadMinimal_fileWrite(@TestParameter boolean isExecutable) throws Exception {
     writeWriteFileRule();
     writeSymlinkRule();
     write(
@@ -1105,14 +1105,22 @@ public abstract class BuildWithoutTheBytesIntegrationTestBase extends BuildInteg
         write_file(
             name = 'foo',
             content = 'hello',
+            executable = %s,
         )
         genrule(
             name = 'gen',
             srcs = [':foo'],
             outs = ['out/gen.txt'],
-            cmd = 'cat $(location :foo) $(location :foo) > $@',
+            cmd = \"""
+            [ %s -x $(location :foo) ] || { echo "unexpectedly%s executable"; exit 1; }
+            cat $(location :foo) $(location :foo) > $@
+            \""",
         )
-        """);
+        """
+            .formatted(
+                isExecutable ? "True" : "False",
+                isExecutable ? "" : "!",
+                isExecutable ? " not" : ""));
 
     buildTarget("//:gen");
     buildTarget("//:foo");
