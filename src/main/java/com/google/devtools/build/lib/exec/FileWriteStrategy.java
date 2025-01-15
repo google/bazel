@@ -61,7 +61,8 @@ public final class FileWriteStrategy implements FileWriteActionContext {
                   actionExecutionContext
                       .getActionFileSystem()
                       .getDigestFunction()
-                      .getHashFunction()));
+                      .getHashFunction(),
+                  makeExecutable));
     } else {
       // TODO(ulfjack): Consider acquiring local resources here before trying to write the file.
       try (AutoProfiler p =
