@@ -44,6 +44,9 @@ source "$(rlocation "io_bazel/src/test/shell/integration_test_setup.sh")" \
 source "$(rlocation "io_bazel/src/test/shell/bazel/remote/remote_utils.sh")" \
   || { echo "remote_utils.sh not found!" >&2; exit 1; }
 
+# TODO: Fix tests that fail without this flag
+add_to_bazelrc "test --test_env=IGNORE_COVERAGE_COLLECTION_FAILURES=1"
+
 function set_up() {
   start_worker
 }

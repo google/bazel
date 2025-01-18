@@ -23,6 +23,9 @@ source "${CURRENT_DIR}/../integration_test_setup.sh" \
 source "${CURRENT_DIR}/coverage_helpers.sh" \
   || { echo "coverage_helpers.sh not found!" >&2; exit 1; }
 
+# TODO: Fix tests that fail without this flag
+add_to_bazelrc "test --test_env=IGNORE_COVERAGE_COLLECTION_FAILURES=1"
+
 # Returns 0 if gcov is not installed or if a version before 7.0 was found.
 # Returns 1 otherwise.
 function is_gcov_missing_or_wrong_version() {

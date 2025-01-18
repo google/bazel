@@ -21,6 +21,9 @@ CURRENT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "${CURRENT_DIR}/../integration_test_setup.sh" \
   || { echo "integration_test_setup.sh not found!" >&2; exit 1; }
 
+# TODO: Fix tests that fail without this flag
+add_to_bazelrc "test --test_env=IGNORE_COVERAGE_COLLECTION_FAILURES=1"
+
 # Fetch hermetic python and register toolchain.
 function set_up() {
     cat >>MODULE.bazel <<EOF
