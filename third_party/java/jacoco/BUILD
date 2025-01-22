@@ -38,9 +38,9 @@ filegroup(
         ["*-sources.jar"],
         allow_empty = True,
     ) + ["LICENSE"] + [
-        "//third_party:asm/asm-9.6-sources.jar",
-        "//third_party:asm/asm-analysis-9.6-sources.jar",
-        "//third_party:asm/asm-commons-9.6-sources.jar",
+        "//third_party:asm/asm-9.7.1-sources.jar",
+        "//third_party:asm/asm-analysis-9.7.1-sources.jar",
+        "//third_party:asm/asm-commons-9.7.1-sources.jar",
     ],
 )
 
