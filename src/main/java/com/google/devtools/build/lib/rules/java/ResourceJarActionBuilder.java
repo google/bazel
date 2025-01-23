@@ -30,6 +30,7 @@ import com.google.devtools.build.lib.collect.nestedset.NestedSet;
 import com.google.devtools.build.lib.collect.nestedset.NestedSetBuilder;
 import com.google.devtools.build.lib.collect.nestedset.Order;
 import com.google.devtools.build.lib.packages.RuleClass.ConfiguredTargetFactory.RuleErrorException;
+import com.google.devtools.build.lib.packages.TargetUtils;
 import com.google.devtools.build.lib.vfs.PathFragment;
 import com.google.errorprone.annotations.CanIgnoreReturnValue;
 import java.util.Map;
@@ -115,6 +116,11 @@ public class ResourceJarActionBuilder {
       command.addExecPaths("--classpath_resources", classpathResources);
     }
 
+    ImmutableMap.Builder<String, String> executionInfo = ImmutableMap.builder();
+    executionInfo.putAll(EXECUTION_INFO);
+    executionInfo.putAll(
+        TargetUtils.getExecutionInfo(ruleContext.getRule(), ruleContext.isAllowTagsPropagation()));
+
     ruleContext.registerAction(
         builder
             .setExecutable(javaToolchain.getSingleJar())
@@ -128,7 +134,7 @@ public class ResourceJarActionBuilder {
             .addCommandLine(command.build(), PARAM_FILE_INFO)
             .setProgressMessage("Building Java resource jar")
             .setMnemonic(MNEMONIC)
-            .setExecutionInfo(EXECUTION_INFO)
+            .setExecutionInfo(executionInfo.build())
             .setExecGroup(execGroup)
             .build(ruleContext));
   }
