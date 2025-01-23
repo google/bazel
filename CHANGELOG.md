@@ -1,10 +1,184 @@
-## Release 7.4.0 (2024-10-22)
+## Release 7.4.1 (2024-11-11)
 
 ```
 
 Release Notes:
 
 ```
+
+## Release 9.0.0-pre.20241016.1 (2024-10-22)
+
+```
+Baseline: 253fedc5d5adbb6015735b31103be584e2125d5b
+```
+
+Incompatible changes:
+
+  - With the default Unix toolchain on macOS, binaries now use
+    `@rpath` to find their `.dylib` dependencies. This is required to
+    fix issues where tools run during the build couldn't find their
+    dynamic dependencies.
+  - The flag `--incompatible_disallow_empty_glob` now defaults to
+    true.
+
+Important changes:
+
+  - Native android_sdk is no longer available within Bazel. Use
+    https://github.com/bazelbuild/rules_android
+  - Add the
+    --incompatible_simplify_unconditional_selects_in_rule_attrs
+    option to simplify configurable rule attributes which contain
+    only unconditional selects; for example, if ["a"] +
+    select("//conditions:default", ["b"]) is assigned to a rule
+    attribute, it is stored as ["a", "b"].
+  - `--incompatible_disallow_unsound_directory_outputs` is deleted.
+  - `--incompatible_remote_symlinks` and
+    `--incompatible_remote_dangling_symlinks` are deleted.
+  - The default value of
+    `--experimental_remote_cache_eviction_retries` is changed to `5`.
+  - If --proto:rule_classes flag is enabled, query proto output will
+    contain rule class definitions in Stardoc proto format.
+  - Non-singleton target visibility lists can now contain
+    "//visibility:public" and "//visibility:private" elements; the
+    result is appropriately simplified when assigned to an attribute:
+    ["//foo:__subpackages__", "//visibility:public"] is saved as
+    ["//visibility:public"], ["//foo:__subpackages__",
+    "//visibility:private"] is saved as ["//foo:__subpackages__"],
+    and for consistency's sake, an empty target visibility list [] is
+    saved as ["//visibility:private"].
+  - Symbolic Macros -- and with them, Finalizers and the new
+    Macro-Aware Visibility model -- are now generally available
+    (`--experimental_enable_first_class_macros` now defaults to
+    true). Trivial `select()` values are automatically unwrapped
+    (`--incompatible_simplify_unconditional_selects_in_rule_attrs`
+    now defaults to true).
+  - Moved all Bazel Android tool and action code to rules_android.
+  - Add conlyopts and cxxopts attributes to cc rules
+  - `@bazel_tools//tools/android` no longer exists. Use
+    https://github.com/bazelbuild/rules_android instead.
+  - Bazel now supports all characters in the rlocation and target
+    paths of runfiles and can be run from workspaces with a space in
+    their full path.
+  - The Python six library is no longer part of @external_tools.
+
+This release contains contributions from many people at Google, as well as Alessandro Patti, Benjamin Peterson, CaerusKaru, Dennis van den Berg, dependabot[bot], Fabian Meumertzheim, Fredrik Medley, hvd, Keith Smiley, Maria, Mislav Mandaric, Tomasz Pasternak, Xavier Bonaventura, Xdng Yng, Xùdōng Yáng.
+
+## Release 8.0.0-pre.20240925.4 (2024-10-03)
+
+```
+Baseline: f4d92d45be3617b72c21ad5ce8912fa548472e50
+
+Cherry picks:
+
+   + 99434b16ba41677b92f7eb79d5d8dcb1130d7c47:
+     Automated rollback of commit
+     4607ad439fe8869c8e8951d953e2d3adb613e6d6.
+```
+
+Incompatible changes:
+
+  - `ctx.resolve_tools` is no longer available by default, in
+    preparation for complete removal. See
+    https://github.com/bazelbuild/bazel/issues/22249 for migration
+    instructions. Use `--noincompatible_disallow_ctx_resolve_tools`
+    to temporarily make it available again.
+  - The `aquery` command now reports all potential inputs of actions
+    that support input discovery, including the input headers of C++
+    compilation actions and those explicitly marked as unused through
+    the `unused_inputs_list` argument to `ctx.actions.run`. Set
+    `--noinclude_pruned_inputs` to omit pruned inputs from `aquery`
+    output when running it after action execution.
+    RELNOTES[INC]: This is not a release note, but a reminder to
+    remove the note for `--include_scheduling_dependencies`, which
+    was introduced in the 8.x tree but won't make it into the final
+    release.
+  - `--zip_undeclared_test_outputs` now defaults to false, causing
+    undeclared test outputs (i.e., files written to
+    `$TEST_UNDECLARED_OUTPUTS_DIR` by a test) to be produced as a
+    directory instead of a zip file.
+  - --legacy_important_outputs is flipped to false. See #14353 for
+    details
+
+New features:
+
+  - Bazel can now parse .scl files, a dialect of Starlark without
+    Bazel-specific symbols.
+  - Dormant dependencies and materializer functions are now available
+    with the --experimental_dormant_deps flag.
+
+Important changes:
+
+  - Deleted native Android mobile-install
+  - Repository rules instantiated in the same module extensions can
+    now refer to each other by their extension-specified names in
+    label attributes.
+  - A new experimental flag,
+    `--experimental_build_event_output_group_mode`, allows users to
+    change how a given output group's files are reported in BEP. The
+    current behavior is `FILESET` which populates
+    `OutputGroup.file_sets`. Users may now specify `INLINE` to
+    instead report files directly in the
+    `TargetComplete`/`AspectComplete` event under
+    `OutputGroup.inline_files`. Users may also specify `BOTH` to
+    populate `OutputGroup.file_sets` and `OutputGroup.inline_files`.
+  - Bazel no longer has the android_binary, android_library,
+    android_device_script_fixture and android_host_service_fixture
+    rules. Use https://github.com/bazelbuild/rules_android instead.
+    See https://github.com/bazelbuild/bazel/issues/23199
+  - Bazel no longer has the android_sdk_repository rule. Use
+    https://github.com/bazelbuild/rules_android instead.
+  - Uploading local action results to a disk or remote cache now
+    occurs in the background whenever possible, potentially
+    unblocking the execution of followup actions. Set
+    `--noremote_cache_async` to revert to the previous behavior.
+  - `--incompatible_remote_downloader_send_all_headers` is removed.
+  - `--build_event_upload_max_threads` is removed.
+  - `incompatible_remote_output_paths_relative_to_input_root` is
+    removed.
+  - The default value of
+    `--experimental_remote_cache_compression_threshold` is changed to
+    `100`.
+  - Build without the Bytes is disabled when using HTTP cache.
+  - Build without the Bytes is disabled when using HTTP cache.
+  - Symlink trees are now created through direct filesystem calls by
+    default, instead of delegated to a helper process. On Windows,
+    this entails respecting the `--windows_enable_symlinks` flag,
+    falling back to a copy when the flag is unset (the helper process
+    always attempts to create symlinks, irrespective of the flag).
+    Set `--noexperimental_inprocess_symlink_creation` to temporarily
+    revert to the previous behavior, which will be removed in a
+    future release.
+  - By default, coverage artifacts will be reported inline in the
+    `TargetComplete` event. To disable this behavior, pass
+    `--experimental_build_event_output_group_mode=baseline.lcov=named_
+    set_of_files_only`.
+  - Uploading local action results to a disk or remote cache now
+    occurs in the background whenever possible, potentially
+    unblocking the execution of followup actions. Set
+    `--noremote_cache_async` to revert to the previous behavior.
+  - Overrides in the root MODULE.bazel file are now ignored with
+    `--ignore_dev_dependency`. (Overrides in non-root modules are
+    already ignored.)
+  - Added support for using a remote cache that evicts blobs and
+    doesn't have AC integrity check (e.g. HTTP cache).
+  - Undeclared test outputs are now reported individually in the BEP,
+    unless zipping is enabled via `--zip_undeclared_test_outputs`.
+  - The native version of android_tools_defaults_jar is no longer in
+    Bazel. Use https://github.com/bazelbuild/rules_android instead.
+  - Bazel fetch and vendor command now supports --target_pattern_file
+    for specifying target patterns.
+  - The compact execution log now stores runfiles in a more compact
+    representation that should reduce the memory overhead and log
+    output size, in particular for test spawns. This change required
+    breaking changes to the (experimental) log format.
+  - `override_repo` and `inject_repo` can be used to override and
+    inject repos in module extensions.
+  - Patches to the module file in `single_version_override` are now
+    effective as long as the patch file lies in the root module.
+  - If `--allowed_cpu_values` is set, the `--cpu` flag value is
+    validated against it.
+
+This release contains contributions from many people at Google, as well as Adam Azarchs, Alessandro Patti, Benjamin Peterson, Cornelius Riemenschneider, dependabot[bot], Fabian Meumertzheim, Fil-Den, George Gensure, hvd, Jacob Van De Weert, James Sharpe, Javier Maestro, Jay Conrod, John Millikin, Jordan Mele, Jordan Mele, Keith Smiley, Lior Gorelik, Luis Padron, Michael Siegrist, Nils Wireklint, PikachuHy, Sangita.Nalkar, Son Luong Ngoc, Thi Doan, Xdng Yng, xinyu.wang.
 
 ## Release 7.3.2 (2024-10-01)
 

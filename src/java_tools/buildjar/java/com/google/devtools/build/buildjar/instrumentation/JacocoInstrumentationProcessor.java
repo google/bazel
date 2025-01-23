@@ -117,28 +117,34 @@ public final class JacocoInstrumentationProcessor {
             if (!file.getFileName().toString().endsWith(".class")) {
               return FileVisitResult.CONTINUE;
             }
-            // TODO(bazel-team): filter with coverage_instrumentation_filter?
-            // It's not clear whether there is any advantage in not instrumenting *Test classes,
-            // apart from lowering the covered percentage in the aggregate statistics.
 
-            // We first move the original .class file to our metadata directory, then instrument it
-            // and output the instrumented version in the regular classes output directory.
-            Path instrumentedCopy = file;
-            Path uninstrumentedCopy;
-            if (isNewCoverageImplementation) {
-              Path absoluteUninstrumentedCopy = Paths.get(file + ".uninstrumented");
-              uninstrumentedCopy =
-                  instrumentedClassesDirectory.resolve(root.relativize(absoluteUninstrumentedCopy));
-            } else {
-              uninstrumentedCopy = instrumentedClassesDirectory.resolve(root.relativize(file));
-            }
-            Files.createDirectories(uninstrumentedCopy.getParent());
-            Files.move(file, uninstrumentedCopy);
-            try (InputStream input =
-                    new BufferedInputStream(Files.newInputStream(uninstrumentedCopy));
-                OutputStream output =
-                    new BufferedOutputStream(Files.newOutputStream(instrumentedCopy))) {
-              instr.instrument(input, output, file.toString());
+            try {
+              // We first move the original .class file to our metadata directory, then instrument
+              // it and output the instrumented version in the regular classes output directory.
+              Path instrumentedCopy = file;
+              Path uninstrumentedCopy;
+              if (isNewCoverageImplementation) {
+                Path absoluteUninstrumentedCopy = Paths.get(file + ".uninstrumented");
+                uninstrumentedCopy =
+                    instrumentedClassesDirectory.resolve(
+                        root.relativize(absoluteUninstrumentedCopy));
+              } else {
+                uninstrumentedCopy = instrumentedClassesDirectory.resolve(root.relativize(file));
+              }
+              Files.createDirectories(uninstrumentedCopy.getParent());
+              Files.move(file, uninstrumentedCopy);
+              try (InputStream input =
+                  new BufferedInputStream(Files.newInputStream(uninstrumentedCopy));
+                  OutputStream output =
+                      new BufferedOutputStream(Files.newOutputStream(instrumentedCopy))) {
+                instr.instrument(input, output, file.toString());
+              } catch (Exception e) {
+                Files.delete(instrumentedCopy);
+                Files.copy(uninstrumentedCopy, instrumentedCopy);
+                throw e;  // Bubble up to the outer broader safety catch block for logging.
+              }
+            } catch (Exception e) {
+              System.err.printf("WARNING: %s was not instrumented: %s%n\n", file, e.getMessage());
             }
             return FileVisitResult.CONTINUE;
           }

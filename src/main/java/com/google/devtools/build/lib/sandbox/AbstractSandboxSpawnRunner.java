@@ -78,6 +78,7 @@ abstract class AbstractSandboxSpawnRunner implements SpawnRunner {
   private final Path execRoot;
   private final ResourceManager resourceManager;
   private final Reporter reporter;
+  private final boolean handlesCaching;
 
   public AbstractSandboxSpawnRunner(CommandEnvironment cmdEnv) {
     this.sandboxOptions = cmdEnv.getOptions().getOptions(SandboxOptions.class);
@@ -88,6 +89,7 @@ abstract class AbstractSandboxSpawnRunner implements SpawnRunner {
     this.execRoot = cmdEnv.getExecRoot();
     this.resourceManager = cmdEnv.getLocalResourceManager();
     this.reporter = cmdEnv.getReporter();
+    this.handlesCaching = !cmdEnv.getOptions().getOptions(ExecutionOptions.class).useRemoteCacheForCacheUnawareSpawns;
   }
 
   @Override
@@ -132,7 +134,7 @@ abstract class AbstractSandboxSpawnRunner implements SpawnRunner {
 
   @Override
   public boolean handlesCaching() {
-    return false;
+    return this.handlesCaching;
   }
 
   protected abstract SandboxedSpawn prepareSpawn(Spawn spawn, SpawnExecutionContext context)

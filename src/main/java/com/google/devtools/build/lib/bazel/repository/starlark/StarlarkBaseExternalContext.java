@@ -40,6 +40,7 @@ import com.google.devtools.build.lib.cmdline.LabelConstants;
 import com.google.devtools.build.lib.cmdline.RepositoryName;
 import com.google.devtools.build.lib.events.Event;
 import com.google.devtools.build.lib.events.ExtendedEventHandler.FetchProgress;
+import com.google.devtools.build.lib.events.NullEventHandler;
 import com.google.devtools.build.lib.packages.StarlarkInfo;
 import com.google.devtools.build.lib.packages.StructImpl;
 import com.google.devtools.build.lib.packages.StructProvider;
@@ -816,7 +817,7 @@ When <code>sha256</code> or <code>integrity</code> is user specified, setting an
               canonicalId,
               Optional.<String>empty(),
               outputPath.getPath(),
-              env.getListener(),
+              allowFail ? NullEventHandler.INSTANCE : env.getListener(),
               envVariables,
               identifyingStringForLogging,
               downloadPhaser);
@@ -1046,7 +1047,7 @@ the same path on case-insensitive filesystems.
               canonicalId,
               Optional.of(type),
               downloadDirectory,
-              env.getListener(),
+              allowFail ? NullEventHandler.INSTANCE : env.getListener(),
               envVariables,
               identifyingStringForLogging,
               downloadPhaser);

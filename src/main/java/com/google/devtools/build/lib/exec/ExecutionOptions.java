@@ -539,6 +539,21 @@ public class ExecutionOptions extends OptionsBase {
               + " code 39.")
   public int remoteRetryOnTransientCacheError;
 
+  @Option(
+      name = "experimental_use_remote_cache_for_cache_unaware_spawns",
+      defaultValue = "true",
+      documentationCategory = OptionDocumentationCategory.REMOTE,
+      effectTags = {OptionEffectTag.UNKNOWN},
+      help =
+          "If set to true (the default), allow spawns other than \"remote\" to use remote caching. "
+              + "Setting this to false is useful when troubleshooting non-determinism cases in a "
+              + "\"mixed\" configuration where certain spawns are forced to run remotely (for "
+              + "example, to hide their non-determinism) and others are allowed to run via dynamic "
+              + "execution. In such cases, we must allow the remote spawns to leverage the remote "
+              + "cache, but not those that are configured to run locally. This flag is similar in "
+              + "purpose to --remote_accept_cached.")
+  public boolean useRemoteCacheForCacheUnawareSpawns;
+
   /** An enum for specifying different formats of test output. */
   public enum TestOutputFormat {
     SUMMARY, // Provide summary output only.

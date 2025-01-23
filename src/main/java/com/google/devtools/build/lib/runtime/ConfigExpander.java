@@ -158,7 +158,11 @@ final class ConfigExpander {
 
     // At this point, we've expanded everything, identify duplicates, if any, to warn about
     // re-application.
-    List<String> configs = optionsParser.getOptions(CommonCommandOptions.class).configs;
+    CommonCommandOptions commonOptions = optionsParser.getOptions(CommonCommandOptions.class);
+    if (!commonOptions.reportDuplicateOptionsAndConfigs) {
+      return;
+    }
+    List<String> configs = commonOptions.configs;
     Set<String> configSet = new HashSet<>();
     LinkedHashSet<String> duplicateConfigs = new LinkedHashSet<>();
     for (String configValue : configs) {

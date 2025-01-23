@@ -138,6 +138,7 @@ public class StandaloneSpawnStrategyTest {
     OptionsParser optionsParser =
         OptionsParser.builder().optionsClasses(ExecutionOptions.class).build();
     optionsParser.parse("--verbose_failures");
+    ExecutionOptions executionOptions = Options.getDefaults(ExecutionOptions.class);
     LocalExecutionOptions localExecutionOptions = Options.getDefaults(LocalExecutionOptions.class);
 
     ResourceManager resourceManager = ResourceManager.instanceForTestingOnly();
@@ -150,6 +151,7 @@ public class StandaloneSpawnStrategyTest {
             execRoot,
             new LocalSpawnRunner(
                 execRoot,
+                executionOptions,
                 localExecutionOptions,
                 resourceManager,
                 (env, binTools1, fallbackTmpDir) -> ImmutableMap.copyOf(env),

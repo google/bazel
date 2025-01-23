@@ -420,6 +420,7 @@ public final class SandboxModule extends BlazeModule {
     return new SandboxFallbackSpawnRunner(
         sandboxSpawnRunner,
         createFallbackRunner(env),
+        env.getOptions().getOptions(ExecutionOptions.class),
         env.getReporter(),
         sandboxOptions != null && sandboxOptions.legacyLocalFallback);
   }
@@ -429,6 +430,7 @@ public final class SandboxModule extends BlazeModule {
         env.getOptions().getOptions(LocalExecutionOptions.class);
     return new LocalSpawnRunner(
         env.getExecRoot(),
+        env.getOptions().getOptions(ExecutionOptions.class),
         localExecutionOptions,
         env.getLocalResourceManager(),
         LocalEnvProvider.forCurrentOs(env.getClientEnv()),
@@ -450,16 +452,19 @@ public final class SandboxModule extends BlazeModule {
     private final ExtendedEventHandler reporter;
     private static final AtomicBoolean warningEmitted = new AtomicBoolean();
     private final boolean fallbackAllowed;
+    private final boolean handlesCaching;
 
     SandboxFallbackSpawnRunner(
         SpawnRunner sandboxSpawnRunner,
         SpawnRunner fallbackSpawnRunner,
+        ExecutionOptions executionOptions,
         ExtendedEventHandler reporter,
         boolean fallbackAllowed) {
       this.sandboxSpawnRunner = sandboxSpawnRunner;
       this.fallbackSpawnRunner = fallbackSpawnRunner;
       this.reporter = reporter;
       this.fallbackAllowed = fallbackAllowed;
+      this.handlesCaching = !executionOptions.useRemoteCacheForCacheUnawareSpawns;
     }
 
     @Override
@@ -505,7 +510,7 @@ public final class SandboxModule extends BlazeModule {
 
     @Override
     public boolean handlesCaching() {
-      return false;
+      return handlesCaching;
     }
 
     @Override

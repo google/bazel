@@ -547,7 +547,7 @@ public final class CppLinkAction extends AbstractAction implements CommandAction
         case LINUX:
           resourceSet =
               ResourceSet.createWithRamCpu(
-                  /* memoryMb= */ Math.max(50, -100 + 0.1 * inputsCount), /* cpu= */ 1);
+                  /* memoryMb= */ 100 + 2.4 * (inputsBytes / 1024.0 / 1024.0), /* cpuUsage= */ 1);
           break;
         default:
           resourceSet =

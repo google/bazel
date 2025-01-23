@@ -566,6 +566,13 @@ public class CommonCommandOptions extends OptionsBase {
       effectTags = {OptionEffectTag.BAZEL_INTERNAL_CONFIGURATION},
       help = "The maximum number parallel http downloads.")
   public int httpMaxParallelDownloads;
+  @Option(
+      name = "snowflake_report_duplicate_options_and_configs",
+      defaultValue = "true",
+      documentationCategory = OptionDocumentationCategory.LOGGING,
+      effectTags = {OptionEffectTag.TERMINAL_OUTPUT},
+      help = "If enabled, reports flags and configs that were expanded multiple times as warnings.")
+  public boolean reportDuplicateOptionsAndConfigs;
 
   /** The option converter to check that the user can only specify legal profiler tasks. */
   public static class ProfilerTaskConverter extends EnumConverter<ProfilerTask> {

@@ -77,6 +77,7 @@ public class StandaloneModule extends BlazeModule {
     SpawnRunner localSpawnRunner =
         new LocalSpawnRunner(
             env.getExecRoot(),
+            env.getOptions().getOptions(ExecutionOptions.class),
             env.getOptions().getOptions(LocalExecutionOptions.class),
             env.getLocalResourceManager(),
             LocalEnvProvider.forCurrentOs(env.getClientEnv()),

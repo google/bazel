@@ -52,6 +52,10 @@ EOF
   cat > pkg/BUILD <<'EOF'
 exports_files(["somesourcefile"])
 sh_test(
+  name = "true-bin",
+  srcs = ["true.sh"],
+)
+sh_test(
   name = "true",
   srcs = ["true.sh"],
   size = "small",
@@ -1502,6 +1506,70 @@ EOF
   #   * //successful
   #   * //dep-of-successful
   expect_log 'packages_loaded: 2'
+}
+
+function test_secrets_in_env() {
+  THE_SECRET=secret1234 bazel test -k --build_event_text_file=$TEST_log pkg:true \
+    || fail "bazel test failed"
+
+  # The obvious: make sure the secrets don't leak in any way and check that we did
+  # not hit any unexpected corner cases. All other checks below are just "nice-to-have"s.
+  expect_not_log 'secret1234'
+  expect_not_log 'INVALID-OPTION-VALUE'
+
+  # Check that some allowed environment variables are passed through.
+  expect_log_n "--client_env=PATH=${PATH}" 3
+  expect_log_once "args.*--client_env=PATH=${PATH}"
+  expect_log_n "--client_env=USER=${USER}" 3
+  expect_log_once "args.*--client_env=USER=${USER}"
+
+  # Check argument rewrites in the unstructured and structured command lines.
+  expect_log_n '--client_env=THE_SECRET= ' 3
+
+  # Check that we also see the flag's value on its own.
+  expect_log_n 'THE_SECRET= ' 5
+}
+
+function test_secrets_in_options() {
+  bazel test -k --build_event_text_file=$TEST_log \
+    --bes_header=NAME=the-secret-xyz \
+    --test_env=HOME=/foo \
+    --test_arg flat \
+    --test_arg=PATH=/bar \
+    --test_env=A_SECRET=secret1234 \
+    --test_arg ANOTHER_SECRET=secret5678 \
+    pkg:true \
+    || fail "bazel test failed"
+
+  # The obvious: make sure the secrets don't leak in any way and check that we did
+  # not hit any unexpected corner cases. All other checks below are just "nice-to-have"s.
+  expect_not_log 'secret1234'
+  expect_not_log 'secret5678'
+  expect_not_log 'the-secret-xyz'
+  expect_not_log 'INVALID-OPTION-VALUE'
+
+  # Check argument rewrites throughout the log.
+  expect_log_n '--bes_header=NAME= ' 5
+  expect_log_n '--test_env=HOME=/foo' 5
+  expect_log_n '--test_arg REDACTED' 4
+  expect_log_n '--test_env=A_SECRET= ' 5
+  expect_log_n '--test_arg=REDACTED' 10
+
+  # Check argument rewrites in the unstructured and structured command lines.
+  expect_log_once "args.*--bes_header=NAME= "
+  expect_log_once "args.*--test_env=HOME=/foo"
+  expect_log "args.*\"REDACTED\""
+  expect_not_log "args.*\"flat\""
+  expect_log_once "args.*--test_arg=REDACTED"
+
+  # Check the shell representation of the command line.
+  expect_log_once "options_description.*--bes_header=\\\'NAME= \\\'"
+  expect_log_once 'options_description.*--test_arg=REDACTED'
+  expect_log_once "options_description.*--test_env=\\\'A_SECRET= \\\'"
+
+  # Check that we also see the flags' values on their own.
+  expect_log_n 'A_SECRET= ' 8
+  expect_not_log 'ANOTHER_SECRET= '
 }
 
 run_suite "Integration tests for the build event stream"

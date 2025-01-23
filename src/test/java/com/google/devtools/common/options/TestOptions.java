@@ -248,4 +248,26 @@ public class TestOptions extends OptionsBase {
       documentationCategory = OptionDocumentationCategory.UNCATEGORIZED,
       effectTags = {OptionEffectTag.NO_OP})
   public String testDeprecated;
+
+  /*
+   * Flags with potential secrets.
+   */
+
+  @Option(
+      name = "stub_env",
+      documentationCategory = OptionDocumentationCategory.UNCATEGORIZED,
+      effectTags = {OptionEffectTag.NO_OP},
+      defaultValue = "null",
+      allowMultiple = true,
+      help = "a repeatable string-valued flag with its own unhelpful help text")
+  public List<String> testEnvString;
+
+  @Option(
+      name = "stub_inherit_env",
+      documentationCategory = OptionDocumentationCategory.UNCATEGORIZED,
+      effectTags = {OptionEffectTag.NO_OP},
+      defaultValue = "null",
+      allowMultiple = true,
+      help = "a repeatable string-valued flag with its own unhelpful help text")
+  public List<String> testInheritEnvString;
 }

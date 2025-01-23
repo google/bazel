@@ -16,6 +16,8 @@ package com.google.devtools.build.lib.util;
 import static com.google.common.truth.Truth.assertThat;
 import static org.junit.Assert.assertThrows;
 
+import com.google.common.collect.ImmutableList;
+import com.google.devtools.build.lib.util.OptionsUtils.OptionSensitivity;
 import com.google.devtools.build.lib.util.OptionsUtils.PathFragmentConverter;
 import com.google.devtools.build.lib.util.OptionsUtils.PathFragmentListConverter;
 import com.google.devtools.build.lib.vfs.PathFragment;
@@ -230,5 +232,176 @@ public class OptionsUtilsTest {
         assertThrows(OptionsParsingException.class, () -> converter.convert("relative/path"));
 
     assertThat(e).hasMessageThat().isEqualTo("Not an absolute path: 'relative/path'");
+  }
+
+  @Test
+  public void getOptionSensitivity_None() {
+    assertThat(OptionsUtils.getOptionSensitivity("x")).isEqualTo(OptionSensitivity.NONE);
+    assertThat(OptionsUtils.getOptionSensitivity("x_arg_ok")).isEqualTo(OptionSensitivity.NONE);
+    assertThat(OptionsUtils.getOptionSensitivity("x_env_ok")).isEqualTo(OptionSensitivity.NONE);
+    assertThat(OptionsUtils.getOptionSensitivity("x_header_ok")).isEqualTo(OptionSensitivity.NONE);
+  }
+
+  @Test
+  public void getOptionSensitivity_Partial() {
+    assertThat(OptionsUtils.getOptionSensitivity("x_env")).isEqualTo(OptionSensitivity.PARTIAL);
+    assertThat(OptionsUtils.getOptionSensitivity("x_env=a")).isEqualTo(OptionSensitivity.PARTIAL);
+    assertThat(OptionsUtils.getOptionSensitivity("x_env a")).isEqualTo(OptionSensitivity.PARTIAL);
+
+    assertThat(OptionsUtils.getOptionSensitivity("x_header")).isEqualTo(OptionSensitivity.PARTIAL);
+    assertThat(
+        OptionsUtils.getOptionSensitivity("x_header=a")).isEqualTo(OptionSensitivity.PARTIAL);
+    assertThat(
+        OptionsUtils.getOptionSensitivity("x_header a")).isEqualTo(OptionSensitivity.PARTIAL);
+  }
+
+  @Test
+  public void getOptionSensitivity_Full() {
+    assertThat(OptionsUtils.getOptionSensitivity("x_arg")).isEqualTo(OptionSensitivity.FULL);
+    assertThat(OptionsUtils.getOptionSensitivity("x_arg=a")).isEqualTo(OptionSensitivity.FULL);
+    assertThat(OptionsUtils.getOptionSensitivity("x_arg a")).isEqualTo(OptionSensitivity.FULL);
+  }
+
+  @Test
+  public void maybeScrubAssignment_None() {
+    assertThat(OptionsUtils.maybeScrubAssignment(OptionSensitivity.NONE, "A=B")).isEqualTo("A=B");
+  }
+
+  @Test
+  public void maybeScrubAssignment_Partial_OnlyName() {
+    assertThat(OptionsUtils.maybeScrubAssignment(OptionSensitivity.PARTIAL, "AB")).isEqualTo("AB");
+  }
+
+  @Test
+  public void maybeScrubAssignment_Partial_NameAndValue() {
+    assertThat(
+        OptionsUtils.maybeScrubAssignment(OptionSensitivity.PARTIAL, "A=B"))
+        .isEqualTo("A= ");
+    assertThat(
+        OptionsUtils.maybeScrubAssignment(OptionSensitivity.PARTIAL, "A=B=C"))
+        .isEqualTo("A= ");
+  }
+
+  @Test
+  public void maybeScrubAssignment_Full() {
+    assertThat(OptionsUtils.maybeScrubAssignment(OptionSensitivity.FULL, "")).isEqualTo("REDACTED");
+    assertThat(
+        OptionsUtils.maybeScrubAssignment(OptionSensitivity.FULL, "x")).isEqualTo("REDACTED");
+  }
+
+  @Test
+  public void maybeScrubCombinedForm_None() {
+    assertThat(OptionsUtils.maybeScrubCombinedForm(OptionSensitivity.NONE, "")).isEqualTo("");
+    assertThat(
+        OptionsUtils.maybeScrubCombinedForm(OptionSensitivity.NONE, "--a_env x"))
+        .isEqualTo("--a_env x");
+    assertThat(
+        OptionsUtils.maybeScrubCombinedForm(OptionSensitivity.NONE, "--a_env=x"))
+        .isEqualTo("--a_env=x");
+  }
+
+  @Test
+  public void maybeScrubCombinedForm_Partial() {
+    assertThat(
+        OptionsUtils.maybeScrubCombinedForm(OptionSensitivity.PARTIAL, ""))
+        .isEqualTo("INVALID-OPTION-VALUE");
+    assertThat(
+        OptionsUtils.maybeScrubCombinedForm(OptionSensitivity.PARTIAL, "--a"))
+        .isEqualTo("INVALID-OPTION-VALUE");
+    assertThat(
+        OptionsUtils.maybeScrubCombinedForm(OptionSensitivity.PARTIAL, "--a_env x"))
+        .isEqualTo("--a_env x");
+    assertThat(
+        OptionsUtils.maybeScrubCombinedForm(OptionSensitivity.PARTIAL, "--a_env x=y"))
+        .isEqualTo("--a_env x= ");
+    assertThat(
+        OptionsUtils.maybeScrubCombinedForm(OptionSensitivity.PARTIAL, "--a_env=x"))
+        .isEqualTo("--a_env=x");
+    assertThat(
+        OptionsUtils.maybeScrubCombinedForm(OptionSensitivity.PARTIAL, "--a_env=x=y"))
+        .isEqualTo("--a_env=x= ");
+  }
+
+  @Test
+  public void maybeScrubCombinedForm_Full() {
+    assertThat(
+        OptionsUtils.maybeScrubCombinedForm(OptionSensitivity.FULL, ""))
+        .isEqualTo("INVALID-OPTION-VALUE");
+    assertThat(
+        OptionsUtils.maybeScrubCombinedForm(OptionSensitivity.FULL, "--a"))
+        .isEqualTo("INVALID-OPTION-VALUE");
+    assertThat(
+        OptionsUtils.maybeScrubCombinedForm(OptionSensitivity.FULL, "--a_env x"))
+        .isEqualTo("--a_env REDACTED");
+    assertThat(
+        OptionsUtils.maybeScrubCombinedForm(OptionSensitivity.FULL, "--a_env x=y"))
+        .isEqualTo("--a_env REDACTED");
+    assertThat(
+        OptionsUtils.maybeScrubCombinedForm(OptionSensitivity.FULL, "--a_env=x"))
+        .isEqualTo("--a_env=REDACTED");
+    assertThat(
+        OptionsUtils.maybeScrubCombinedForm(OptionSensitivity.FULL, "--a_env=x=y"))
+        .isEqualTo("--a_env=REDACTED");
+  }
+
+  @Test
+  public void scrubArgs_None() {
+    ImmutableList<String> args = ImmutableList.of();
+    ImmutableList<String> expArgs = ImmutableList.of();
+    assertThat(OptionsUtils.scrubArgs(args)).isEqualTo(expArgs);
+  }
+
+  @Test
+  public void scrubArgs_Partial_SameArg() {
+    ImmutableList<String> args =
+        ImmutableList.of("foo", "--test_env=UNKNOWN=1234", "--test_env=HOME=dir");
+    ImmutableList<String> expArgs =
+        ImmutableList.of("foo", "--test_env=UNKNOWN= ", "--test_env=HOME=dir");
+    assertThat(OptionsUtils.scrubArgs(args)).isEqualTo(expArgs);
+  }
+
+  @Test
+  public void scrubArgs_Partial_SeparateArg() {
+    ImmutableList<String> args =
+        ImmutableList.of("foo", "--test_env", "UNKNOWN=1234", "--test_env=HOME=dir");
+    ImmutableList<String> expArgs =
+        ImmutableList.of("foo", "--test_env", "UNKNOWN= ", "--test_env=HOME=dir");
+    assertThat(OptionsUtils.scrubArgs(args)).isEqualTo(expArgs);
+  }
+
+  @Test
+  public void scrubArgs_Full_SameArg() {
+    ImmutableList<String> args =
+        ImmutableList.of("foo", "--test_arg=UNKNOWN=1234", "--test_arg=HOME=dir");
+    ImmutableList<String> expArgs =
+        ImmutableList.of("foo", "--test_arg=REDACTED", "--test_arg=REDACTED");
+    assertThat(OptionsUtils.scrubArgs(args)).isEqualTo(expArgs);
+  }
+
+  @Test
+  public void scrubArgs_Full_SeparateArg() {
+    ImmutableList<String> args =
+        ImmutableList.of("foo", "--test_arg", "UNKNOWN=1234", "--test_arg=HOME=dir");
+    ImmutableList<String> expArgs =
+        ImmutableList.of("foo", "--test_arg", "REDACTED", "--test_arg=REDACTED");
+    assertThat(OptionsUtils.scrubArgs(args)).isEqualTo(expArgs);
+  }
+
+  @Test
+  public void scrubArgs_Residue_NotSensitive() {
+    ImmutableList<String> args =
+        ImmutableList.of("test", "--", "abc", "--def");
+    ImmutableList<String> expArgs =
+        ImmutableList.of("test", "--", "REDACTED", "REDACTED");
+    assertThat(OptionsUtils.scrubArgs(args)).isEqualTo(expArgs);
+  }
+
+  @Test
+  public void scrubArgs_Residue_Sensitive() {
+    ImmutableList<String> args =
+        ImmutableList.of("run", "--", "abc", "--def");
+    ImmutableList<String> expArgs =
+        ImmutableList.of("run", "--", "REDACTED", "REDACTED");
+    assertThat(OptionsUtils.scrubArgs(args)).isEqualTo(expArgs);
   }
 }

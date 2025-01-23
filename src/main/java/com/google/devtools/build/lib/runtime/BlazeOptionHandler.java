@@ -478,7 +478,7 @@ public final class BlazeOptionHandler {
       // to improve the user experience, but not required for safety or correctness.
       optionsPolicyEnforcer.enforce(optionsParser, commandAnnotation.name());
       // Print warnings for odd options usage
-      for (String warning : optionsParser.getWarnings()) {
+      for (String warning : getFilteredWarnings(optionsParser)) {
         eventHandler.handle(Event.warn(warning));
       }
       CommonCommandOptions commonOptions = optionsParser.getOptions(CommonCommandOptions.class);
@@ -691,5 +691,21 @@ public final class BlazeOptionHandler {
         remainingCmdLine.add(option);
       }
     }
+  }
+
+  public static ImmutableList<String> getFilteredWarnings(OptionsParser parser) {
+    CommonCommandOptions commonOptions = parser.getOptions(CommonCommandOptions.class);
+    Preconditions.checkNotNull(commonOptions,
+        "getWarnings can only be called after options parsing");
+
+    ImmutableList.Builder<String> warnings = ImmutableList.<String>builder();
+    for (String warning : parser.getWarnings()) {
+      if (!commonOptions.reportDuplicateOptionsAndConfigs && warning.contains(
+          "was expanded to from both")) {
+        continue;
+      }
+      warnings.add(warning);
+    }
+    return warnings.build();
   }
 }

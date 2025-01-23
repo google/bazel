@@ -30,6 +30,8 @@ import com.google.devtools.build.lib.runtime.proto.CommandLineOuterClass.Command
 import com.google.devtools.build.lib.runtime.proto.CommandLineOuterClass.CommandLineSection;
 import com.google.devtools.build.lib.runtime.proto.CommandLineOuterClass.Option;
 import com.google.devtools.build.lib.runtime.proto.CommandLineOuterClass.OptionList;
+import com.google.devtools.build.lib.util.OptionsUtils;
+import com.google.devtools.build.lib.util.OptionsUtils.OptionSensitivity;
 import com.google.devtools.build.lib.util.Pair;
 import com.google.devtools.common.options.OptionDefinition;
 import com.google.devtools.common.options.OptionEffectTag;
@@ -138,11 +140,13 @@ public abstract class CommandLineEvent implements BuildEventWithOrderConstraint 
 
     private Option createOption(
         OptionDefinition optionDefinition, String combinedForm, @Nullable String value) {
+      OptionSensitivity sensitivity = OptionsUtils.getOptionSensitivity(optionDefinition.getOptionName());
+
       Option.Builder option = Option.newBuilder();
-      option.setCombinedForm(combinedForm);
+      option.setCombinedForm(OptionsUtils.maybeScrubCombinedForm(sensitivity, combinedForm));
       option.setOptionName(optionDefinition.getOptionName());
       if (value != null) {
-        option.setOptionValue(value);
+        option.setOptionValue(OptionsUtils.maybeScrubAssignment(sensitivity, value));
       }
       option.addAllEffectTags(getProtoEffectTags(optionDefinition.getOptionEffectTags()));
       option.addAllMetadataTags(getProtoMetadataTags(optionDefinition.getOptionMetadataTags()));

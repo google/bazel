@@ -99,48 +99,56 @@ if [[ -n "$LLVM_PROFILE_CONTINUOUS_MODE" ]]; then
   export LLVM_PROFILE_FILE="${LLVM_PROFILE_FILE}%c"
 fi
 
-# In coverage mode for Java, we need to merge the runtime classpath before
-# running the tests. JacocoCoverageRunner uses this merged jar in order
-# to get coverage data.
-#
-# Merge the classpath using SingleJar and save it in the environment
-# variable JACOCO_METADATA_JAR. The jars on the runtime classpath are listed
-# in the file $JAVA_RUNTIME_CLASSPATH_FOR_COVERAGE.
-#
-# We need to merge the jars here because the merged jar can be an input
-# too large (the combined merged jars for several big tests in a run
-# can go over 10G). Not merging the jars and making
-# JacocoCoverageRunner read every individual jar goes over the shutdown hook
-# time limit in the coverage runner (~few seconds).
-#
-# SINGLE_JAR_TOOL                     Exec path of SingleJar.
-#
-# JAVA_RUNTIME_CLASSPATH_FOR_COVERAGE Exec path of a file that contains the
-#                                     relative paths of the jars on the runtime
-#                                     classpath delimited by newline.
+
 if [[ ! -z "${JAVA_RUNTIME_CLASSPATH_FOR_COVERAGE}" ]]; then
-  JAVA_RUNTIME_CLASSPATH_FOR_COVERAGE="${PWD}/${JAVA_RUNTIME_CLASSPATH_FOR_COVERAGE}"
-  SINGLE_JAR_TOOL="${PWD}/${SINGLE_JAR_TOOL}"
+  if [[ -z "${COVERAGE_USE_SINGLE_JAR+x}" ]]; then
+    # If no `--test_env=COVERAGE_USE_SINGLE_JAR=1` passed,
+    # just use runtime class path manifest.
+    # JacocoRunner has logic to support it. 
+    export JACOCO_METADATA_JAR="${JAVA_RUNTIME_CLASSPATH_FOR_COVERAGE}"
+  else
+    # In coverage mode for Java, we need to merge the runtime classpath before
+    # running the tests. JacocoCoverageRunner uses this merged jar in order
+    # to get coverage data.
+    #
+    # Merge the classpath using SingleJar and save it in the environment
+    # variable JACOCO_METADATA_JAR. The jars on the runtime classpath are listed
+    # in the file $JAVA_RUNTIME_CLASSPATH_FOR_COVERAGE.
+    #
+    # We need to merge the jars here because the merged jar can be an input
+    # too large (the combined merged jars for several big tests in a run
+    # can go over 10G). Not merging the jars and making
+    # JacocoCoverageRunner read every individual jar goes over the shutdown hook
+    # time limit in the coverage runner (~few seconds).
+    #
+    # SINGLE_JAR_TOOL                     Exec path of SingleJar.
+    #
+    # JAVA_RUNTIME_CLASSPATH_FOR_COVERAGE Exec path of a file that contains the
+    #                                     relative paths of the jars on the runtime
+    #                                     classpath delimited by newline.
+    JAVA_RUNTIME_CLASSPATH_FOR_COVERAGE="${PWD}/${JAVA_RUNTIME_CLASSPATH_FOR_COVERAGE}"
+    SINGLE_JAR_TOOL="${PWD}/${SINGLE_JAR_TOOL}"
 
-  # Create a paramsfile for invoking SingleJar.
-  mkdir -p "${COVERAGE_DIR}"
-  single_jar_params_file="${COVERAGE_DIR}/runtime_classpath.paramsfile"
-  touch "$single_jar_params_file"
+    # Create a paramsfile for invoking SingleJar.
+    mkdir -p "${COVERAGE_DIR}"
+    single_jar_params_file="${COVERAGE_DIR}/runtime_classpath.paramsfile"
+    touch "$single_jar_params_file"
 
-  # Export JACOCO_METADATA_JAR in order for JacocoCoverageRunner to be able
-  # to read it.
-  export JACOCO_METADATA_JAR="${COVERAGE_DIR}/coverage-runtime_merged_instr.jar"
+    # Export JACOCO_METADATA_JAR in order for JacocoCoverageRunner to be able
+    # to read it.
+    export JACOCO_METADATA_JAR="${COVERAGE_DIR}/coverage-runtime_merged_instr.jar"
 
-  echo -e "--output ${JACOCO_METADATA_JAR}\n--sources" >> "$single_jar_params_file"
+    echo -e "--output ${JACOCO_METADATA_JAR}\n--sources" >> "$single_jar_params_file"
 
-  # Append the runfiles prefix to all the relative paths found in
-  # JAVA_RUNTIME_CLASSPATH_FOR_COVERAGE, to invoke SingleJar with the
-  # absolute paths.
-  RUNFILES_PREFIX="$TEST_SRCDIR/"
-  cat "$JAVA_RUNTIME_CLASSPATH_FOR_COVERAGE" | sed "s@^@$RUNFILES_PREFIX@" >> "$single_jar_params_file"
+    # Append the runfiles prefix to all the relative paths found in
+    # JAVA_RUNTIME_CLASSPATH_FOR_COVERAGE, to invoke SingleJar with the
+    # absolute paths.
+    RUNFILES_PREFIX="$TEST_SRCDIR/"
+    cat "$JAVA_RUNTIME_CLASSPATH_FOR_COVERAGE" | sed "s@^@$RUNFILES_PREFIX@" >> "$single_jar_params_file"
 
-  # Invoke SingleJar. This will create JACOCO_METADATA_JAR.
-  "${SINGLE_JAR_TOOL}" "@$single_jar_params_file"
+    # Invoke SingleJar. This will create JACOCO_METADATA_JAR.
+    "${SINGLE_JAR_TOOL}" "@$single_jar_params_file"
+  fi
 fi
 
 if [[ "$IS_COVERAGE_SPAWN" == "0" ]]; then

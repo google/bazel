@@ -225,6 +225,7 @@ public class WorkerModule extends BlazeModule {
             env.getBlazeWorkspace().getBinTools(),
             env.getLocalResourceManager(),
             RunfilesTreeUpdater.forCommandEnvironment(env),
+            env.getOptions().getOptions(ExecutionOptions.class),
             env.getOptions().getOptions(WorkerOptions.class),
             WorkerMetricsCollector.instance(),
             env.getClock());

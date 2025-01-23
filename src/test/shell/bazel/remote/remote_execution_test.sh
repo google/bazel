@@ -1084,6 +1084,48 @@ EOF
   expect_not_log "remote cache hit"
 }
 
+function test_no_use_remote_cache_for_cache_unaware_spawns() {
+  mkdir -p a
+  cat > a/BUILD <<'EOF'
+genrule(
+  name = "foo",
+  srcs = [],
+  outs = ["foo.txt"],
+  cmd = "echo \"$$RANDOM\" > \"$@\"",
+)
+EOF
+
+  # Build the non-deterministic target to inject its output into the cache.
+  bazel build \
+    --remote_executor=grpc://localhost:${worker_port} \
+    //a:foo >& $TEST_log || fail "Failed to build //a:foo"
+  cp bazel-bin/a/foo.txt before.txt
+
+  # Do a second build with the default value of the
+  # --experimental_use_remote_cache_for_cache_unaware_spawns flag, which we
+  # expect it to be true (so the build should reuse the cached result and not
+  # be subject to non-determinism).
+  bazel clean
+  bazel build \
+    --remote_executor=grpc://localhost:${worker_port} \
+    --spawn_strategy=sandboxed,local \
+    //a:foo >& $TEST_log || fail "Failed to build //a:foo"
+  diff -u before.txt bazel-bin/a/foo.txt \
+    || fail "Non-deterministic action should have been reused from the cache"
+
+  # Do a third build now, disallowing the use of the remote cache and thus
+  # observing the non-determinism.
+  bazel clean
+  bazel build \
+    --remote_executor=grpc://localhost:${worker_port} \
+    --experimental_use_remote_cache_for_cache_unaware_spawns=false \
+    --spawn_strategy=sandboxed,local \
+    //a:foo >& $TEST_log || fail "Failed to build //a:foo"
+  if diff -u before.txt bazel-bin/a/foo.txt; then
+    fail "Non-deterministic action should have been reexecuted, not cached"
+  fi
+}
+
 function test_tag_no_cache() {
   mkdir -p a
   cat > a/BUILD <<'EOF'

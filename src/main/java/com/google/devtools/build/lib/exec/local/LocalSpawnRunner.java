@@ -40,6 +40,7 @@ import com.google.devtools.build.lib.actions.Spawns;
 import com.google.devtools.build.lib.actions.cache.VirtualActionInput;
 import com.google.devtools.build.lib.concurrent.ThreadSafety.ThreadSafe;
 import com.google.devtools.build.lib.exec.BinTools;
+import com.google.devtools.build.lib.exec.ExecutionOptions;
 import com.google.devtools.build.lib.exec.RunfilesTreeUpdater;
 import com.google.devtools.build.lib.exec.SpawnExecutingEvent;
 import com.google.devtools.build.lib.exec.SpawnRunner;
@@ -98,9 +99,11 @@ public class LocalSpawnRunner implements SpawnRunner {
   private final BinTools binTools;
 
   private final RunfilesTreeUpdater runfilesTreeUpdater;
+  private final boolean handlesCaching;
 
   public LocalSpawnRunner(
       Path execRoot,
+      ExecutionOptions executionOptions,
       LocalExecutionOptions localExecutionOptions,
       ResourceManager resourceManager,
       LocalEnvProvider localEnvProvider,
@@ -115,6 +118,7 @@ public class LocalSpawnRunner implements SpawnRunner {
     this.localEnvProvider = localEnvProvider;
     this.binTools = binTools;
     this.runfilesTreeUpdater = runfilesTreeUpdater;
+    this.handlesCaching = !executionOptions.useRemoteCacheForCacheUnawareSpawns;
   }
 
   @Override
@@ -180,7 +184,7 @@ public class LocalSpawnRunner implements SpawnRunner {
 
   @Override
   public boolean handlesCaching() {
-    return false;
+    return handlesCaching;
   }
 
   protected Path createActionTemp(Path execRoot) throws IOException {
