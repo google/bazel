@@ -226,6 +226,10 @@ public final class CcToolchainProvider {
     return convertStarlarkListToPathFragments(value, "built_in_include_directories");
   }
 
+  public String getCompiler() throws EvalException {
+    return value.getValue("compiler", String.class);
+  }
+
   /** Returns the identifier of the toolchain as specified in the {@code CToolchain} proto. */
   public String getToolchainIdentifier() throws EvalException {
     return value.getValue("toolchain_id", String.class);
@@ -434,6 +438,18 @@ public final class CcToolchainProvider {
   @Nullable
   public Artifact getGrepIncludes() throws EvalException {
     return value.getNoneableValue("_grep_includes", Artifact.class);
+  }
+
+  /** Returns the tool that aggregates all .ddi files to .CXXModules.json file. */
+  @Nullable
+  public Artifact getAggregateDdi() throws EvalException {
+    return value.getNoneableValue("_aggregate_ddi", Artifact.class);
+  }
+
+  /** Returns the tool that generates .modmap file according to .CXXModules.json and .ddi file. */
+  @Nullable
+  public Artifact getGenerateModmap() throws EvalException {
+    return value.getNoneableValue("_generate_modmap", Artifact.class);
   }
 
   /** Returns the tool that builds interface libraries from dynamic libraries. */

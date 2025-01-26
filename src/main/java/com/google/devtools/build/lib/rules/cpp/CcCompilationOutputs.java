@@ -45,6 +45,25 @@ public class CcCompilationOutputs implements CcCompilationOutputsApi<Artifact> {
   private final ImmutableList<Artifact> picObjectFiles;
 
   /**
+   * All C++ Modules files (e.g. .pcm files for clang) built by the target.
+   */
+  private final NestedSet<Artifact.DerivedArtifact> cpp20ModuleFiles;
+
+  /**
+   * All C++ Modules files (e.g. .pic.pcm files for clang) built by the target.
+   */
+  private final NestedSet<Artifact.DerivedArtifact> picCpp20ModuleFiles;
+
+  /**
+   * All .CXXModules.json files used by the target.
+   */
+  private final ImmutableList<Artifact> modulesInfoFiles;
+
+  /**
+   * All .pic.CXXModules.json files used by the target.
+   */
+  private final ImmutableList<Artifact> picModulesInfoFiles;
+  /**
    * Maps all .o bitcode files coming from a ThinLTO C(++) compilation under our control to
    * information needed by the LTO indexing and backend steps.
    */
@@ -82,6 +101,10 @@ public class CcCompilationOutputs implements CcCompilationOutputsApi<Artifact> {
   private CcCompilationOutputs(
       ImmutableList<Artifact> objectFiles,
       ImmutableList<Artifact> picObjectFiles,
+      NestedSet<Artifact.DerivedArtifact> cpp20ModuleFiles,
+      NestedSet<Artifact.DerivedArtifact> picCpp20ModuleFiles,
+      ImmutableList<Artifact> modulesInfoFiles,
+      ImmutableList<Artifact> picModulesInfoFiles,
       LtoCompilationContext ltoCompilationContext,
       ImmutableList<Artifact> dwoFiles,
       ImmutableList<Artifact> picDwoFiles,
@@ -92,6 +115,10 @@ public class CcCompilationOutputs implements CcCompilationOutputsApi<Artifact> {
       ImmutableList<Artifact> moduleFiles) {
     this.objectFiles = objectFiles;
     this.picObjectFiles = picObjectFiles;
+    this.cpp20ModuleFiles = cpp20ModuleFiles;
+    this.picCpp20ModuleFiles = picCpp20ModuleFiles;
+    this.modulesInfoFiles = modulesInfoFiles;
+    this.picModulesInfoFiles = picModulesInfoFiles;
     this.ltoCompilationContext = ltoCompilationContext;
     this.dwoFiles = dwoFiles;
     this.picDwoFiles = picDwoFiles;
@@ -109,6 +136,19 @@ public class CcCompilationOutputs implements CcCompilationOutputsApi<Artifact> {
    */
   public ImmutableList<Artifact> getObjectFiles(boolean usePic) {
     return usePic ? picObjectFiles : objectFiles;
+  }
+
+  /**
+   * Returns an unmodifiable view of the .pcm or .pic.pcm files set.
+   *
+   * @param usePic whether to return .pic.pcm files
+   */
+  public NestedSet<Artifact.DerivedArtifact> getPcmFiles(boolean usePic) {
+    return usePic ? picCpp20ModuleFiles : cpp20ModuleFiles;
+  }
+
+  public ImmutableList<Artifact> getModulesInfoFiles(boolean usePic) {
+    return usePic ? picModulesInfoFiles : modulesInfoFiles;
   }
 
   @Override
@@ -244,6 +284,10 @@ public class CcCompilationOutputs implements CcCompilationOutputsApi<Artifact> {
   public static final class Builder {
     private final Set<Artifact> objectFiles = new LinkedHashSet<>();
     private final Set<Artifact> picObjectFiles = new LinkedHashSet<>();
+    private final NestedSetBuilder<Artifact.DerivedArtifact> cpp20ModuleFiles = NestedSetBuilder.stableOrder();
+    private final NestedSetBuilder<Artifact.DerivedArtifact> picCpp20ModuleFiles = NestedSetBuilder.stableOrder();
+    private final Set<Artifact> modulesInfoFiles = new LinkedHashSet<>();
+    private final Set<Artifact> picModulesInfoFiles = new LinkedHashSet<>();
     private final LtoCompilationContext.Builder ltoCompilationContext =
         new LtoCompilationContext.Builder();
     private final Set<Artifact> dwoFiles = new LinkedHashSet<>();
@@ -262,6 +306,10 @@ public class CcCompilationOutputs implements CcCompilationOutputsApi<Artifact> {
       return new CcCompilationOutputs(
           ImmutableList.copyOf(objectFiles),
           ImmutableList.copyOf(picObjectFiles),
+          cpp20ModuleFiles.build(),
+          picCpp20ModuleFiles.build(),
+          ImmutableList.copyOf(modulesInfoFiles),
+          ImmutableList.copyOf(picModulesInfoFiles),
           ltoCompilationContext.build(),
           ImmutableList.copyOf(dwoFiles),
           ImmutableList.copyOf(picDwoFiles),
@@ -276,6 +324,10 @@ public class CcCompilationOutputs implements CcCompilationOutputsApi<Artifact> {
     public Builder merge(CcCompilationOutputs outputs) {
       this.objectFiles.addAll(outputs.objectFiles);
       this.picObjectFiles.addAll(outputs.picObjectFiles);
+      this.cpp20ModuleFiles.addTransitive(outputs.cpp20ModuleFiles);
+      this.picCpp20ModuleFiles.addTransitive(outputs.picCpp20ModuleFiles);
+      this.modulesInfoFiles.addAll(outputs.modulesInfoFiles);
+      this.picModulesInfoFiles.addAll(outputs.picModulesInfoFiles);
       this.dwoFiles.addAll(outputs.dwoFiles);
       this.picDwoFiles.addAll(outputs.picDwoFiles);
       this.gcnoFiles.addAll(outputs.gcnoFiles);
@@ -298,6 +350,20 @@ public class CcCompilationOutputs implements CcCompilationOutputsApi<Artifact> {
       return this;
     }
 
+    /** Adds a C++ Modules file. */
+    @CanIgnoreReturnValue
+    public Builder addCpp20ModuleFile(Artifact.DerivedArtifact artifact) {
+      cpp20ModuleFiles.add(artifact);
+      return this;
+    }
+
+    /** Adds a modules info file. */
+    @CanIgnoreReturnValue
+    public Builder addModulesInfoFile(Artifact artifact) {
+      modulesInfoFiles.add(artifact);
+      return this;
+    }
+
     @CanIgnoreReturnValue
     public Builder addObjectFiles(Iterable<Artifact> artifacts) {
       for (Artifact artifact : artifacts) {
@@ -312,6 +378,19 @@ public class CcCompilationOutputs implements CcCompilationOutputsApi<Artifact> {
     @CanIgnoreReturnValue
     public Builder addPicObjectFile(Artifact artifact) {
       picObjectFiles.add(artifact);
+      return this;
+    }
+
+    /** Adds a pic C++ Modules file. */
+    @CanIgnoreReturnValue
+    public Builder addPicCpp20ModuleFile(Artifact.DerivedArtifact artifact) {
+      picCpp20ModuleFiles.add(artifact);
+      return this;
+    }
+    /** Adds a pic modules info file. */
+    @CanIgnoreReturnValue
+    public Builder addPicModulesInfoFile(Artifact artifact) {
+      picModulesInfoFiles.add(artifact);
       return this;
     }
 
