@@ -279,7 +279,6 @@ public class RemoteOutputChecker implements OutputChecker {
     return shouldDownloadOutput(output.getExecPath());
   }
 
-  @Override
   public boolean shouldDownloadOutput(PathFragment execPath) {
     return outputsMode == RemoteOutputsMode.ALL
         || pathsToDownload.contains(execPath)

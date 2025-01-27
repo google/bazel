@@ -81,18 +81,7 @@ import org.junit.runner.RunWith;
 @RunWith(TestParameterInjector.class)
 public class ActionCacheCheckerTest {
   private static final OutputChecker CHECK_TTL =
-      new RemoteArtifactChecker() {
-        @Override
-        public boolean shouldDownloadOutput(PathFragment execPath) {
-          return false;
-        }
-
-        @Override
-        public boolean shouldTrustRemoteArtifact(
-            ActionInput file, RemoteFileArtifactValue metadata) {
-          return metadata.isAlive(Instant.now());
-        }
-      };
+      (file, metadata) -> metadata.isAlive(Instant.now());
 
   private CorruptibleActionCache cache;
   private ActionCacheChecker cacheChecker;
