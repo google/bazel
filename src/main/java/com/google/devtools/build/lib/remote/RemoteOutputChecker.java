@@ -23,6 +23,7 @@ import com.google.common.collect.ImmutableSet;
 import com.google.devtools.build.lib.actions.ActionInput;
 import com.google.devtools.build.lib.actions.Artifact;
 import com.google.devtools.build.lib.actions.FileArtifactValue;
+import com.google.devtools.build.lib.actions.FileArtifactValue.FileWriteOutputArtifactValue;
 import com.google.devtools.build.lib.actions.OutputChecker;
 import com.google.devtools.build.lib.analysis.AnalysisResult;
 import com.google.devtools.build.lib.analysis.ConfiguredAspect;
@@ -287,8 +288,8 @@ public class RemoteOutputChecker implements OutputChecker {
 
   @Override
   public boolean shouldTrustArtifact(ActionInput file, FileArtifactValue metadata) {
-    // Local metadata is always trusted.
-    if (!metadata.isRemote()) {
+    // Local, eager metadata is always trusted.
+    if (!metadata.isRemote() && !(metadata instanceof FileWriteOutputArtifactValue)) {
       return true;
     }
 
