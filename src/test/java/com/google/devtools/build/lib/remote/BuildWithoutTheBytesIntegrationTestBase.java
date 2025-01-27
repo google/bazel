@@ -1042,6 +1042,8 @@ public abstract class BuildWithoutTheBytesIntegrationTestBase extends BuildInteg
         "write_file(",
         "  name = 'foo',",
         "  content = 'hello',",
+        // assertValidOutputFile checks for the executable bit.
+        "  executable = True,",
         ")",
         "symlink(",
         "  name = 'foo-link',",
@@ -1098,6 +1100,7 @@ public abstract class BuildWithoutTheBytesIntegrationTestBase extends BuildInteg
   public void downloadMinimal_fileWrite(@TestParameter boolean isExecutable) throws Exception {
     writeWriteFileRule();
     writeSymlinkRule();
+    // Remote execution stages all files as executable.
     write(
         "BUILD",
         """
@@ -1112,15 +1115,14 @@ public abstract class BuildWithoutTheBytesIntegrationTestBase extends BuildInteg
             srcs = [':foo'],
             outs = ['out/gen.txt'],
             cmd = \"""
-            [ %s -x $(location :foo) ] || { echo "unexpectedly%s executable"; exit 1; }
+            [ -x $(location :foo) ] || { echo "unexpectedly not executable"; exit 1; }
             cat $(location :foo) $(location :foo) > $@
             \""",
         )
         """
-            .formatted(
-                isExecutable ? "True" : "False",
-                isExecutable ? "" : "!",
-                isExecutable ? " not" : ""));
+            .formatted(isExecutable ? "True" : "False"));
+
+    addOptions("--file_write_strategy=lazy");
 
     buildTarget("//:gen");
     buildTarget("//:foo");
@@ -1142,6 +1144,8 @@ public abstract class BuildWithoutTheBytesIntegrationTestBase extends BuildInteg
           executable = %s,
         )
         """.formatted(isExecutable ? "True" : "False"));
+
+    addOptions("--file_write_strategy=lazy");
 
     buildTarget("//:foo");
     assertOnlyOutputContent("//:foo", "foo", "hello");

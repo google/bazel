@@ -48,12 +48,12 @@ import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
-/** Tests for {@link FileWriteStrategy}. */
+/** Tests for {@link EagerFileWriteStrategy}. */
 @RunWith(TestParameterInjector.class)
-public final class FileWriteStrategyTest {
+public final class EagerFileWriteStrategyTest {
   private static final IOException INJECTED_EXCEPTION = new IOException("oh no!");
 
-  private final FileWriteStrategy fileWriteStrategy = new FileWriteStrategy();
+  private final EagerFileWriteStrategy eagerFileWriteStrategy = new EagerFileWriteStrategy();
 
   private final SpiedFileSystem fileSystem = SpiedFileSystem.createInMemorySpy();
   private final Scratch scratch = new Scratch(fileSystem);
@@ -73,7 +73,7 @@ public final class FileWriteStrategyTest {
     AbstractAction action = createAction("file");
 
     var unused =
-        fileWriteStrategy.writeOutputToFile(
+        eagerFileWriteStrategy.writeOutputToFile(
             action,
             createActionExecutionContext(),
             out -> out.write(content.getBytes(UTF_8)),
@@ -124,7 +124,7 @@ public final class FileWriteStrategyTest {
         assertThrows(
             EnvironmentalExecException.class,
             () -> {
-              fileWriteStrategy.writeOutputToFile(
+              eagerFileWriteStrategy.writeOutputToFile(
                   action,
                   createActionExecutionContext(),
                   failureMode,

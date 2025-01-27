@@ -141,7 +141,10 @@ java_library(
 
 java_library(
     name = "file_write_strategy",
-    srcs = ["FileWriteStrategy.java"],
+    srcs = [
+        "EagerFileWriteStrategy.java",
+        "LazyFileWriteStrategy.java",
+    ],
     deps = [
         "//src/main/java/com/google/devtools/build/lib/actions",
         "//src/main/java/com/google/devtools/build/lib/actions:artifacts",

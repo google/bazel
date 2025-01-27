@@ -1015,6 +1015,7 @@ public abstract class FileArtifactValue implements SkyValue, HasDigest {
     private final long size;
     private final byte[] digest;
     private final boolean isExecutable;
+    @Nullable private final PathFragment materializationExecPath;
 
     public static FileWriteOutputArtifactValue hashAndCreate(
         DeterministicWriter writer, HashFunction hashFunction, boolean isExecutable) {
@@ -1030,15 +1031,39 @@ public abstract class FileArtifactValue implements SkyValue, HasDigest {
         // The output streams don't throw IOExceptions, so this should never happen.
         throw new IllegalStateException(e);
       }
-      return new FileWriteOutputArtifactValue(writer, size, digest, isExecutable);
+      return new FileWriteOutputArtifactValue(
+          writer, size, digest, isExecutable, /* materializationExecPath= */ null);
     }
 
     private FileWriteOutputArtifactValue(
-        DeterministicWriter writer, long size, byte[] digest, boolean isExecutable) {
+        DeterministicWriter writer,
+        long size,
+        byte[] digest,
+        boolean isExecutable,
+        @Nullable PathFragment materializationExecPath) {
       this.writer = writer;
       this.size = size;
       this.digest = digest;
       this.isExecutable = isExecutable;
+      this.materializationExecPath = materializationExecPath;
+    }
+
+    /**
+     * Returns a {@link FileWriteOutputArtifactValue} identical to the given one, except that its
+     * materialization path is set to the given value unless already present.
+     */
+    public static FileWriteOutputArtifactValue createFromExistingWithMaterializationPath(
+        FileWriteOutputArtifactValue metadata, PathFragment materializationExecPath) {
+      checkNotNull(materializationExecPath);
+      if (metadata.getMaterializationExecPath().isPresent()) {
+        return metadata;
+      }
+      return new FileWriteOutputArtifactValue(
+          metadata.writer,
+          metadata.size,
+          metadata.digest,
+          metadata.isExecutable,
+          materializationExecPath);
     }
 
     @Override
@@ -1078,6 +1103,11 @@ public abstract class FileArtifactValue implements SkyValue, HasDigest {
     @Override
     public boolean wasModifiedSinceDigest(Path path) {
       return false;
+    }
+
+    @Override
+    public Optional<PathFragment> getMaterializationExecPath() {
+      return Optional.ofNullable(materializationExecPath);
     }
 
     @Override

@@ -573,10 +573,11 @@ public abstract class AbstractActionInputPrefetcher implements ActionInputPrefet
                   fileWriteOutputArtifactValue.writeTo(tempPath.getOutputStream());
                   finalizeDownload(
                       fileWriteOutputArtifactValue, tempPath, finalPath, dirsWithOutputPermissions);
+                  alreadyDeleted.set(true);
+                  // finalizeDownload always makes the file executable.
                   if (!fileWriteOutputArtifactValue.isExecutable()) {
                     finalPath.setExecutable(false);
                   }
-                  alreadyDeleted.set(true);
                   return Completable.complete();
                 } catch (IOException e) {
                   return Completable.error(e);
