@@ -894,6 +894,24 @@ public class ModuleExtensionResolutionTest extends FoundationTestCase {
     }
     assertThat(result.get(skyKey).getModule().getGlobal("data"))
         .isEqualTo("get up at 6am. go to bed at 11pm.");
+
+    SkyKey extensionSkyKey =
+        SingleExtensionValue.key(
+            ModuleExtensionId.create(
+                Label.parseCanonicalUnchecked("@@ext+//:defs.bzl"), "ext", Optional.empty()));
+    EvaluationResult<SingleExtensionValue> extensionResult =
+        evaluator.evaluate(ImmutableList.of(extensionSkyKey), evaluationContext);
+    if (extensionResult.hasError()) {
+      throw extensionResult.getError().getException();
+    }
+    assertThat(
+            extensionResult
+                .get(extensionSkyKey)
+                .lockFileInfo()
+                .get()
+                .moduleExtension()
+                .getRecordedRepoMappingEntries())
+        .containsCell(RepositoryName.create("foo+"), "bar", RepositoryName.create("bar+"));
   }
 
   @Test

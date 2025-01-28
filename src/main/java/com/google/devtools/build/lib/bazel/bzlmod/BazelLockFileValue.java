@@ -36,7 +36,7 @@ public abstract class BazelLockFileValue implements SkyValue {
 
   // NOTE: See "HACK" note in BazelLockFileModule. While this hack exists, normal increments of the
   // lockfile version need to be done by 2 at a time (i.e. keep LOCK_FILE_VERSION an odd number).
-  public static final int LOCK_FILE_VERSION = 11;
+  public static final int LOCK_FILE_VERSION = 18;
 
   @SerializationConstant public static final SkyKey KEY = () -> SkyFunctions.BAZEL_LOCK_FILE;
 

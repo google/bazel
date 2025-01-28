@@ -272,7 +272,7 @@ final class RegularRunnableExtension implements RunnableExtension {
     try (Mutability mu =
             Mutability.create("module extension", usagesValue.getExtensionUniqueName());
         ModuleExtensionContext moduleContext =
-            createContext(env, usagesValue, starlarkSemantics, extensionId)) {
+            createContext(env, usagesValue, starlarkSemantics, extensionId, repoMappingRecorder)) {
       StarlarkThread thread = new StarlarkThread(mu, starlarkSemantics);
       thread.setPrintHandler(Event.makeDebugPrintHandler(env.getListener()));
       threadContext.storeInThread(thread);
@@ -339,7 +339,8 @@ final class RegularRunnableExtension implements RunnableExtension {
       Environment env,
       SingleExtensionUsagesValue usagesValue,
       StarlarkSemantics starlarkSemantics,
-      ModuleExtensionId extensionId)
+      ModuleExtensionId extensionId,
+      Label.RepoMappingRecorder repoMappingRecorder)
       throws ExternalDepsException {
     Path workingDirectory =
         directories
@@ -354,7 +355,8 @@ final class RegularRunnableExtension implements RunnableExtension {
               abridgedModule,
               extension,
               usagesValue.getRepoMappings().get(moduleKey),
-              usagesValue.getExtensionUsages().get(moduleKey)));
+              usagesValue.getExtensionUsages().get(moduleKey),
+              repoMappingRecorder));
     }
     ModuleExtensionUsage rootUsage = usagesValue.getExtensionUsages().get(ModuleKey.ROOT);
     boolean rootModuleHasNonDevDependency =

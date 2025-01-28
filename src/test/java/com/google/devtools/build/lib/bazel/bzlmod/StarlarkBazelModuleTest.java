@@ -26,6 +26,7 @@ import static org.junit.Assert.assertThrows;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.devtools.build.lib.cmdline.Label;
+import com.google.devtools.build.lib.cmdline.RepositoryName;
 import com.google.devtools.build.lib.packages.BuildType;
 import com.google.devtools.build.lib.packages.Type;
 import com.google.devtools.build.lib.util.FileTypeSet;
@@ -89,6 +90,7 @@ public class StarlarkBazelModuleTest {
     Module module = buildModule("foo", "1.0").setKey(fooKey).addDep("bar", barKey).build();
     AbridgedModule abridgedModule = AbridgedModule.from(module);
 
+    Label.RepoMappingRecorder repoMappingRecorder = new Label.RepoMappingRecorder();
     StarlarkBazelModule moduleProxy =
         StarlarkBazelModule.create(
             abridgedModule,
@@ -97,7 +99,8 @@ public class StarlarkBazelModuleTest {
                 ImmutableMap.of(
                     fooKey, fooKey.getCanonicalRepoNameWithoutVersionForTesting(),
                     barKey, barKey.getCanonicalRepoNameWithoutVersionForTesting())),
-            usage);
+            usage,
+            repoMappingRecorder);
 
     assertThat(moduleProxy.getName()).isEqualTo("foo");
     assertThat(moduleProxy.getVersion()).isEqualTo("1.0");
@@ -124,6 +127,9 @@ public class StarlarkBazelModuleTest {
             StarlarkList.immutableOf(
                 Label.parseCanonical("@@foo~//:pom.xml"),
                 Label.parseCanonical("@@bar~//:pom.xml")));
+
+    assertThat(repoMappingRecorder.recordedEntries())
+        .containsCell(RepositoryName.create("foo+"), "bar", RepositoryName.create("bar+"));
   }
 
   @Test
@@ -145,7 +151,8 @@ public class StarlarkBazelModuleTest {
                     module.getRepoMappingWithBazelDepsOnly(
                         ImmutableMap.of(
                             fooKey, fooKey.getCanonicalRepoNameWithoutVersionForTesting())),
-                    usage));
+                    usage,
+                    new Label.RepoMappingRecorder()));
     assertThat(e).hasMessageThat().contains("does not have a tag class named blep");
   }
 }
