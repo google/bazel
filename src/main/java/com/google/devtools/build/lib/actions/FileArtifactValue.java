@@ -158,6 +158,14 @@ public abstract class FileArtifactValue implements SkyValue, HasDigest {
     return false;
   }
 
+  /**
+   * Returns whether the file contents are materialized lazily, for example because they exist
+   * remotely.
+   */
+  public boolean isLazy() {
+    return isRemote();
+  }
+
   /** Returns the location index for remote files. For non-remote files, returns 0. */
   public int getLocationIndex() {
     return 0;
@@ -1108,6 +1116,11 @@ public abstract class FileArtifactValue implements SkyValue, HasDigest {
     @Override
     public Optional<PathFragment> getMaterializationExecPath() {
       return Optional.ofNullable(materializationExecPath);
+    }
+
+    @Override
+    public boolean isLazy() {
+      return true;
     }
 
     @Override
