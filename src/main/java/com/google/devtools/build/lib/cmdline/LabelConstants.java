@@ -62,4 +62,8 @@ public class LabelConstants {
   // As a result, external repository runfiles are symlinked to:
   // $runfiles_root/$workspace_name/../$repo_name/<path>, i.e. $runfiles_root/$repo_name/<path>.
   public static final PathFragment EXTERNAL_RUNFILES_PATH_PREFIX = PathFragment.create("..");
+
+  // The label of the toolchain type to add to the default "test" exec group.
+  public static final Label DEFAULT_TEST_TOOLCHAIN_TYPE =
+      Label.parseCanonicalUnchecked("@bazel_tools//tools/test:default_test_toolchain_type");
 }

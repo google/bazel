@@ -312,7 +312,6 @@ public final class ConfigSetting implements RuleConfiguredTargetFactory {
     for (Map.Entry<String, String> setting : expectedSettings) {
       String optionName = setting.getKey();
       String expectedRawValue = setting.getValue();
-
       if (!checkOptionValue(options, ruleContext, optionName, expectedRawValue)) {
         foundMismatch = true;
       }
