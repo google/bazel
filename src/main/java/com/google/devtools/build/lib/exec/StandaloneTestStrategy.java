@@ -74,6 +74,7 @@ import java.util.TreeMap;
 /** Runs TestRunnerAction actions. */
 // TODO(bazel-team): add tests for this strategy.
 public class StandaloneTestStrategy extends TestStrategy {
+  private static final String TEST_NAME_ENV = "TEST_NAME";
   private static final ImmutableMap<String, String> ENV_VARS =
       ImmutableMap.<String, String>builder()
           .put("TZ", "UTC")
@@ -111,6 +112,12 @@ public class StandaloneTestStrategy extends TestStrategy {
     Map<String, String> testEnvironment =
         createEnvironment(
             actionExecutionContext, action, tmpDirRoot, executionOptions.splitXmlGeneration);
+
+    if (testEnvironment.containsKey(TEST_NAME_ENV)) {
+      throw createTestExecException(
+          TestAction.Code.LOCAL_TEST_PREREQ_UNMET,
+          String.format("cannot set env variable TEST_NAME=%s because TEST_NAME is reserved", testEnvironment.get(TEST_NAME_ENV)));
+    }
 
     Map<String, String> executionInfo =
         new TreeMap<>(action.getTestProperties().getExecutionInfo());
@@ -456,7 +463,7 @@ public class StandaloneTestStrategy extends TestStrategy {
     // "PATH" and "TEST_BINARY" are also required, they should always be set in testEnv.
     Preconditions.checkArgument(testEnv.containsKey("PATH"));
     Preconditions.checkArgument(testEnv.containsKey("TEST_BINARY"));
-    envBuilder.putAll(testEnv).put("TEST_NAME", action.getTestName());
+    envBuilder.putAll(testEnv).put(TEST_NAME_ENV, action.getTestName());
     // testEnv only contains TEST_SHARD_INDEX and TEST_TOTAL_SHARDS if the test action is sharded,
     // we need to set the default value when the action isn't sharded.
     if (!action.isSharded()) {
@@ -494,7 +501,7 @@ public class StandaloneTestStrategy extends TestStrategy {
     testEnvironment.put("TEST_SHARD_INDEX", Integer.toString(action.getShardNum()));
     testEnvironment.put(
         "TEST_TOTAL_SHARDS", Integer.toString(action.getExecutionSettings().getTotalShards()));
-    testEnvironment.put("TEST_NAME", action.getTestName());
+    testEnvironment.put(TEST_NAME_ENV, action.getTestName());
     testEnvironment.put("IS_COVERAGE_SPAWN", "1");
 
     return new SimpleSpawn(
