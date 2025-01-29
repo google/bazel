@@ -160,10 +160,13 @@ public class RuleClass implements RuleClassData {
   public static final String APPLICABLE_METADATA_ATTR_ALT = "applicable_licenses";
 
   public static final String DEFAULT_TEST_RUNNER_EXEC_GROUP_NAME = "test";
-  // The test exec group should not inherit any exec constraints or toolchains from the default exec
-  // group since the execution platform for a test is generally independent (and often different)
-  // from the execution platform of the actions that produce the test executable.
-  public static final ExecGroup DEFAULT_TEST_RUNNER_EXEC_GROUP = ExecGroup.builder().build();
+  public static final ExecGroup DEFAULT_TEST_RUNNER_EXEC_GROUP =
+      ExecGroup.builder()
+          .addToolchainType(
+              ToolchainTypeRequirement.create(
+                  Label.parseCanonicalUnchecked(
+                      "@bazel_tools//tools/test:default_test_toolchain_type")))
+          .build();
 
   /** Interface for determining whether a rule needs toolchain resolution or not. */
   @FunctionalInterface

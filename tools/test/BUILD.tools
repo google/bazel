@@ -1,4 +1,60 @@
+load("@bazel_skylib//rules:common_settings.bzl", "bool_flag")
+
 package(default_visibility = ["//visibility:public"])
+
+# The mandatory toolchain requirement of the default "test" exec group defined
+# on every test rule.
+# Register a toolchain for this type to influence the selection of the
+# execution platform based on the target platform. ToolchainInfo provided by
+# toolchain implementations is generally ignored, but test rules are free to
+# define their own test toolchain types and specify different behavior.
+toolchain_type(
+    name = "default_test_toolchain_type",
+)
+
+bool_flag(
+    name = "incompatible_use_default_test_toolchain",
+    build_setting_default = "True",
+    doc = """
+    Whether to register a default test toolchain for all test rules without explicitly defined
+    \"test\" exec group. This toolchain forces the execution platform to satisfy all constraints
+    specified by the target platform.
+    """,
+    visibility = ["//visibility:private"],
+)
+
+config_setting(
+    name = "use_default_test_toolchain",
+    flag_values = {
+        ":incompatible_use_default_test_toolchain": "True",
+    },
+    visibility = ["//visibility:private"],
+)
+
+config_setting(
+    name = "use_legacy_test_toolchain",
+    flag_values = {
+        ":incompatible_use_default_test_toolchain": "False",
+    },
+    visibility = ["//visibility:private"],
+)
+
+# A toolchain that forces the execution platform to satisfy all constraints
+# specified by the target platform.
+target_to_exec_toolchain(
+    name = "default_test_toolchain",
+    target_settings = ":use_default_test_toolchain",
+    visibility = ["//visibility:private"],
+)
+
+# A toolchain that allows a test action to run on any execution platform, which
+# matches the behavior of Bazel before the introduction of the default test
+# toolchain.
+toolchain(
+    name = "legacy_test_toolchain",
+    target_settings = ":use_legacy_test_toolchain",
+    visibility = ["//visibility:private"],
+)
 
 # Members of this filegroup shouldn't have duplicate basenames, otherwise
 # TestRunnerAction#getRuntimeArtifact() will get confused.

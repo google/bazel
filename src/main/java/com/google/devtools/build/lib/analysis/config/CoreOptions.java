@@ -893,7 +893,8 @@ public class CoreOptions extends FragmentOptions implements Cloneable {
   @Option(
       name = "flag_alias",
       converter = Converters.FlagAliasConverter.class,
-      defaultValue = "null",
+      defaultValue =
+          "incompatible_use_default_test_toolchain=@bazel_tools//tools/test:incompatible_use_default_test_toolchain",
       allowMultiple = true,
       documentationCategory = OptionDocumentationCategory.GENERIC_INPUTS,
       effectTags = {OptionEffectTag.CHANGES_INPUTS},
