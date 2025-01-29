@@ -1,4 +1,4 @@
-load("@bazel_skylib//rules:common_settings.bzl", "bool_flag")
+load(":bool_flag", "bool_flag")
 
 package(default_visibility = ["//visibility:public"])
 
@@ -12,14 +12,13 @@ toolchain_type(
     name = "default_test_toolchain_type",
 )
 
+# Whether to register a default test toolchain for all test rules without
+# an explicitly defined "test" exec group. This toolchain forces the
+# execution platform to satisfy all constraints specified by the target
+# platform.
 bool_flag(
     name = "incompatible_use_default_test_toolchain",
     build_setting_default = "True",
-    doc = """
-    Whether to register a default test toolchain for all test rules without explicitly defined
-    \"test\" exec group. This toolchain forces the execution platform to satisfy all constraints
-    specified by the target platform.
-    """,
     visibility = ["//visibility:private"],
 )
 
