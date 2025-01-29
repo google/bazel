@@ -305,7 +305,7 @@ launcher_flag_alias(
     config.create(
         "embedded_tools/tools/test/BUILD",
         """
-        load(":bool_flag.bzl", "bool_flag")
+        load(":default_test_toolchain.bzl", "bool_flag", "empty_toolchain")
 
         # The mandatory toolchain requirement of the default "test" exec group defined
         # on every test rule.
@@ -316,6 +316,11 @@ launcher_flag_alias(
         toolchain_type(
             name = "default_test_toolchain_type",
         )
+
+        # A target that provides an empty platform_common.ToolchainInfo for use
+        # in test toolchains that do not need to carry any data, just
+        # constraints.
+        empty_toolchain(name = "empty_toolchain")
 
         # Whether to register a default test toolchain for all test rules without
         # an explicitly defined "test" exec group. This toolchain forces the
@@ -360,6 +365,7 @@ launcher_flag_alias(
             name = "default_test_toolchain",
             toolchain_type = ":default_test_toolchain_type",
             target_settings = [":use_default_test_toolchain"],
+            toolchain = ":empty_toolchain",
             visibility = ["//visibility:private"],
         )
 
@@ -370,6 +376,7 @@ launcher_flag_alias(
             name = "legacy_test_toolchain",
             toolchain_type = ":default_test_toolchain_type",
             target_settings = [":use_legacy_test_toolchain_due_to_incompatible_flag"],
+            toolchain = ":empty_toolchain",
             visibility = ["//visibility:private"],
         )
 
@@ -377,6 +384,7 @@ launcher_flag_alias(
             name = "legacy_test_toolchain_use_target_platform_for_tests",
             toolchain_type = ":default_test_toolchain_type",
             target_settings = [":use_legacy_test_toolchain_due_to_use_target_platform_for_tests"],
+            toolchain = ":empty_toolchain",
             visibility = ["//visibility:private"],
         )
 
@@ -434,7 +442,7 @@ launcher_flag_alias(
         )
         """);
     config.create(
-        "embedded_tools/tools/test/bool_flag.bzl",
+        "embedded_tools/tools/test/default_test_toolchain.bzl",
         """
         visibility("private")
 
@@ -442,6 +450,10 @@ launcher_flag_alias(
             implementation = lambda _: None,
             build_setting = config.bool(flag = True),
             doc = "A bool-typed build setting that can be set on the command line",
+        )
+
+        empty_toolchain = rule(
+            implementation = lambda ctx: platform_common.ToolchainInfo(),
         )
         """);
 

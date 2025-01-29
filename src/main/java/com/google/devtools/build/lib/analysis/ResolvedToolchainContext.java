@@ -94,13 +94,7 @@ public abstract class ResolvedToolchainContext
         Label toolchainTypeLabel = toolchainTypeRequirement.toolchainType();
         ToolchainTypeInfo toolchainTypeInfo =
             unloadedToolchainContext.requestedLabelToToolchainType().get(toolchainTypeLabel);
-        // TODO: Remove
-        if (!toolchains.containsKey(toolchainTypeInfo)
-            && !toolchainTypeInfo
-                .typeLabel()
-                .equals(
-                    Label.parseCanonicalUnchecked(
-                        "@bazel_tools//tools/test:default_test_toolchain_type"))) {
+        if (!toolchains.containsKey(toolchainTypeInfo)) {
           throw new MissingToolchainTypeRequirementException(toolchainTypeRequirement);
         }
       }

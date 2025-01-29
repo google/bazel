@@ -21,3 +21,7 @@ bool_flag = rule(
     build_setting = config.bool(flag = True),
     doc = "A bool-typed build setting that can be set on the command line",
 )
+
+empty_toolchain = rule(
+    implementation = lambda ctx: platform_common.ToolchainInfo(),
+)
