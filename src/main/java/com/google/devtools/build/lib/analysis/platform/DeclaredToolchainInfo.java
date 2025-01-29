@@ -57,16 +57,16 @@ public record DeclaredToolchainInfo(
     requireNonNull(resolvedToolchainLabel, "resolvedToolchainLabel");
   }
 
-  public boolean isTestToolchain() {
-    return execConstraints == TEST_TOOLCHAIN_CONSTRAINTS
-        && targetConstraints == TEST_TOOLCHAIN_CONSTRAINTS;
+  public boolean hasTargetToExecConstraints() {
+    return execConstraints == TARGET_TO_EXEC_CONSTRAINTS
+        && targetConstraints == TARGET_TO_EXEC_CONSTRAINTS;
   }
 
-  private static final ConstraintCollection TEST_TOOLCHAIN_CONSTRAINTS;
+  private static final ConstraintCollection TARGET_TO_EXEC_CONSTRAINTS;
 
   static {
     try {
-      TEST_TOOLCHAIN_CONSTRAINTS = ConstraintCollection.builder().build();
+      TARGET_TO_EXEC_CONSTRAINTS = ConstraintCollection.builder().build();
     } catch (ConstraintCollection.DuplicateConstraintException e) {
       throw new IllegalStateException(e);
     }
@@ -167,11 +167,11 @@ public record DeclaredToolchainInfo(
           resolvedToolchainLabel);
     }
 
-    public DeclaredToolchainInfo buildForTestToolchain() {
+    public DeclaredToolchainInfo buildForTargetToExecToolchain() {
       return new DeclaredToolchainInfo(
           toolchainType,
-          TEST_TOOLCHAIN_CONSTRAINTS,
-          TEST_TOOLCHAIN_CONSTRAINTS,
+          TARGET_TO_EXEC_CONSTRAINTS,
+          TARGET_TO_EXEC_CONSTRAINTS,
           targetSettings.build(),
           targetLabel,
           resolvedToolchainLabel);

@@ -39,7 +39,7 @@ public class PlatformRules implements RuleSet {
     builder.addRuleDefinition(new PlatformRule());
 
     builder.addRuleDefinition(new ToolchainRule());
-    builder.addRuleDefinition(new DefaultTestToolchainRule());
+    builder.addRuleDefinition(new TargetToExecToolchainRule());
 
     builder.addStarlarkBootstrap(new PlatformBootstrap(new PlatformCommon()));
   }

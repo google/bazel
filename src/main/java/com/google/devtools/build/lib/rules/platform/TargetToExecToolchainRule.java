@@ -24,9 +24,9 @@ import com.google.devtools.build.lib.analysis.RuleDefinitionEnvironment;
 import com.google.devtools.build.lib.packages.BuildType;
 import com.google.devtools.build.lib.packages.RuleClass;
 
-/** Rule definition for {@link Toolchain}. */
-public class DefaultTestToolchainRule implements RuleDefinition {
-  public static final String RULE_NAME = "default_test_toolchain";
+/** Rule definition for {@link TargetToExecToolchain}. */
+public class TargetToExecToolchainRule implements RuleDefinition {
+  public static final String RULE_NAME = "target_to_exec_toolchain";
 
   @Override
   public RuleClass build(RuleClass.Builder builder, RuleDefinitionEnvironment env) {
@@ -35,7 +35,7 @@ public class DefaultTestToolchainRule implements RuleDefinition {
         .removeAttribute(TARGET_COMPATIBLE_WITH_ATTR)
         /* <!-- #BLAZE_RULE(toolchain).ATTRIBUTE(toolchain) -->
         The target representing the actual tool or tool suite that is made available when this
-        toolchain is selected. If the attribute is specified, the toolchain is only useful to
+        toolchain is selected. If the attribute is not specified, the toolchain is only useful to
         influence the selection of the execution platform, it does not provide any data itself.
         <!-- #END_BLAZE_RULE.ATTRIBUTE --> */
         // This needs to not introduce a dependency so that we can load the toolchain only if it is
@@ -49,7 +49,7 @@ public class DefaultTestToolchainRule implements RuleDefinition {
     return Metadata.builder()
         .name(RULE_NAME)
         .ancestors(ToolchainRule.class)
-        .factoryClass(DefaultTestToolchain.class)
+        .factoryClass(TargetToExecToolchain.class)
         .build();
   }
 }

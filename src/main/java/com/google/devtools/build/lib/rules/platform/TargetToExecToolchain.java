@@ -33,8 +33,11 @@ import com.google.devtools.build.lib.cmdline.Label;
 import com.google.devtools.build.lib.packages.BuildType;
 import javax.annotation.Nullable;
 
-/** Defines a toolchain that can be used by rules. */
-public class DefaultTestToolchain implements RuleConfiguredTargetFactory {
+/**
+ * Defines a toolchain whose exec constraints always mirror the current target platform's target
+ * constraints.
+ */
+public class TargetToExecToolchain implements RuleConfiguredTargetFactory {
 
   @Override
   @Nullable
@@ -51,20 +54,13 @@ public class DefaultTestToolchain implements RuleConfiguredTargetFactory {
     Label resolvedToolchainLabel =
         ruleContext.attributes().get(ToolchainRule.TOOLCHAIN_ATTR, BuildType.NODEP_LABEL);
 
-    DeclaredToolchainInfo registeredToolchain;
-    try {
-      registeredToolchain =
-          DeclaredToolchainInfo.builder()
-              .toolchainType(toolchainType)
-              .addTargetSettings(targetSettings)
-              .resolvedToolchainLabel(resolvedToolchainLabel)
-              .targetLabel(ruleContext.getLabel())
-              .buildForTestToolchain();
-    } catch (DeclaredToolchainInfo.DuplicateConstraintException e) {
-      throw new IllegalStateException(
-          "default_test_toolchain does not set constraints, but failed with duplicate constraints",
-          e);
-    }
+    DeclaredToolchainInfo registeredToolchain =
+        DeclaredToolchainInfo.builder()
+            .toolchainType(toolchainType)
+            .addTargetSettings(targetSettings)
+            .resolvedToolchainLabel(resolvedToolchainLabel)
+            .targetLabel(ruleContext.getLabel())
+            .buildForTargetToExecToolchain();
 
     return new RuleConfiguredTargetBuilder(ruleContext)
         .addProvider(RunfilesProvider.class, RunfilesProvider.EMPTY)
