@@ -376,7 +376,6 @@ launcher_flag_alias(
         toolchain(
             name = "legacy_test_toolchain",
             toolchain_type = ":default_test_toolchain_type",
-            target_to_exec_constraints = True,
             target_settings = [":use_legacy_test_toolchain_due_to_incompatible_flag"],
             toolchain = ":empty_toolchain",
             visibility = ["//visibility:private"],
@@ -385,7 +384,6 @@ launcher_flag_alias(
         toolchain(
             name = "legacy_test_toolchain_use_target_platform_for_tests",
             toolchain_type = ":default_test_toolchain_type",
-            target_to_exec_constraints = True,
             target_settings = [":use_legacy_test_toolchain_due_to_use_target_platform_for_tests"],
             toolchain = ":empty_toolchain",
             visibility = ["//visibility:private"],

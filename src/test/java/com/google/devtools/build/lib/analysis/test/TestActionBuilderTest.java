@@ -700,10 +700,8 @@ public class TestActionBuilderTest extends BuildViewTestCase {
         "    name = 'exec_group_test',",
         "    exec_properties = {'key': 'bad'},",
         ")");
-    reporter.addHandler(event -> System.err.println(event));
     useConfiguration(
         "--use_target_platform_for_tests=true",
-        "--toolchain_resolution_debug=.*",
         "--platforms=//:linux_aarch64",
         "--host_platform=//:linux_x86");
     ImmutableList<Artifact.DerivedArtifact> testStatusList =

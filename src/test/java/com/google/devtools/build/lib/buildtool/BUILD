@@ -641,8 +641,6 @@ build_test(
         # Disabled in Google.
         "//src/test/java/com/google/devtools/build/lib/bazel/rules/python:PythonTests",
         # Disabled in Google.
-        "//src/test/java/com/google/devtools/build/lib/bazel/rules/sh:ShTests",
-        # Disabled in Google.
         "//src/test/java/com/google/devtools/build/lib/packages:BazelDocumentationTests",
     ],
 )

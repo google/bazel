@@ -46,7 +46,9 @@ public class PyTestConfiguredTargetTest extends PyExecutableConfiguredTargetTest
         "    '" + TestConstants.CONSTRAINTS_PACKAGE_ROOT + "cpu:x86_64',",
         "  ],",
         ")");
-    useConfiguration("--platforms=//platforms:darwin_x86_64");
+    useConfiguration(
+        "--platforms=//platforms:darwin_x86_64",
+        "--extra_execution_platforms=//platforms:darwin_x86_64");
     scratch.file(
         "pkg/BUILD", //
         getPyLoad("py_test"),
