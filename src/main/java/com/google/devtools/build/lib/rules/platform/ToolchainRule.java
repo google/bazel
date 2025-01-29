@@ -26,6 +26,7 @@ import com.google.devtools.build.lib.analysis.platform.ToolchainTypeInfo;
 import com.google.devtools.build.lib.packages.BuildType;
 import com.google.devtools.build.lib.packages.RuleClass;
 import com.google.devtools.build.lib.packages.RuleClass.ToolchainResolutionMode;
+import com.google.devtools.build.lib.packages.Type;
 import com.google.devtools.build.lib.packages.Types;
 import com.google.devtools.build.lib.util.FileTypeSet;
 
@@ -37,6 +38,7 @@ public class ToolchainRule implements RuleDefinition {
   public static final String TARGET_COMPATIBLE_WITH_ATTR = "target_compatible_with";
   public static final String TARGET_SETTING_ATTR = "target_settings";
   public static final String TOOLCHAIN_ATTR = "toolchain";
+  public static final String TARGET_TO_EXEC_CONSTRAINTS_ATTR = "target_to_exec_constraints";
 
   @Override
   public RuleClass build(RuleClass.Builder builder, RuleDefinitionEnvironment env) {
@@ -79,6 +81,13 @@ public class ToolchainRule implements RuleDefinition {
             attr(TARGET_COMPATIBLE_WITH_ATTR, BuildType.LABEL_LIST)
                 .mandatoryProviders(ConstraintValueInfo.PROVIDER.id())
                 .allowedFileTypes(FileTypeSet.NO_FILE)
+                .nonconfigurable("part of toolchain configuration"))
+        /* <!-- #BLAZE_RULE(toolchain).ATTRIBUTE(target_to_exec_constraints) -->
+        TODO
+        <!-- #END_BLAZE_RULE.ATTRIBUTE --> */
+        .add(
+            attr(TARGET_TO_EXEC_CONSTRAINTS_ATTR, Type.BOOLEAN)
+                .value(false)
                 .nonconfigurable("part of toolchain configuration"))
         /* <!-- #BLAZE_RULE(toolchain).ATTRIBUTE(target_settings) -->
         A list of <code>config_setting</code>s that must be satisfied by the target configuration

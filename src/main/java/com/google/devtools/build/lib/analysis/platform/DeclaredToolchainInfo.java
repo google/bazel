@@ -167,7 +167,7 @@ public record DeclaredToolchainInfo(
           resolvedToolchainLabel);
     }
 
-    public DeclaredToolchainInfo buildForTargetToExecToolchain() {
+    public DeclaredToolchainInfo buildWithTargetToExecConstraints() {
       return new DeclaredToolchainInfo(
           toolchainType,
           TARGET_TO_EXEC_CONSTRAINTS,
