@@ -329,16 +329,27 @@ launcher_flag_alias(
 
         config_setting(
             name = "use_default_test_toolchain",
+            values = {
+                "use_target_platform_for_tests": "false",
+            },
             flag_values = {
-                ":incompatible_use_default_test_toolchain": "True",
+                ":incompatible_use_default_test_toolchain": "true",
             },
             visibility = ["//visibility:private"],
         )
 
         config_setting(
-            name = "use_legacy_test_toolchain",
+            name = "use_legacy_test_toolchain_due_to_use_target_platform_for_tests",
+            values = {
+                "use_target_platform_for_tests": "true",
+            },
+            visibility = ["//visibility:private"],
+        )
+
+        config_setting(
+            name = "use_legacy_test_toolchain_due_to_incompatible_flag",
             flag_values = {
-                ":incompatible_use_default_test_toolchain": "False",
+                ":incompatible_use_default_test_toolchain": "false",
             },
             visibility = ["//visibility:private"],
         )
@@ -358,7 +369,14 @@ launcher_flag_alias(
         toolchain(
             name = "legacy_test_toolchain",
             toolchain_type = ":default_test_toolchain_type",
-            target_settings = [":use_legacy_test_toolchain"],
+            target_settings = [":use_legacy_test_toolchain_due_to_incompatible_flag"],
+            visibility = ["//visibility:private"],
+        )
+
+        toolchain(
+            name = "legacy_test_toolchain_use_target_platform_for_tests",
+            toolchain_type = ":default_test_toolchain_type",
+            target_settings = [":use_legacy_test_toolchain_due_to_use_target_platform_for_tests"],
             visibility = ["//visibility:private"],
         )
 
@@ -675,10 +693,7 @@ launcher_flag_alias(
         "embedded_tools/MODULE.bazel",
         """
         module(name='bazel_tools')
-        register_toolchains(
-            "//tools/test:default_test_toolchain",
-            "//tools/test:legacy_test_toolchain",
-        )
+        register_toolchains("//tools/test:all")
         """);
     config.create("embedded_tools/tools/build_defs/repo/BUILD");
     config.create(
