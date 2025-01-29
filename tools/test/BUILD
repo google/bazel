@@ -111,6 +111,7 @@ filegroup(
     name = "embedded_tools",
     srcs = [
         "BUILD.tools",
+        "bool_flag.bzl",
         "collect_cc_coverage.sh",
         "collect_coverage.sh",
         "extensions.bzl",
@@ -130,5 +131,8 @@ filegroup(
 
 filegroup(
     name = "bzl_srcs",
-    srcs = ["extensions.bzl"],
+    srcs = [
+        "bool_flag.bzl",
+        "extensions.bzl",
+    ],
 )

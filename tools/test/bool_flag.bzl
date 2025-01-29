@@ -17,7 +17,7 @@
 visibility("private")
 
 bool_flag = rule(
-    implementation = lambda _: pass,
+    implementation = lambda _: None,
     build_setting = config.bool(flag = True),
     doc = "A bool-typed build setting that can be set on the command line",
 )
