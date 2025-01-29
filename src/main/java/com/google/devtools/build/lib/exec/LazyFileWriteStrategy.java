@@ -51,6 +51,9 @@ public final class LazyFileWriteStrategy extends EagerFileWriteStrategy {
     actionExecutionContext.getEventHandler().post(new RunningActionEvent(action, "local"));
     try (AutoProfiler p =
         GoogleAutoProfilerUtils.logged("hashing output of " + action.prettyPrint(), MIN_LOGGING)) {
+      // TODO: Bazel currently marks all output files as executable after local execution and stages
+      // all files as executable for remote execution, so we don't keep track of the executable
+      // bit yet.
       actionExecutionContext
           .getOutputMetadataStore()
           .injectFile(
@@ -60,8 +63,7 @@ public final class LazyFileWriteStrategy extends EagerFileWriteStrategy {
                   actionExecutionContext
                       .getActionFileSystem()
                       .getDigestFunction()
-                      .getHashFunction(),
-                  makeExecutable));
+                      .getHashFunction()));
     }
     return ImmutableList.of();
   }

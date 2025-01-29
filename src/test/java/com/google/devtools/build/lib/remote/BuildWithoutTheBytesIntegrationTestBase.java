@@ -31,6 +31,7 @@ import com.google.devtools.build.lib.actions.CachedActionEvent;
 import com.google.devtools.build.lib.actions.FileArtifactValue;
 import com.google.devtools.build.lib.analysis.TargetCompleteEvent;
 import com.google.devtools.build.lib.buildtool.util.BuildIntegrationTestCase;
+import com.google.devtools.build.lib.exec.ExecutionOptions.FileWriteStrategy;
 import com.google.devtools.build.lib.skyframe.ActionExecutionValue;
 import com.google.devtools.build.lib.skyframe.TreeArtifactValue;
 import com.google.devtools.build.lib.util.CommandBuilder;
@@ -1097,7 +1098,9 @@ public abstract class BuildWithoutTheBytesIntegrationTestBase extends BuildInteg
   }
 
   @Test
-  public void downloadMinimal_fileWrite(@TestParameter boolean isExecutable) throws Exception {
+  public void downloadMinimal_fileWrite(
+      @TestParameter boolean isExecutable, @TestParameter FileWriteStrategy fileWriteStrategy)
+      throws Exception {
     writeWriteFileRule();
     writeSymlinkRule();
     // Remote execution stages all files as executable.
@@ -1122,16 +1125,21 @@ public abstract class BuildWithoutTheBytesIntegrationTestBase extends BuildInteg
         """
             .formatted(isExecutable ? "True" : "False"));
 
-    addOptions("--file_write_strategy=lazy");
+    addOptions("--file_write_strategy=" + fileWriteStrategy);
 
     buildTarget("//:gen");
-    buildTarget("//:foo");
-    assertOutputsDoNotExist("//:foo");
+    if (fileWriteStrategy == FileWriteStrategy.LAZY) {
+      assertOutputsDoNotExist("//:foo");
+    } else {
+      assertValidOutputFile("foo", "hello");
+    }
     assertOutputsDoNotExist("//:gen");
   }
 
   @Test
-  public void downloadToplevel_fileWrite(@TestParameter boolean isExecutable) throws Exception {
+  public void downloadToplevel_fileWrite(
+      @TestParameter boolean isExecutable, @TestParameter FileWriteStrategy fileWriteStrategy)
+      throws Exception {
     setDownloadToplevel();
     writeWriteFileRule();
     write(
@@ -1145,11 +1153,12 @@ public abstract class BuildWithoutTheBytesIntegrationTestBase extends BuildInteg
         )
         """.formatted(isExecutable ? "True" : "False"));
 
-    addOptions("--file_write_strategy=lazy");
+    addOptions("--file_write_strategy=" + fileWriteStrategy);
 
     buildTarget("//:foo");
     assertOnlyOutputContent("//:foo", "foo", "hello");
-    assertThat(getOutputPath("foo").isExecutable()).isEqualTo(isExecutable);
+    // TODO: Bazel doesn't honor the executable bit.
+    assertThat(getOutputPath("foo").isExecutable()).isTrue();
 
     // Delete file, re-create it
     getOutputPath("foo-link").delete();

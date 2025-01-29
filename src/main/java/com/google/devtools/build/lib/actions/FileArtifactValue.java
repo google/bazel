@@ -1022,11 +1022,10 @@ public abstract class FileArtifactValue implements SkyValue, HasDigest {
     private final DeterministicWriter writer;
     private final long size;
     private final byte[] digest;
-    private final boolean isExecutable;
     @Nullable private final PathFragment materializationExecPath;
 
     public static FileWriteOutputArtifactValue hashAndCreate(
-        DeterministicWriter writer, HashFunction hashFunction, boolean isExecutable) {
+        DeterministicWriter writer, HashFunction hashFunction) {
       long size;
       byte[] digest;
       try (CountingOutputStream countingOut =
@@ -1040,20 +1039,7 @@ public abstract class FileArtifactValue implements SkyValue, HasDigest {
         throw new IllegalStateException(e);
       }
       return new FileWriteOutputArtifactValue(
-          writer, size, digest, isExecutable, /* materializationExecPath= */ null);
-    }
-
-    private FileWriteOutputArtifactValue(
-        DeterministicWriter writer,
-        long size,
-        byte[] digest,
-        boolean isExecutable,
-        @Nullable PathFragment materializationExecPath) {
-      this.writer = writer;
-      this.size = size;
-      this.digest = digest;
-      this.isExecutable = isExecutable;
-      this.materializationExecPath = materializationExecPath;
+          writer, size, digest, /* materializationExecPath= */ null);
     }
 
     /**
@@ -1067,11 +1053,18 @@ public abstract class FileArtifactValue implements SkyValue, HasDigest {
         return metadata;
       }
       return new FileWriteOutputArtifactValue(
-          metadata.writer,
-          metadata.size,
-          metadata.digest,
-          metadata.isExecutable,
-          materializationExecPath);
+          metadata.writer, metadata.size, metadata.digest, materializationExecPath);
+    }
+
+    private FileWriteOutputArtifactValue(
+        DeterministicWriter writer,
+        long size,
+        byte[] digest,
+        @Nullable PathFragment materializationExecPath) {
+      this.writer = writer;
+      this.size = size;
+      this.digest = digest;
+      this.materializationExecPath = materializationExecPath;
     }
 
     @Override
@@ -1087,10 +1080,6 @@ public abstract class FileArtifactValue implements SkyValue, HasDigest {
     @Override
     public long getSize() {
       return size;
-    }
-
-    public boolean isExecutable() {
-      return isExecutable;
     }
 
     @Override
