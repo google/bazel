@@ -59,6 +59,7 @@ import com.google.devtools.build.lib.vfs.Path;
 import com.google.devtools.build.lib.vfs.PathFragment;
 import io.reactivex.rxjava3.core.Completable;
 import java.io.IOException;
+import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -570,7 +571,9 @@ public abstract class AbstractActionInputPrefetcher implements ActionInputPrefet
               (tempPath, alreadyDeleted) -> {
                 try {
                   tempPath.getParentDirectory().createDirectoryAndParents();
-                  fileWriteOutputArtifactValue.writeTo(tempPath.getOutputStream());
+                  try (OutputStream out = tempPath.getOutputStream()) {
+                    fileWriteOutputArtifactValue.writeTo(out);
+                  }
                   finalizeDownload(
                       fileWriteOutputArtifactValue, tempPath, finalPath, dirsWithOutputPermissions);
                   alreadyDeleted.set(true);
