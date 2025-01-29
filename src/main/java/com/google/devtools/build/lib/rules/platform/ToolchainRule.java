@@ -83,7 +83,10 @@ public class ToolchainRule implements RuleDefinition {
                 .allowedFileTypes(FileTypeSet.NO_FILE)
                 .nonconfigurable("part of toolchain configuration"))
         /* <!-- #BLAZE_RULE(toolchain).ATTRIBUTE(target_to_exec_constraints) -->
-        TODO
+        If <code>True</code>, this toolchain behaves as if its <code>exec_compatible_with</code> and
+        <code>target_compatible_with</code> constraints are set to those of the current target
+        platform. <code>exec_compatible_with</code> and <code>target_compatible_with</code> must not
+        be set in that case.
         <!-- #END_BLAZE_RULE.ATTRIBUTE --> */
         .add(
             attr(TARGET_TO_EXEC_CONSTRAINTS_ATTR, Type.BOOLEAN)
