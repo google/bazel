@@ -1156,6 +1156,7 @@ public abstract class BuildWithoutTheBytesIntegrationTestBase extends BuildInteg
     addOptions("--file_write_strategy=" + fileWriteStrategy);
 
     buildTarget("//:foo");
+
     assertOnlyOutputContent("//:foo", "foo", "hello");
     // TODO: Bazel doesn't honor the executable bit.
     assertThat(getOutputPath("foo").isExecutable()).isTrue();
@@ -1481,6 +1482,53 @@ public abstract class BuildWithoutTheBytesIntegrationTestBase extends BuildInteg
     assertThat(actionEventCollector.getCachedActionEvents()).isEmpty();
     var metadata = getOnlyElement(getMetadata("//:foo").values());
     assertThat(metadata.isRemote()).isTrue();
+    assertThat(metadata.getContentsProxy()).isNotNull();
+  }
+
+  @Test
+  public void incrementalBuild_writeFileOutputIsPrefetched_noRuns() throws Exception {
+    // We need to download the intermediate output
+    if (!hasAccessToRemoteOutputs()) {
+      return;
+    }
+
+    // Arrange: Prepare workspace and run a clean build
+    writeWriteFileRule();
+    write(
+        "BUILD",
+        "load(':write_file.bzl', 'write_file')",
+        "write_file(",
+        "  name = 'foo',",
+        "  content = 'foo',",
+        "  executable = True,",
+        ")",
+        "genrule(",
+        "  name = 'foobar',",
+        "  srcs = [':foo'],",
+        "  outs = ['out/foobar.txt'],",
+        "  cmd = 'cat $(location :foo) > $@ && echo bar >> $@',",
+        "  tags = ['no-remote'],",
+        ")");
+
+    addOptions("--file_write_strategy=lazy");
+
+    buildTarget("//:foobar");
+    assertValidOutputFile("foo", "foo");
+    assertValidOutputFile("out/foobar.txt", "foobar\n");
+    assertThat(getOnlyElement(getMetadata("//:foo").values()).isLazy()).isTrue();
+
+    // Act: Do an incremental build without any modifications
+    ActionEventCollector actionEventCollector = new ActionEventCollector();
+    getRuntimeWrapper().registerSubscriber(actionEventCollector);
+    buildTarget("//:foobar");
+
+    // Assert: remote file metadata has contents proxy and action node is not marked as dirty.
+    assertValidOutputFile("foo", "foo");
+    assertValidOutputFile("out/foobar.txt", "foobar\n");
+    assertThat(actionEventCollector.getActionExecutedEvents()).isEmpty();
+    assertThat(actionEventCollector.getCachedActionEvents()).isEmpty();
+    var metadata = getOnlyElement(getMetadata("//:foo").values());
+    assertThat(metadata.isLazy()).isTrue();
     assertThat(metadata.getContentsProxy()).isNotNull();
   }
 

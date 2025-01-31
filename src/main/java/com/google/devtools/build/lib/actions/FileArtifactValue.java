@@ -1023,6 +1023,7 @@ public abstract class FileArtifactValue implements SkyValue, HasDigest {
     private final long size;
     private final byte[] digest;
     @Nullable private final PathFragment materializationExecPath;
+    @Nullable private FileContentsProxy proxy;
 
     public static FileWriteOutputArtifactValue hashAndCreate(
         DeterministicWriter writer, HashFunction hashFunction) {
@@ -1092,9 +1093,23 @@ public abstract class FileArtifactValue implements SkyValue, HasDigest {
       throw new UnsupportedOperationException();
     }
 
+    /**
+     * Sets the {@link FileContentsProxy} if the output backed by this metadata is materialized
+     * later.
+     */
     @Override
+    public void setContentsProxy(FileContentsProxy proxy) {
+      this.proxy = proxy;
+    }
+
+    /**
+     * Returns a non-null {@link FileContentsProxy} if this metadata is backed by a local file, e.g.
+     * the file is materialized after action execution.
+     */
+    @Override
+    @Nullable
     public FileContentsProxy getContentsProxy() {
-      return null;
+      return proxy;
     }
 
     @Override
@@ -1120,14 +1135,15 @@ public abstract class FileArtifactValue implements SkyValue, HasDigest {
       if (!(o instanceof FileWriteOutputArtifactValue that)) {
         return false;
       }
-      return size == that.size
-          && Objects.equals(writer, that.writer)
-          && Arrays.equals(digest, that.digest);
+      return Objects.equals(writer, that.writer)
+          && size == that.size
+          && Arrays.equals(digest, that.digest)
+          && Objects.equals(materializationExecPath, that.materializationExecPath);
     }
 
     @Override
     public int hashCode() {
-      return HashCodes.hashObjects(writer, size, Arrays.hashCode(digest));
+      return HashCodes.hashObjects(writer, size, Arrays.hashCode(digest), materializationExecPath);
     }
   }
 
