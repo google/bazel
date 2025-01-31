@@ -1118,12 +1118,18 @@ public abstract class BuildWithoutTheBytesIntegrationTestBase extends BuildInteg
             srcs = [':foo'],
             outs = ['out/gen.txt'],
             cmd = \"""
-            [ -x $(location :foo) ] || { echo "unexpectedly not executable"; exit 1; }
+            %s
             cat $(location :foo) $(location :foo) > $@
             \""",
         )
         """
-            .formatted(isExecutable ? "True" : "False"));
+            .formatted(
+                isExecutable ? "True" : "False",
+                OS.getCurrent() == OS.WINDOWS
+                    ? ""
+                    : """
+                      [ -x $(location :foo) ] || { echo "unexpectedly not executable"; exit 1; }
+                      """));
 
     addOptions("--file_write_strategy=" + fileWriteStrategy);
 

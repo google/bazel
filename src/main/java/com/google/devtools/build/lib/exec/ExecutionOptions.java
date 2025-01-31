@@ -577,7 +577,7 @@ public class ExecutionOptions extends OptionsBase {
 
   @Option(
       name = "file_write_strategy",
-      defaultValue = "lazy",
+      defaultValue = "eager",
       converter = FileWriteStrategy.Converter.class,
       documentationCategory = OptionDocumentationCategory.REMOTE,
       effectTags = {OptionEffectTag.EXECUTION},
