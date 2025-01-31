@@ -524,11 +524,11 @@ public class FilesystemValueChecker {
       FileArtifactValue fileMetadata =
           ActionOutputMetadataStore.fileArtifactValueFromArtifact(
               file, null, xattrProviderOverrider.getXattrProvider(syscallCache), tsgm);
-      boolean isTrustedRemoteValue =
+      boolean isTrustedLazyValue =
           fileMetadata.getType() == FileStateType.NONEXISTENT
-              && lastKnownData.isRemote()
+              && lastKnownData.isLazy()
               && outputChecker.shouldTrustArtifact(file, lastKnownData);
-      if (!isTrustedRemoteValue && fileMetadata.couldBeModifiedSince(lastKnownData)) {
+      if (!isTrustedLazyValue && fileMetadata.couldBeModifiedSince(lastKnownData)) {
         modifiedOutputsReceiver.reportModifiedOutputFile(
             fileMetadata.getType() != FileStateType.NONEXISTENT
                 ? file.getPath().getLastModifiedTime(Symlinks.FOLLOW)
