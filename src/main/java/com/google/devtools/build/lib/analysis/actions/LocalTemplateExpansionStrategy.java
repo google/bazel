@@ -14,7 +14,6 @@
 
 package com.google.devtools.build.lib.analysis.actions;
 
-import static java.nio.charset.StandardCharsets.ISO_8859_1;
 
 import com.google.common.collect.ImmutableList;
 import com.google.devtools.build.lib.actions.AbstractAction;
@@ -25,6 +24,7 @@ import com.google.devtools.build.lib.actions.ExecException;
 import com.google.devtools.build.lib.actions.SpawnResult;
 import com.google.devtools.build.lib.server.FailureDetails.Execution;
 import com.google.devtools.build.lib.server.FailureDetails.FailureDetail;
+import com.google.devtools.build.lib.unsafe.StringUnsafe;
 import com.google.devtools.build.lib.util.StringUtilities;
 import java.io.IOException;
 import java.util.List;
@@ -44,18 +44,44 @@ public class LocalTemplateExpansionStrategy implements TemplateExpansionContext 
       TemplateExpansionContext.TemplateMetadata templateMetadata)
       throws InterruptedException, ExecException {
     try {
+      // If writeOutputToFile may retain the writer, make sure that it doesn't capture the
+      // expanded template string. Since expansion may throw and the writer must not, expand the
+      // template once before calling writeOutputToFile. It is assumed to be deterministic, so if
+      // it doesn't throw once, it won't throw again.
       final String expandedTemplate =
           getExpandedTemplateUnsafe(
               templateMetadata.template(), templateMetadata.substitutions(), ctx.getPathResolver());
-      DeterministicWriter deterministicWriter =
-          out -> out.write(expandedTemplate.getBytes(ISO_8859_1));
-      return ctx.getContext(FileWriteActionContext.class)
-          .writeOutputToFile(
-              action,
-              ctx,
-              deterministicWriter,
-              templateMetadata.makeExecutable(),
-              /* isRemotable= */ true);
+      FileWriteActionContext fileWriteActionContext = ctx.getContext(FileWriteActionContext.class);
+      DeterministicWriter deterministicWriter;
+      if (fileWriteActionContext.mayRetainWriter()) {
+        ArtifactPathResolver pathResolver = ctx.getPathResolver();
+        deterministicWriter =
+            out -> {
+              try {
+                out.write(
+                    StringUnsafe.getInstance()
+                        .getInternalStringBytes(
+                            getExpandedTemplateUnsafe(
+                                templateMetadata.template(),
+                                templateMetadata.substitutions(),
+                                pathResolver)));
+              } catch (EvalException e) {
+                throw new IllegalStateException(
+                    "Template expansion is not deterministic, first succeeded and then failed with: "
+                        + e.getMessage(),
+                    e);
+              }
+            };
+      } else {
+        deterministicWriter =
+            out -> out.write(StringUnsafe.getInstance().getInternalStringBytes(expandedTemplate));
+      }
+      return fileWriteActionContext.writeOutputToFile(
+          action,
+          ctx,
+          deterministicWriter,
+          templateMetadata.makeExecutable(),
+          /* isRemotable= */ true);
     } catch (IOException | EvalException e) {
       throw new EnvironmentalExecException(
           e,

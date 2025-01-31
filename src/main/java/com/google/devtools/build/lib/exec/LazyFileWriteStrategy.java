@@ -67,4 +67,9 @@ public final class LazyFileWriteStrategy extends EagerFileWriteStrategy {
     }
     return ImmutableList.of();
   }
+
+  @Override
+  public boolean mayRetainWriter() {
+    return true;
+  }
 }
