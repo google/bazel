@@ -59,11 +59,11 @@ public class Toolchain implements RuleConfiguredTargetFactory {
     Label resolvedToolchainLabel =
         ruleContext.attributes().get(ToolchainRule.TOOLCHAIN_ATTR, BuildType.NODEP_LABEL);
     boolean targetToExecConstraints =
-        ruleContext.attributes().get(ToolchainRule.TARGET_TO_EXEC_CONSTRAINTS_ATTR, Type.BOOLEAN);
+        ruleContext.attributes().get(ToolchainRule.USE_TARGET_PLATFORM_CONSTRAINTS_ATTR, Type.BOOLEAN);
     if (targetToExecConstraints && !(execConstraints.isEmpty() && targetConstraints.isEmpty())) {
       ruleContext.attributeError(
-          ToolchainRule.TARGET_TO_EXEC_CONSTRAINTS_ATTR,
-          "Cannot set target_to_exec_constraints to True and also set exec_compatible_with or "
+          ToolchainRule.USE_TARGET_PLATFORM_CONSTRAINTS_ATTR,
+          "Cannot set use_target_platform_constraints to True and also set exec_compatible_with or "
               + "target_compatible_with");
       return null;
     }

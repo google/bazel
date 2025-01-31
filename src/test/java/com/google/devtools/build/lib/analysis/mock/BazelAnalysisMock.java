@@ -364,7 +364,7 @@ launcher_flag_alias(
         toolchain(
             name = "default_test_toolchain",
             toolchain_type = ":default_test_toolchain_type",
-            target_to_exec_constraints = True,
+            use_target_platform_constraints = True,
             target_settings = [":use_default_test_toolchain"],
             toolchain = ":empty_toolchain",
             visibility = ["//visibility:private"],
