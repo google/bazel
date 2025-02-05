@@ -1290,11 +1290,11 @@
     "@@rules_jvm_external~//:extensions.bzl%maven": {
       "general": {
         "bzlTransitiveDigest": "6HjpYwTb4aw3ujkkpdKEvg9geToiH1ebaT6hmsvF5xw=",
-        "usagesDigest": "tau7Qd3JFn6zPkH7rMjkFN0UpoTsDcXLcHUMlE6517s=",
+        "usagesDigest": "54EW9hZTGqDg3sJUxuEl8YG3uxFviK0bkBTA+feHevQ=",
         "recordedFileInputs": {
           "@@//src/tools/android/maven_android_install.json": "09bff3e33d291336046f7c9201630fb5e014f0e60b78b6f09b84e4f5f73ed04f",
           "@@rules_jvm_external~//rules_jvm_external_deps_install.json": "cafb5d2d8119391eb2b322ce3840d3352ea82d496bdb8cbd4b6779ec4d044dda",
-          "@@//maven_install.json": "94d5ed6992789187930f2fb021e93a0ef7671cac798adb860fd78eece2364fc2"
+          "@@//maven_install.json": "684245acc461fc2a80f4f3567b545dfefe25c643f803a7d58adcee6786917654"
         },
         "recordedDirentsInputs": {},
         "envVariables": {},
@@ -1352,6 +1352,17 @@
                 "https://repo1.maven.org/maven2/com/ryanharter/auto/value/auto-value-gson-factory/1.3.1/auto-value-gson-factory-1.3.1.jar"
               ],
               "downloaded_file_path": "v1/com/ryanharter/auto/value/auto-value-gson-factory/1.3.1/auto-value-gson-factory-1.3.1.jar"
+            }
+          },
+          "io_github_eisop_dataflow_errorprone_3_41_0_eisop1": {
+            "bzlFile": "@@bazel_tools//tools/build_defs/repo:http.bzl",
+            "ruleClassName": "http_file",
+            "attributes": {
+              "sha256": "10434fba4e53f55fa9c76904cde414b918932548c9dfc4e2d634ac05ff7a7d10",
+              "urls": [
+                "https://repo1.maven.org/maven2/io/github/eisop/dataflow-errorprone/3.41.0-eisop1/dataflow-errorprone-3.41.0-eisop1.jar"
+              ],
+              "downloaded_file_path": "v1/io/github/eisop/dataflow-errorprone/3.41.0-eisop1/dataflow-errorprone-3.41.0-eisop1.jar"
             }
           },
           "software_amazon_awssdk_endpoints_spi_2_20_128": {
@@ -1534,6 +1545,17 @@
               "downloaded_file_path": "v1/javax/activation/javax.activation-api/1.2.0/javax.activation-api-1.2.0.jar"
             }
           },
+          "com_google_errorprone_error_prone_check_api_2_36_0": {
+            "bzlFile": "@@bazel_tools//tools/build_defs/repo:http.bzl",
+            "ruleClassName": "http_file",
+            "attributes": {
+              "sha256": "80dc394440aed46854120ba42be0ab505b940d9f32b77baa8fc5790636f8f8f6",
+              "urls": [
+                "https://repo1.maven.org/maven2/com/google/errorprone/error_prone_check_api/2.36.0/error_prone_check_api-2.36.0.jar"
+              ],
+              "downloaded_file_path": "v1/com/google/errorprone/error_prone_check_api/2.36.0/error_prone_check_api-2.36.0.jar"
+            }
+          },
           "it_unimi_dsi_fastutil_8_4_0": {
             "bzlFile": "@@bazel_tools//tools/build_defs/repo:http.bzl",
             "ruleClassName": "http_file",
@@ -1634,17 +1656,6 @@
                 "https://repo1.maven.org/maven2/com/google/http-client/google-http-client-gson/1.43.3/google-http-client-gson-1.43.3.jar"
               ],
               "downloaded_file_path": "v1/com/google/http-client/google-http-client-gson/1.43.3/google-http-client-gson-1.43.3.jar"
-            }
-          },
-          "com_google_errorprone_error_prone_core_2_22_0": {
-            "bzlFile": "@@bazel_tools//tools/build_defs/repo:http.bzl",
-            "ruleClassName": "http_file",
-            "attributes": {
-              "sha256": "32a3df226a9a47f48dd895a9a89678d50ac404282c33400781c38757e8143f2c",
-              "urls": [
-                "https://repo1.maven.org/maven2/com/google/errorprone/error_prone_core/2.22.0/error_prone_core-2.22.0.jar"
-              ],
-              "downloaded_file_path": "v1/com/google/errorprone/error_prone_core/2.22.0/error_prone_core-2.22.0.jar"
             }
           },
           "org_apache_httpcomponents_httpcore_4_4_10": {
@@ -1836,17 +1847,6 @@
               "downloaded_file_path": "v1/io/grpc/grpc-netty-shaded/1.56.1/grpc-netty-shaded-1.56.1.jar"
             }
           },
-          "com_google_errorprone_error_prone_type_annotations_2_22_0": {
-            "bzlFile": "@@bazel_tools//tools/build_defs/repo:http.bzl",
-            "ruleClassName": "http_file",
-            "attributes": {
-              "sha256": "6618b1d28df562622b77187b5c6dfc9c4c97851af73bd64dc0300efe9a439b20",
-              "urls": [
-                "https://repo1.maven.org/maven2/com/google/errorprone/error_prone_type_annotations/2.22.0/error_prone_type_annotations-2.22.0.jar"
-              ],
-              "downloaded_file_path": "v1/com/google/errorprone/error_prone_type_annotations/2.22.0/error_prone_type_annotations-2.22.0.jar"
-            }
-          },
           "io_netty_netty_transport_native_kqueue_jar_osx_aarch_64_4_1_93_Final": {
             "bzlFile": "@@bazel_tools//tools/build_defs/repo:http.bzl",
             "ruleClassName": "http_file",
@@ -1939,11 +1939,11 @@
                 "{ \"group\": \"com.google.code.findbugs\", \"artifact\": \"jsr305\", \"version\": \"3.0.2\" }",
                 "{ \"group\": \"com.google.code.gson\", \"artifact\": \"gson\", \"version\": \"2.9.0\" }",
                 "{ \"group\": \"com.google.code.java-allocation-instrumenter\", \"artifact\": \"java-allocation-instrumenter\", \"version\": \"3.3.4\" }",
-                "{ \"group\": \"com.google.errorprone\", \"artifact\": \"error_prone_annotation\", \"version\": \"2.22.0\" }",
-                "{ \"group\": \"com.google.errorprone\", \"artifact\": \"error_prone_annotations\", \"version\": \"2.22.0\" }",
-                "{ \"group\": \"com.google.errorprone\", \"artifact\": \"error_prone_check_api\", \"version\": \"2.22.0\" }",
-                "{ \"group\": \"com.google.errorprone\", \"artifact\": \"error_prone_core\", \"version\": \"2.22.0\" }",
-                "{ \"group\": \"com.google.errorprone\", \"artifact\": \"error_prone_type_annotations\", \"version\": \"2.22.0\" }",
+                "{ \"group\": \"com.google.errorprone\", \"artifact\": \"error_prone_annotation\", \"version\": \"2.36.0\" }",
+                "{ \"group\": \"com.google.errorprone\", \"artifact\": \"error_prone_annotations\", \"version\": \"2.36.0\" }",
+                "{ \"group\": \"com.google.errorprone\", \"artifact\": \"error_prone_check_api\", \"version\": \"2.36.0\" }",
+                "{ \"group\": \"com.google.errorprone\", \"artifact\": \"error_prone_core\", \"version\": \"2.36.0\" }",
+                "{ \"group\": \"com.google.errorprone\", \"artifact\": \"error_prone_type_annotations\", \"version\": \"2.36.0\" }",
                 "{ \"group\": \"com.google.flogger\", \"artifact\": \"flogger\", \"version\": \"0.5.1\" }",
                 "{ \"group\": \"com.google.flogger\", \"artifact\": \"flogger-system-backend\", \"version\": \"0.5.1\" }",
                 "{ \"group\": \"com.google.flogger\", \"artifact\": \"google-extensions\", \"version\": \"0.5.1\" }",
@@ -2987,17 +2987,6 @@
               "downloaded_file_path": "v1/junit/junit/4.13.2/junit-4.13.2.jar"
             }
           },
-          "com_google_guava_guava_32_1_1_jre": {
-            "bzlFile": "@@bazel_tools//tools/build_defs/repo:http.bzl",
-            "ruleClassName": "http_file",
-            "attributes": {
-              "sha256": "91fbba37f1c8b251cf9ea9e7d3a369eb79eb1e6a5df1d4bbf483dd0380740281",
-              "urls": [
-                "https://repo1.maven.org/maven2/com/google/guava/guava/32.1.1-jre/guava-32.1.1-jre.jar"
-              ],
-              "downloaded_file_path": "v1/com/google/guava/guava/32.1.1-jre/guava-32.1.1-jre.jar"
-            }
-          },
           "com_android_tools_sdklib_30_1_3": {
             "bzlFile": "@@bazel_tools//tools/build_defs/repo:http.bzl",
             "ruleClassName": "http_file",
@@ -3203,17 +3192,6 @@
               "downloaded_file_path": "v1/io/netty/netty-tcnative-boringssl-static/2.0.56.Final/netty-tcnative-boringssl-static-2.0.56.Final-windows-x86_64.jar"
             }
           },
-          "com_google_errorprone_error_prone_check_api_2_22_0": {
-            "bzlFile": "@@bazel_tools//tools/build_defs/repo:http.bzl",
-            "ruleClassName": "http_file",
-            "attributes": {
-              "sha256": "1717bbf65757b8e1a83f3b0aa78c5ac25a6493008bc730091d404cf798fc0639",
-              "urls": [
-                "https://repo1.maven.org/maven2/com/google/errorprone/error_prone_check_api/2.22.0/error_prone_check_api-2.22.0.jar"
-              ],
-              "downloaded_file_path": "v1/com/google/errorprone/error_prone_check_api/2.22.0/error_prone_check_api-2.22.0.jar"
-            }
-          },
           "io_netty_netty_transport_classes_epoll_4_1_94_Final": {
             "bzlFile": "@@bazel_tools//tools/build_defs/repo:http.bzl",
             "ruleClassName": "http_file",
@@ -3291,6 +3269,17 @@
                 "https://repo1.maven.org/maven2/com/sun/activation/javax.activation/1.2.0/javax.activation-1.2.0.jar"
               ],
               "downloaded_file_path": "v1/com/sun/activation/javax.activation/1.2.0/javax.activation-1.2.0.jar"
+            }
+          },
+          "com_google_errorprone_error_prone_core_2_36_0": {
+            "bzlFile": "@@bazel_tools//tools/build_defs/repo:http.bzl",
+            "ruleClassName": "http_file",
+            "attributes": {
+              "sha256": "8cc1b8c5ca4ab484e828a2a763a0bd8e7a43a29fd4f0233edd15bc4cfd07ae39",
+              "urls": [
+                "https://repo1.maven.org/maven2/com/google/errorprone/error_prone_core/2.36.0/error_prone_core-2.36.0.jar"
+              ],
+              "downloaded_file_path": "v1/com/google/errorprone/error_prone_core/2.36.0/error_prone_core-2.36.0.jar"
             }
           },
           "org_apache_logging_log4j_log4j_api_2_19_0": {
@@ -3448,17 +3437,6 @@
                 "https://repo1.maven.org/maven2/software/amazon/awssdk/aws-core/2.20.128/aws-core-2.20.128.jar"
               ],
               "downloaded_file_path": "v1/software/amazon/awssdk/aws-core/2.20.128/aws-core-2.20.128.jar"
-            }
-          },
-          "com_google_errorprone_error_prone_annotation_2_22_0": {
-            "bzlFile": "@@bazel_tools//tools/build_defs/repo:http.bzl",
-            "ruleClassName": "http_file",
-            "attributes": {
-              "sha256": "554c42449c9920ea1f6baec1d1b8aaac404a88be653f7cb441ee059316f8a1d1",
-              "urls": [
-                "https://repo1.maven.org/maven2/com/google/errorprone/error_prone_annotation/2.22.0/error_prone_annotation-2.22.0.jar"
-              ],
-              "downloaded_file_path": "v1/com/google/errorprone/error_prone_annotation/2.22.0/error_prone_annotation-2.22.0.jar"
             }
           },
           "com_google_apis_google_api_services_storage_v1_rev20230617_2_0_0": {
@@ -3648,6 +3626,17 @@
                 "https://repo1.maven.org/maven2/org/codehaus/mojo/animal-sniffer-annotations/1.23/animal-sniffer-annotations-1.23.jar"
               ],
               "downloaded_file_path": "v1/org/codehaus/mojo/animal-sniffer-annotations/1.23/animal-sniffer-annotations-1.23.jar"
+            }
+          },
+          "org_pcollections_pcollections_4_0_1": {
+            "bzlFile": "@@bazel_tools//tools/build_defs/repo:http.bzl",
+            "ruleClassName": "http_file",
+            "attributes": {
+              "sha256": "1f82766d7c3221930854033bebff5073ea46b43f27326074bbe15d148c18bfb3",
+              "urls": [
+                "https://repo1.maven.org/maven2/org/pcollections/pcollections/4.0.1/pcollections-4.0.1.jar"
+              ],
+              "downloaded_file_path": "v1/org/pcollections/pcollections/4.0.1/pcollections-4.0.1.jar"
             }
           },
           "tools_profiler_async_profiler_3_0": {
@@ -3988,6 +3977,17 @@
               "downloaded_file_path": "v1/software/amazon/awssdk/s3/2.20.128/s3-2.20.128.jar"
             }
           },
+          "com_google_errorprone_error_prone_annotations_2_36_0": {
+            "bzlFile": "@@bazel_tools//tools/build_defs/repo:http.bzl",
+            "ruleClassName": "http_file",
+            "attributes": {
+              "sha256": "77440e270b0bc9a249903c5a076c36a722c4886ca4f42675f2903a1c53ed61a5",
+              "urls": [
+                "https://repo1.maven.org/maven2/com/google/errorprone/error_prone_annotations/2.36.0/error_prone_annotations-2.36.0.jar"
+              ],
+              "downloaded_file_path": "v1/com/google/errorprone/error_prone_annotations/2.36.0/error_prone_annotations-2.36.0.jar"
+            }
+          },
           "org_apache_commons_commons_compress_1_26_1": {
             "bzlFile": "@@bazel_tools//tools/build_defs/repo:http.bzl",
             "ruleClassName": "http_file",
@@ -4179,17 +4179,6 @@
               "downloaded_file_path": "v1/com/google/api/grpc/grpc-google-cloud-storage-v2/2.26.1-alpha/grpc-google-cloud-storage-v2-2.26.1-alpha.jar"
             }
           },
-          "org_pcollections_pcollections_3_1_4": {
-            "bzlFile": "@@bazel_tools//tools/build_defs/repo:http.bzl",
-            "ruleClassName": "http_file",
-            "attributes": {
-              "sha256": "34f579ba075c8da2c8a0fedd0f04e21eac2fb6c660d90d0fabb573e8b4dc6918",
-              "urls": [
-                "https://repo1.maven.org/maven2/org/pcollections/pcollections/3.1.4/pcollections-3.1.4.jar"
-              ],
-              "downloaded_file_path": "v1/org/pcollections/pcollections/3.1.4/pcollections-3.1.4.jar"
-            }
-          },
           "xerces_xercesImpl_2_12_0": {
             "bzlFile": "@@bazel_tools//tools/build_defs/repo:http.bzl",
             "ruleClassName": "http_file",
@@ -4245,6 +4234,17 @@
                 "https://repo1.maven.org/maven2/io/netty/netty-tcnative-boringssl-static/2.0.56.Final/netty-tcnative-boringssl-static-2.0.56.Final-osx-x86_64.jar"
               ],
               "downloaded_file_path": "v1/io/netty/netty-tcnative-boringssl-static/2.0.56.Final/netty-tcnative-boringssl-static-2.0.56.Final-osx-x86_64.jar"
+            }
+          },
+          "com_google_googlejavaformat_google_java_format_1_19_1": {
+            "bzlFile": "@@bazel_tools//tools/build_defs/repo:http.bzl",
+            "ruleClassName": "http_file",
+            "attributes": {
+              "sha256": "ff15abac529f6ecb97878aa2ae271a4d3b15f526c1f823757dd8781c0b11c73b",
+              "urls": [
+                "https://repo1.maven.org/maven2/com/google/googlejavaformat/google-java-format/1.19.1/google-java-format-1.19.1.jar"
+              ],
+              "downloaded_file_path": "v1/com/google/googlejavaformat/google-java-format/1.19.1/google-java-format-1.19.1.jar"
             }
           },
           "com_google_http_client_google_http_client_1_43_3": {
@@ -4428,6 +4428,28 @@
               "downloaded_file_path": "v1/com/github/stephenc/jcip/jcip-annotations/1.0-1/jcip-annotations-1.0-1.jar"
             }
           },
+          "com_google_errorprone_error_prone_annotation_2_36_0": {
+            "bzlFile": "@@bazel_tools//tools/build_defs/repo:http.bzl",
+            "ruleClassName": "http_file",
+            "attributes": {
+              "sha256": "3702887ce0fa4d0b4cd7c5545138919b101002a883be861f2c6f30ca5562635f",
+              "urls": [
+                "https://repo1.maven.org/maven2/com/google/errorprone/error_prone_annotation/2.36.0/error_prone_annotation-2.36.0.jar"
+              ],
+              "downloaded_file_path": "v1/com/google/errorprone/error_prone_annotation/2.36.0/error_prone_annotation-2.36.0.jar"
+            }
+          },
+          "com_google_guava_guava_32_1_3_jre": {
+            "bzlFile": "@@bazel_tools//tools/build_defs/repo:http.bzl",
+            "ruleClassName": "http_file",
+            "attributes": {
+              "sha256": "6d4e2b5a118aab62e6e5e29d185a0224eed82c85c40ac3d33cf04a270c3b3744",
+              "urls": [
+                "https://repo1.maven.org/maven2/com/google/guava/guava/32.1.3-jre/guava-32.1.3-jre.jar"
+              ],
+              "downloaded_file_path": "v1/com/google/guava/guava/32.1.3-jre/guava-32.1.3-jre.jar"
+            }
+          },
           "com_google_api_client_google_api_client_1_35_2": {
             "bzlFile": "@@bazel_tools//tools/build_defs/repo:http.bzl",
             "ruleClassName": "http_file",
@@ -4541,6 +4563,17 @@
               "downloaded_file_path": "v1/com/android/tools/build/apkzlib/7.1.3/apkzlib-7.1.3.jar"
             }
           },
+          "com_google_errorprone_error_prone_type_annotations_2_36_0": {
+            "bzlFile": "@@bazel_tools//tools/build_defs/repo:http.bzl",
+            "ruleClassName": "http_file",
+            "attributes": {
+              "sha256": "dc15687f4afebb73ed263771ed42b15cd9cf4f9aee15f9c997afc2e8e009087d",
+              "urls": [
+                "https://repo1.maven.org/maven2/com/google/errorprone/error_prone_type_annotations/2.36.0/error_prone_type_annotations-2.36.0.jar"
+              ],
+              "downloaded_file_path": "v1/com/google/errorprone/error_prone_type_annotations/2.36.0/error_prone_type_annotations-2.36.0.jar"
+            }
+          },
           "io_github_java_diff_utils_java_diff_utils_4_12": {
             "bzlFile": "@@bazel_tools//tools/build_defs/repo:http.bzl",
             "ruleClassName": "http_file",
@@ -4596,11 +4629,11 @@
                 "{ \"group\": \"com.google.code.findbugs\", \"artifact\": \"jsr305\", \"version\": \"3.0.2\" }",
                 "{ \"group\": \"com.google.code.gson\", \"artifact\": \"gson\", \"version\": \"2.9.0\" }",
                 "{ \"group\": \"com.google.code.java-allocation-instrumenter\", \"artifact\": \"java-allocation-instrumenter\", \"version\": \"3.3.4\" }",
-                "{ \"group\": \"com.google.errorprone\", \"artifact\": \"error_prone_annotation\", \"version\": \"2.22.0\" }",
-                "{ \"group\": \"com.google.errorprone\", \"artifact\": \"error_prone_annotations\", \"version\": \"2.22.0\" }",
-                "{ \"group\": \"com.google.errorprone\", \"artifact\": \"error_prone_check_api\", \"version\": \"2.22.0\" }",
-                "{ \"group\": \"com.google.errorprone\", \"artifact\": \"error_prone_core\", \"version\": \"2.22.0\" }",
-                "{ \"group\": \"com.google.errorprone\", \"artifact\": \"error_prone_type_annotations\", \"version\": \"2.22.0\" }",
+                "{ \"group\": \"com.google.errorprone\", \"artifact\": \"error_prone_annotation\", \"version\": \"2.36.0\" }",
+                "{ \"group\": \"com.google.errorprone\", \"artifact\": \"error_prone_annotations\", \"version\": \"2.36.0\" }",
+                "{ \"group\": \"com.google.errorprone\", \"artifact\": \"error_prone_check_api\", \"version\": \"2.36.0\" }",
+                "{ \"group\": \"com.google.errorprone\", \"artifact\": \"error_prone_core\", \"version\": \"2.36.0\" }",
+                "{ \"group\": \"com.google.errorprone\", \"artifact\": \"error_prone_type_annotations\", \"version\": \"2.36.0\" }",
                 "{ \"group\": \"com.google.flogger\", \"artifact\": \"flogger\", \"version\": \"0.5.1\" }",
                 "{ \"group\": \"com.google.flogger\", \"artifact\": \"flogger-system-backend\", \"version\": \"0.5.1\" }",
                 "{ \"group\": \"com.google.flogger\", \"artifact\": \"google-extensions\", \"version\": \"0.5.1\" }",
@@ -4755,17 +4788,6 @@
               "downloaded_file_path": "v1/org/openjdk/jmh/jmh-core/1.37/jmh-core-1.37.jar"
             }
           },
-          "aopalliance_aopalliance_1_0": {
-            "bzlFile": "@@bazel_tools//tools/build_defs/repo:http.bzl",
-            "ruleClassName": "http_file",
-            "attributes": {
-              "sha256": "0addec670fedcd3f113c5c8091d783280d23f75e3acb841b61a9cdb079376a08",
-              "urls": [
-                "https://repo1.maven.org/maven2/aopalliance/aopalliance/1.0/aopalliance-1.0.jar"
-              ],
-              "downloaded_file_path": "v1/aopalliance/aopalliance/1.0/aopalliance-1.0.jar"
-            }
-          },
           "org_bouncycastle_bcpkix_jdk15on_1_56": {
             "bzlFile": "@@bazel_tools//tools/build_defs/repo:http.bzl",
             "ruleClassName": "http_file",
@@ -4845,17 +4867,6 @@
               "downloaded_file_path": "v1/commons-collections/commons-collections/3.2.2/commons-collections-3.2.2.jar"
             }
           },
-          "io_github_eisop_dataflow_errorprone_3_34_0_eisop1": {
-            "bzlFile": "@@bazel_tools//tools/build_defs/repo:http.bzl",
-            "ruleClassName": "http_file",
-            "attributes": {
-              "sha256": "89b4f5d2bd5059f067c5982a0e5988b87dfc8a8234795d68c6f3178846de3319",
-              "urls": [
-                "https://repo1.maven.org/maven2/io/github/eisop/dataflow-errorprone/3.34.0-eisop1/dataflow-errorprone-3.34.0-eisop1.jar"
-              ],
-              "downloaded_file_path": "v1/io/github/eisop/dataflow-errorprone/3.34.0-eisop1/dataflow-errorprone-3.34.0-eisop1.jar"
-            }
-          },
           "com_google_api_grpc_proto_google_common_protos_2_9_0": {
             "bzlFile": "@@bazel_tools//tools/build_defs/repo:http.bzl",
             "ruleClassName": "http_file",
@@ -4877,6 +4888,28 @@
                 "https://repo1.maven.org/maven2/com/android/tools/ddms/ddmlib/30.1.3/ddmlib-30.1.3.jar"
               ],
               "downloaded_file_path": "v1/com/android/tools/ddms/ddmlib/30.1.3/ddmlib-30.1.3.jar"
+            }
+          },
+          "org_checkerframework_checker_qual_3_37_0": {
+            "bzlFile": "@@bazel_tools//tools/build_defs/repo:http.bzl",
+            "ruleClassName": "http_file",
+            "attributes": {
+              "sha256": "e4ce1376cc2735e1dde220b62ad0913f51297704daad155a33f386bc5db0d9f7",
+              "urls": [
+                "https://repo1.maven.org/maven2/org/checkerframework/checker-qual/3.37.0/checker-qual-3.37.0.jar"
+              ],
+              "downloaded_file_path": "v1/org/checkerframework/checker-qual/3.37.0/checker-qual-3.37.0.jar"
+            }
+          },
+          "org_jspecify_jspecify_1_0_0": {
+            "bzlFile": "@@bazel_tools//tools/build_defs/repo:http.bzl",
+            "ruleClassName": "http_file",
+            "attributes": {
+              "sha256": "1fad6e6be7557781e4d33729d49ae1cdc8fdda6fe477bb0cc68ce351eafdfbab",
+              "urls": [
+                "https://repo1.maven.org/maven2/org/jspecify/jspecify/1.0.0/jspecify-1.0.0.jar"
+              ],
+              "downloaded_file_path": "v1/org/jspecify/jspecify/1.0.0/jspecify-1.0.0.jar"
             }
           },
           "org_apache_commons_commons_pool2_2_8_0": {
@@ -4912,17 +4945,6 @@
               "downloaded_file_path": "v1/com/guardsquare/proguard-base/7.5.0/proguard-base-7.5.0.jar"
             }
           },
-          "com_google_inject_guice_5_1_0": {
-            "bzlFile": "@@bazel_tools//tools/build_defs/repo:http.bzl",
-            "ruleClassName": "http_file",
-            "attributes": {
-              "sha256": "4130e50bfac48099c860f0d903b91860c81a249c90f38245f8fed58fc817bc26",
-              "urls": [
-                "https://repo1.maven.org/maven2/com/google/inject/guice/5.1.0/guice-5.1.0.jar"
-              ],
-              "downloaded_file_path": "v1/com/google/inject/guice/5.1.0/guice-5.1.0.jar"
-            }
-          },
           "io_netty_netty_codec_socks_4_1_93_Final": {
             "bzlFile": "@@bazel_tools//tools/build_defs/repo:http.bzl",
             "ruleClassName": "http_file",
@@ -4945,15 +4967,15 @@
               "downloaded_file_path": "v1/org/jetbrains/annotations/24.0.0/annotations-24.0.0.jar"
             }
           },
-          "com_google_auto_auto_common_1_2_1": {
+          "com_google_auto_auto_common_1_2_2": {
             "bzlFile": "@@bazel_tools//tools/build_defs/repo:http.bzl",
             "ruleClassName": "http_file",
             "attributes": {
-              "sha256": "f43f29fe2a6ebaf04b2598cdeec32a4e346d49a9404e990f5fc19c19f3a28d0e",
+              "sha256": "f50b1ce8a41fad31a8a819c052f8ffa362ea0a3dbe9ef8f7c7dc9a36d4738a59",
               "urls": [
-                "https://repo1.maven.org/maven2/com/google/auto/auto-common/1.2.1/auto-common-1.2.1.jar"
+                "https://repo1.maven.org/maven2/com/google/auto/auto-common/1.2.2/auto-common-1.2.2.jar"
               ],
-              "downloaded_file_path": "v1/com/google/auto/auto-common/1.2.1/auto-common-1.2.1.jar"
+              "downloaded_file_path": "v1/com/google/auto/auto-common/1.2.2/auto-common-1.2.2.jar"
             }
           },
           "org_openjdk_jmh_jmh_generator_annprocess_1_37": {
@@ -4987,17 +5009,6 @@
                 "https://repo1.maven.org/maven2/net/bytebuddy/byte-buddy/1.14.5/byte-buddy-1.14.5.jar"
               ],
               "downloaded_file_path": "v1/net/bytebuddy/byte-buddy/1.14.5/byte-buddy-1.14.5.jar"
-            }
-          },
-          "com_google_errorprone_error_prone_annotations_2_22_0": {
-            "bzlFile": "@@bazel_tools//tools/build_defs/repo:http.bzl",
-            "ruleClassName": "http_file",
-            "attributes": {
-              "sha256": "82a027b86541f58d1f9ee020cdf6bebe82acc7a267d3c53a2ea5cd6335932bbd",
-              "urls": [
-                "https://repo1.maven.org/maven2/com/google/errorprone/error_prone_annotations/2.22.0/error_prone_annotations-2.22.0.jar"
-              ],
-              "downloaded_file_path": "v1/com/google/errorprone/error_prone_annotations/2.22.0/error_prone_annotations-2.22.0.jar"
             }
           },
           "org_jetbrains_kotlin_kotlin_stdlib_common_1_4_32": {
