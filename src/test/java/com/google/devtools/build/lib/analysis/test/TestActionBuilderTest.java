@@ -790,7 +790,7 @@ public class TestActionBuilderTest extends BuildViewTestCase {
     reporter.removeHandler(failFastHandler);
     assertThat(getConfiguredTarget("//:some_test")).isNull();
     assertContainsEvent(
-        "While resolving toolchains for target //:some_test: No matching toolchains found for types @@bazel_tools//tools/test:default_test_toolchain_type.");
+        "While resolving toolchains for target //:some_test: No matching toolchains found for types:\n  @@bazel_tools//tools/test:default_test_toolchain_type");
   }
 
   /**
