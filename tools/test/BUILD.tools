@@ -10,6 +10,11 @@ package(default_visibility = ["//visibility:public"])
 # define their own test toolchain types and specify different behavior.
 toolchain_type(
     name = "default_test_toolchain_type",
+    no_match_error = """By default, tests are executed on the first execution platform that \
+matches all constraints specified by the target platform. Either register the target platform (or \
+a platform with at least the same constraints) as an execution platform, or override the default \
+behavior by registering a custom toolchain for \
+@bazel_tools//tools/test:default_test_toolchain_type.""",
 )
 
 
