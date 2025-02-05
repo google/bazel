@@ -1022,7 +1022,6 @@ public abstract class FileArtifactValue implements SkyValue, HasDigest {
     private final DeterministicWriter writer;
     private final long size;
     private final byte[] digest;
-    @Nullable private final PathFragment materializationExecPath;
     @Nullable private FileContentsProxy proxy;
 
     public static FileWriteOutputArtifactValue hashAndCreate(
@@ -1039,33 +1038,13 @@ public abstract class FileArtifactValue implements SkyValue, HasDigest {
         // The output streams don't throw IOExceptions, so this should never happen.
         throw new IllegalStateException(e);
       }
-      return new FileWriteOutputArtifactValue(
-          writer, size, digest, /* materializationExecPath= */ null);
+      return new FileWriteOutputArtifactValue(writer, size, digest);
     }
 
-    /**
-     * Returns a {@link FileWriteOutputArtifactValue} identical to the given one, except that its
-     * materialization path is set to the given value unless already present.
-     */
-    public static FileWriteOutputArtifactValue createFromExistingWithMaterializationPath(
-        FileWriteOutputArtifactValue metadata, PathFragment materializationExecPath) {
-      checkNotNull(materializationExecPath);
-      if (metadata.getMaterializationExecPath().isPresent()) {
-        return metadata;
-      }
-      return new FileWriteOutputArtifactValue(
-          metadata.writer, metadata.size, metadata.digest, materializationExecPath);
-    }
-
-    private FileWriteOutputArtifactValue(
-        DeterministicWriter writer,
-        long size,
-        byte[] digest,
-        @Nullable PathFragment materializationExecPath) {
+    private FileWriteOutputArtifactValue(DeterministicWriter writer, long size, byte[] digest) {
       this.writer = writer;
       this.size = size;
       this.digest = digest;
-      this.materializationExecPath = materializationExecPath;
     }
 
     @Override
@@ -1118,11 +1097,6 @@ public abstract class FileArtifactValue implements SkyValue, HasDigest {
     }
 
     @Override
-    public Optional<PathFragment> getMaterializationExecPath() {
-      return Optional.ofNullable(materializationExecPath);
-    }
-
-    @Override
     public boolean isLazy() {
       return true;
     }
@@ -1137,13 +1111,12 @@ public abstract class FileArtifactValue implements SkyValue, HasDigest {
       }
       return Objects.equals(writer, that.writer)
           && size == that.size
-          && Arrays.equals(digest, that.digest)
-          && Objects.equals(materializationExecPath, that.materializationExecPath);
+          && Arrays.equals(digest, that.digest);
     }
 
     @Override
     public int hashCode() {
-      return HashCodes.hashObjects(writer, size, Arrays.hashCode(digest), materializationExecPath);
+      return HashCodes.hashObjects(writer, size, Arrays.hashCode(digest));
     }
   }
 
