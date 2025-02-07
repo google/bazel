@@ -39,8 +39,8 @@ import com.google.devtools.build.lib.analysis.config.ToolchainTypeRequirement;
 import com.google.devtools.build.lib.analysis.config.transitions.NoTransition;
 import com.google.devtools.build.lib.analysis.config.transitions.TransitionFactory;
 import com.google.devtools.build.lib.analysis.config.transitions.TransitionFactory.TransitionType;
+import com.google.devtools.build.lib.analysis.platform.PlatformConstants;
 import com.google.devtools.build.lib.cmdline.Label;
-import com.google.devtools.build.lib.cmdline.LabelConstants;
 import com.google.devtools.build.lib.cmdline.LabelSyntaxException;
 import com.google.devtools.build.lib.cmdline.RepositoryName;
 import com.google.devtools.build.lib.events.EventHandler;
@@ -164,7 +164,7 @@ public class RuleClass implements RuleClassData {
   public static final ExecGroup DEFAULT_TEST_RUNNER_EXEC_GROUP =
       ExecGroup.builder()
           .addToolchainType(
-              ToolchainTypeRequirement.create(LabelConstants.DEFAULT_TEST_TOOLCHAIN_TYPE))
+              ToolchainTypeRequirement.create(PlatformConstants.DEFAULT_TEST_TOOLCHAIN_TYPE))
           .build();
 
   /** Interface for determining whether a rule needs toolchain resolution or not. */

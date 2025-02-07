@@ -935,6 +935,9 @@ public class CoreOptions extends FragmentOptions implements Cloneable {
       help = "Whether to throttle the check whether an action is cached.")
   public boolean throttleActionCacheCheck;
 
+  // This cannot be in TestOptions since the default test toolchain needs to be enabled
+  // conditionally based on its value and test trimming would drop it when evaluating the toolchain
+  // target.
   @Option(
       name = "use_target_platform_for_tests",
       defaultValue = "false",
