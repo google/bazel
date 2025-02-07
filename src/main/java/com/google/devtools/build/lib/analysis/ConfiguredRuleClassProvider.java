@@ -66,7 +66,7 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.lang.reflect.Constructor;
 import java.util.ArrayList;
-import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -152,10 +152,10 @@ public /*final*/ class ConfiguredRuleClassProvider
     private final List<Class<? extends Fragment>> configurationFragmentClasses = new ArrayList<>();
     private final List<Class<? extends FragmentOptions>> configurationOptions = new ArrayList<>();
 
-    private final Map<String, RuleClass> ruleClassMap = new HashMap<>();
-    private final Map<String, RuleDefinition> ruleDefinitionMap = new HashMap<>();
-    private final Map<String, NativeAspectClass> nativeAspectClassMap = new HashMap<>();
-    private final Map<Class<? extends RuleDefinition>, RuleClass> ruleMap = new HashMap<>();
+    private final Map<String, RuleClass> ruleClassMap = new LinkedHashMap<>();
+    private final Map<String, RuleDefinition> ruleDefinitionMap = new LinkedHashMap<>();
+    private final Map<String, NativeAspectClass> nativeAspectClassMap = new LinkedHashMap<>();
+    private final Map<Class<? extends RuleDefinition>, RuleClass> ruleMap = new LinkedHashMap<>();
     private final Digraph<Class<? extends RuleDefinition>> dependencyGraph = new Digraph<>();
     private final List<Class<? extends Fragment>> universalFragments = new ArrayList<>();
     @Nullable private TransitionFactory<RuleTransitionData> trimmingTransitionFactory = null;

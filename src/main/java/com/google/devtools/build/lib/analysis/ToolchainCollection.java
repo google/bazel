@@ -14,7 +14,7 @@
 package com.google.devtools.build.lib.analysis;
 
 import static com.google.common.collect.ImmutableSet.toImmutableSet;
-import static com.google.common.collect.Maps.newHashMapWithExpectedSize;
+import static com.google.common.collect.Maps.newLinkedHashMapWithExpectedSize;
 import static java.util.Objects.requireNonNull;
 
 import com.google.common.base.Preconditions;
@@ -25,8 +25,8 @@ import com.google.devtools.build.lib.cmdline.Label;
 import com.google.devtools.build.lib.packages.ExecGroup;
 import com.google.devtools.build.lib.skyframe.serialization.autocodec.AutoCodec;
 import com.google.errorprone.annotations.CanIgnoreReturnValue;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.LinkedHashMap;
+import java.util.SequencedMap;
 
 /**
  * A wrapper class for a map of exec_group names to their relevant ToolchainContext.
@@ -88,14 +88,14 @@ public record ToolchainCollection<T extends ToolchainContext>(ImmutableMap<Strin
   /** Builder for ToolchainCollection. */
   public static final class Builder<T extends ToolchainContext> {
     // This is not immutable so that we can check for duplicate keys easily.
-    private final Map<String, T> toolchainContexts;
+    private final SequencedMap<String, T> toolchainContexts;
 
     private Builder() {
-      this.toolchainContexts = new HashMap<>();
+      this.toolchainContexts = new LinkedHashMap<>();
     }
 
     private Builder(int expectedSize) {
-      this.toolchainContexts = newHashMapWithExpectedSize(expectedSize);
+      this.toolchainContexts = newLinkedHashMapWithExpectedSize(expectedSize);
     }
 
     public ToolchainCollection<T> build() {

@@ -15,6 +15,8 @@ package com.google.devtools.build.lib.skyframe;
 
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
+import com.google.common.collect.ImmutableSortedMap;
+import com.google.common.collect.ImmutableSortedSet;
 import com.google.common.collect.Maps;
 import com.google.common.eventbus.AllowConcurrentEvents;
 import com.google.common.eventbus.Subscribe;
@@ -28,6 +30,7 @@ import com.google.devtools.build.lib.skyframe.TopLevelStatusEvents.TestAnalyzedE
 import com.google.devtools.build.lib.skyframe.TopLevelStatusEvents.TopLevelTargetAnalyzedEvent;
 import com.google.devtools.build.lib.skyframe.TopLevelStatusEvents.TopLevelTargetBuiltEvent;
 import com.google.devtools.build.lib.skyframe.TopLevelStatusEvents.TopLevelTargetSkippedEvent;
+import java.util.Comparator;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
@@ -87,15 +90,17 @@ public class BuildResultListener {
   }
 
   public ImmutableSet<ConfiguredTarget> getAnalyzedTargets() {
-    return ImmutableSet.copyOf(analyzedTargets);
+    return ImmutableSortedSet.copyOf(
+        Comparator.comparing(ConfiguredTarget::getLabel), analyzedTargets);
   }
 
   public ImmutableSet<ConfiguredTarget> getAnalyzedTests() {
-    return ImmutableSet.copyOf(analyzedTests);
+    return ImmutableSortedSet.copyOf(
+        Comparator.comparing(ConfiguredTarget::getLabel), analyzedTests);
   }
 
   public ImmutableMap<AspectKey, ConfiguredAspect> getAnalyzedAspects() {
-    return ImmutableMap.copyOf(analyzedAspects);
+    return ImmutableSortedMap.copyOf(analyzedAspects);
   }
 
   public ImmutableSet<ConfiguredTarget> getSkippedTargets() {
@@ -103,7 +108,8 @@ public class BuildResultListener {
   }
 
   public ImmutableSet<ConfiguredTargetKey> getBuiltTargets() {
-    return ImmutableSet.copyOf(builtTargets);
+    return ImmutableSortedSet.copyOf(
+        Comparator.nullsLast(Comparator.comparing(ConfiguredTargetKey::getLabel), builtTargets);
   }
 
   public ImmutableSet<AspectKey> getBuiltAspects() {

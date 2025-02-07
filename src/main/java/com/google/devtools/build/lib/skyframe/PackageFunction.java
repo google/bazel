@@ -84,6 +84,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -1338,7 +1339,7 @@ public abstract class PackageFunction implements SkyFunction {
                 .getUninjectedBuildEnv()
             : starlarkBuiltinsValue.predeclaredForBuild;
     if (preludeBindings != null) {
-      predeclared = new HashMap<>(predeclared);
+      predeclared = new LinkedHashMap<>(predeclared);
       predeclared.putAll(preludeBindings);
     }
     Module module = Module.withPredeclared(semantics, predeclared);

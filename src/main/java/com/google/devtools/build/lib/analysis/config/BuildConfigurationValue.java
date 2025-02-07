@@ -49,9 +49,11 @@ import com.google.devtools.build.skyframe.SkyValue;
 import com.google.devtools.common.options.TriState;
 import java.io.PrintStream;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.SequencedMap;
 import java.util.Set;
 import javax.annotation.Nullable;
 import net.starlark.java.annot.StarlarkAnnotations;
@@ -600,8 +602,8 @@ public class BuildConfigurationValue
    * <p>Command-line definitions of make environments override variables defined by {@code
    * Fragment.addGlobalMakeVariables()}.
    */
-  public Map<String, String> getMakeEnvironment() {
-    Map<String, String> makeEnvironment = new HashMap<>();
+  public ImmutableMap<String, String> getMakeEnvironment() {
+    SequencedMap<String, String> makeEnvironment = new LinkedHashMap<>();
     makeEnvironment.putAll(globalMakeEnv);
     makeEnvironment.putAll(commandLineBuildVariables);
     return ImmutableMap.copyOf(makeEnvironment);

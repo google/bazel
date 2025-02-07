@@ -19,6 +19,7 @@ import com.google.devtools.build.lib.util.UserUtils;
 import com.google.devtools.build.lib.vfs.PathFragment;
 import java.time.Duration;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.Map;
 
 /**
@@ -64,7 +65,7 @@ public class TestPolicy {
       Duration timeout,
       PathFragment relativeRunfilesDir,
       PathFragment tmpDir) {
-    Map<String, String> env = new HashMap<>();
+    Map<String, String> env = new LinkedHashMap<>();
 
     // Add all env variables, allow some string replacements and inheritance.
     String userProp = UserUtils.getUserName();

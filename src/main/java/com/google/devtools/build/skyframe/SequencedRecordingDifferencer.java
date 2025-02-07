@@ -18,6 +18,7 @@ import com.google.devtools.build.lib.concurrent.ThreadSafety;
 import com.google.devtools.build.skyframe.Differencer.DiffWithDelta.Delta;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -34,7 +35,7 @@ public class SequencedRecordingDifferencer implements RecordingDifferencer {
 
   private void clear() {
     valuesToInvalidate = new ArrayList<>();
-    valuesToInject = new HashMap<>();
+    valuesToInject = new LinkedHashMap<>();
   }
 
   @Override

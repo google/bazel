@@ -44,6 +44,7 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableMultiset;
 import com.google.common.collect.ImmutableSet;
+import com.google.common.collect.ImmutableSortedMap;
 import com.google.common.collect.ImmutableSortedSet;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
@@ -2342,7 +2343,7 @@ public abstract class SkyframeExecutor implements WalkableGraphFactory {
                 }
               }
             });
-    return ImmutableMap.copyOf(roots);
+    return ImmutableSortedMap.copyOf(roots);
   }
 
   public void clearSyscallCache() {

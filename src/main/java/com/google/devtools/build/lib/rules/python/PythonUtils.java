@@ -19,6 +19,8 @@ import com.google.devtools.build.lib.util.FileType;
 import com.google.devtools.build.lib.util.Fingerprint;
 import com.google.devtools.build.lib.vfs.PathFragment;
 import java.util.HashSet;
+import java.util.LinkedHashSet;
+import java.util.SequencedSet;
 import java.util.Set;
 import java.util.UUID;
 import java.util.function.Predicate;
@@ -70,7 +72,7 @@ public final class PythonUtils {
      * tree.
      */
     private ImmutableSet<PathFragment> getInitPyFiles(Set<PathFragment> manifestFiles) {
-      Set<PathFragment> result = new HashSet<>();
+      SequencedSet<PathFragment> result = new LinkedHashSet<>();
       // A set of directories that already have package init files.
       Set<PathFragment> hasPackageInitDirs = new HashSet<>(); // For b/142135992.
 

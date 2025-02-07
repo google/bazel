@@ -70,10 +70,11 @@ import com.google.devtools.build.skyframe.SkyframeLookupResult;
 import com.google.errorprone.annotations.FormatMethod;
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.SequencedMap;
 import java.util.stream.Stream;
 import javax.annotation.Nullable;
 import net.starlark.java.eval.Dict;
@@ -138,7 +139,8 @@ public class ModuleFileFunction implements SkyFunction {
     // the `includeLabelToCompiledModuleFile` map for use during actual Starlark execution.
     CompiledModuleFile compiledRootModuleFile;
     ImmutableList<IncludeStatement> horizon;
-    HashMap<String, CompiledModuleFile> includeLabelToCompiledModuleFile = new HashMap<>();
+    SequencedMap<String, CompiledModuleFile> includeLabelToCompiledModuleFile =
+        new LinkedHashMap<>();
   }
 
   @Nullable
@@ -313,7 +315,7 @@ public class ModuleFileFunction implements SkyFunction {
    */
   @Nullable
   private static ImmutableList<IncludeStatement> advanceHorizon(
-      HashMap<String, CompiledModuleFile> includeLabelToCompiledModuleFile,
+      SequencedMap<String, CompiledModuleFile> includeLabelToCompiledModuleFile,
       ImmutableList<IncludeStatement> horizon,
       Environment env,
       StarlarkSemantics starlarkSemantics,

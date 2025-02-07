@@ -14,6 +14,7 @@
 package com.google.devtools.build.lib.skyframe;
 
 import com.google.common.collect.ImmutableSet;
+import com.google.common.collect.ImmutableSortedSet;
 import com.google.common.collect.Sets;
 import com.google.devtools.build.lib.actions.ThreadStateReceiver;
 import com.google.devtools.build.lib.cmdline.PackageIdentifier;
@@ -31,6 +32,7 @@ import com.google.devtools.build.lib.vfs.Root;
 import com.google.devtools.build.skyframe.SkyKey;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.Semaphore;
@@ -151,7 +153,7 @@ final class PackageFunctionWithSingleGlobsDep extends PackageFunction {
      * BUILD file. Hence, requesting GLOBS in Skyframe is skipped downstream.
      */
     public ImmutableSet<GlobRequest> getGlobRequests() {
-      return ImmutableSet.copyOf(globRequests);
+      return ImmutableSortedSet.copyOf(Comparator.comparing(GlobRequest::getPattern), globRequests);
     }
 
     private static class GlobsToken extends Globber.Token {

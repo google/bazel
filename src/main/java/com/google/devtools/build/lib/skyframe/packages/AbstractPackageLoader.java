@@ -111,9 +111,10 @@ import com.google.devtools.build.skyframe.WalkableGraph;
 import com.google.errorprone.annotations.CanIgnoreReturnValue;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.SequencedMap;
 import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.atomic.AtomicReference;
@@ -175,7 +176,7 @@ public abstract class AbstractPackageLoader implements PackageLoader {
     protected ConfiguredRuleClassProvider ruleClassProvider = getDefaultRuleClassProvider();
     protected StarlarkSemantics starlarkSemantics;
     protected Reporter commonReporter = new Reporter(new EventBus());
-    protected Map<SkyFunctionName, SkyFunction> extraSkyFunctions = new HashMap<>();
+    protected SequencedMap<SkyFunctionName, SkyFunction> extraSkyFunctions = new LinkedHashMap<>();
     List<PrecomputedValue.Injected> extraPrecomputedValues = new ArrayList<>();
     int nonSkyframeGlobbingThreads = 1;
     int skyframeThreads = 1;
@@ -329,7 +330,7 @@ public abstract class AbstractPackageLoader implements PackageLoader {
       PathPackageLocator pkgLocator,
       RuleClassProvider ruleClassProvider,
       ImmutableList<PrecomputedValue.Injected> extraPrecomputedValues) {
-    final Map<SkyKey, Delta> valuesToInject = new HashMap<>();
+    final SequencedMap<SkyKey, Delta> valuesToInject = new LinkedHashMap<>();
     Injectable injectable =
         new Injectable() {
           @Override

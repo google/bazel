@@ -35,9 +35,10 @@ import java.security.DigestOutputStream;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.IdentityHashMap;
+import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.SequencedMap;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.function.Supplier;
@@ -250,7 +251,7 @@ public class ObjectCodecRegistry {
 
   /** Builder for {@link ObjectCodecRegistry}. */
   public static class Builder {
-    private final Map<Class<?>, ObjectCodec<?>> codecs = new HashMap<>();
+    private final SequencedMap<Class<?>, ObjectCodec<?>> codecs = new LinkedHashMap<>();
     private final ImmutableList.Builder<Object> referenceConstantsBuilder = ImmutableList.builder();
     private final ImmutableSortedSet.Builder<String> classNames = ImmutableSortedSet.naturalOrder();
     private final ImmutableList.Builder<String> excludedClassNamePrefixes = ImmutableList.builder();

@@ -31,7 +31,6 @@ import java.io.InterruptedIOException;
 import java.net.URISyntaxException;
 import java.net.URL;
 import java.net.URLConnection;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -139,17 +138,16 @@ final class HttpConnectorMultiplexer {
     Preconditions.checkNotNull(credentials);
 
     return url -> {
-      Map<String, List<String>> headers = new HashMap<>(baseHeaders);
       try {
-        headers.putAll(credentials.getRequestMetadata(url.toURI()));
+        return ImmutableMap.copyOf(credentials.getRequestMetadata(url.toURI()));
       } catch (URISyntaxException | IOException e) {
         // If we can't convert the URL to a URI (because it is syntactically malformed), or fetching
         // credentials fails for any other reason, still try to do the connection, not adding
         // authentication information as we cannot look it up.
         eventHandler.handle(
             Event.warn("Error retrieving auth headers, continuing without: " + e.getMessage()));
+        return ImmutableMap.of();
       }
-      return ImmutableMap.copyOf(headers);
     };
   }
 }

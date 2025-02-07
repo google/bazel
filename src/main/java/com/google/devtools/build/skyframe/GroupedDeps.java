@@ -32,7 +32,9 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.Iterator;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.SequencedCollection;
 import java.util.Set;
 import org.checkerframework.framework.qual.DefaultQualifierInHierarchy;
 import org.checkerframework.framework.qual.LiteralKind;
@@ -423,7 +425,8 @@ public class GroupedDeps implements Iterable<List<SkyKey>> {
    * <p>This is implemented as a {@code Collection} so that calling {@link Iterables#size} on the
    * return value of {@link #getAllElementsAsIterable} will take constant time.
    */
-  private final class CollectionView extends AbstractCollection<SkyKey> {
+  private final class CollectionView extends AbstractCollection<SkyKey>
+      implements SequencedCollection<SkyKey> {
 
     @Override
     public Iterator<SkyKey> iterator() {
@@ -433,6 +436,11 @@ public class GroupedDeps implements Iterable<List<SkyKey>> {
     @Override
     public int size() {
       return size;
+    }
+
+    @Override
+    public SequencedCollection<SkyKey> reversed() {
+      throw new UnsupportedOperationException();
     }
   }
 
@@ -529,7 +537,7 @@ public class GroupedDeps implements Iterable<List<SkyKey>> {
    * higher memory cost and faster {@link #contains} operations.
    */
   public static final class WithHashSet extends GroupedDeps {
-    private final HashSet<SkyKey> set = new HashSet<>();
+    private final HashSet<SkyKey> set = new LinkedHashSet<>();
 
     @Override
     public void appendSingleton(SkyKey key) {
