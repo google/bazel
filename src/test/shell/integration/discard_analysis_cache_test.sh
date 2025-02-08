@@ -62,6 +62,7 @@ jmaptool="$(rlocation "${javabase}/bin/jmap${EXE_EXT}")"
 function write_hello_world_files() {
   mkdir -p hello || fail "mkdir hello failed"
   cat >hello/BUILD <<EOF
+load("@rules_java//java:java_binary.bzl", "java_binary")
 java_binary(name = 'hello',
   srcs = ['Hello.java'],
   main_class = 'hello.Hello')
@@ -75,6 +76,10 @@ public class Hello {
   }
 }
 EOF
+}
+
+function set_up() {
+  add_rules_java MODULE.bazel
 }
 
 #### TESTS #############################################################

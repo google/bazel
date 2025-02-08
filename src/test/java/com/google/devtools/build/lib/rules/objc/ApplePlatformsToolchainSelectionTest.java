@@ -51,7 +51,7 @@ public class ApplePlatformsToolchainSelectionTest extends ObjcRuleTestCase {
     DeclaredToolchainInfo darwinToolchainInfo =
         PlatformProviderUtils.declaredToolchainInfo(darwinToolchain);
     assertThat(darwinToolchainInfo).isNotNull();
-    assertThat(darwinToolchainInfo.toolchainLabel())
+    assertThat(darwinToolchainInfo.resolvedToolchainLabel())
         .isEqualTo(
             Label.parseCanonicalUnchecked(
                 "//" + MockObjcSupport.DEFAULT_OSX_CROSSTOOL_DIR + ":cc-compiler-darwin_x86_64"));
@@ -73,7 +73,7 @@ public class ApplePlatformsToolchainSelectionTest extends ObjcRuleTestCase {
     DeclaredToolchainInfo iosDeviceToolchainInfo =
         PlatformProviderUtils.declaredToolchainInfo(iosDeviceToolchain);
     assertThat(iosDeviceToolchainInfo).isNotNull();
-    assertThat(iosDeviceToolchainInfo.toolchainLabel())
+    assertThat(iosDeviceToolchainInfo.resolvedToolchainLabel())
         .isEqualTo(
             Label.parseCanonicalUnchecked(
                 "//" + MockObjcSupport.DEFAULT_OSX_CROSSTOOL_DIR + ":cc-compiler-ios_arm64"));

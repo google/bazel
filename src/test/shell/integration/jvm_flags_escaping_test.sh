@@ -61,6 +61,10 @@ else
   declare -r EXE_EXT=""
 fi
 
+function set_up() {
+  add_rules_java MODULE.bazel
+}
+
 # ----------------------------------------------------------------------
 # HELPER FUNCTIONS
 # ----------------------------------------------------------------------
@@ -100,6 +104,7 @@ function create_build_file_for_untokenizable_flag() {
   local -r pkg="$1"; shift
   mkdir -p "$pkg" || fail "mkdir -p $pkg"
   cat >"$pkg/BUILD" <<'eof'
+load("@rules_java//java:java_binary.bzl", "java_binary")
 java_binary(
     name = "cannot_tokenize",
     srcs = ["A.java"],
@@ -119,6 +124,7 @@ function create_build_file_with_many_jvm_flags() {
   local -r pkg="$1"; shift
   mkdir -p "$pkg" || fail "mkdir -p $pkg"
   cat >"$pkg/BUILD" <<'eof'
+load("@rules_java//java:java_binary.bzl", "java_binary")
 java_binary(
     name = "x",
     srcs = ["A.java"],

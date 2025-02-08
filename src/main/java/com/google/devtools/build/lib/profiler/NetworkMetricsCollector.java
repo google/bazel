@@ -13,7 +13,6 @@
 // limitations under the License.
 package com.google.devtools.build.lib.profiler;
 
-import com.google.auto.value.AutoValue;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.flogger.GoogleLogger;
 import com.google.devtools.build.lib.buildeventstream.BuildEventStreamProtos.BuildMetrics.NetworkMetrics;
@@ -155,24 +154,19 @@ public final class NetworkMetricsCollector {
   }
 
   /** Aggregated system network usages over all interfaces except local loopback. */
-  @AutoValue
-  public abstract static class SystemNetworkUsages {
+  public record SystemNetworkUsages(
+      double bytesSentPerSec,
+      double bytesRecvPerSec,
+      double packetsSentPerSec,
+      double packetsRecvPerSec) {
     public static SystemNetworkUsages create(
         double bytesSentPerSec,
         double bytesRecvPerSec,
         double packetsSentPerSec,
         double packetsRecvPerSec) {
-      return new AutoValue_NetworkMetricsCollector_SystemNetworkUsages(
+      return new SystemNetworkUsages(
           bytesSentPerSec, bytesRecvPerSec, packetsSentPerSec, packetsRecvPerSec);
     }
-
-    public abstract double bytesSentPerSec();
-
-    public abstract double bytesRecvPerSec();
-
-    public abstract double packetsSentPerSec();
-
-    public abstract double packetsRecvPerSec();
 
     public double megabitsSentPerSec() {
       return bytesPerSecToMegabitsPerSec(bytesSentPerSec());

@@ -16,6 +16,7 @@ filegroup(
 java_test(
     name = "AllocationTrackerTest",
     srcs = ["AllocationTrackerTest.java"],
+    runtime_deps = ["//third_party/allocation_instrumenter:allocation_instrumenter_runtime"],
     deps = [
         "//src/main/java/com/google/devtools/build/lib/packages",
         "//src/main/java/com/google/devtools/build/lib/profiler/memory:allocationtracker",

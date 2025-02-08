@@ -84,7 +84,8 @@ public class RegisteredExecutionPlatformsFunctionTest extends ToolchainTestCase 
   @Test
   public void testRegisteredExecutionPlatforms() throws Exception {
     // Request the executionPlatforms.
-    SkyKey executionPlatformsKey = RegisteredExecutionPlatformsValue.key(targetConfigKey);
+    SkyKey executionPlatformsKey =
+        RegisteredExecutionPlatformsValue.key(targetConfigKey, /* debug= */ false);
     EvaluationResult<RegisteredExecutionPlatformsValue> result =
         requestExecutionPlatformsFromSkyframe(executionPlatformsKey);
     assertThatEvaluationResult(result).hasNoError();
@@ -92,6 +93,7 @@ public class RegisteredExecutionPlatformsFunctionTest extends ToolchainTestCase 
 
     RegisteredExecutionPlatformsValue value = result.get(executionPlatformsKey);
     assertThat(value.registeredExecutionPlatformKeys()).isEmpty();
+    assertThat(value.rejectedPlatforms()).isNull();
   }
 
   @Test
@@ -112,7 +114,8 @@ public class RegisteredExecutionPlatformsFunctionTest extends ToolchainTestCase 
         """);
     useConfiguration("--extra_execution_platforms=//extra:execution_platform_1");
 
-    SkyKey executionPlatformsKey = RegisteredExecutionPlatformsValue.key(targetConfigKey);
+    SkyKey executionPlatformsKey =
+        RegisteredExecutionPlatformsValue.key(targetConfigKey, /* debug= */ false);
     EvaluationResult<RegisteredExecutionPlatformsValue> result =
         requestExecutionPlatformsFromSkyframe(executionPlatformsKey);
     assertThatEvaluationResult(result).hasNoError();
@@ -141,7 +144,8 @@ public class RegisteredExecutionPlatformsFunctionTest extends ToolchainTestCase 
     useConfiguration(
         "--extra_execution_platforms=//extra:execution_platform_1,//extra:execution_platform_2");
 
-    SkyKey executionPlatformsKey = RegisteredExecutionPlatformsValue.key(targetConfigKey);
+    SkyKey executionPlatformsKey =
+        RegisteredExecutionPlatformsValue.key(targetConfigKey, /* debug= */ false);
     EvaluationResult<RegisteredExecutionPlatformsValue> result =
         requestExecutionPlatformsFromSkyframe(executionPlatformsKey);
     assertThatEvaluationResult(result).hasNoError();
@@ -172,7 +176,8 @@ public class RegisteredExecutionPlatformsFunctionTest extends ToolchainTestCase 
         register_execution_platforms("//extra/...")
         """);
 
-    SkyKey executionPlatformsKey = RegisteredExecutionPlatformsValue.key(targetConfigKey);
+    SkyKey executionPlatformsKey =
+        RegisteredExecutionPlatformsValue.key(targetConfigKey, /* debug= */ false);
     EvaluationResult<RegisteredExecutionPlatformsValue> result =
         requestExecutionPlatformsFromSkyframe(executionPlatformsKey);
     assertThatEvaluationResult(result).hasNoError();
@@ -209,7 +214,8 @@ public class RegisteredExecutionPlatformsFunctionTest extends ToolchainTestCase 
         register_execution_platforms("//alias/...")
         """);
 
-    SkyKey executionPlatformsKey = RegisteredExecutionPlatformsValue.key(targetConfigKey);
+    SkyKey executionPlatformsKey =
+        RegisteredExecutionPlatformsValue.key(targetConfigKey, /* debug= */ false);
     EvaluationResult<RegisteredExecutionPlatformsValue> result =
         requestExecutionPlatformsFromSkyframe(executionPlatformsKey);
     assertThatEvaluationResult(result).hasNoError();
@@ -219,50 +225,6 @@ public class RegisteredExecutionPlatformsFunctionTest extends ToolchainTestCase 
         .containsAtLeast(
             Label.parseCanonicalUnchecked("//extra:execution_platform_1"),
             Label.parseCanonicalUnchecked("//extra:execution_platform_2"))
-        .inOrder();
-  }
-
-  @Test
-  public void testRegisteredExecutionPlatforms_targetPattern_otherRepo() throws Exception {
-    setBuildLanguageOptions("--enable_workspace");
-    scratch.file(
-        "myrepo/WORKSPACE",
-        """
-        workspace(name = "myrepo")
-        """);
-    scratch.file("myrepo/BUILD");
-    scratch.file(
-        "myrepo/platforms/BUILD",
-        """
-        platform(name = "execution_platform_1")
-
-        platform(name = "execution_platform_2")
-        """);
-    scratch.file(
-        "myrepo/macro.bzl",
-        """
-        def reg():
-            native.register_execution_platforms("//platforms:all")
-        """);
-
-    rewriteWorkspace(
-        """
-        local_repository(name = "myrepo", path = "myrepo")
-
-        load("@myrepo//:macro.bzl", "reg")
-
-        reg()
-        """);
-
-    SkyKey executionPlatformsKey = RegisteredExecutionPlatformsValue.key(targetConfigKey);
-    EvaluationResult<RegisteredExecutionPlatformsValue> result =
-        requestExecutionPlatformsFromSkyframe(executionPlatformsKey);
-    assertThatEvaluationResult(result).hasNoError();
-
-    assertExecutionPlatformLabels(result.get(executionPlatformsKey))
-        .containsAtLeast(
-            Label.parseCanonicalUnchecked("@myrepo//platforms:execution_platform_1"),
-            Label.parseCanonicalUnchecked("@myrepo//platforms:execution_platform_2"))
         .inOrder();
   }
 
@@ -285,7 +247,8 @@ public class RegisteredExecutionPlatformsFunctionTest extends ToolchainTestCase 
         register_execution_platforms("//extra:all")
         """);
 
-    SkyKey executionPlatformsKey = RegisteredExecutionPlatformsValue.key(targetConfigKey);
+    SkyKey executionPlatformsKey =
+        RegisteredExecutionPlatformsValue.key(targetConfigKey, /* debug= */ false);
     EvaluationResult<RegisteredExecutionPlatformsValue> result =
         requestExecutionPlatformsFromSkyframe(executionPlatformsKey);
     assertThatEvaluationResult(result).hasNoError();
@@ -315,7 +278,8 @@ public class RegisteredExecutionPlatformsFunctionTest extends ToolchainTestCase 
 
     useConfiguration("--extra_execution_platforms=//extra/...");
 
-    SkyKey executionPlatformsKey = RegisteredExecutionPlatformsValue.key(targetConfigKey);
+    SkyKey executionPlatformsKey =
+        RegisteredExecutionPlatformsValue.key(targetConfigKey, /* debug= */ false);
     EvaluationResult<RegisteredExecutionPlatformsValue> result =
         requestExecutionPlatformsFromSkyframe(executionPlatformsKey);
     assertThatEvaluationResult(result).hasNoError();
@@ -343,7 +307,8 @@ public class RegisteredExecutionPlatformsFunctionTest extends ToolchainTestCase 
         """);
 
     // Request the executionPlatforms.
-    SkyKey executionPlatformsKey = RegisteredExecutionPlatformsValue.key(targetConfigKey);
+    SkyKey executionPlatformsKey =
+        RegisteredExecutionPlatformsValue.key(targetConfigKey, /* debug= */ false);
     EvaluationResult<RegisteredExecutionPlatformsValue> result =
         requestExecutionPlatformsFromSkyframe(executionPlatformsKey);
     assertThatEvaluationResult(result).hasError();
@@ -373,7 +338,8 @@ public class RegisteredExecutionPlatformsFunctionTest extends ToolchainTestCase 
         register_execution_platforms("//platform:execution_platform_1")
         """);
 
-    SkyKey executionPlatformsKey = RegisteredExecutionPlatformsValue.key(targetConfigKey);
+    SkyKey executionPlatformsKey =
+        RegisteredExecutionPlatformsValue.key(targetConfigKey, /* debug= */ false);
     EvaluationResult<RegisteredExecutionPlatformsValue> result =
         requestExecutionPlatformsFromSkyframe(executionPlatformsKey);
     assertThatEvaluationResult(result).hasNoError();
@@ -385,7 +351,8 @@ public class RegisteredExecutionPlatformsFunctionTest extends ToolchainTestCase 
         register_execution_platforms("//platform:execution_platform_2")
         """);
 
-    executionPlatformsKey = RegisteredExecutionPlatformsValue.key(targetConfigKey);
+    executionPlatformsKey =
+        RegisteredExecutionPlatformsValue.key(targetConfigKey, /* debug= */ false);
     result = requestExecutionPlatformsFromSkyframe(executionPlatformsKey);
     assertThatEvaluationResult(result).hasNoError();
     assertExecutionPlatformLabels(result.get(executionPlatformsKey))
@@ -394,7 +361,6 @@ public class RegisteredExecutionPlatformsFunctionTest extends ToolchainTestCase 
 
   @Test
   public void testRegisteredExecutionPlatforms_bzlmod() throws Exception {
-    setBuildLanguageOptions("--enable_workspace");
     scratch.overwriteFile(
         "MODULE.bazel",
         """
@@ -440,7 +406,7 @@ public class RegisteredExecutionPlatformsFunctionTest extends ToolchainTestCase 
             module(name = "eee", version = "1.0")
             """);
     for (String repo : ImmutableList.of("bbb+1.0", "ccc+1.1", "ddd+1.0", "ddd+1.1", "eee+1.0")) {
-      scratch.file(moduleRoot.getRelative(repo).getRelative("WORKSPACE").getPathString());
+      scratch.file(moduleRoot.getRelative(repo).getRelative("REPO.bazel").getPathString());
       scratch.file(
           moduleRoot.getRelative(repo).getRelative("BUILD").getPathString(),
           """
@@ -452,16 +418,11 @@ public class RegisteredExecutionPlatformsFunctionTest extends ToolchainTestCase 
         """
         platform(name = "plat")
         platform(name = "dev_plat")
-        platform(name = "wsplat")
-        platform(name = "wsplat2")
         """);
-    rewriteWorkspace(
-        """
-        register_execution_platforms("//:wsplat")
-        register_execution_platforms("//:wsplat2")
-        """);
+    invalidatePackages();
 
-    SkyKey executionPlatformsKey = RegisteredExecutionPlatformsValue.key(targetConfigKey);
+    SkyKey executionPlatformsKey =
+        RegisteredExecutionPlatformsValue.key(targetConfigKey, /* debug= */ false);
     EvaluationResult<RegisteredExecutionPlatformsValue> result =
         requestExecutionPlatformsFromSkyframe(executionPlatformsKey);
     if (result.hasError()) {
@@ -469,16 +430,12 @@ public class RegisteredExecutionPlatformsFunctionTest extends ToolchainTestCase 
     }
     assertThatEvaluationResult(result).hasNoError();
 
-    // Verify that the execution platforms registered with bzlmod come in the BFS order and before
-    // WORKSPACE registrations.
+    // Verify that the execution platforms registered with bzlmod come in the BFS order
     assertExecutionPlatformLabels(result.get(executionPlatformsKey))
         .containsExactly(
             // Root module platforms
             Label.parseCanonical("//:plat"),
             Label.parseCanonical("//:dev_plat"),
-            // WORKSPACE platforms
-            Label.parseCanonical("//:wsplat"),
-            Label.parseCanonical("//:wsplat2"),
             // Other modules' toolchains
             Label.parseCanonical("@@bbb+//:plat"),
             Label.parseCanonical("@@ccc+//:plat"),
@@ -505,19 +462,24 @@ public class RegisteredExecutionPlatformsFunctionTest extends ToolchainTestCase 
         .addEqualityGroup(
             // Two platforms registered.
             RegisteredExecutionPlatformsValue.create(
-                ImmutableList.of(executionPlatformKey1, executionPlatformKey2)),
+                ImmutableList.of(executionPlatformKey1, executionPlatformKey2),
+                /* rejectedPlatforms= */ null),
             RegisteredExecutionPlatformsValue.create(
-                ImmutableList.of(executionPlatformKey1, executionPlatformKey2)))
+                ImmutableList.of(executionPlatformKey1, executionPlatformKey2),
+                /* rejectedPlatforms= */ null))
         .addEqualityGroup(
             // A single platform registered.
-            RegisteredExecutionPlatformsValue.create(ImmutableList.of(executionPlatformKey1)))
+            RegisteredExecutionPlatformsValue.create(
+                ImmutableList.of(executionPlatformKey1), /* rejectedPlatforms= */ null))
         .addEqualityGroup(
             // A single, different, platform registered.
-            RegisteredExecutionPlatformsValue.create(ImmutableList.of(executionPlatformKey2)))
+            RegisteredExecutionPlatformsValue.create(
+                ImmutableList.of(executionPlatformKey2), /* rejectedPlatforms= */ null))
         .addEqualityGroup(
             // The same as the first group, but the order is different.
             RegisteredExecutionPlatformsValue.create(
-                ImmutableList.of(executionPlatformKey2, executionPlatformKey1)))
+                ImmutableList.of(executionPlatformKey2, executionPlatformKey1),
+                /* rejectedPlatforms= */ null))
         .testEquals();
   }
 
@@ -552,5 +514,233 @@ public class RegisteredExecutionPlatformsFunctionTest extends ToolchainTestCase 
                 /*loadingPhaseThreads=*/ 1,
                 /*doAnalysis=*/ true,
                 eventBus));
+  }
+
+  @Test
+  public void testRegisteredExecutionPlatforms_requiredSettings_enabled() throws Exception {
+    // Add an extra platform with a required_setting
+    scratch.file(
+        "extra/BUILD",
+        """
+        config_setting(
+            name = "optimized",
+            values = {
+               "compilation_mode": "opt",
+            },
+        )
+
+        platform(
+            name = "required_platform",
+            required_settings = [
+                ":optimized",
+            ],
+        )
+
+        platform(name = "always_platform")
+        """);
+
+    rewriteModuleDotBazel(
+        """
+        register_execution_platforms("//extra:required_platform", "//extra:always_platform")
+        """);
+
+    useConfiguration("--compilation_mode=opt");
+    SkyKey executionPlatformsKey =
+        RegisteredExecutionPlatformsValue.key(targetConfigKey, /* debug= */ false);
+    EvaluationResult<RegisteredExecutionPlatformsValue> result =
+        requestExecutionPlatformsFromSkyframe(executionPlatformsKey);
+    assertThatEvaluationResult(result).hasNoError();
+    assertThatEvaluationResult(result).hasEntryThat(executionPlatformsKey).isNotNull();
+
+    RegisteredExecutionPlatformsValue value = result.get(executionPlatformsKey);
+
+    // Both platforms should be present because the required settings match.
+    assertExecutionPlatformLabels(value)
+        .containsAtLeast(
+            Label.parseCanonicalUnchecked("//extra:required_platform"),
+            Label.parseCanonicalUnchecked("//extra:always_platform"));
+  }
+
+  @Test
+  public void testRegisteredExecutionPlatforms_requiredSettings_disabled() throws Exception {
+    // Add an extra platform with a required_setting
+    scratch.file(
+        "extra/BUILD",
+        """
+        config_setting(
+            name = "optimized",
+            values = {
+               "compilation_mode": "opt",
+            },
+        )
+
+        platform(
+            name = "required_platform",
+            required_settings = [
+                ":optimized",
+            ],
+        )
+
+        platform(name = "always_platform")
+        """);
+
+    rewriteModuleDotBazel(
+        """
+        register_execution_platforms("//extra:required_platform", "//extra:always_platform")
+        """);
+
+    useConfiguration("--compilation_mode=dbg");
+    SkyKey executionPlatformsKey =
+        RegisteredExecutionPlatformsValue.key(targetConfigKey, /* debug= */ false);
+    EvaluationResult<RegisteredExecutionPlatformsValue> result =
+        requestExecutionPlatformsFromSkyframe(executionPlatformsKey);
+    assertThatEvaluationResult(result).hasNoError();
+    assertThatEvaluationResult(result).hasEntryThat(executionPlatformsKey).isNotNull();
+
+    RegisteredExecutionPlatformsValue value = result.get(executionPlatformsKey);
+
+    // The platform with required settings should not be present.
+    assertExecutionPlatformLabels(value)
+        .contains(Label.parseCanonicalUnchecked("//extra:always_platform"));
+    assertExecutionPlatformLabels(value)
+        .doesNotContain(Label.parseCanonicalUnchecked("//extra:required_platform"));
+  }
+
+  @Test
+  public void testRegisteredExecutionPlatforms_requiredSettings_debug() throws Exception {
+    // Add an extra platform with a required_setting
+    scratch.file(
+        "extra/BUILD",
+        """
+        config_setting(
+            name = "optimized",
+            values = {
+               "compilation_mode": "opt",
+            },
+        )
+
+        platform(
+            name = "required_platform",
+            required_settings = [
+                ":optimized",
+            ],
+        )
+
+        platform(name = "always_platform")
+        """);
+
+    rewriteModuleDotBazel(
+        """
+        register_execution_platforms("//extra:required_platform", "//extra:always_platform")
+        """);
+
+    useConfiguration("--compilation_mode=dbg");
+    SkyKey executionPlatformsKey =
+        RegisteredExecutionPlatformsValue.key(targetConfigKey, /* debug= */ true);
+    EvaluationResult<RegisteredExecutionPlatformsValue> result =
+        requestExecutionPlatformsFromSkyframe(executionPlatformsKey);
+    assertThatEvaluationResult(result).hasNoError();
+    assertThatEvaluationResult(result).hasEntryThat(executionPlatformsKey).isNotNull();
+
+    RegisteredExecutionPlatformsValue value = result.get(executionPlatformsKey);
+
+    // Verify that the message about the unmatched config_setting is present.
+    assertThat(value.rejectedPlatforms()).isNotNull();
+    assertThat(value.rejectedPlatforms())
+        .containsEntry(
+            Label.parseCanonicalUnchecked("//extra:required_platform"),
+            "mismatching config settings: optimized");
+  }
+
+  @Test
+  public void testRegisteredExecutionPlatforms_requiredSettings_config_error() throws Exception {
+    // Add an extra platform with a required_setting
+    scratch.file(
+        "extra/BUILD",
+        """
+        config_setting(
+            name = "flagged",
+            flag_values = {":flag": "default"},
+            transitive_configs = [":flag"],
+        )
+
+        config_feature_flag(
+            name = "flag",
+            allowed_values = [
+                "default",
+                "left",
+                "right",
+            ],
+            default_value = "default",
+        )
+
+        platform(
+            name = "required_platform",
+            required_settings = [
+                ":flagged",
+            ],
+        )
+        """);
+
+    rewriteModuleDotBazel(
+        """
+        register_execution_platforms("//extra:required_platform")
+        """);
+
+    // Need this so the feature flag is actually gone from the configuration.
+    useConfiguration("--enforce_transitive_configs_for_config_feature_flag");
+    SkyKey executionPlatformsKey =
+        RegisteredExecutionPlatformsValue.key(targetConfigKey, /* debug= */ false);
+    EvaluationResult<RegisteredExecutionPlatformsValue> result =
+        requestExecutionPlatformsFromSkyframe(executionPlatformsKey);
+
+    assertThatEvaluationResult(result).hasError();
+    assertThatEvaluationResult(result).hasErrorEntryForKeyThat(executionPlatformsKey).isNotNull();
+    assertThatEvaluationResult(result)
+        .hasErrorEntryForKeyThat(executionPlatformsKey)
+        .hasExceptionThat()
+        .hasMessageThat()
+        .contains(
+            "Unrecoverable errors resolving config_setting associated with"
+                + " //extra:required_platform: For config_setting flagged, Feature flag"
+                + " //extra:flag was accessed in a configuration it is not present in.");
+  }
+
+  @Test
+  public void testRegisteredExecutionPlatforms_requiredSettings_cantDependOnConstraintValues_error()
+      throws Exception {
+    // Add an extra platform with a required_setting
+    scratch.file(
+        "extra/BUILD",
+        """
+        constraint_setting(name = "cs1")
+        constraint_value(name = "cv1", constraint_setting = ":cs1")
+        constraint_value(name = "cv2", constraint_setting = ":cs1")
+        config_setting(
+            name = "setting",
+            constraint_values = [":cv1"],
+        )
+
+        platform(
+            name = "required_platform",
+            required_settings = [
+                ":setting",
+                ":cv2",
+            ],
+        )
+        """);
+
+    rewriteModuleDotBazel(
+        """
+        register_execution_platforms("//extra:required_platform")
+        """);
+
+    SkyKey executionPlatformsKey =
+        RegisteredExecutionPlatformsValue.key(targetConfigKey, /* debug= */ false);
+    EvaluationResult<RegisteredExecutionPlatformsValue> result =
+        requestExecutionPlatformsFromSkyframe(executionPlatformsKey);
+
+    assertThatEvaluationResult(result).hasError();
+    assertThatEvaluationResult(result).hasErrorEntryForKeyThat(executionPlatformsKey).isNotNull();
   }
 }

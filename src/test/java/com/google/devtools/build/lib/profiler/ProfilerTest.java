@@ -32,6 +32,7 @@ import com.google.devtools.build.lib.clock.JavaClock;
 import com.google.devtools.build.lib.profiler.Profiler.SlowTask;
 import com.google.devtools.build.lib.testutil.ManualClock;
 import com.google.devtools.build.lib.testutil.TestUtils;
+import com.google.devtools.build.lib.util.OS;
 import com.google.devtools.build.lib.worker.WorkerProcessMetrics;
 import com.google.devtools.build.lib.worker.WorkerProcessMetricsCollector;
 import com.google.devtools.build.lib.worker.WorkerProcessStatus;
@@ -302,6 +303,11 @@ public final class ProfilerTest {
 
   @Test
   public void testProfilerWorkerMetrics() throws Exception {
+    if (OS.getCurrent() != OS.LINUX && OS.getCurrent() != OS.DARWIN) {
+      // We disable the WorkerMemoryUsageCollector on Windows, so we should skip the test if the
+      // current OS is not Linux and Darwin.
+      return;
+    }
     Instant collectionTime = BlazeClock.instance().now();
     WorkerProcessMetrics workerMetric1 =
         new WorkerProcessMetrics(

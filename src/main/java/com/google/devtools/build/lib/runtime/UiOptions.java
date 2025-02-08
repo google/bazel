@@ -13,7 +13,8 @@
 // limitations under the License.
 package com.google.devtools.build.lib.runtime;
 
-import com.google.auto.value.AutoValue;
+import static java.util.Objects.requireNonNull;
+
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
 import com.google.devtools.build.lib.events.EventKind;
@@ -52,15 +53,16 @@ public class UiOptions extends OptionsBase {
       extends Converter.Contextless<EventFiltersConverter.EventKindFilters> {
 
     /** Container for an EventKind input filter. */
-    @AutoValue
-    public abstract static class EventKindFilters {
-      public abstract ImmutableSet<EventKind> getFilteredEventKinds();
-
-      public abstract ImmutableSet<EventKind> getUnfilteredEventKinds();
+    public record EventKindFilters(
+        ImmutableSet<EventKind> filteredEventKinds, ImmutableSet<EventKind> unfilteredEventKinds) {
+      public EventKindFilters {
+        requireNonNull(filteredEventKinds, "filteredEventKinds");
+        requireNonNull(unfilteredEventKinds, "unfilteredEventKinds");
+      }
 
       public static EventKindFilters from(
           ImmutableSet<EventKind> filtered, ImmutableSet<EventKind> unfiltered) {
-        return new AutoValue_UiOptions_EventFiltersConverter_EventKindFilters(filtered, unfiltered);
+        return new EventKindFilters(filtered, unfiltered);
       }
     }
 
@@ -283,8 +285,8 @@ public class UiOptions extends OptionsBase {
   public ImmutableSet<EventKind> getFilteredEventKinds() {
     HashSet<EventKind> filtered = new HashSet<>();
     for (EventFiltersConverter.EventKindFilters filters : eventKindFilters) {
-      filtered.addAll(filters.getFilteredEventKinds());
-      filtered.removeAll(filters.getUnfilteredEventKinds());
+      filtered.addAll(filters.filteredEventKinds());
+      filtered.removeAll(filters.unfilteredEventKinds());
     }
     return ImmutableSet.copyOf(filtered);
   }

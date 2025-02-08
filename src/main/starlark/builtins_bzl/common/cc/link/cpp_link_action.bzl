@@ -16,7 +16,7 @@
 load(":common/cc/cc_helper_internal.bzl", "artifact_category")
 load(":common/cc/link/finalize_link_action.bzl", "finalize_link_action")
 load(":common/cc/link/link_build_variables.bzl", "setup_linking_variables")
-load(":common/cc/link/target_types.bzl", "USE_ARCHIVER", "USE_LINKER", "is_dynamic_library")
+load(":common/cc/link/target_types.bzl", "LINK_TARGET_TYPE", "USE_ARCHIVER", "USE_LINKER", "is_dynamic_library")
 load(":common/paths.bzl", "paths")
 
 cc_common_internal = _builtins.internal.cc_common
@@ -196,14 +196,14 @@ def link_action(
     build_variables = variables_extensions | setup_linking_variables(
         cc_toolchain,
         feature_configuration,
-        output.path,
+        output,
         cc_internal.dynamic_library_soname(
             actions,
             output.short_path,
-            link_type != NODEPS_DYNAMIC_LIBRARY,
+            link_type != LINK_TARGET_TYPE.NODEPS_DYNAMIC_LIBRARY,
         ),
-        interface_output.path if interface_output else None,
-        thinlto_param_file.path if thinlto_param_file else None,
+        interface_output,
+        thinlto_param_file,
     )
 
     user_link_flags = linkopts + cc_toolchain._cpp_configuration.linkopts
@@ -266,7 +266,12 @@ def _map_linkstamps_to_outputs(actions, linkstamps, output):
     map = {}
 
     stamp_output_dir = paths.join(paths.dirname(output.short_path), "_objs", output.basename)
+    linkstamps = set(linkstamps)
+    seen_linkstamp_sources = set()
     for linkstamp in linkstamps:
+        if linkstamp.file() in seen_linkstamp_sources:
+            continue
+        seen_linkstamp_sources.add(linkstamp.file())
         linkstamp_file = linkstamp.file()
         stamp_output_path = paths.join(
             stamp_output_dir,

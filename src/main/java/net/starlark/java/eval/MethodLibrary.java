@@ -151,15 +151,12 @@ class MethodLibrary {
 
     /**
      * @throws KeyCallException wrapping the exception thrown by the underlying {@link
-     *     Starlark#fastcall} call if it threw.
+     *     Starlark#positionalOnlyCall} call if it threw.
      */
     static ValueWithComparisonKey make(
         Object value, StarlarkCallable keyFn, StarlarkThread thread) {
-      Object[] positional = {value};
-      Object[] named = {};
       try {
-        return new ValueWithComparisonKey(
-            value, Starlark.fastcall(thread, keyFn, positional, named));
+        return new ValueWithComparisonKey(value, Starlark.positionalOnlyCall(thread, keyFn, value));
       } catch (EvalException | InterruptedException ex) {
         throw new KeyCallException(ex);
       }
@@ -173,7 +170,9 @@ class MethodLibrary {
       return comparisonKey;
     }
 
-    /** An unchecked exception wrapping an exception thrown by {@link Starlark#fastcall}. */
+    /**
+     * An unchecked exception wrapping an exception thrown by {@link Starlark#positionalOnlyCall}.
+     */
     private static final class KeyCallException extends RuntimeException {
       KeyCallException(Exception cause) {
         super(cause);
@@ -196,8 +195,7 @@ class MethodLibrary {
             doc = "A number (int or float)")
       })
   public Object abs(Object x) throws EvalException {
-    if (x instanceof StarlarkInt) {
-      StarlarkInt starlarkInt = (StarlarkInt) x;
+    if (x instanceof StarlarkInt starlarkInt) {
       if (starlarkInt.signum() < 0) {
         return StarlarkInt.uminus(starlarkInt);
       }
@@ -298,10 +296,9 @@ class MethodLibrary {
     StarlarkCallable keyfn = (StarlarkCallable) key;
 
     // decorate
-    Object[] empty = {};
     for (int i = 0; i < array.length; i++) {
       Object v = array[i];
-      Object k = Starlark.fastcall(thread, keyfn, new Object[] {v}, empty);
+      Object k = Starlark.positionalOnlyCall(thread, keyfn, v);
       array[i] = new Object[] {k, v};
     }
 
@@ -406,7 +403,7 @@ class MethodLibrary {
   @StarlarkMethod(
       name = "len",
       doc =
-          "Returns the length of a string, sequence (such as a list or tuple), dict, or other"
+          "Returns the length of a string, sequence (such as a list or tuple), dict, set, or other"
               + " iterable.",
       parameters = {@Param(name = "x", doc = "The value whose length to report.")},
       useStarlarkThread = true)
@@ -474,8 +471,7 @@ class MethodLibrary {
         @Param(name = "x", doc = "The value to convert.", defaultValue = "unbound"),
       })
   public StarlarkFloat floatForStarlark(Object x) throws EvalException {
-    if (x instanceof String) {
-      String s = (String) x;
+    if (x instanceof String s) {
       if (s.isEmpty()) {
         throw Starlark.errorf("empty string");
       }
@@ -640,6 +636,38 @@ class MethodLibrary {
     Dict<Object, Object> dict = Dict.of(thread.mutability());
     Dict.update("dict", dict, pairs, kwargs);
     return dict;
+  }
+
+  @StarlarkMethod(
+      name = "set",
+      doc =
+          """
+Creates a new <a href=\"../core/set.html\">set</a> containing the unique elements of a given
+iterable, preserving iteration order.
+
+<p>If called with no argument, <code>set()</code> returns a new empty set.
+
+<p>For example,
+<pre class=language-python>
+set()                          # an empty set
+set([3, 1, 1, 2])              # set([3, 1, 2]), a set of three elements
+set({"k1": "v1", "k2": "v2"})  # set(["k1", "k2"]), a set of two elements
+</pre>
+""",
+      parameters = {
+        @Param(
+            name = "elements",
+            defaultValue = "[]",
+            doc = "A set, a sequence of hashable values, or a dict."),
+      },
+      useStarlarkThread = true)
+  public StarlarkSet<Object> set(Object elements, StarlarkThread thread) throws EvalException {
+    // Ordinarily we would use StarlarkMethod#enableOnlyWithFlag, but this doesn't work for
+    // top-level symbols, so enforce it here instead.
+    if (!thread.getSemantics().getBool(StarlarkSemantics.EXPERIMENTAL_ENABLE_STARLARK_SET)) {
+      throw Starlark.errorf("Use of set() requires --experimental_enable_starlark_set");
+    }
+    return StarlarkSet.checkedCopyOf(thread.mutability(), elements);
   }
 
   @StarlarkMethod(

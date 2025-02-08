@@ -15,16 +15,13 @@
 """Objective-C"""
 # Build Encyclopedia entry point for Objc rules implemented in Starlark in Blaze's @_builtins
 
-binary_rules = struct(
-)
+binary_rules = struct()
 
 library_rules = struct(
     objc_library = native.objc_library,
     objc_import = native.objc_import,
 )
 
-test_rules = struct(
-)
+test_rules = struct()
 
-other_rules = struct(
-)
+other_rules = struct()

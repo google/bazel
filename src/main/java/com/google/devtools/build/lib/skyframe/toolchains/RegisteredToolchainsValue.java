@@ -14,7 +14,8 @@
 
 package com.google.devtools.build.lib.skyframe.toolchains;
 
-import com.google.auto.value.AutoValue;
+import static java.util.Objects.requireNonNull;
+
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableTable;
 import com.google.devtools.build.lib.analysis.platform.DeclaredToolchainInfo;
@@ -31,9 +32,20 @@ import javax.annotation.Nullable;
 
 /**
  * A value which represents every toolchain known to Bazel and available for toolchain resolution.
+ *
+ * @param rejectedToolchains Any toolchains that were rejected, along with a reason. The row keys
+ *     are the toolchain type labels, column keys are toolchain target (not implementation) labels,
+ *     and cells are the reason. Only non-null if {@link RegisteredToolchainsValue.Key#debug} is
+ *     {@code true}.
  */
-@AutoValue
-public abstract class RegisteredToolchainsValue implements SkyValue {
+@AutoCodec
+public record RegisteredToolchainsValue(
+    ImmutableList<DeclaredToolchainInfo> registeredToolchains,
+    @Nullable ImmutableTable<Label, Label, String> rejectedToolchains)
+    implements SkyValue {
+  public RegisteredToolchainsValue {
+    requireNonNull(registeredToolchains, "registeredToolchains");
+  }
 
   /** Returns the {@link SkyKey} for {@link RegisteredToolchainsValue}s. */
   public static Key key(BuildConfigurationKey configurationKey, boolean debug) {
@@ -109,16 +121,7 @@ public abstract class RegisteredToolchainsValue implements SkyValue {
   public static RegisteredToolchainsValue create(
       ImmutableList<DeclaredToolchainInfo> registeredToolchains,
       @Nullable ImmutableTable<Label, Label, String> rejectedToolchains) {
-    return new AutoValue_RegisteredToolchainsValue(registeredToolchains, rejectedToolchains);
+    return new RegisteredToolchainsValue(registeredToolchains, rejectedToolchains);
   }
 
-  public abstract ImmutableList<DeclaredToolchainInfo> registeredToolchains();
-
-  /**
-   * Any toolchains that were rejected, along with a reason. The row keys are the toolchain type
-   * labels, column keys are toolchain implementation labels, and cells are the reason. Only
-   * non-null if {@link RegisteredToolchainsValue.Key#debug} is {@code true}.
-   */
-  @Nullable
-  public abstract ImmutableTable<Label, Label, String> rejectedToolchains();
 }

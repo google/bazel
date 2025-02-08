@@ -46,10 +46,7 @@ public final class PsInfoCollectorTest {
 
     ImmutableMap<Long, PsInfoCollector.PsInfo> expectedPidToPsInfo =
         ImmutableMap.of(
-            2L,
-            PsInfoCollector.PsInfo.create(2, 1, 3216),
-            3L,
-            PsInfoCollector.PsInfo.create(3, 1, 4096));
+            2L, new PsInfoCollector.PsInfo(2, 1, 3216), 3L, new PsInfoCollector.PsInfo(3, 1, 4096));
     assertThat(pidToPsInfo).isEqualTo(expectedPidToPsInfo);
   }
 
@@ -77,15 +74,15 @@ public final class PsInfoCollectorTest {
     // 10  0    1024
     ImmutableMap<Long, PsInfoCollector.PsInfo> psInfos =
         ImmutableMap.of(
-            1L, PsInfoCollector.PsInfo.create(1, 0, 3216),
-            2L, PsInfoCollector.PsInfo.create(2, 0, 4232),
-            3L, PsInfoCollector.PsInfo.create(3, 1, 1234),
-            4L, PsInfoCollector.PsInfo.create(4, 2, 1001),
-            5L, PsInfoCollector.PsInfo.create(5, 0, 40000),
-            7L, PsInfoCollector.PsInfo.create(7, 3, 2345),
-            8L, PsInfoCollector.PsInfo.create(8, 3, 3456),
-            9L, PsInfoCollector.PsInfo.create(9, 2, 1032),
-            10L, PsInfoCollector.PsInfo.create(10, 0, 1024));
+            1L, new PsInfoCollector.PsInfo(1, 0, 3216),
+            2L, new PsInfoCollector.PsInfo(2, 0, 4232),
+            3L, new PsInfoCollector.PsInfo(3, 1, 1234),
+            4L, new PsInfoCollector.PsInfo(4, 2, 1001),
+            5L, new PsInfoCollector.PsInfo(5, 0, 40000),
+            7L, new PsInfoCollector.PsInfo(7, 3, 2345),
+            8L, new PsInfoCollector.PsInfo(8, 3, 3456),
+            9L, new PsInfoCollector.PsInfo(9, 2, 1032),
+            10L, new PsInfoCollector.PsInfo(10, 0, 1024));
     ImmutableSet<Long> pids = ImmutableSet.of(1L, 2L, 5L, 6L);
     when(spyCollector.collectDataFromPs()).thenReturn(psInfos);
 
@@ -93,6 +90,6 @@ public final class PsInfoCollectorTest {
 
     ImmutableMap<Long, Integer> expectedMemoryUsageByPid =
         ImmutableMap.of(1L, 3216 + 1234 + 2345 + 3456, 2L, 4232 + 1001 + 1032, 5L, 40000);
-    assertThat(resourceSnapshot.getPidToMemoryInKb()).isEqualTo(expectedMemoryUsageByPid);
+    assertThat(resourceSnapshot.pidToMemoryInKb()).isEqualTo(expectedMemoryUsageByPid);
   }
 }

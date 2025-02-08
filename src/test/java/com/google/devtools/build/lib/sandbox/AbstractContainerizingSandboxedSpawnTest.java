@@ -16,10 +16,10 @@ package com.google.devtools.build.lib.sandbox;
 
 import static com.google.common.collect.ImmutableMap.toImmutableMap;
 import static com.google.common.truth.Truth.assertThat;
+import static java.util.Objects.requireNonNull;
 import static org.junit.Assert.assertThrows;
 import static org.mockito.Mockito.mock;
 
-import com.google.auto.value.AutoValue;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
@@ -406,20 +406,20 @@ public class AbstractContainerizingSandboxedSpawnTest {
     return result.build();
   }
 
-  @AutoValue
-  abstract static class PathEntry {
+  record PathEntry(PathFragment relativePath, Type type) {
+    PathEntry {
+      requireNonNull(relativePath, "relativePath");
+      requireNonNull(type, "type");
+    }
+
     enum Type {
       FILE,
       DIRECTORY,
       SYMLINK
     }
 
-    abstract PathFragment relativePath();
-
-    abstract Type type();
-
     static PathEntry create(PathFragment path, Type type) {
-      return new AutoValue_AbstractContainerizingSandboxedSpawnTest_PathEntry(path, type);
+      return new PathEntry(path, type);
     }
   }
 

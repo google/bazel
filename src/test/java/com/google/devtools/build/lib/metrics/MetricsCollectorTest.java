@@ -16,8 +16,6 @@ package com.google.devtools.build.lib.metrics;
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.google.common.truth.Truth.assertThat;
 import static com.google.common.truth.extensions.proto.ProtoTruth.assertThat;
-import static com.google.devtools.build.lib.testutil.TestConstants.PLATFORM_LABEL;
-import static com.google.devtools.build.lib.testutil.TestConstants.PLATFORM_LABEL_ALIAS;
 import static org.junit.Assert.assertThrows;
 
 import com.google.common.collect.ImmutableList;
@@ -291,7 +289,7 @@ public class MetricsCollectorTest extends BuildIntegrationTestCase {
         .isEqualTo(
             BuildGraphMetrics.newBuilder()
                 .setOutputFileConfiguredTargetCount(1)
-                .setOtherConfiguredTargetCount(PLATFORM_LABEL_ALIAS.equals(PLATFORM_LABEL) ? 1 : 2)
+                .setOtherConfiguredTargetCount(1)
                 .build());
     int outputArtifactCount = buildGraphMetrics.getOutputArtifactCount();
     assertThat(outputArtifactCount).isGreaterThan(0);
@@ -384,7 +382,7 @@ public class MetricsCollectorTest extends BuildIntegrationTestCase {
                 .setActionCountNotIncludingAspects(2 + actionCount)
                 .setInputFileConfiguredTargetCount(4)
                 .setOutputArtifactCount(2 + outputArtifactCount)
-                .setOtherConfiguredTargetCount(PLATFORM_LABEL_ALIAS.equals(PLATFORM_LABEL) ? 0 : 1)
+                .setOtherConfiguredTargetCount(0)
                 // ArtifactNestedSet node for stale nested set is still in graph, since it is
                 // technically still valid (even though nobody wants that nested set anymore).
                 .setPostInvocationSkyframeNodeCount(newGraphSize + 1)
@@ -416,7 +414,7 @@ public class MetricsCollectorTest extends BuildIntegrationTestCase {
                 .setActionCountNotIncludingAspects(2 + actionCount)
                 .setInputFileConfiguredTargetCount(4)
                 .setOutputArtifactCount(2 + outputArtifactCount)
-                .setOtherConfiguredTargetCount(PLATFORM_LABEL_ALIAS.equals(PLATFORM_LABEL) ? 0 : 1)
+                .setOtherConfiguredTargetCount(0)
                 .setPostInvocationSkyframeNodeCount(newGraphSize + 1)
                 .build());
     assertThat(buildMetricsEventListener.event.getBuildMetrics().getArtifactMetrics())
@@ -847,9 +845,8 @@ public class MetricsCollectorTest extends BuildIntegrationTestCase {
     addOptions("--experimental_merged_skyframe_analysis_execution");
     BuildGraphMetrics expected =
         BuildGraphMetrics.newBuilder()
-            .setActionLookupValueCount(PLATFORM_LABEL_ALIAS.equals(PLATFORM_LABEL) ? 8 : 9)
-            .setActionLookupValueCountNotIncludingAspects(
-                PLATFORM_LABEL_ALIAS.equals(PLATFORM_LABEL) ? 8 : 9)
+            .setActionLookupValueCount(8)
+            .setActionLookupValueCountNotIncludingAspects(8)
             .setActionCount(2)
             .setActionCountNotIncludingAspects(2)
             .setInputFileConfiguredTargetCount(1)

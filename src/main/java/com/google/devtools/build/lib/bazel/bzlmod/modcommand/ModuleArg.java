@@ -15,8 +15,8 @@ package com.google.devtools.build.lib.bazel.bzlmod.modcommand;
 
 import static com.google.common.collect.ImmutableMap.toImmutableMap;
 import static com.google.common.collect.ImmutableSet.toImmutableSet;
+import static java.util.Objects.requireNonNull;
 
-import com.google.auto.value.AutoValue;
 import com.google.common.base.Ascii;
 import com.google.common.collect.ImmutableBiMap;
 import com.google.common.collect.ImmutableList;
@@ -67,13 +67,14 @@ public interface ModuleArg {
    * <version>} can be the special string {@code _} to signify the empty version (for non-registry
    * overrides).
    */
-  @AutoValue
-  abstract class SpecificVersionOfModule implements ModuleArg {
-    static SpecificVersionOfModule create(ModuleKey key) {
-      return new AutoValue_ModuleArg_SpecificVersionOfModule(key);
+  public record SpecificVersionOfModule(ModuleKey moduleKey) implements ModuleArg {
+    public SpecificVersionOfModule {
+      requireNonNull(moduleKey, "moduleKey");
     }
 
-    public abstract ModuleKey moduleKey();
+    static SpecificVersionOfModule create(ModuleKey key) {
+      return new SpecificVersionOfModule(key);
+    }
 
     private void throwIfNonexistent(
         ImmutableMap<String, ImmutableSet<ModuleKey>> modulesIndex,
@@ -147,13 +148,14 @@ public interface ModuleArg {
   }
 
   /** Refers to all versions of a module. Parsed from {@code <module>}. */
-  @AutoValue
-  abstract class AllVersionsOfModule implements ModuleArg {
-    static AllVersionsOfModule create(String moduleName) {
-      return new AutoValue_ModuleArg_AllVersionsOfModule(moduleName);
+  public record AllVersionsOfModule(String moduleName) implements ModuleArg {
+    public AllVersionsOfModule {
+      requireNonNull(moduleName, "moduleName");
     }
 
-    public abstract String moduleName();
+    static AllVersionsOfModule create(String moduleName) {
+      return new AllVersionsOfModule(moduleName);
+    }
 
     private ImmutableSet<ModuleKey> resolveInternal(
         ImmutableMap<String, ImmutableSet<ModuleKey>> modulesIndex,
@@ -224,13 +226,14 @@ public interface ModuleArg {
    * (or when parsing that flag itself, in the context of the root module). Parsed from
    * {@code @<name>}.
    */
-  @AutoValue
-  abstract class ApparentRepoName implements ModuleArg {
-    static ApparentRepoName create(String name) {
-      return new AutoValue_ModuleArg_ApparentRepoName(name);
+  public record ApparentRepoName(String name) implements ModuleArg {
+    public ApparentRepoName {
+      requireNonNull(name, "name");
     }
 
-    public abstract String name();
+    static ApparentRepoName create(String name) {
+      return new ApparentRepoName(name);
+    }
 
     @Override
     public ImmutableSet<ModuleKey> resolveToModuleKeys(
@@ -285,13 +288,14 @@ public interface ModuleArg {
   }
 
   /** Refers to a module with the given canonical repo name. Parsed from {@code @@<name>}. */
-  @AutoValue
-  abstract class CanonicalRepoName implements ModuleArg {
-    static CanonicalRepoName create(RepositoryName repoName) {
-      return new AutoValue_ModuleArg_CanonicalRepoName(repoName);
+  public record CanonicalRepoName(RepositoryName repoName) implements ModuleArg {
+    public CanonicalRepoName {
+      requireNonNull(repoName, "repoName");
     }
 
-    public abstract RepositoryName repoName();
+    static CanonicalRepoName create(RepositoryName repoName) {
+      return new CanonicalRepoName(repoName);
+    }
 
     @Override
     public ImmutableSet<ModuleKey> resolveToModuleKeys(
@@ -305,7 +309,7 @@ public interface ModuleArg {
         throws InvalidArgumentException {
       Optional<AugmentedModule> mod =
           depGraph.values().stream()
-              .filter(m -> repoName().equals(moduleKeyToCanonicalNames.get(m.getKey())))
+              .filter(m -> repoName().equals(moduleKeyToCanonicalNames.get(m.key())))
               .findAny();
       if (mod.isPresent() && !includeUnused && warnUnused && !mod.get().isUsed()) {
         // Warn the user when unused modules are allowed and the specified version exists, but the
@@ -314,7 +318,7 @@ public interface ModuleArg {
             String.format(
                 "Module version %s is unused as a result of module resolution. Use the"
                     + " --include_unused flag to include it.",
-                mod.get().getKey()),
+                mod.get().key()),
             Code.INVALID_ARGUMENTS);
       }
       if (mod.isEmpty() || (!includeUnused && !mod.get().isUsed())) {
@@ -326,7 +330,7 @@ public interface ModuleArg {
                 repoName().getName()),
             Code.INVALID_ARGUMENTS);
       }
-      return ImmutableSet.of(mod.get().getKey());
+      return ImmutableSet.of(mod.get().key());
     }
 
     @Override

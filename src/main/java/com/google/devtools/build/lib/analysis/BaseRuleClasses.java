@@ -14,13 +14,14 @@
 
 package com.google.devtools.build.lib.analysis;
 
-import static com.google.devtools.build.lib.analysis.test.ExecutionInfo.DEFAULT_TEST_RUNNER_EXEC_GROUP;
 import static com.google.devtools.build.lib.packages.Attribute.attr;
 import static com.google.devtools.build.lib.packages.BuildType.DISTRIBUTIONS;
 import static com.google.devtools.build.lib.packages.BuildType.LABEL;
 import static com.google.devtools.build.lib.packages.BuildType.LABEL_LIST;
 import static com.google.devtools.build.lib.packages.BuildType.LICENSE;
 import static com.google.devtools.build.lib.packages.BuildType.NODEP_LABEL_LIST;
+import static com.google.devtools.build.lib.packages.RuleClass.DEFAULT_TEST_RUNNER_EXEC_GROUP;
+import static com.google.devtools.build.lib.packages.RuleClass.DEFAULT_TEST_RUNNER_EXEC_GROUP_NAME;
 import static com.google.devtools.build.lib.packages.Type.BOOLEAN;
 import static com.google.devtools.build.lib.packages.Type.INTEGER;
 import static com.google.devtools.build.lib.packages.Type.STRING;
@@ -32,6 +33,7 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.devtools.build.lib.analysis.config.BuildConfigurationValue;
 import com.google.devtools.build.lib.analysis.config.ExecutionTransitionFactory;
+import com.google.devtools.build.lib.analysis.config.RunUnder.LabelRunUnder;
 import com.google.devtools.build.lib.analysis.config.transitions.NoConfigTransition;
 import com.google.devtools.build.lib.analysis.constraints.ConstraintConstants;
 import com.google.devtools.build.lib.analysis.platform.ConstraintValueInfo;
@@ -181,7 +183,7 @@ public class BaseRuleClasses {
                 || config.getRunUnder() == null) {
               return null;
             }
-            return config.getRunUnder().getLabel();
+            return config.getRunUnder() instanceof LabelRunUnder runUnder ? runUnder.label() : null;
           });
 
   // TODO(b/65746853): provide a way to do this without passing the entire configuration
@@ -203,7 +205,7 @@ public class BaseRuleClasses {
                 || config.getRunUnder() == null) {
               return null;
             }
-            return config.getRunUnder().getLabel();
+            return config.getRunUnder() instanceof LabelRunUnder runUnder ? runUnder.label() : null;
           });
 
   /**
@@ -213,7 +215,8 @@ public class BaseRuleClasses {
     @Override
     public RuleClass build(RuleClass.Builder builder, RuleDefinitionEnvironment env) {
       builder
-          .addExecGroup(DEFAULT_TEST_RUNNER_EXEC_GROUP)
+          .addExecGroups(
+              ImmutableMap.of(DEFAULT_TEST_RUNNER_EXEC_GROUP_NAME, DEFAULT_TEST_RUNNER_EXEC_GROUP))
           .requiresConfigurationFragments(TestConfiguration.class)
           // TestConfiguration only needed to create TestAction and TestProvider
           // Only necessary at top-level and can be skipped if trimmed.
@@ -303,7 +306,7 @@ public class BaseRuleClasses {
           // RunCommand.java to self-transition --run_under to the exec configuration.
           .add(
               attr(":run_under_exec_config", LABEL)
-                  .cfg(ExecutionTransitionFactory.createFactory())
+                  .cfg(ExecutionTransitionFactory.createFactory("test"))
                   .value(RUN_UNDER_EXEC_CONFIG)
                   .skipPrereqValidatorCheck())
           .add(
@@ -535,6 +538,14 @@ public class BaseRuleClasses {
                       "exec_compatible_with exists for constraint checking, not to create an"
                           + " actual dependency")
                   .value(ImmutableList.of()))
+          .add(
+              attr(RuleClass.EXEC_GROUP_COMPATIBLE_WITH_ATTR, BuildType.LABEL_LIST_DICT)
+                  .allowedFileTypes()
+                  .nonconfigurable("Used in toolchain resolution")
+                  .tool(
+                      "exec_group_compatible_with exists for constraint checking, not to create an"
+                          + " actual dependency")
+                  .value(ImmutableMap.of()))
           .build();
     }
 
@@ -583,14 +594,24 @@ public class BaseRuleClasses {
    */
   public abstract static class EmptyRule implements RuleDefinition {
     private final String name;
+    @Nullable private final String bzlLoadFile;
 
     public EmptyRule(String name) {
+      this(name, null);
+    }
+
+    public EmptyRule(String name, @Nullable String bzlLoadLabel) {
       this.name = name;
+      this.bzlLoadFile = bzlLoadLabel;
     }
 
     @Override
     public RuleClass build(RuleClass.Builder builder, RuleDefinitionEnvironment env) {
-      return builder.removeAttribute("deps").removeAttribute("data").build();
+      return builder
+          .removeAttribute("deps")
+          .removeAttribute("data")
+          .addAttribute(attr("$bzl_load_label", STRING).value(this.bzlLoadFile).build())
+          .build();
     }
 
     @Override
@@ -619,7 +640,19 @@ public class BaseRuleClasses {
     @Override
     @Nullable
     public ConfiguredTarget create(RuleContext ruleContext) {
-      ruleContext.ruleError("Rule is unimplemented.");
+      String ruleName = ruleContext.getRule().getRuleClass();
+      String bzlLoadLabel = ruleContext.attributes().getOrDefault("$bzl_load_label", STRING, null);
+      if (bzlLoadLabel != null) {
+        ruleContext.ruleError(
+            """
+            The %s rule has been removed, add the following to your BUILD/bzl file:
+
+            load("%s", "%s")
+            """
+                .formatted(ruleName, bzlLoadLabel, ruleName));
+      } else {
+        ruleContext.ruleError("Rule is unimplemented.");
+      }
       return null;
     }
   }

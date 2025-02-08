@@ -24,7 +24,6 @@ import com.google.devtools.build.lib.vfs.PathFragment;
 import com.google.devtools.common.options.OptionsProvider;
 import java.io.IOException;
 import java.nio.file.ClosedWatchServiceException;
-import java.nio.file.FileSystems;
 import java.nio.file.FileVisitResult;
 import java.nio.file.Files;
 import java.nio.file.LinkOption;
@@ -57,7 +56,7 @@ public final class WatchServiceDiffAwareness extends LocalDiffAwareness {
 
   private final IgnoredSubdirectories ignoredPaths;
 
-  WatchServiceDiffAwareness(String watchRoot, IgnoredSubdirectories ignoredPaths) {
+  WatchServiceDiffAwareness(Path watchRoot, IgnoredSubdirectories ignoredPaths) {
     super(watchRoot);
     this.ignoredPaths = ignoredPaths;
   }
@@ -65,7 +64,7 @@ public final class WatchServiceDiffAwareness extends LocalDiffAwareness {
   private void init() {
     Preconditions.checkState(watchService == null);
     try {
-      watchService = FileSystems.getDefault().newWatchService();
+      watchService = watchRoot.getFileSystem().newWatchService();
     } catch (IOException ignored) {
       // According to the docs, this can never happen with the default file system provider.
     }
@@ -125,7 +124,7 @@ public final class WatchServiceDiffAwareness extends LocalDiffAwareness {
     Set<Path> modifiedAbsolutePaths;
     if (isFirstCall()) {
       try {
-        registerSubDirectories(watchRootPath);
+        registerSubDirectories(watchRoot);
       } catch (IOException e) {
         close();
         throw new BrokenDiffAwarenessException(
@@ -243,7 +242,7 @@ public final class WatchServiceDiffAwareness extends LocalDiffAwareness {
     }
     if (watchKeyToDirBiMap.isEmpty()) {
       // No more directories to watch, something happened the root directory being watched.
-      throw new IOException("Root directory " + watchRootPath + " became inaccessible.");
+      throw new IOException("Root directory " + watchRoot + " became inaccessible.");
     }
 
     Set<Path> changedPaths = new HashSet<>();

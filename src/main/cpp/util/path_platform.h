@@ -31,7 +31,7 @@ class Path {
   bool operator<(const Path &o) const { return path_ < o.path_; }
   bool IsEmpty() const { return path_.empty(); }
   bool IsNull() const;
-  bool Contains(const char c) const;
+  bool Contains(char c) const;
   bool Contains(const std::string &s) const;
   Path GetRelative(const std::string &r) const;
 
@@ -41,6 +41,8 @@ class Path {
   Path Canonicalize() const;
 
   Path GetParent() const;
+
+  std::string GetBaseName() const;
 
   // Returns a printable string representing this path.
   // Only use when printing user messages, do not pass to filesystem API
@@ -84,11 +86,11 @@ std::string ConvertPath(const std::string &path);
 // See https://github.com/bazelbuild/bazel/issues/2576
 std::string PathAsJvmFlag(const std::string &path);
 
-// Compares two absolute paths. Necessary because the same path can have
-// multiple different names under msys2: "C:\foo\bar" or "C:/foo/bar"
-// (Windows-style) and "/c/foo/bar" (msys2 style). Returns if the paths are
-// equal.
-bool CompareAbsolutePaths(const std::string &a, const std::string &b);
+// Returns whether two paths are equivalent.
+// On Windows, there are multiple ways to represent the same path, e.g.
+// "C:\foo\bar" or "C:/foo/bar" or "/c/foo/bar" (msys2 style).
+// On Unix, this is a simple string comparison.
+bool ArePathsEquivalent(const blaze_util::Path &a, const blaze_util::Path &b);
 
 // Split a path to dirname and basename parts.
 std::pair<std::string, std::string> SplitPath(const std::string &path);

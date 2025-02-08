@@ -21,7 +21,7 @@ import static com.google.common.util.concurrent.MoreExecutors.directExecutor;
 import static com.google.devtools.build.lib.actions.ExecutionRequirements.REMOTE_EXECUTION_INLINE_OUTPUTS;
 import static com.google.devtools.build.lib.remote.util.DigestUtil.toBinaryDigest;
 import static com.google.devtools.build.lib.remote.util.Utils.getFromFuture;
-import static com.google.devtools.build.lib.util.StringUtil.reencodeExternalToInternal;
+import static com.google.devtools.build.lib.util.StringEncoding.unicodeToInternal;
 import static com.google.devtools.build.lib.vfs.FileSystemUtils.readContent;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.junit.Assert.assertThrows;
@@ -65,6 +65,7 @@ import com.google.common.util.concurrent.SettableFuture;
 import com.google.devtools.build.lib.actions.ActionInput;
 import com.google.devtools.build.lib.actions.ActionInputHelper;
 import com.google.devtools.build.lib.actions.ActionInputMap;
+import com.google.devtools.build.lib.actions.ActionKeyContext;
 import com.google.devtools.build.lib.actions.ActionOutputDirectoryHelper;
 import com.google.devtools.build.lib.actions.ActionUploadFinishedEvent;
 import com.google.devtools.build.lib.actions.ActionUploadStartedEvent;
@@ -100,6 +101,7 @@ import com.google.devtools.build.lib.remote.RemoteExecutionService.RemoteActionR
 import com.google.devtools.build.lib.remote.RemoteScrubbing.Config;
 import com.google.devtools.build.lib.remote.common.BulkTransferException;
 import com.google.devtools.build.lib.remote.common.RemoteActionExecutionContext;
+import com.google.devtools.build.lib.remote.common.RemoteCacheClient.Blob;
 import com.google.devtools.build.lib.remote.common.RemoteExecutionClient;
 import com.google.devtools.build.lib.remote.common.RemotePathResolver;
 import com.google.devtools.build.lib.remote.common.RemotePathResolver.DefaultRemotePathResolver;
@@ -113,6 +115,7 @@ import com.google.devtools.build.lib.remote.util.InMemoryCacheClient;
 import com.google.devtools.build.lib.remote.util.RxNoGlobalErrorsRule;
 import com.google.devtools.build.lib.remote.util.TracingMetadataUtils;
 import com.google.devtools.build.lib.remote.util.Utils.InMemoryOutput;
+import com.google.devtools.build.lib.util.Fingerprint;
 import com.google.devtools.build.lib.util.OS;
 import com.google.devtools.build.lib.util.TempPathGenerator;
 import com.google.devtools.build.lib.util.io.FileOutErr;
@@ -1675,7 +1678,7 @@ public class RemoteExecutionServiceTest {
     ImmutableSet.Builder<Artifact> outputs = ImmutableSet.builder();
     ImmutableList<String> expectedOutputFiles = ImmutableList.of("outputs/foo", "outputs/bar");
     for (String outputFile : expectedOutputFiles) {
-      Path path = remotePathResolver.outputPathToLocalPath(reencodeExternalToInternal(outputFile));
+      Path path = remotePathResolver.outputPathToLocalPath(unicodeToInternal(outputFile));
       Artifact output = ActionsTestUtil.createArtifact(artifactRoot, path);
       outputs.add(output);
     }
@@ -2160,7 +2163,7 @@ public class RemoteExecutionServiceTest {
               return future;
             })
         .when(cache.remoteCacheClient)
-        .uploadBlob(any(), any(), any());
+        .uploadBlob(any(), any(), (Blob) any());
     ActionInput input = ActionInputHelper.fromPath("inputs/foo");
     fakeFileCache.createScratchInput(input, "input-foo");
     RemoteExecutionService service = newRemoteExecutionService();
@@ -2550,15 +2553,13 @@ public class RemoteExecutionServiceTest {
       ImmutableMap<String, String> executionInfo, RemoteActionResult result) {
     ImmutableSet.Builder<Artifact> outputs = ImmutableSet.builder();
     for (OutputFile file : result.getOutputFiles()) {
-      Path path =
-          remotePathResolver.outputPathToLocalPath(reencodeExternalToInternal(file.getPath()));
+      Path path = remotePathResolver.outputPathToLocalPath(unicodeToInternal(file.getPath()));
       Artifact output = ActionsTestUtil.createArtifact(artifactRoot, path);
       outputs.add(output);
     }
 
     for (OutputDirectory directory : result.getOutputDirectories()) {
-      Path path =
-          remotePathResolver.outputPathToLocalPath(reencodeExternalToInternal(directory.getPath()));
+      Path path = remotePathResolver.outputPathToLocalPath(unicodeToInternal(directory.getPath()));
       Artifact output =
           ActionsTestUtil.createTreeArtifactWithGeneratingAction(
               artifactRoot, path.relativeTo(execRoot));
@@ -2567,16 +2568,14 @@ public class RemoteExecutionServiceTest {
 
     for (OutputSymlink fileSymlink : result.getOutputFileSymlinks()) {
       Path path =
-          remotePathResolver.outputPathToLocalPath(
-              reencodeExternalToInternal(fileSymlink.getPath()));
+          remotePathResolver.outputPathToLocalPath(unicodeToInternal(fileSymlink.getPath()));
       Artifact output = ActionsTestUtil.createArtifact(artifactRoot, path);
       outputs.add(output);
     }
 
     for (OutputSymlink directorySymlink : result.getOutputDirectorySymlinks()) {
       Path path =
-          remotePathResolver.outputPathToLocalPath(
-              reencodeExternalToInternal(directorySymlink.getPath()));
+          remotePathResolver.outputPathToLocalPath(unicodeToInternal(directorySymlink.getPath()));
       Artifact output =
           ActionsTestUtil.createTreeArtifactWithGeneratingAction(
               artifactRoot, path.relativeTo(execRoot));
@@ -2584,8 +2583,7 @@ public class RemoteExecutionServiceTest {
     }
 
     for (OutputSymlink symlink : result.getOutputSymlinks()) {
-      Path path =
-          remotePathResolver.outputPathToLocalPath(reencodeExternalToInternal(symlink.getPath()));
+      Path path = remotePathResolver.outputPathToLocalPath(unicodeToInternal(symlink.getPath()));
       Artifact output = ActionsTestUtil.createArtifact(artifactRoot, path);
       outputs.add(output);
     }
@@ -2745,6 +2743,12 @@ public class RemoteExecutionServiceTest {
       @Override
       public boolean isMappingCached() {
         return false;
+      }
+
+      @Override
+      public void fingerprint(
+          ActionKeyContext actionKeyContext, Fingerprint fp, boolean digestAbsolutePaths) {
+        throw new UnsupportedOperationException();
       }
     };
   }

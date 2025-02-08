@@ -198,10 +198,10 @@ public final class WindowsSandboxUtil {
         commandLineBuilder.add("-W", workingDirectory.getPathString());
       }
       if (timeout != null) {
-        commandLineBuilder.add("-T", Long.toString(timeout.getSeconds()));
+        commandLineBuilder.add("-T", Long.toString(timeout.toSeconds()));
       }
       if (killDelay != null) {
-        commandLineBuilder.add("-t", Long.toString(killDelay.getSeconds()));
+        commandLineBuilder.add("-t", Long.toString(killDelay.toSeconds()));
       }
       if (stdoutPath != null) {
         commandLineBuilder.add("-l", stdoutPath.getPathString());

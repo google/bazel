@@ -41,21 +41,11 @@ class OptionProcessorTest : public ::testing::Test {
   void SetUp() override {
     ASSERT_TRUE(blaze_util::MakeDirectories(workspace_, 0755));
     option_processor_.reset(new OptionProcessor(
-        workspace_layout_.get(),
-        std::unique_ptr<StartupOptions>(
-            new BazelStartupOptions(workspace_layout_.get()))));
+        workspace_layout_.get(), std::make_unique<BazelStartupOptions>()));
   }
 
   void TearDown() override {
-    // TODO(bazel-team): The code below deletes all the files in the workspace
-    // but it intentionally skips directories. As a consequence, there may be
-    // empty directories from test to test. Remove this once
-    // blaze_util::DeleteDirectories(path) exists.
-    std::vector<std::string> files_in_workspace;
-    blaze_util::GetAllFilesUnder(workspace_, &files_in_workspace);
-    for (const std::string& file : files_in_workspace) {
-      blaze_util::UnlinkPath(file);
-    }
+    blaze_util::RemoveRecursively(blaze_util::Path(workspace_));
   }
 
   void FailedSplitCommandLineTest(const std::vector<std::string>& args,

@@ -15,8 +15,8 @@
 package com.google.devtools.build.lib.worker;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
+import static java.util.Objects.requireNonNull;
 
-import com.google.auto.value.AutoValue;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
 import com.google.devtools.build.lib.vfs.FileSystemUtils;
@@ -25,9 +25,10 @@ import com.google.errorprone.annotations.CanIgnoreReturnValue;
 import java.io.IOException;
 
 /** A well-formatted error message that is easy to read and easy to create. */
-@AutoValue
-abstract class ErrorMessage {
-  abstract String message();
+record ErrorMessage(String message) {
+  ErrorMessage {
+    requireNonNull(message, "message");
+  }
 
   @Override
   public String toString() {
@@ -136,7 +137,7 @@ abstract class ErrorMessage {
         }
       }
 
-      return new AutoValue_ErrorMessage(sb.toString());
+      return new ErrorMessage(sb.toString());
     }
   }
 }

@@ -2653,8 +2653,46 @@ public class ConfigSettingTest extends BuildViewTestCase {
         )
         """);
 
+    // Expect config_setting on an alias to pass completely through the alias to the underlying
+    // flag it references. This means aliases model which flags trigger config_setting matches. This
+    // keeps config_seting in sync with actual builds: if someone builds with --//foo:alias=1,
+    // both the user and config_setting interpret it the same way even when the underlying flag
+    // changes.
     useConfiguration("--//test:flag=specified");
     assertThat(getConfigMatchingProviderResultAsBoolean("//test:alias_setting")).isTrue();
+  }
+
+  @Test
+  public void labelStarlarkFlag() throws Exception {
+    scratch.file(
+        "test/BUILD",
+        """
+
+        label_flag(
+            name = "my_flag",
+            build_setting_default = "other_target",
+        )
+
+        genrule(
+            name = "other_target",
+            srcs = [],
+            outs = ["other_target"],
+            cmd = "echo other_target",
+        )
+
+        config_setting(
+            name = "my_setting",
+            flag_values = {":my_flag": "//test:other_target"},
+        )
+        """);
+
+    // While label_flag is technically an alias, we can't treat it the same way as a normal alias:
+    // label_flag is by definition a flag, and therefore a valid config_setting input. But the
+    // target it refers to isn't necessarily a flag (and for most practical uses won't be a flag).
+    // So it doesn't make sense to treat it like an alias(), where config_setting setting matches
+    // against the reference's value. So config_setting treats a label_flag's value like any
+    // normal flag value and compares against it directly.
+    assertThat(getConfigMatchingProviderResultAsBoolean("//test:my_setting")).isTrue();
   }
 
   @Test
@@ -2896,5 +2934,24 @@ public class ConfigSettingTest extends BuildViewTestCase {
         "in values attribute of config_setting rule //test:match: '//foo:bar' is"
             + " not a valid setting name, but appears to be a label. Did you mean to place it in"
             + " flag_values instead?");
+  }
+
+  @Test
+  @TestParameters({"{flag: cpu}", "{flag: host_cpu}", "{flag: crosstool_top}"})
+  public void selectOnDeprecatedFlagEmitsWarning(String flag) throws Exception {
+    scratch.file(
+        "test/BUILD",
+        """
+        config_setting(
+            name = "match",
+            values = {
+              "%s": "//foo",
+            },
+        )
+        """
+            .formatted(flag));
+    assertThat(getConfiguredTarget("//test:match")).isNotNull();
+    assertContainsEvent(
+        "select() on %s is deprecated. Use platform constraints instead".formatted(flag));
   }
 }

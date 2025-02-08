@@ -20,6 +20,7 @@ import com.google.devtools.build.lib.analysis.VisibilityProvider;
 import com.google.devtools.build.lib.concurrent.ThreadSafety.Immutable;
 import com.google.devtools.build.lib.packages.Info;
 import com.google.devtools.build.lib.packages.Provider;
+import com.google.devtools.build.lib.skyframe.serialization.autocodec.AutoCodec;
 import javax.annotation.Nullable;
 
 /**
@@ -27,6 +28,7 @@ import javax.annotation.Nullable;
  * groups are not really first-class Targets.
  */
 @Immutable
+@AutoCodec
 public final class EnvironmentGroupConfiguredTarget extends AbstractConfiguredTarget {
 
   public EnvironmentGroupConfiguredTarget(ActionLookupKey actionLookupKey) {

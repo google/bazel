@@ -16,8 +16,6 @@ package com.google.devtools.build.lib.util;
 import static com.google.common.truth.Truth.assertThat;
 import static com.google.devtools.build.lib.util.StringUtil.joinEnglishList;
 import static com.google.devtools.build.lib.util.StringUtil.joinEnglishListSingleQuoted;
-import static com.google.devtools.build.lib.util.StringUtil.reencodeExternalToInternal;
-import static com.google.devtools.build.lib.util.StringUtil.reencodeInternalToExternal;
 
 import com.google.common.collect.ImmutableList;
 import java.util.Arrays;
@@ -70,44 +68,5 @@ public class StringUtilTest {
                 .append("/end")
                 .toString())
         .isEqualTo("begin/a, b, c ...(omitting 2 more item(s))/end");
-  }
-
-  @Test
-  @SuppressWarnings("UnicodeEscape")
-  public void testReencodeInternalToExternal() throws Exception {
-    // Regular ASCII passes through OK.
-    assertThat(reencodeInternalToExternal("ascii")).isEqualTo("ascii");
-
-    // Valid UTF-8 is decoded.
-    assertThat(reencodeInternalToExternal("\u00E2\u0081\u0089"))
-        .isEqualTo("\u2049"); // U+2049 EXCLAMATION QUESTION MARK
-    assertThat(reencodeInternalToExternal("\u00f0\u009f\u008c\u00b1"))
-        .isEqualTo("\uD83C\uDF31"); // U+1F331 SEEDLING
-
-    // Strings that contain characters that can't be UTF-8 are returned as-is,
-    // to support Windows file paths.
-    assertThat(reencodeInternalToExternal("\u2049"))
-        .isEqualTo("\u2049"); // U+2049 EXCLAMATION QUESTION MARK
-    assertThat(reencodeInternalToExternal("\uD83C\uDF31"))
-        .isEqualTo("\uD83C\uDF31"); // U+1F331 SEEDLING
-
-    // Strings that might be either UTF-8 or Unicode are optimistically decoded,
-    // and returned as-is if decoding succeeded with no replacement characters.
-    assertThat(reencodeInternalToExternal("\u00FC\u006E\u00EF\u0063\u00F6\u0064\u00EB"))
-        .isEqualTo("\u00FC\u006E\u00EF\u0063\u00F6\u0064\u00EB"); // "ünïcödë"
-
-    // A string that is both valid ISO-8859-1 and valid UTF-8 will be decoded
-    // as UTF-8.
-    assertThat(reencodeInternalToExternal("\u00C2\u00A3")) // "Â£"
-        .isEqualTo("\u00A3"); // U+00A3 POUND SIGN
-  }
-
-  @Test
-  public void testEncodeBytestringUtf8() throws Exception {
-    assertThat(reencodeExternalToInternal("ascii")).isEqualTo("ascii");
-    assertThat(reencodeExternalToInternal("\u2049")) // U+2049 EXCLAMATION QUESTION MARK
-        .isEqualTo("\u00E2\u0081\u0089");
-    assertThat(reencodeExternalToInternal("\uD83C\uDF31")) // U+1F331 SEEDLING
-        .isEqualTo("\u00f0\u009f\u008c\u00b1");
   }
 }

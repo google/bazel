@@ -19,6 +19,7 @@ import static com.google.devtools.build.lib.starlarkdocextract.StardocOutputProt
 import static com.google.devtools.build.lib.starlarkdocextract.StardocOutputProtos.FunctionParamRole.PARAM_ROLE_KWARGS;
 import static com.google.devtools.build.lib.starlarkdocextract.StardocOutputProtos.FunctionParamRole.PARAM_ROLE_ORDINARY;
 import static com.google.devtools.build.lib.starlarkdocextract.StardocOutputProtos.FunctionParamRole.PARAM_ROLE_VARARGS;
+import static com.google.devtools.build.lib.util.StringEncoding.internalToUnicode;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
@@ -30,6 +31,7 @@ import com.google.devtools.build.lib.starlarkdocextract.StardocOutputProtos.Func
 import com.google.devtools.build.lib.starlarkdocextract.StardocOutputProtos.FunctionReturnInfo;
 import com.google.devtools.build.lib.starlarkdocextract.StardocOutputProtos.OriginKey;
 import com.google.devtools.build.lib.starlarkdocextract.StardocOutputProtos.StarlarkFunctionInfo;
+import com.google.devtools.build.lib.util.StringEncoding;
 import com.google.devtools.starlark.common.DocstringUtils;
 import com.google.devtools.starlark.common.DocstringUtils.DocstringInfo;
 import com.google.devtools.starlark.common.DocstringUtils.DocstringParseError;
@@ -71,7 +73,7 @@ public final class StarlarkFunctionInfoExtractor {
       throws ExtractionException {
     Map<String, String> paramNameToDocMap = Maps.newLinkedHashMap();
     StarlarkFunctionInfo.Builder functionInfoBuilder =
-        StarlarkFunctionInfo.newBuilder().setFunctionName(functionName);
+        StarlarkFunctionInfo.newBuilder().setFunctionName(internalToUnicode(functionName));
     functionInfoBuilder.setOriginKey(getFunctionOriginKey(fn));
     String doc = fn.getDocumentation();
     if (doc != null) {
@@ -85,19 +87,21 @@ public final class StarlarkFunctionInfoExtractor {
         functionDescription.append("\n\n");
       }
       functionDescription.append(docstringInfo.getLongDescription());
-      functionInfoBuilder.setDocString(functionDescription.toString());
+      functionInfoBuilder.setDocString(internalToUnicode(functionDescription.toString()));
       for (ParameterDoc paramDoc : docstringInfo.getParameters()) {
         paramNameToDocMap.put(paramDoc.getParameterName(), paramDoc.getDescription());
       }
       String returns = docstringInfo.getReturns();
       if (!returns.isEmpty()) {
         functionInfoBuilder.setReturn(
-            FunctionReturnInfo.newBuilder().setDocString(returns).build());
+            FunctionReturnInfo.newBuilder().setDocString(internalToUnicode(returns)).build());
       }
       String deprecated = docstringInfo.getDeprecated();
       if (!deprecated.isEmpty()) {
         functionInfoBuilder.setDeprecated(
-            FunctionDeprecationInfo.newBuilder().setDocString(deprecated).build());
+            FunctionDeprecationInfo.newBuilder()
+                .setDocString(internalToUnicode(deprecated))
+                .build());
       }
     }
     functionInfoBuilder.addAllParameter(parameterInfos(fn, paramNameToDocMap));
@@ -129,12 +133,14 @@ public final class StarlarkFunctionInfoExtractor {
       @Nullable Object defaultValue,
       FunctionParamRole role) {
     FunctionParamInfo.Builder paramBuilder =
-        FunctionParamInfo.newBuilder().setName(name).setRole(role);
-    docString.ifPresent(paramBuilder::setDocString);
+        FunctionParamInfo.newBuilder().setName(internalToUnicode(name)).setRole(role);
+    docString.map(StringEncoding::internalToUnicode).ifPresent(paramBuilder::setDocString);
     if (defaultValue == null) {
       paramBuilder.setMandatory(true);
     } else {
-      paramBuilder.setDefaultValue(labelRenderer.repr(defaultValue)).setMandatory(false);
+      paramBuilder
+          .setDefaultValue(internalToUnicode(labelRenderer.repr(defaultValue)))
+          .setMandatory(false);
     }
     return paramBuilder.build();
   }
@@ -143,8 +149,11 @@ public final class StarlarkFunctionInfoExtractor {
   private static FunctionParamInfo forSpecialParam(
       String name, Optional<String> docString, FunctionParamRole role) {
     FunctionParamInfo.Builder paramBuilder =
-        FunctionParamInfo.newBuilder().setName(name).setRole(role).setMandatory(false);
-    docString.ifPresent(paramBuilder::setDocString);
+        FunctionParamInfo.newBuilder()
+            .setName(internalToUnicode(name))
+            .setRole(role)
+            .setMandatory(false);
+    docString.map(StringEncoding::internalToUnicode).ifPresent(paramBuilder::setDocString);
     return paramBuilder.build();
   }
 
@@ -196,7 +205,7 @@ public final class StarlarkFunctionInfoExtractor {
     // change with any edits to the .bzl file, resulting in lots of churn in golden tests.
     for (Map.Entry<String, Object> entry : fn.getModule().getGlobals().entrySet()) {
       if (fn.equals(entry.getValue())) {
-        builder.setName(entry.getKey());
+        builder.setName(internalToUnicode(entry.getKey()));
         break;
       }
     }
@@ -204,7 +213,7 @@ public final class StarlarkFunctionInfoExtractor {
 
     BazelModuleContext moduleContext = BazelModuleContext.of(fn.getModule());
     if (moduleContext != null) {
-      builder.setFile(labelRenderer.render(moduleContext.label()));
+      builder.setFile(internalToUnicode(labelRenderer.render(moduleContext.label())));
     }
     return builder.build();
   }

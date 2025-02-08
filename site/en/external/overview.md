@@ -124,14 +124,13 @@ ls $(bazel info output_base)/external/{{ '<var>' }} canonical_name {{ '</var>' }
 
 ### REPO.bazel file {:#repo.bazel}
 
-The `REPO.bazel` file is used to mark the topmost boundary of the directory tree
-that constitutes a repo. It doesn't need to contain anything to serve as a repo
-boundary file; however, it can also be used to specify some common attributes
-for all build targets inside the repo.
+The [`REPO.bazel`](/rules/lib/globals/repo) file is used to mark the topmost
+boundary of the directory tree that constitutes a repo. It doesn't need to
+contain anything to serve as a repo boundary file; however, it can also be used
+to specify some common attributes for all build targets inside the repo.
 
 The syntax of a `REPO.bazel` file is similar to `BUILD` files, except that no
-`load` statements are supported, and only a single function, `repo()`, is
-available. `repo()` takes the same arguments as the [`package()`
+`load` statements are supported. The `repo()` function takes the same arguments as the [`package()`
 function](/reference/be/functions#package) in `BUILD` files; whereas `package()`
 specifies common attributes for all build targets inside the package, `repo()`
 analogously does so for all build targets inside the repo.

@@ -31,8 +31,8 @@ public final class JavaCompilationArgsTest extends BuildViewTestCase {
   @Test
   public void testSimple() throws Exception {
     JavaCompilationArgsProvider args = createArgs();
-    assertThat(getOnlyJarName(args.getTransitiveCompileTimeJars())).isEqualTo("compiletime.jar");
-    assertThat(getOnlyJarName(args.getRuntimeJars())).isEqualTo("runtime.jar");
+    assertThat(getOnlyJarName(args.transitiveCompileTimeJars())).isEqualTo("compiletime.jar");
+    assertThat(getOnlyJarName(args.runtimeJars())).isEqualTo("runtime.jar");
   }
 
   private JavaCompilationArgsProvider createArgs() throws Exception {

@@ -43,7 +43,6 @@ java_test(
         include = ["*.java"],
         exclude = [
             "BazelDocumentationTest.java",
-            "ExternalPackageTest.java",
             "WorkspaceFactoryTestHelper.java",
         ],
     ),
@@ -109,8 +108,8 @@ java_test(
         "//third_party:junit4",
         "//third_party:mockito",
         "//third_party:truth",
+        "@com_google_protobuf//:protobuf_java",
         "@maven//:com_google_testparameterinjector_test_parameter_injector",
-        "@protobuf//:protobuf_java",
     ],
 )
 
@@ -126,7 +125,7 @@ java_test(
         "//src/main/java/com/google/devtools/build/lib/bazel/rules",
         "//third_party:guava",
         "//third_party:junit4",
-        "@bazel_tools//tools/java/runfiles",
+        "@rules_java//java/runfiles",
     ],
 )
 
@@ -173,6 +172,7 @@ java_library(
         "//src/main/java/com/google/devtools/build/lib/rules/cpp",
         "//src/main/java/com/google/devtools/build/lib/rules/proto",
         "//src/main/java/com/google/devtools/build/lib/skyframe:precomputed_value",
+        "//src/main/java/com/google/devtools/build/lib/skyframe:repository_mapping_function",
         "//src/main/java/com/google/devtools/build/lib/skyframe:sky_functions",
         "//src/main/java/com/google/devtools/build/lib/skyframe:skyframe_cluster",
         "//src/main/java/com/google/devtools/build/lib/skyframe/packages:PackageFactoryBuilderWithSkyframeForTesting",
@@ -194,6 +194,6 @@ java_library(
         "//third_party:jsr305",
         "//third_party:junit4",
         "//third_party:truth",
-        "@bazel_tools//tools/java/runfiles",
+        "@rules_java//java/runfiles",
     ],
 )

@@ -112,29 +112,29 @@ public final class ActionInputHelper {
   }
 
   /**
-   * Expands middleman and tree artifacts in a sequence of {@link ActionInput}s.
+   * Expands runfiles trees and tree artifacts in a sequence of {@link ActionInput}s.
    *
    * <p>If {@code keepEmptyTreeArtifacts} is true, a tree artifact will be included in the
    * constructed list when it expands into zero file artifacts. Otherwise, only the file artifacts
    * the tree artifact expands into will be included.
    *
-   * <p>Middleman artifacts will be returned if {@code keepMiddlemanArtifacts} is set.
+   * <p>Runfiles tree artifacts will be returned if {@code keepRunfilesTrees} is set.
    *
-   * <p>Non-middleman, non-tree artifacts are returned untouched.
+   * <p>Non-runfiles, non-tree artifacts are returned untouched.
    */
   public static List<ActionInput> expandArtifacts(
       NestedSet<? extends ActionInput> inputs,
       ArtifactExpander artifactExpander,
       boolean keepEmptyTreeArtifacts,
-      boolean keepMiddlemanArtifacts) {
+      boolean keepRunfilesTrees) {
     List<ActionInput> result = new ArrayList<>();
     Set<Artifact> emptyTreeArtifacts = new TreeSet<>();
     Set<Artifact> treeFileArtifactParents = new HashSet<>();
     for (ActionInput input : inputs.toList()) {
       if (!(input instanceof Artifact artifact)) {
         result.add(input);
-      } else if (artifact.isMiddlemanArtifact()) {
-        if (keepMiddlemanArtifacts) {
+      } else if (artifact.isRunfilesTree()) {
+        if (keepRunfilesTrees) {
           result.add(artifact);
         }
       } else if (artifact.isTreeArtifact()) {

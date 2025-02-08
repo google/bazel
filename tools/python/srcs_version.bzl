@@ -11,8 +11,9 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
 """Defines an aspect for finding constraints on the Python version."""
+
+load("@rules_python//python:py_info.bzl", "PyInfo")
 
 _PY2 = "PY2"
 _PY3 = "PY3"

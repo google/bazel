@@ -17,6 +17,8 @@ SOURCES = [
     "diag.h",
     "input_jar.cc",
     "input_jar.h",
+    "log4j2_plugin_dat_combiner.cc",
+    "log4j2_plugin_dat_combiner.h",
     "mapped_file.cc",
     "mapped_file.h",
     "mapped_file_posix.inc",
@@ -88,8 +90,9 @@ cc_binary(
     linkstatic = 1,
     visibility = ["//visibility:public"],
     deps = [
-        "options",
-        "output_jar",
+        ":combiners",
+        ":options",
+        ":output_jar",
         "//third_party/zlib",
     ],
 )
@@ -107,10 +110,10 @@ cc_binary(
     linkstatic = 1,
     visibility = ["//visibility:public"],
     deps = [
-        "combiners",
-        "desugar_checking",
-        "options",
-        "output_jar",
+        ":combiners",
+        ":desugar_checking",
+        ":options",
+        ":output_jar",
         "//third_party/zlib",
     ],
 )
@@ -134,6 +137,23 @@ cc_test(
         ":test_util",
         "//third_party/zlib",
         "@com_google_googletest//:gtest_main",
+    ],
+)
+
+cc_test(
+    name = "log4j2_plugin_dat_combiner_test",
+    srcs = ["log4j2_plugin_dat_combiner_test.cc"],
+    data = [
+        "data/log4j2_plugins_set_1.jar",
+        "data/log4j2_plugins_set_2.jar",
+        "data/log4j2_plugins_set_result.dat",
+    ],
+    deps = [
+        ":combiners",
+        ":input_jar",
+        ":test_util",
+        "@com_google_googletest//:gtest_main",
+        "@rules_cc//cc/runfiles",
     ],
 )
 
@@ -197,10 +217,10 @@ cc_test(
         "//src/conditions:windows": ["-DJAR_TOOL_PATH=\\\"io_bazel/$(JAVABASE)/bin/jar.exe\\\""],
         "//conditions:default": ["-DJAR_TOOL_PATH=\\\"io_bazel/$(JAVABASE)/bin/jar\\\""],
     }),
-    data = ["@bazel_tools//tools/jdk:current_java_runtime"],
+    data = ["@rules_java//toolchains:current_java_runtime"],
     # Timing out, see https://github.com/bazelbuild/bazel/issues/1555
     tags = ["manual"],
-    toolchains = ["@bazel_tools//tools/jdk:current_java_runtime"],
+    toolchains = ["@rules_java//toolchains:current_java_runtime"],
     deps = [
         ":input_jar",
         ":test_util",
@@ -267,8 +287,8 @@ cc_test(
         "output_jar_simple_test.cc",
     ],
     copts = select({
-        "//src/conditions:windows": ["-DJAR_TOOL_PATH=\\\"io_bazel/$(JAVABASE)/bin/jar.exe\\\""],
-        "//conditions:default": ["-DJAR_TOOL_PATH=\\\"io_bazel/$(JAVABASE)/bin/jar\\\""],
+        "//src/conditions:windows": ["-DJAR_TOOL_PATH=\\\"local_jdk/bin/jar.exe\\\""],
+        "//conditions:default": ["-DJAR_TOOL_PATH=\\\"local_jdk/bin/jar\\\""],
     }),
     data = [
         ":data1",
@@ -276,9 +296,13 @@ cc_test(
         ":stored_jar",
         ":test1",
         ":test2",
-        "@bazel_tools//tools/jdk:current_java_runtime",
-    ],
-    toolchains = ["@bazel_tools//tools/jdk:current_java_runtime"],
+        "@rules_java//toolchains:current_java_runtime",
+    ] + select({
+        # TODO: Use the current java runtime instead of local_jdk
+        "//src/conditions:windows": ["@local_jdk//:bin/jar.exe"],
+        "//conditions:default": ["@local_jdk//:bin/jar"],
+    }),
+    toolchains = ["@rules_java//toolchains:current_java_runtime"],
     deps = [
         ":input_jar",
         ":options",
@@ -352,9 +376,9 @@ sh_test(
         ":singlejar",
         "//src/test/shell:bashunit",
         "@bazel_tools//tools/bash/runfiles",
-        "@bazel_tools//tools/jdk:current_java_runtime",
+        "@rules_java//toolchains:current_java_runtime",
     ],
-    toolchains = ["@bazel_tools//tools/jdk:current_java_runtime"],
+    toolchains = ["@rules_java//toolchains:current_java_runtime"],
     deps = ["//src/test/shell:bashunit"],
 )
 
@@ -362,10 +386,14 @@ cc_library(
     name = "combiners",
     srcs = [
         "combiners.cc",
+        "log4j2_plugin_dat_combiner.cc",
         ":transient_bytes",
         ":zip_headers",
     ],
-    hdrs = ["combiners.h"],
+    hdrs = [
+        "combiners.h",
+        "log4j2_plugin_dat_combiner.h",
+    ],
     deps = [
         "//third_party/zlib",
     ],
@@ -463,8 +491,8 @@ cc_library(
     hdrs = ["test_util.h"],
     deps = [
         "//src/main/cpp/util",
-        "@bazel_tools//tools/cpp/runfiles",
         "@com_google_googletest//:gtest_main",
+        "@rules_cc//cc/runfiles",
     ],
 )
 
@@ -541,6 +569,6 @@ genrule(
     ],
     outs = ["stored.jar"],
     cmd = "$(JAVABASE)/bin/jar -0cf \"$@\" $(location :output_jar.cc)",
-    toolchains = ["@bazel_tools//tools/jdk:current_java_runtime"],
-    tools = ["@bazel_tools//tools/jdk:current_java_runtime"],
+    toolchains = ["@rules_java//toolchains:current_java_runtime"],
+    tools = ["@rules_java//toolchains:current_java_runtime"],
 )

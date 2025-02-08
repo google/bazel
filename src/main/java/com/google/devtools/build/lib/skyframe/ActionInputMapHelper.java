@@ -109,7 +109,7 @@ final class ActionInputMapHelper {
       // Actions resulting from the expansion of an ActionTemplate consume only one of the files
       // in a tree artifact. However, the input prefetcher and the Linux sandbox require access to
       // the tree metadata to determine the prefetch location of a tree artifact materialized as a
-      // symlink (cf. TreeArtifactValue#getMaterializationExecPath()).
+      // symlink to another (cf. TreeArtifactValue#getResolvedPath()).
       if (key.isChildOfDeclaredDirectory()) {
         SpecialArtifact treeArtifact = key.getParent();
         TreeArtifactValue treeArtifactValue =
@@ -144,9 +144,26 @@ final class ActionInputMapHelper {
     ActionLookupData generatingActionKey = actionInput.getGeneratingActionKey();
     ActionLookupKey filesetActionLookupKey = generatingActionKey.getActionLookupKey();
 
-    ActionLookupValue filesetActionLookupValue =
-        (ActionLookupValue) env.getValue(filesetActionLookupKey);
+    SkyValue maybeActionLookupValue = env.getValue(filesetActionLookupKey);
 
+    // With Frontier-based Skycache, the SkyValue for the fileset analysis object may be a
+    // RemoteConfiguredTargetValue if it's not in the active set, and the remote fileset CT value
+    // doesn't contain actions for lookup. That is OK because we're only interested in the fileset
+    // output, which is not stored in the actions, but in the (potentially Skycache-cached)
+    // ActionExecutionValue.
+    //
+    // Additionally, `if (generatingAction instanceof SymlinkAction)` block below is also only
+    // triggered when building fileset symlinks, which is disabled in a Skycache build.
+    //
+    // So, for a Skycache build, we can skip the transitive action lookups below and obtain the
+    // FilesetOutputTree directory from the Fileset ActionExecutionValue immediately (which should
+    // be a Skycache cache hit anyway).
+    if (maybeActionLookupValue instanceof RemoteConfiguredTargetValue) {
+      return getFilesetOutputFromKey(generatingActionKey, env);
+    }
+
+    // Non-Skycache builds from here.
+    ActionLookupValue filesetActionLookupValue = (ActionLookupValue) maybeActionLookupValue;
     ActionAnalysisMetadata generatingAction =
         filesetActionLookupValue.getAction(generatingActionKey.getActionIndex());
     ActionLookupData filesetActionKey;
@@ -179,13 +196,19 @@ final class ActionInputMapHelper {
       filesetActionKey = generatingActionKey;
     }
 
-    // TODO(janakr: properly handle exceptions coming from here, or prove they can never happen in
-    //  practice.
+    return getFilesetOutputFromKey(filesetActionKey, env);
+  }
+
+  private static FilesetOutputTree getFilesetOutputFromKey(
+      ActionLookupData filesetActionKey, Environment env) throws InterruptedException {
+    // TODO: properly handle exceptions coming from here, or prove they can never happen in
+    // practice.
     ActionExecutionValue filesetValue = (ActionExecutionValue) env.getValue(filesetActionKey);
     if (filesetValue == null) {
       // At this point skyframe does not guarantee that the filesetValue will be ready, since
       // the current action does not directly depend on the outputs of the
-      // SkyframeFilesetManifestAction whose ActionExecutionValue (filesetValue) is needed here.
+      // SkyframeFilesetManifestAction whose ActionExecutionValue
+      // (com.google.devtools.build.lib.skyframe.Fileset) is needed here.
       return null;
     }
     return filesetValue.getFilesetOutput();

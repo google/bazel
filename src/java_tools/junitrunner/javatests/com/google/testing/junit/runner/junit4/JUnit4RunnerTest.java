@@ -33,7 +33,6 @@ import com.google.testing.junit.runner.sharding.ShardingEnvironment;
 import com.google.testing.junit.runner.sharding.ShardingFilters;
 import com.google.testing.junit.runner.sharding.testing.FakeShardingFilters;
 import com.google.testing.junit.runner.util.FakeTestClock;
-import com.google.testing.junit.runner.util.GoogleTestSecurityManager;
 import com.google.testing.junit.runner.util.TestClock;
 import java.io.ByteArrayOutputStream;
 import java.io.PrintStream;
@@ -75,20 +74,10 @@ public class JUnit4RunnerTest {
   private ShardingEnvironment shardingEnvironment = new StubShardingEnvironment();
   private ShardingFilters shardingFilters;
   private JUnit4Config config;
-  private boolean wasSecurityManagerInstalled = false;
-  private SecurityManager previousSecurityManager;
 
   @After
   public void closeStream() throws Exception {
     stdoutPrintStream.close();
-  }
-
-  @After
-  public void reinstallPreviousSecurityManager() {
-    if (wasSecurityManagerInstalled) {
-      wasSecurityManagerInstalled = false;
-      System.setSecurityManager(previousSecurityManager);
-    }
   }
 
   private JUnit4Runner createRunner(Class<?> suiteClass) {
@@ -239,23 +228,6 @@ public class JUnit4RunnerTest {
   }
 
   @Test
-  public void testSecurityManagerInstalled() throws Exception {
-    // If there is already a security manager installed, the runner would crash when trying to
-    // install another one. In order to avoid that, the security manager should be uninstalled here
-    // and restored afterwards.
-    uninstallGoogleTestSecurityManager();
-
-    config = new JUnit4Config(null, null, null, createProperties("1", true));
-
-    JUnit4Runner runner = createRunner(SampleExitingTest.class);
-    Result result = runner.run();
-
-    assertThat(result.getRunCount()).isEqualTo(1);
-    assertThat(result.getFailureCount()).isEqualTo(1);
-    assertThat(result.getIgnoreCount()).isEqualTo(0);
-  }
-
-  @Test
   public void testShardingIsSupported() {
     config = createConfig();
     shardingEnvironment = mock(ShardingEnvironment.class);
@@ -307,7 +279,7 @@ public class JUnit4RunnerTest {
 
   @Test
   public void testRunExcludeFilterAlwaysExits() {
-    config = new JUnit4Config("test", "CallsSystemExit", null, createProperties("1", false));
+    config = new JUnit4Config("test", "CallsSystemExit", null, createProperties("1"));
     JUnit4Runner runner = createRunner(SampleSuite.class);
     Result result = runner.run();
 
@@ -384,23 +356,11 @@ public class JUnit4RunnerTest {
 
   @Test
   public void testMustSpecifySupportedJUnitApiVersion() {
-    config = new JUnit4Config(null, null, null, createProperties("2", false));
+    config = new JUnit4Config(null, null, null, createProperties("2"));
     JUnit4Runner runner = createRunner(SamplePassingTest.class);
 
     IllegalStateException e = assertThrows(IllegalStateException.class, () -> runner.run());
     assertThat(e).hasMessageThat().startsWith("Unsupported JUnit Runner API version");
-  }
-
-  /**
-   * Uninstall {@link GoogleTestSecurityManager} if it is installed. If it was installed, it will
-   * be reinstalled after the test completes.
-   */
-  private void uninstallGoogleTestSecurityManager() {
-    previousSecurityManager = System.getSecurityManager();
-    GoogleTestSecurityManager.uninstallIfInstalled();
-    if (previousSecurityManager != System.getSecurityManager()) {
-      wasSecurityManagerInstalled = true;
-    }
   }
 
   private void assertPassingTestHasExpectedOutput(ByteArrayOutputStream outputStream,
@@ -437,16 +397,12 @@ public class JUnit4RunnerTest {
   }
 
   private static JUnit4Config createConfig(@Nullable String includeFilter) {
-    return new JUnit4Config(includeFilter, null, null, createProperties("1", false));
+    return new JUnit4Config(includeFilter, null, null, createProperties("1"));
   }
 
-  private static Properties createProperties(
-      String apiVersion, boolean shouldInstallSecurityManager) {
+  private static Properties createProperties(String apiVersion) {
     Properties properties = new Properties();
     properties.setProperty(JUnit4Config.JUNIT_API_VERSION_PROPERTY, apiVersion);
-    if (!shouldInstallSecurityManager) {
-      properties.setProperty("java.security.manager", "whatever");
-    }
     return properties;
   }
 
@@ -483,23 +439,11 @@ public class JUnit4RunnerTest {
   }
 
 
-  /** Sample test that calls System.exit(). */
-  @RunWith(JUnit4.class)
-  public static class SampleExitingTest {
-
-    @Test
-    public void testThatAlwaysCallsSystemExit() {
-      System.exit(1);
-    }
-  }
-
-
   /** Sample suite. */
   @RunWith(Suite.class)
   @Suite.SuiteClasses({
       JUnit4RunnerTest.SamplePassingTest.class,
       JUnit4RunnerTest.SampleFailingTest.class,
-      JUnit4RunnerTest.SampleExitingTest.class
   })
   public static class SampleSuite {}
 

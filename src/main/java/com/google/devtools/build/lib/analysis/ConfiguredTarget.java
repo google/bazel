@@ -90,11 +90,19 @@ public interface ConfiguredTarget extends TransitiveInfoCollection, Structure, C
   Object getValue(String name);
 
   /**
-   * If the configured target is an alias, return the actual target, otherwise return the current
-   * target. This follows alias chains.
+   * If the configured target is an alias, return the actual target in the end of the alias chain,
+   * otherwise return the current target. This follows alias chains.
    */
   @Override
   default ConfiguredTarget getActual() {
+    return this;
+  }
+
+  /**
+   * If the configured target is an alias, return the actual target directly pointed to by the
+   * alias, otherwise return the current target. This does not follow alias chains.
+   */
+  default ConfiguredTarget getActualNoFollow() {
     return this;
   }
 

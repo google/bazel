@@ -13,7 +13,7 @@
 // limitations under the License.
 package com.google.devtools.build.lib.analysis.actions;
 
-import static java.nio.charset.StandardCharsets.UTF_8;
+import static java.nio.charset.StandardCharsets.ISO_8859_1;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableMap;
@@ -349,10 +349,13 @@ public class StarlarkAction extends SpawnAction {
       for (Artifact input : allInputs.toList()) {
         usedInputsByMappedPath.put(pathMapper.getMappedExecPathString(input), input);
       }
+      // Bazel encodes file system paths as raw bytes stored in a Latin-1 encoded string, so we need
+      // to make sure to also decode the unused input list as Latin-1.
       try (BufferedReader br =
           new BufferedReader(
               new InputStreamReader(
-                  getUnusedInputListInputStream(actionExecutionContext, spawnResults), UTF_8))) {
+                  getUnusedInputListInputStream(actionExecutionContext, spawnResults),
+                  ISO_8859_1))) {
         String line;
         while ((line = br.readLine()) != null) {
           line = line.trim();

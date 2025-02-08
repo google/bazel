@@ -39,6 +39,7 @@ import com.google.devtools.build.lib.actions.util.ActionsTestUtil;
 import com.google.devtools.build.lib.analysis.config.CoreOptions;
 import com.google.devtools.build.lib.analysis.starlark.StarlarkCustomCommandLine.VectorArg;
 import com.google.devtools.build.lib.cmdline.BazelModuleContext;
+import com.google.devtools.build.lib.cmdline.BazelModuleKey;
 import com.google.devtools.build.lib.cmdline.Label;
 import com.google.devtools.build.lib.cmdline.RepositoryMapping;
 import com.google.devtools.build.lib.testutil.Scratch;
@@ -451,7 +452,8 @@ public final class StarlarkCustomCommandLineTest {
               StarlarkSemantics.DEFAULT,
               ImmutableMap.of(),
               BazelModuleContext.create(
-                  Label.parseCanonicalUnchecked("//test:label"),
+                  BazelModuleKey.createFakeModuleKeyForTesting(
+                      Label.parseCanonicalUnchecked("//test:label")),
                   RepositoryMapping.ALWAYS_FALLBACK,
                   "test/label.bzl",
                   /* loads= */ ImmutableList.of(),

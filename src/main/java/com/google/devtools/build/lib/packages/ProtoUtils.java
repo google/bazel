@@ -23,6 +23,7 @@ import static com.google.devtools.build.lib.packages.BuildType.LABEL;
 import static com.google.devtools.build.lib.packages.BuildType.LABEL_DICT_UNARY;
 import static com.google.devtools.build.lib.packages.BuildType.LABEL_KEYED_STRING_DICT;
 import static com.google.devtools.build.lib.packages.BuildType.LABEL_LIST;
+import static com.google.devtools.build.lib.packages.BuildType.LABEL_LIST_DICT;
 import static com.google.devtools.build.lib.packages.BuildType.LICENSE;
 import static com.google.devtools.build.lib.packages.BuildType.NODEP_LABEL;
 import static com.google.devtools.build.lib.packages.BuildType.NODEP_LABEL_LIST;
@@ -68,6 +69,7 @@ public class ProtoUtils {
           .put(STRING_DICT, Discriminator.STRING_DICT)
           .put(LABEL_DICT_UNARY, Discriminator.LABEL_DICT_UNARY)
           .put(STRING_LIST_DICT, Discriminator.STRING_LIST_DICT)
+          .put(LABEL_LIST_DICT, Discriminator.LABEL_LIST_DICT)
           .put(BOOLEAN, Discriminator.BOOLEAN)
           .put(TRISTATE, Discriminator.TRISTATE)
           .put(INTEGER_LIST, Discriminator.INTEGER_LIST)

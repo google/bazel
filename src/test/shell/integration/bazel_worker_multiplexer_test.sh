@@ -44,6 +44,8 @@ function set_up() {
   cd ${WORKSPACE_SUBDIR}
   BINS=$(bazel info $PRODUCT_NAME-bin)/${WORKSPACE_SUBDIR}
 
+  add_rules_java ${WORKSPACE_DIR}/MODULE.bazel
+
   # This causes Bazel to shut down all running workers.
   bazel build --worker_quit_after_build &> $TEST_log \
     || fail "'bazel build --worker_quit_after_build' during test set_up failed"
@@ -110,6 +112,8 @@ work = rule(
 )
 EOF
   cat >BUILD <<EOF
+load("@rules_java//java:java_binary.bzl", "java_binary")
+load("@rules_java//java:java_import.bzl", "java_import")
 load(":work.bzl", "work")
 
 java_import(

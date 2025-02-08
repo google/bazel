@@ -18,8 +18,10 @@ import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Sets;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.SequencedMap;
 import java.util.Set;
 import javax.annotation.Nullable;
 import net.starlark.java.eval.GuardedValue;
@@ -458,11 +460,11 @@ public final class BazelStarlarkEnvironment {
       throws InjectionException {
     Map<String, Boolean> overridesMap = parseInjectionOverridesList(overridesList);
 
-    Map<String, Object> env = new HashMap<>(bzlToplevelsWithoutNative);
+    SequencedMap<String, Object> env = new LinkedHashMap<>(bzlToplevelsWithoutNative);
 
     // Determine "native" bindings.
     // TODO(#11954): See above comment in createUninjectedBuildBzlEnv.
-    Map<String, Object> nativeBindings = new HashMap<>(nativeBase);
+    SequencedMap<String, Object> nativeBindings = new LinkedHashMap<>(nativeBase);
     for (Map.Entry<String, Object> entry : exportedRules.entrySet()) {
       String key = entry.getKey();
       String name = getKeySuffix(key);
@@ -508,7 +510,7 @@ public final class BazelStarlarkEnvironment {
       Map<String, Object> exportedRules, List<String> overridesList) throws InjectionException {
     Map<String, Boolean> overridesMap = parseInjectionOverridesList(overridesList);
 
-    HashMap<String, Object> env = new HashMap<>(uninjectedBuildEnv);
+    SequencedMap<String, Object> env = new LinkedHashMap<>(uninjectedBuildEnv);
     for (Map.Entry<String, Object> entry : exportedRules.entrySet()) {
       String key = entry.getKey();
       String name = getKeySuffix(key);

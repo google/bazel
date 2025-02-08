@@ -54,4 +54,18 @@ public interface StreamableQueryEnvironment<T> extends QueryEnvironment<T> {
       Callback<T> callback,
       int depth,
       QueryExpression caller);
+
+  QueryTaskFuture<Void> somePath(
+      QueryExpression fromExpression,
+      QueryExpression toExpression,
+      QueryExpressionContext<T> context,
+      Callback<T> callback,
+      QueryExpression caller);
+
+  QueryTaskFuture<Void> allPaths(
+      QueryExpression fromExpression,
+      QueryExpression toExpression,
+      QueryExpressionContext<T> context,
+      Callback<T> callback,
+      QueryExpression caller);
 }

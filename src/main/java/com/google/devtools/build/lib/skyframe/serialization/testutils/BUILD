@@ -12,9 +12,12 @@ filegroup(
 )
 
 DUMPER_SOURCES = [
+    "Canonizer.java",
     "Dumper.java",
     "FieldInfoCache.java",
-    "Fingerprinter.java",
+    "IsomorphismKey.java",
+    "GraphDataCollector.java",
+    "GraphTraverser.java",
 ]
 
 java_library(
@@ -24,6 +27,7 @@ java_library(
         ["*.java"],
         exclude = DUMPER_SOURCES + [
             "FakeDirectories.java",
+            "FakeInvalidationDataHelper.java",
             "RoundTripping.java",
             "SerializationDepsUtils.java",
         ],
@@ -43,7 +47,7 @@ java_library(
         "//third_party:jsr305",
         "//third_party:junit4",
         "//third_party:truth",
-        "@protobuf//:protobuf_java",
+        "@com_google_protobuf//:protobuf_java",
     ],
 )
 
@@ -56,7 +60,7 @@ java_library(
         "//src/main/java/com/google/devtools/build/skyframe:skyframe-objects",
         "//third_party:guava",
         "//third_party:jsr305",
-        "@protobuf//:protobuf_java",
+        "@com_google_protobuf//:protobuf_java",
     ],
 )
 
@@ -88,5 +92,14 @@ java_library(
         "//src/main/java/com/google/devtools/build/lib/skyframe/serialization",
         "//third_party:guava",
         "//third_party:jsr305",
+    ],
+)
+
+java_library(
+    name = "fake_invalidation_data_helper",
+    srcs = ["FakeInvalidationDataHelper.java"],
+    deps = [
+        "//src/main/protobuf:file_invalidation_data_java_proto",
+        "@com_google_protobuf//:protobuf_java",
     ],
 )

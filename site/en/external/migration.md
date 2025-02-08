@@ -22,7 +22,7 @@ Bzlmod.
 ### Define the root of a Bazel workspace {:#define-root}
 
 The WORKSPACE file marks the source root of a Bazel project, this responsibility
-is replaced by MODULE.bazel in Bazel version 6.3 and later. With Bazel version
+is replaced by MODULE.bazel in Bazel version 6.3 and later. With Bazel versions
 prior to 6.3, there should still be a `WORKSPACE` or `WORKSPACE.bazel` file at
 your workspace root, maybe with comments like:
 

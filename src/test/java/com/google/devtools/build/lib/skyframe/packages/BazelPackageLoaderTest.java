@@ -66,7 +66,6 @@ public final class BazelPackageLoaderTest extends AbstractPackageLoaderTest {
     Path tools = embeddedBinaries.getRelative("embedded_tools");
     tools.getRelative("tools/cpp").createDirectoryAndParents();
     tools.getRelative("tools/osx").createDirectoryAndParents();
-    FileSystemUtils.writeIsoLatin1(tools.getRelative("WORKSPACE"), "");
     FileSystemUtils.writeIsoLatin1(tools.getRelative("MODULE.bazel"), "module(name='bazel_tools')");
     FileSystemUtils.writeIsoLatin1(tools.getRelative("tools/cpp/BUILD"), "");
     FileSystemUtils.writeIsoLatin1(
@@ -79,10 +78,6 @@ public final class BazelPackageLoaderTest extends AbstractPackageLoaderTest {
         "def xcode_configure(*args, **kwargs):",
         "    pass");
     FileSystemUtils.writeIsoLatin1(tools.getRelative("tools/sh/BUILD"), "");
-    FileSystemUtils.writeIsoLatin1(
-        tools.getRelative("tools/sh/sh_configure.bzl"),
-        "def sh_configure(*args, **kwargs):",
-        "    pass");
     FileSystemUtils.writeIsoLatin1(tools.getRelative("tools/build_defs/repo/BUILD"));
     FileSystemUtils.writeIsoLatin1(
         tools.getRelative("tools/build_defs/repo/http.bzl"),
@@ -96,11 +91,18 @@ public final class BazelPackageLoaderTest extends AbstractPackageLoaderTest {
         "  pass");
     FileSystemUtils.writeIsoLatin1(
         tools.getRelative("tools/build_defs/repo/local.bzl"),
-        "def local_repository(**kwargs):",
-        "  pass",
-        "",
-        "def new_local_repository(**kwargs):",
-        "  pass");
+        """
+        def _local_repository_impl(rctx):
+          path = rctx.workspace_root.get_child(rctx.attr.path)
+          rctx.symlink(path, ".")
+        local_repository = repository_rule(
+            implementation = _local_repository_impl,
+            attrs = {"path": attr.string()},
+        )
+
+        def new_local_repository(**kwargs):
+          pass
+        """);
     FileSystemUtils.writeIsoLatin1(
         tools.getRelative("tools/build_defs/repo/utils.bzl"),
         "def maybe(repo_rule, name, **kwargs):",
@@ -126,7 +128,7 @@ public final class BazelPackageLoaderTest extends AbstractPackageLoaderTest {
       // merely need the side-effects of the 'fetch' work.
       PackageIdentifier pkgId = PackageIdentifier.create(externalRepo, PathFragment.create(""));
       try {
-        pkgLoaderForFetch.loadPackage(pkgId);
+        var unused = pkgLoaderForFetch.loadPackage(pkgId);
       } catch (NoSuchPackageException | InterruptedException e) {
         // Doesn't matter; see above comment.
       }

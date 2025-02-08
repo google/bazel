@@ -14,7 +14,8 @@
 
 package com.google.devtools.build.lib.actions;
 
-import com.google.auto.value.AutoValue;
+import static java.util.Objects.requireNonNull;
+
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableMap;
@@ -39,8 +40,13 @@ import javax.annotation.Nullable;
 public class ExecutionRequirements {
 
   /** An execution requirement that can be split into a key and a value part using a regex. */
-  @AutoValue
-  public abstract static class ParseableRequirement {
+  public record ParseableRequirement(
+      String userFriendlyName, Pattern detectionPattern, Function<String, String> validator) {
+    public ParseableRequirement {
+      requireNonNull(userFriendlyName, "userFriendlyName");
+      requireNonNull(detectionPattern, "detectionPattern");
+      requireNonNull(validator, "validator");
+    }
 
     /**
      * Thrown when a {@link ParseableRequirement} feels responsible for a tag, but the {@link
@@ -87,15 +93,8 @@ public class ExecutionRequirements {
      */
     static ParseableRequirement create(
         String userFriendlyName, Pattern detectionPattern, Function<String, String> validator) {
-      return new AutoValue_ExecutionRequirements_ParseableRequirement(
-          userFriendlyName, detectionPattern, validator);
+      return new ParseableRequirement(userFriendlyName, detectionPattern, validator);
     }
-
-    public abstract String userFriendlyName();
-
-    public abstract Pattern detectionPattern();
-
-    public abstract Function<String, String> validator();
 
     /**
      * Returns the parsed value from a tag, if this {@link ParseableRequirement} detects that it is

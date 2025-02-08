@@ -15,13 +15,14 @@
 package com.google.devtools.build.lib.analysis.config;
 
 import static com.google.common.collect.ImmutableList.toImmutableList;
+import static java.util.Objects.requireNonNull;
 
-import com.google.auto.value.AutoValue;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.ImmutableSortedSet;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Streams;
+import com.google.devtools.build.lib.skyframe.serialization.autocodec.AutoCodec;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
@@ -30,16 +31,17 @@ import java.util.Set;
  * Represents a set of "on" features and a set of "off" features. The two sets are guaranteed not to
  * intersect.
  */
-@AutoValue
-public abstract class FeatureSet {
+@AutoCodec
+public record FeatureSet(ImmutableSet<String> on, ImmutableSet<String> off) {
+  public FeatureSet {
+    requireNonNull(on, "on");
+    requireNonNull(off, "off");
+  }
+
   public static final FeatureSet EMPTY = of(ImmutableSet.of(), ImmutableSet.of());
 
-  public abstract ImmutableSet<String> on();
-
-  public abstract ImmutableSet<String> off();
-
   private static FeatureSet of(Set<String> on, Set<String> off) {
-    return new AutoValue_FeatureSet(ImmutableSortedSet.copyOf(on), ImmutableSortedSet.copyOf(off));
+    return new FeatureSet(ImmutableSortedSet.copyOf(on), ImmutableSortedSet.copyOf(off));
   }
 
   /** Parses a {@link FeatureSet} instance from a list of strings. */

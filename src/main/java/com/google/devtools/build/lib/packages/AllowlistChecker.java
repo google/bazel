@@ -13,7 +13,9 @@
 // limitations under the License.
 package com.google.devtools.build.lib.packages;
 
-import com.google.auto.value.AutoValue;
+import static java.util.Objects.requireNonNull;
+
+import com.google.auto.value.AutoBuilder;
 import javax.annotation.Nullable;
 
 /**
@@ -21,9 +23,24 @@ import javax.annotation.Nullable;
  *
  * <p>This class is used at both loading time in packages an thus cannot actually refer to {@link
  * Allowlist}. These are processed in {@link RuleConfiguredTargetBuilder}.
+ *
+ * @param allowlistAttr Return attribute name containing the allowlist to check against.
+ * @param errorMessage Return error message to print if allowlist check fails.
+ * @param locationCheck Return what rule location to check against allowlist.
+ * @param attributeSetTrigger If non-null, check that the attribute is explicitly set before
+ *     checking allowlist.
  */
-@AutoValue
-public abstract class AllowlistChecker {
+public record AllowlistChecker(
+    String allowlistAttr,
+    String errorMessage,
+    LocationCheck locationCheck,
+    @Nullable String attributeSetTrigger) {
+  public AllowlistChecker {
+    requireNonNull(allowlistAttr, "allowlistAttr");
+    requireNonNull(errorMessage, "errorMessage");
+    requireNonNull(locationCheck, "locationCheck");
+  }
+
   /** Track whether checking rule instance or rule definition location */
   public enum LocationCheck {
     INSTANCE, // pass if rule instance in allowlist
@@ -31,25 +48,12 @@ public abstract class AllowlistChecker {
     INSTANCE_OR_DEFINITION // pass if either in allowlist
   }
 
-  /** Return attribute name containing the allowlist to check against. */
-  public abstract String allowlistAttr();
-
-  /** Return error message to print if allowlist check fails. */
-  public abstract String errorMessage();
-
-  /** Return what rule location to check against allowlist. */
-  public abstract LocationCheck locationCheck();
-
-  /** If non-null, check that the attribute is explicitly set before checking allowlist. */
-  @Nullable
-  public abstract String attributeSetTrigger();
-
   public static Builder builder() {
-    return new AutoValue_AllowlistChecker.Builder();
+    return new AutoBuilder_AllowlistChecker_Builder();
   }
 
   /** Standard builder class. */
-  @AutoValue.Builder
+  @AutoBuilder
   public abstract static class Builder {
     public abstract Builder setAllowlistAttr(String allowlistAttr);
 

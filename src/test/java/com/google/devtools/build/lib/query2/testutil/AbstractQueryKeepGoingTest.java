@@ -622,8 +622,8 @@ public abstract class AbstractQueryKeepGoingTest extends QueryTest {
   }
 
   @Test
-  public void testIgnoredPackagePrefixIsTBDQuery() throws Exception {
-    overwriteFile(helper.getIgnoredPackagePrefixesFile().getPathString(), "a/b");
+  public void testIgnoredSubdirectoryIsTBDQuery() throws Exception {
+    overwriteFile(helper.getIgnoredSubdirectoriesFile().getPathString(), "a/b");
     writeFile("a/BUILD", "filegroup(name = 'a')");
     writeFile("a/b/BUILD", "filegroup(name = 'a_b')");
     writeFile("a/b/c/BUILD", "filegroup(name = 'a_b_c')");

@@ -17,9 +17,9 @@ package com.google.testing.junit.runner.junit4;
 import com.google.testing.junit.junit4.runner.RegExTestCaseFilter;
 import com.google.testing.junit.junit4.runner.SuiteTrimmingFilter;
 import com.google.testing.junit.runner.internal.Stdout;
+import com.google.testing.junit.runner.internal.SystemExitDetectingShutdownHook;
 import com.google.testing.junit.runner.internal.junit4.CancellableRequestFactory;
 import com.google.testing.junit.runner.model.TestSuiteModel;
-import com.google.testing.junit.runner.util.GoogleTestSecurityManager;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -51,9 +51,6 @@ public class JUnit4Runner {
   private final JUnit4Config config;
   private final Set<RunListener> runListeners;
   private final Set<Initializer> initializers;
-
-  private GoogleTestSecurityManager googleTestSecurityManager;
-  private SecurityManager previousSecurityManager;
 
   /**
    * Creates a runner.
@@ -107,18 +104,14 @@ public class JUnit4Runner {
 
     File exitFile = getExitFile();
     exitFileActive(exitFile);
+    Thread shutdownHook = SystemExitDetectingShutdownHook.newShutdownHook(testRunnerOut);
+    Runtime.getRuntime().addShutdownHook(shutdownHook);
     try {
-      try {
-        if (config.shouldInstallSecurityManager()) {
-          installSecurityManager();
-        }
-        Request cancellableRequest = requestFactory.createRequest(filteredRequest);
-        return core.run(cancellableRequest);
-      } finally {
-        disableSecurityManager();
-      }
+      Request cancellableRequest = requestFactory.createRequest(filteredRequest);
+      return core.run(cancellableRequest);
     } finally {
       exitFileInactive(exitFile);
+      Runtime.getRuntime().removeShutdownHook(shutdownHook);
     }
   }
 
@@ -248,22 +241,6 @@ public class JUnit4Runner {
 
   private void checkJUnitRunnerApiVersion() {
     config.getJUnitRunnerApiVersion();
-  }
-
-  private void installSecurityManager() {
-    previousSecurityManager = System.getSecurityManager();
-    GoogleTestSecurityManager newSecurityManager = new GoogleTestSecurityManager();
-    System.setSecurityManager(newSecurityManager);
-
-    // set field after call to setSecurityManager() in case that call fails
-    googleTestSecurityManager = newSecurityManager;
-  }
-
-  private void disableSecurityManager() {
-    if (googleTestSecurityManager != null) {
-      GoogleTestSecurityManager.uninstallIfInstalled();
-      System.setSecurityManager(previousSecurityManager);
-    }
   }
 
   static class NoOpRunner extends Runner {

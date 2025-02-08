@@ -15,6 +15,7 @@ package net.starlark.java.eval;
 
 import java.util.IllegalFormatException;
 import java.util.Map;
+import java.util.Set;
 import javax.annotation.Nullable;
 import net.starlark.java.syntax.TokenKind;
 
@@ -133,6 +134,11 @@ final class EvalUtils {
             // map | map (usually dicts)
             return Dict.builder().putAll((Map<?, ?>) x).putAll((Map<?, ?>) y).build(mu);
           }
+        } else if (x instanceof Set && y instanceof Set) {
+          // set | set
+          if (semantics.getBool(StarlarkSemantics.EXPERIMENTAL_ENABLE_STARLARK_SET)) {
+            return StarlarkSet.empty().union(Tuple.of(x, y), starlarkThread);
+          }
         }
         break;
 
@@ -140,6 +146,13 @@ final class EvalUtils {
         if (x instanceof StarlarkInt && y instanceof StarlarkInt) {
           // int & int
           return StarlarkInt.and((StarlarkInt) x, (StarlarkInt) y);
+        } else if (x instanceof Set && y instanceof Set) {
+          // set & set
+          if (semantics.getBool(StarlarkSemantics.EXPERIMENTAL_ENABLE_STARLARK_SET)) {
+            StarlarkSet<?> xSet =
+                x instanceof StarlarkSet ? (StarlarkSet<?>) x : StarlarkSet.checkedCopyOf(mu, x);
+            return xSet.intersection(Tuple.of(y), starlarkThread);
+          }
         }
         break;
 
@@ -147,6 +160,13 @@ final class EvalUtils {
         if (x instanceof StarlarkInt && y instanceof StarlarkInt) {
           // int ^ int
           return StarlarkInt.xor((StarlarkInt) x, (StarlarkInt) y);
+        } else if (x instanceof Set && y instanceof Set) {
+          // set ^ set
+          if (semantics.getBool(StarlarkSemantics.EXPERIMENTAL_ENABLE_STARLARK_SET)) {
+            StarlarkSet<?> xSet =
+                x instanceof StarlarkSet ? (StarlarkSet<?>) x : StarlarkSet.checkedCopyOf(mu, x);
+            return xSet.symmetricDifference(y, starlarkThread);
+          }
         }
         break;
 
@@ -186,12 +206,18 @@ final class EvalUtils {
             double z = xf - ((StarlarkInt) y).toFiniteDouble();
             return StarlarkFloat.of(z);
           }
+        } else if (x instanceof Set && y instanceof Set) {
+          // set - set
+          if (semantics.getBool(StarlarkSemantics.EXPERIMENTAL_ENABLE_STARLARK_SET)) {
+            StarlarkSet<?> xSet =
+                x instanceof StarlarkSet ? (StarlarkSet<?>) x : StarlarkSet.checkedCopyOf(mu, x);
+            return xSet.difference(Tuple.of(y), starlarkThread);
+          }
         }
         break;
 
       case STAR:
-        if (x instanceof StarlarkInt) {
-          StarlarkInt xi = (StarlarkInt) x;
+        if (x instanceof StarlarkInt xi) {
           if (y instanceof StarlarkInt) {
             // int * int
             return StarlarkInt.multiply(xi, (StarlarkInt) y);
@@ -300,9 +326,8 @@ final class EvalUtils {
             return StarlarkFloat.mod(xf, yf);
           }
 
-        } else if (x instanceof String) {
+        } else if (x instanceof String xs) {
           // string % any
-          String xs = (String) x;
           try {
             if (y instanceof Tuple) {
               return Starlark.formatWithList(semantics, xs, (Tuple) y);
@@ -344,8 +369,8 @@ final class EvalUtils {
         return compare(x, y) >= 0;
 
       case IN:
-        if (y instanceof StarlarkIndexable) {
-          return ((StarlarkIndexable) y).containsKey(semantics, x);
+        if (y instanceof StarlarkMembershipTestable) {
+          return ((StarlarkMembershipTestable) y).containsKey(semantics, x);
         } else if (y instanceof StarlarkIndexable.Threaded) {
           return ((StarlarkIndexable.Threaded) y).containsKey(starlarkThread, semantics, x);
         } else if (y instanceof String) {
@@ -460,8 +485,7 @@ final class EvalUtils {
       // it should go in the implementations of StarlarkIndexable#getIndex that produce non-Starlark
       // values.
       return result == null ? null : Starlark.fromJava(result, mu);
-    } else if (object instanceof String) {
-      String string = (String) object;
+    } else if (object instanceof String string) {
       int index = Starlark.toInt(key, "string index");
       index = getSequenceIndex(index, string.length());
       return StringModule.memoizedCharToString(string.charAt(index));

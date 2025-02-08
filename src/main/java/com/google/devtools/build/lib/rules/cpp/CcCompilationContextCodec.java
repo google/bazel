@@ -26,6 +26,7 @@ import com.google.devtools.build.lib.skyframe.serialization.DynamicCodec;
 import com.google.devtools.build.lib.skyframe.serialization.DynamicCodec.FieldHandler;
 import com.google.devtools.build.lib.skyframe.serialization.SerializationContext;
 import com.google.devtools.build.lib.skyframe.serialization.SerializationException;
+
 import com.google.protobuf.CodedInputStream;
 import com.google.protobuf.CodedOutputStream;
 import java.io.IOException;
@@ -76,6 +77,7 @@ final class CcCompilationContextCodec extends AsyncObjectCodec<CcCompilationCont
       this.headerInfoOffset = headerInfoOffset;
     }
 
+    // TODO: b/386384684 - remove Unsafe usage
     @Override
     public void serialize(SerializationContext context, CodedOutputStream codedOut, Object obj)
         throws SerializationException, IOException {
@@ -98,6 +100,7 @@ final class CcCompilationContextCodec extends AsyncObjectCodec<CcCompilationCont
           (FieldSetter<CcCompilationContext>) this);
     }
 
+    // TODO: b/386384684 - remove Unsafe usage
     @Override
     public void set(CcCompilationContext context, Object obj) {
       unsafe().putObject(context, headerInfoOffset, (HeaderInfo) obj);

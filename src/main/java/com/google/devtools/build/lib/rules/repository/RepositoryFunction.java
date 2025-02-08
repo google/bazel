@@ -24,6 +24,7 @@ import com.google.devtools.build.lib.analysis.BlazeDirectories;
 import com.google.devtools.build.lib.analysis.RuleDefinition;
 import com.google.devtools.build.lib.cmdline.Label;
 import com.google.devtools.build.lib.cmdline.LabelConstants;
+import com.google.devtools.build.lib.cmdline.LabelSyntaxException;
 import com.google.devtools.build.lib.cmdline.RepositoryName;
 import com.google.devtools.build.lib.concurrent.ThreadSafety.ThreadSafe;
 import com.google.devtools.build.lib.packages.NoSuchPackageException;
@@ -184,8 +185,8 @@ public abstract class RepositoryFunction {
    *     fields set.
    * @param recordedInputValues Any recorded inputs (and their values) encountered during the fetch
    *     of the repo. Changes to these inputs will result in the repo being refetched in the future.
-   *     The {@link #verifyRecordedInputs} method is responsible for checking the value added to
-   *     that map when checking the content of a marker file. Not an ImmutableMap, because
+   *     The {@link #isAnyRecordedInputOutdated} method is responsible for checking the value added
+   *     to that map when checking the content of a marker file. Not an ImmutableMap, because
    *     regrettably the values can be null sometimes.
    */
   public record FetchResult(
@@ -196,8 +197,8 @@ public abstract class RepositoryFunction {
       throws RepositoryFunctionException, InterruptedException {
     if (!isWorkspaceRepo(rule)) {
       // If this native repo rule is used in a Bzlmod context, always allow it. This is because
-      // we're still using the native `local_repository` for `local_path_override`, and it's
-      // nontrivial to migrate that one to the Starlark version.
+      // we're still using the native repo rule `local_config_platform` for the builtin module with
+      // the same name. We should just get rid of that.
       return;
     }
     if (!RepositoryDelegatorFunction.DISABLE_NATIVE_REPO_RULES.get(env)) {
@@ -214,17 +215,16 @@ public abstract class RepositoryFunction {
   }
 
   /**
-   * Verify the data provided by the marker file to check if a refetch is needed. Returns true if
-   * the data is up to date and no refetch is needed and false if the data is obsolete and a refetch
-   * is needed.
+   * Verify the data provided by the marker file to check if a refetch is needed. Returns an empty
+   * Optional if the data is up to date and no refetch is needed and an Optional with a
+   * human-readable reason if the data is obsolete and a refetch is needed.
    */
-  public boolean verifyRecordedInputs(
-      Rule rule,
+  public Optional<String> isAnyRecordedInputOutdated(
       BlazeDirectories directories,
       Map<RepoRecordedInput, String> recordedInputValues,
       Environment env)
       throws InterruptedException {
-    return RepoRecordedInput.areAllValuesUpToDate(env, directories, recordedInputValues);
+    return RepoRecordedInput.isAnyValueOutdated(env, directories, recordedInputValues);
   }
 
   public static RootedPath getRootedPathFromLabel(Label label, Environment env)
@@ -404,8 +404,15 @@ public abstract class RepositoryFunction {
       // repository path.
       return;
     }
-    String repositoryName = repositoryPath.getSegment(0);
-    env.getValue(RepositoryDirectoryValue.key(RepositoryName.createUnvalidated(repositoryName)));
+    RepositoryName repositoryName;
+    try {
+      repositoryName = RepositoryName.create(repositoryPath.getSegment(0));
+    } catch (LabelSyntaxException ignored) {
+      // The directory of a repository with an invalid name can never exist, so we don't need to
+      // add a dependency on it.
+      return;
+    }
+    env.getValue(RepositoryDirectoryValue.key(repositoryName));
   }
 
   /** Sets up a mapping of environment variables to use. */

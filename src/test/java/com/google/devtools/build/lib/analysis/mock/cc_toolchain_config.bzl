@@ -369,6 +369,7 @@ _static_env_feature = feature(
                 ACTION_NAMES.cpp_compile,
                 ACTION_NAMES.cpp_header_parsing,
                 ACTION_NAMES.cpp_module_compile,
+                ACTION_NAMES.lto_backend,
             ],
             env_entries = [
                 env_entry(

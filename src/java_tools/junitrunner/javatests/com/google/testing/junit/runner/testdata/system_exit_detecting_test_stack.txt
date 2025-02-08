@@ -1,0 +1,5 @@
+
+System.exit or Runtime.exit was called!
+        at java.lang.Runtime.exit(Runtime.java:XXX)
+        at java.lang.System.exit(System.java:XXX)
+        at com.google.testing.junit.runner.ProgramThatCallsSystemExit.main(ProgramThatCallsSystemExit.java:XXX)

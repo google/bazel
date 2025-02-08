@@ -41,6 +41,23 @@ source "$(rlocation "io_bazel/src/test/shell/integration_test_setup.sh")" \
 
 cd "$TEST_TMPDIR"
 
+case "$(uname -s | tr [:upper:] [:lower:])" in
+msys*|mingw*|cygwin*)
+  declare -r is_windows=true
+  ;;
+*)
+  declare -r is_windows=false
+  ;;
+esac
+
+if $is_windows; then
+  export LC_ALL=C.utf8
+elif [[ "$(uname -s)" == "Linux" ]]; then
+  export LC_ALL=C.UTF-8
+else
+  export LC_ALL=en_US.UTF-8
+fi
+
 function set_up() {
     cd ${WORKSPACE_DIR}
 }
@@ -51,8 +68,7 @@ function tear_down() {
 }
 
 function helper() {
-  startup_option="$1"
-  command_option="$2"
+  command_option="$1"
   # Name of the calling function to end up using distinct packages.
   local -r pkg=${FUNCNAME[1]}
   mkdir $pkg || fail "mkdir $pkg"
@@ -65,9 +81,9 @@ genrule(
 )
 EOF
   touch "$pkg/whocares.in"
-  bazel $startup_option build $command_option "//$pkg:foo" &> "$TEST_log" \
+  bazel build $command_option "//$pkg:foo" &> "$TEST_log" \
     || fail "Expected success."
-  bazel $startup_option build $command_option "//$pkg:foo" \
+  bazel build $command_option "//$pkg:foo" \
     --record_full_profiler_data \
     --noslim_profile \
     --profile=/tmp/profile.log &> "$TEST_log" || fail "Expected success."
@@ -76,27 +92,86 @@ EOF
 }
 
 function test_nowatchfs() {
-  helper "" ""
+  helper ""
   local -r pkg=${FUNCNAME[0]}
   expect_log "VFS stat.*${pkg}/whocares.in"
 }
 
-function test_startup() {
-  helper "--watchfs" ""
-  local -r pkg=${FUNCNAME[0]}
-  expect_not_log "VFS stat.*${pkg}/whocares.in"
-}
-
 function test_command() {
-  helper "" "--watchfs"
+  helper "--watchfs"
   local -r pkg=${FUNCNAME[0]}
   expect_not_log "VFS stat.*${pkg}/whocares.in"
 }
 
-function test_both() {
-  helper "--watchfs" "--watchfs"
+function test_special_chars() {
+  bazel info
+  mkdir -p empty || fail "mkdir empty"
+  touch empty/BUILD
+  bazel build --watchfs //empty/... &> "$TEST_log" || fail "Expected success."
+  expect_not_log "Hello, Unicode!"
+
+  mkdir pkg || fail "mkdir pkg"
+  cat > pkg/BUILD << 'EOF'
+print("Hello, Unicode!")
+
+genrule(
+    name = "foo",
+    srcs = ["foo 🌱.in"],
+    outs = ["foo.out"],
+    output_to_bindir = True,
+    cmd = "cp '$<' $@",
+)
+EOF
+  cat > 'pkg/foo 🌱.in' << 'EOF'
+foo
+EOF
+
+  sleep 5
+  bazel build --watchfs //pkg/... &> "$TEST_log" || fail "Expected success."
+  expect_not_log "WARNING:.*falling back to manually"
+  expect_log "Hello, Unicode!"
+  assert_contains "foo" "${PRODUCT_NAME}-bin/pkg/foo.out"
+
+  cat > 'pkg/foo 🌱.in' << 'EOF'
+bar
+EOF
+
+  sleep 5
+  bazel build --watchfs //pkg/... &> "$TEST_log" || fail "Expected success."
+  expect_not_log "WARNING:.*falling back to manually"
+  expect_not_log "Hello, Unicode!"
+  assert_contains "bar" "${PRODUCT_NAME}-bin/pkg/foo.out"
+}
+
+function test_large_number_of_files() {
+  if [[ "${PLATFORM-}" == "darwin" ]]; then
+    # Tests Linux-specific JVM flags.
+    return 0
+  fi
+
   local -r pkg=${FUNCNAME[0]}
-  expect_not_log "VFS stat.*${pkg}/whocares.in"
+  mkdir $pkg || fail "mkdir $pkg"
+  cat > "$pkg/BUILD" << 'EOF'
+genrule(
+    name = "gen",
+    outs = ["out"],
+    srcs = [":srcs"],
+    cmd = "touch $@",
+)
+
+filegroup(
+    name = "srcs",
+    srcs = glob(["*.txt"]),
+)
+EOF
+  touch "$pkg/1.txt"
+  bazel build --watchfs "//$pkg:gen" &> "$TEST_log" || fail "Expected success."
+
+  # By default, the JVM will only report up to 500 changed files per directory before it overflows.
+  # https://github.com/openjdk/jdk/blob/2faf8b8d582183275b1fdc92313a1c63c1753e80/src/java.base/share/classes/sun/nio/fs/AbstractWatchKey.java#L40
+  touch "$pkg/{1..600}.txt"
+  bazel build --watchfs "//$pkg:gen" &> "$TEST_log" || fail "Expected success."
+  expect_not_log "WARNING:"
 }
 
 run_suite "Integration tests for --watchfs."

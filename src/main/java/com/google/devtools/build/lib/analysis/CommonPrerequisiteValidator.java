@@ -228,8 +228,7 @@ public abstract class CommonPrerequisiteValidator implements PrerequisiteValidat
     // same-logical-package as this location, a property that doesn't apply to targets created in
     // symbolic macros. Calling isSameLogicalPackage() takes care of both of these checks. Note that
     // we don't need to worry about the package's default_visibility at this stage because
-    // it is already accounted for at loading time by the target's getVisibility() accessor (or
-    // earlier).
+    // it is already accounted for at loading time by the target's getVisibility() accessor.
     //
     // TODO: #19922 - The same-logical-package logic should also be applied in the loading phase, to
     // the propagated visibility attribute inside symbolic macros, so that it applies to targets

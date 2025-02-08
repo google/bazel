@@ -82,7 +82,7 @@ public class StarlarkDocExtract implements RuleConfiguredTargetFactory {
   public ConfiguredTarget create(RuleContext ruleContext)
       throws ActionConflictException, InterruptedException, RuleErrorException {
     RepositoryMappingValue mainRepositoryMappingValue = getMainRepositoryMappingValue(ruleContext);
-    RepositoryMapping repositoryMapping = mainRepositoryMappingValue.getRepositoryMapping();
+    RepositoryMapping repositoryMapping = mainRepositoryMappingValue.repositoryMapping();
     Module module = loadModule(ruleContext, repositoryMapping);
     if (module == null) {
       // Skyframe restart
@@ -94,7 +94,7 @@ public class StarlarkDocExtract implements RuleConfiguredTargetFactory {
     verifyModuleDeps(ruleContext, module, repositoryMapping);
     Optional<String> mainRepoName = Optional.empty();
     if (ruleContext.attributes().get(RENDER_MAIN_REPO_NAME, BOOLEAN)) {
-      mainRepoName = mainRepositoryMappingValue.getAssociatedModuleName();
+      mainRepoName = mainRepositoryMappingValue.associatedModuleName();
       if (mainRepoName.isEmpty()) {
         mainRepoName = Optional.of(ruleContext.getWorkspaceName());
       }

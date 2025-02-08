@@ -13,7 +13,7 @@
 // limitations under the License.
 package com.google.devtools.build.lib.packages;
 
-import com.google.auto.value.AutoValue;
+import com.google.auto.value.AutoBuilder;
 import com.google.devtools.build.lib.analysis.config.transitions.TransitionFactory;
 import com.google.devtools.build.lib.cmdline.Label;
 import javax.annotation.Nullable;
@@ -21,37 +21,28 @@ import javax.annotation.Nullable;
 /**
  * Helper class which contains data used by a {@link TransitionFactory} to create a transition for
  * attributes.
+ *
+ * @param attributes Returns the {@link AttributeMap} which can be used to create a transition.
+ * @param executionPlatform Returns the {@link Label} of the execution platform used by the
+ *     configured target this transition factory is part of.
+ * @param analysisData Optional parameter to let callers instantiate objects that the {@code
+ *     lib.packages} library can't resolve. This class is both defined in {@code lib.packages} and
+ *     referenced by other files in that package.
+ *     <p>Callers are responsible for ensuring correct casting between writes and reads.
  */
-@AutoValue
-public abstract class AttributeTransitionData implements TransitionFactory.Data {
-  /** Returns the {@link AttributeMap} which can be used to create a transition. */
-  @Nullable
-  public abstract AttributeMap attributes();
-
-  /**
-   * Returns the {@link Label} of the execution platform used by the configured target this
-   * transition factory is part of.
-   */
-  @Nullable
-  public abstract Label executionPlatform();
-
-  /**
-   * Optional parameter to let callers instantiate objects that the {@code lib.packages} library
-   * can't resolve. This class is both defined in {@code lib.packages} and referenced by other files
-   * in that package.
-   *
-   * <p>Callers are responsible for ensuring correct casting between writes and reads.
-   */
-  @Nullable
-  public abstract Object analysisData();
+public record AttributeTransitionData(
+    @Nullable AttributeMap attributes,
+    @Nullable Label executionPlatform,
+    @Nullable Object analysisData)
+    implements TransitionFactory.Data {
 
   /** Returns a new {@link Builder} for {@link AttributeTransitionData}. */
   public static Builder builder() {
-    return new AutoValue_AttributeTransitionData.Builder();
+    return new AutoBuilder_AttributeTransitionData_Builder();
   }
 
   /** Builder class for {@link AttributeTransitionData}. */
-  @AutoValue.Builder
+  @AutoBuilder
   public abstract static class Builder {
     /** Sets the attributes. */
     public abstract Builder attributes(@Nullable AttributeMap attributes);

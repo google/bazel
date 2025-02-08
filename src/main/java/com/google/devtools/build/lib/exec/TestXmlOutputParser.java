@@ -149,7 +149,7 @@ public final class TestXmlOutputParser {
       if (name.equals("name")) {
         builder.setName(value);
       } else if (name.equals("time")) {
-        builder.setRunDurationMillis(parseTime(value));
+        builder.setRunDurationMillis(parseTimeToMillis(value));
       }
     }
 
@@ -158,18 +158,23 @@ public final class TestXmlOutputParser {
   }
 
   /**
-   * Parses a time in test.xml format.
+   * Parses a time value in test.xml xs:decimal format, returned as milliseconds.
    *
-   * @throws NumberFormatException if the time is malformed (i.e. is neither an integer nor a
-   *     decimal fraction with '.' as the fraction separator)
+   * @throws NumberFormatException if the given string is not a valid per {@link Float#valueOf}
    */
-  private long parseTime(String string) {
+  private long parseTimeToMillis(String string) {
+    // xs:decimal values are supposed to look like "12.34" and represent a number of seconds,
+    // however we also support two other formats.
+    //   * "12" (no decimal point). For Historical Reasons we assume this is a number of
+    //     milliseconds.
+    //   * "1e2" or "1.2E3" (scientific e notation). Some JUNIT writers incorrectly don't use
+    //     xs:decimal, and we want Bazel to still work with them. See
+    //     https://github.com/bazelbuild/bazel/issues/24605.
 
-    // This is ugly. For Historical Reasons, we have to check whether the number
-    // contains a decimal point or not. If it does, the number is expressed in
-    // milliseconds, otherwise, in seconds.
-    if (string.contains(".")) {
-      return Math.round(Float.parseFloat(string) * 1000);
+    if (string.contains(".") || string.contains("e") || string.contains("E")) {
+      // test.xml times are supposed to be in seconds.
+      float seconds = Float.parseFloat(string);
+      return Math.round(seconds * 1000);
     } else {
       return Long.parseLong(string);
     }
@@ -194,7 +199,7 @@ public final class TestXmlOutputParser {
       if (name.equals("classname")) {
         builder.setClassName(value);
       } else if (name.equals("time")) {
-        builder.setRunDurationMillis(parseTime(value));
+        builder.setRunDurationMillis(parseTimeToMillis(value));
       }
     }
 
@@ -308,7 +313,7 @@ public final class TestXmlOutputParser {
       switch (name) {
         case "name" -> builder.setName(value);
         case "classname" -> builder.setClassName(value);
-        case "time" -> builder.setRunDurationMillis(parseTime(value));
+        case "time" -> builder.setRunDurationMillis(parseTimeToMillis(value));
         case "result" -> builder.setResult(value);
         case "status" -> {
           if (value.equals("notrun")) {

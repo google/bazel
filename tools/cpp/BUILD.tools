@@ -19,6 +19,9 @@ licenses(["notice"])
 # The toolchain type used to distinguish cc toolchains.
 toolchain_type(name = "toolchain_type")
 
+# The toolchain type used to for cc runtimes.
+toolchain_type(name = "cc_runtimes_toolchain_type")
+
 # The toolchain_type used for cc test runners.
 toolchain_type(name = "test_runner_toolchain_type")
 

@@ -246,7 +246,7 @@ public final class MockObjcSupport {
       config.create(TestConstants.APPLE_PLATFORM_PATH + "/simulator/BUILD", simulatorPlatforms);
     }
 
-    for (String tool : ImmutableSet.of("objc_dummy.mm", "gcov", "testrunner", "mcov", "libtool")) {
+    for (String tool : ImmutableSet.of("gcov", "testrunner", "mcov", "libtool")) {
       config.create(TestConstants.TOOLS_REPOSITORY_SCRATCH + "tools/objc/" + tool);
     }
     config.create(
@@ -256,10 +256,6 @@ public final class MockObjcSupport {
         "exports_files(glob(['**']))",
         "filegroup(name = 'default_provisioning_profile', srcs = ['foo.mobileprovision'])",
         "filegroup(name = 'xctest_infoplist', srcs = ['xctest.plist'])",
-        "py_binary(",
-        "  name = 'j2objc_dead_code_pruner_binary',",
-        "  srcs = ['j2objc_dead_code_pruner_binary.py']",
-        ")",
         "xcode_config(name = 'host_xcodes',",
         "  default = ':version7_3_1',",
         "  versions = [':version7_3_1', ':version5_0', ':version7_3', ':version5_8', ':version5'])",

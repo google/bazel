@@ -9,10 +9,7 @@ sh_test(
     size = "enormous",
     srcs = ["ijar_test.sh"],
     args = [
-        "$(JAVABASE)/bin/javac",
-        "$(JAVABASE)/bin/java",
-        "$(JAVABASE)/bin/jar",
-        "$(JAVABASE)/bin/javap",
+        "$(JAVABASE)",
         "$(location //third_party/ijar)",
         # We assume unzip and zip to be on the path
         "unzip",
@@ -46,6 +43,7 @@ sh_test(
         # wrong.
         "libwrongcentraldir.jar",
         ":dynamic_constant.jar",
+        "@bazel_tools//tools/bash/runfiles",
         "@bazel_tools//tools/jdk:current_java_runtime",
     ],
     shard_count = 5,

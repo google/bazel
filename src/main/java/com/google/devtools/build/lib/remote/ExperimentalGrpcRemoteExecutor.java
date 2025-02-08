@@ -79,7 +79,7 @@ public class ExperimentalGrpcRemoteExecutor implements RemoteExecutionClient {
     return ExecutionGrpc.newBlockingStub(channel)
         .withInterceptors(TracingMetadataUtils.attachMetadataInterceptor(metadata))
         .withCallCredentials(callCredentialsProvider.getCallCredentials())
-        .withDeadlineAfter(remoteOptions.remoteTimeout.getSeconds(), SECONDS);
+        .withDeadlineAfter(remoteOptions.remoteTimeout.toSeconds(), SECONDS);
   }
 
   private static class Execution {

@@ -76,7 +76,7 @@ public abstract class ToolchainTestCase extends BuildViewTestCase {
   protected static List<Label> collectToolchainLabels(
       List<DeclaredToolchainInfo> toolchains, @Nullable PackageIdentifier packageRoot) {
     return toolchains.stream()
-        .map(toolchain -> toolchain.toolchainLabel())
+        .map(DeclaredToolchainInfo::resolvedToolchainLabel)
         .filter(label -> filterLabel(packageRoot, label))
         .collect(Collectors.toList());
   }

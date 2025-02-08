@@ -1458,8 +1458,20 @@ public final class OptionsParserTest {
         OptionsParser.builder().optionsClasses(ExpansionWarningOptions.class).build();
     parser.parse("--first", "--second");
     assertThat(parser.getWarnings())
-        .containsExactly(
-            "option '--underlying' was expanded to from both option '--first' and option "
+        .contains(
+            "option '--underlying' was expanded from both option '--first' and option "
+                + "'--second'");
+  }
+
+  @Test
+  public void noWarningForTwoConflictingExpansionOptionsFromRcFile() throws Exception {
+    OptionsParser parser =
+        OptionsParser.builder().optionsClasses(ExpansionWarningOptions.class).build();
+    parser.parse(
+        OptionPriority.PriorityCategory.RC_FILE, null, ImmutableList.of("--first", "--second"));
+    assertThat(parser.getWarnings())
+        .doesNotContain(
+            "option '--underlying' was expanded from both option '--first' and option "
                 + "'--second'");
   }
 
@@ -2639,6 +2651,15 @@ public final class OptionsParserTest {
         PriorityCategory.RC_FILE, o -> ".bazelrc", ImmutableList.of("--foo"), null);
 
     assertThat(parser.getUserOptions().keySet()).containsExactly("--foo", "--nobar");
+  }
+
+  @Test
+  public void testOptionsParser_explicitOptions_excludesFlagsetOptions() throws Exception {
+    OptionsParser parser = OptionsParser.builder().optionsClasses(ExampleFoo.class).build();
+    parser.parse(
+        PriorityCategory.RC_FILE, "//test:PROJECT.scl", ImmutableList.of("--foo=set_by_flagset"));
+    assertThat(parser.asListOfExplicitOptions()).isEmpty();
+    assertThat(parser.canonicalize()).contains("--foo=set_by_flagset");
   }
 
   @Test

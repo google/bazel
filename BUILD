@@ -2,6 +2,7 @@
 
 load("@bazel_skylib//rules:write_file.bzl", "write_file")
 load("@rules_license//rules:license.bzl", "license")
+load("@rules_pkg//pkg:mappings.bzl", "pkg_attributes", "pkg_files")
 load("@rules_pkg//pkg:tar.bzl", "pkg_tar")
 load("@rules_python//python:defs.bzl", "py_binary")
 load("//src/tools/bzlmod:utils.bzl", "get_canonical_repo_name")
@@ -82,8 +83,9 @@ genrule(
         "MODULE.bazel",
         "//third_party/remoteapis:MODULE.bazel",
         "//third_party:BUILD",
-        "//third_party:rules_jvm_external_6.0.patch",
+        "//third_party:rules_jvm_external_6.5.patch",
         "//third_party:rules_graalvm_fix.patch",
+        "//third_party:rules_graalvm_unicode.patch",
     ],
     outs = ["MODULE.bazel.lock.dist"],
     cmd = " && ".join([
@@ -109,9 +111,10 @@ pkg_tar(
     srcs = [
         "//third_party/googleapis:dist_jars",
         "//third_party/grpc-java:grpc_jars",
-        "@protobuf//:protobuf_java",
-        "@protobuf//:protobuf_java_util",
-        "@protobuf//:protobuf_javalite",
+        "@async_profiler//file",
+        "@com_google_protobuf//:protobuf_java",
+        "@com_google_protobuf//:protobuf_java_util",
+        "@com_google_protobuf//:protobuf_javalite",
         "@zstd-jni//:zstd-jni",
     ],
     package_dir = "derived/jars",
@@ -155,16 +158,28 @@ filegroup(
     ],
 )
 
+# Bazel sources excluding files that are not needed in the distfile.
+pkg_files(
+    name = "dist-srcs",
+    srcs = ["//:srcs"],
+    attributes = pkg_attributes(mode = "0755"),
+    excludes = [
+        "//examples:srcs",
+        "//site:srcs",
+        "//src:srcs-to-exclude-in-distfile",
+    ],
+    renames = {
+        "MODULE.bazel.lock.dist": "MODULE.bazel.lock",
+    },
+    strip_prefix = "/",  # Ensure paths are relative to the workspace root.
+)
+
 pkg_tar(
     name = "bazel-srcs",
     srcs = [
+        ":dist-srcs",
         ":generated_resources",
-        ":srcs",
     ],
-    # TODO(aiuto): Replace with pkg_filegroup when that is available.
-    remap_paths = {
-        "MODULE.bazel.lock.dist": "MODULE.bazel.lock",
-    },
     strip_prefix = ".",
     # Public but bazel-only visibility.
     visibility = ["//:__subpackages__"],

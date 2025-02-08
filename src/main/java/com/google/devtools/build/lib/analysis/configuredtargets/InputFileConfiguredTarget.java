@@ -16,6 +16,7 @@ package com.google.devtools.build.lib.analysis.configuredtargets;
 
 import static com.google.common.base.Preconditions.checkArgument;
 
+import com.google.devtools.build.lib.actions.ActionLookupKey;
 import com.google.devtools.build.lib.actions.Artifact.SourceArtifact;
 import com.google.devtools.build.lib.analysis.LicensesProvider;
 import com.google.devtools.build.lib.analysis.TargetContext;
@@ -27,8 +28,11 @@ import com.google.devtools.build.lib.packages.BuiltinProvider;
 import com.google.devtools.build.lib.packages.Info;
 import com.google.devtools.build.lib.packages.InputFile;
 import com.google.devtools.build.lib.packages.License;
+import com.google.devtools.build.lib.packages.PackageSpecification.PackageGroupContents;
 import com.google.devtools.build.lib.packages.Provider;
 import com.google.devtools.build.lib.packages.Target;
+import com.google.devtools.build.lib.skyframe.serialization.VisibleForSerialization;
+import com.google.devtools.build.lib.skyframe.serialization.autocodec.AutoCodec;
 import java.util.Objects;
 import javax.annotation.Nullable;
 import net.starlark.java.eval.Printer;
@@ -40,17 +44,34 @@ import net.starlark.java.eval.Printer;
  * here and is always set to <b>null</b>.
  */
 @Immutable
+@AutoCodec
 public final class InputFileConfiguredTarget extends FileConfiguredTarget {
 
   private final NestedSet<TargetLicense> licenses;
   private final boolean isCreatedInSymbolicMacro;
 
   public InputFileConfiguredTarget(TargetContext targetContext, SourceArtifact artifact) {
-    super(targetContext, artifact);
-    this.licenses = makeLicenses(targetContext.getTarget());
-    this.isCreatedInSymbolicMacro = targetContext.getTarget().isCreatedInSymbolicMacro();
+    this(
+        targetContext.getAnalysisEnvironment().getOwner(),
+        targetContext.getVisibility(),
+        artifact,
+        makeLicenses(targetContext.getTarget()),
+        targetContext.getTarget().isCreatedInSymbolicMacro());
     checkArgument(targetContext.getTarget() instanceof InputFile, targetContext.getTarget());
     checkArgument(getConfigurationKey() == null, getLabel());
+  }
+
+  @AutoCodec.Instantiator
+  @VisibleForSerialization
+  InputFileConfiguredTarget(
+      ActionLookupKey lookupKey,
+      NestedSet<PackageGroupContents> visibility,
+      SourceArtifact artifact,
+      NestedSet<TargetLicense> licenses,
+      boolean isCreatedInSymbolicMacro) {
+    super(lookupKey, visibility, artifact);
+    this.licenses = licenses;
+    this.isCreatedInSymbolicMacro = isCreatedInSymbolicMacro;
   }
 
   private static NestedSet<TargetLicense> makeLicenses(Target inputFile) {

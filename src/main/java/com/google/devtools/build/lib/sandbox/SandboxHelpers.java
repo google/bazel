@@ -19,8 +19,8 @@ import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.google.common.collect.ImmutableMap.toImmutableMap;
 import static com.google.devtools.build.lib.vfs.Dirent.Type.DIRECTORY;
 import static com.google.devtools.build.lib.vfs.Dirent.Type.SYMLINK;
+import static java.util.Objects.requireNonNull;
 
-import com.google.auto.value.AutoValue;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
@@ -52,7 +52,6 @@ import com.google.errorprone.annotations.CanIgnoreReturnValue;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Optional;
@@ -452,10 +451,10 @@ public final class SandboxHelpers {
 
   /** Adds additional bind mounts entries from {@code paths} to {@code bindMounts}. */
   public static void mountAdditionalPaths(
-      List<Entry<String, String>> paths, Path sandboxExecRoot, SortedMap<Path, Path> bindMounts)
+      ImmutableMap<String, String> paths, Path sandboxExecRoot, SortedMap<Path, Path> bindMounts)
       throws UserExecException {
     FileSystem fs = sandboxExecRoot.getFileSystem();
-    for (Map.Entry<String, String> additionalMountPath : paths) {
+    for (Map.Entry<String, String> additionalMountPath : paths.entrySet()) {
       try {
         final Path mountTarget = fs.getPath(additionalMountPath.getValue());
         // If source path is relative, treat it as a relative path inside the execution root
@@ -562,15 +561,19 @@ public final class SandboxHelpers {
     return new SandboxInputs(inputFiles, virtualInputs, inputSymlinks);
   }
 
-  /** The file and directory outputs of a sandboxed spawn. */
-  @AutoValue
-  public abstract static class SandboxOutputs {
-
-    /** A map from output file exec paths to paths in the sandbox. */
-    public abstract ImmutableMap<PathFragment, PathFragment> files();
-
-    /** A map from output directory exec paths to paths in the sandbox. */
-    public abstract ImmutableMap<PathFragment, PathFragment> dirs();
+  /**
+   * The file and directory outputs of a sandboxed spawn.
+   *
+   * @param files A map from output file exec paths to paths in the sandbox.
+   * @param dirs A map from output directory exec paths to paths in the sandbox.
+   */
+  public record SandboxOutputs(
+      ImmutableMap<PathFragment, PathFragment> files,
+      ImmutableMap<PathFragment, PathFragment> dirs) {
+    public SandboxOutputs {
+      requireNonNull(files, "files");
+      requireNonNull(dirs, "dirs");
+    }
 
     private static final SandboxOutputs EMPTY_OUTPUTS =
         SandboxOutputs.create(ImmutableMap.of(), ImmutableMap.of());
@@ -578,12 +581,12 @@ public final class SandboxHelpers {
     public static SandboxOutputs create(
         ImmutableMap<PathFragment, PathFragment> files,
         ImmutableMap<PathFragment, PathFragment> dirs) {
-      return new AutoValue_SandboxHelpers_SandboxOutputs(files, dirs);
+      return new SandboxOutputs(files, dirs);
     }
 
     public static SandboxOutputs create(
         ImmutableSet<PathFragment> files, ImmutableSet<PathFragment> dirs) {
-      return new AutoValue_SandboxHelpers_SandboxOutputs(
+      return new SandboxOutputs(
           files.stream().collect(toImmutableMap(f -> f, f -> f)),
           dirs.stream().collect(toImmutableMap(d -> d, d -> d)));
     }

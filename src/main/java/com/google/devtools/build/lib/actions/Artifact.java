@@ -98,7 +98,7 @@ import net.starlark.java.eval.StarlarkSemantics;
  *   <li>A directory of unknown contents, but not a TreeArtifact. This is a legacy facility and
  *       should not be used by any new rule implementations. In particular, the file system cache
  *       integrity checks fail for directories.
- *   <li>A middleman special Artifact.
+ *   <li>A runfiles tree.
  *   <li>A 'constant metadata' special Artifact. These represent real files, changes to which are
  *       ignored by the build system. They are useful for files which change frequently but do not
  *       affect the result of a build, such as timestamp files.
@@ -190,7 +190,7 @@ public abstract sealed class Artifact
   @ThreadSafety.ThreadSafe
   public static SkyKey key(Artifact artifact) {
     if (artifact.isTreeArtifact()
-        || artifact.isMiddlemanArtifact()
+        || artifact.isRunfilesTree()
         || !artifact.hasKnownGeneratingAction()) {
       return artifact;
     }
@@ -220,8 +220,8 @@ public abstract sealed class Artifact
     return EXEC_PATH_COMPARATOR.compare(this, o);
   }
 
-  /** A Predicate that evaluates to true if the Artifact is not a middleman artifact. */
-  public static final Predicate<Artifact> MIDDLEMAN_FILTER = input -> !input.isMiddlemanArtifact();
+  /** A Predicate that evaluates to true if the Artifact is not a runfiles tree. */
+  public static final Predicate<Artifact> RUNFILES_FILTER = input -> !input.isRunfilesTree();
 
   private final ArtifactRoot root;
 
@@ -501,8 +501,8 @@ public abstract sealed class Artifact
    * Gets the {@code ActionLookupKey} of the {@code ConfiguredTarget} that owns this artifact, if it
    * was set. Otherwise, this should be a dummy value -- either {@link ArtifactOwner#NULL_OWNER} or
    * a dummy owner set in tests. Such a dummy value should only occur for source artifacts if
-   * created without specifying the owner, or for special derived artifacts, such as target
-   * completion middleman artifacts, build info artifacts, and the like.
+   * created without specifying the owner, or for special derived artifacts, such as build info
+   * artifacts.
    */
   public abstract ArtifactOwner getArtifactOwner();
 
@@ -639,7 +639,7 @@ public abstract sealed class Artifact
    *
    * <p>If true, this artifact is necessarily a {@link DerivedArtifact}.
    */
-  public boolean isMiddlemanArtifact() {
+  public boolean isRunfilesTree() {
     return false;
   }
 
@@ -863,7 +863,7 @@ public abstract sealed class Artifact
    */
   @VisibleForTesting
   public enum SpecialArtifactType {
-    /** A runfiles tree ("runfiles middleman" in legacy parlance") */
+    /** A runfiles tree. */
     RUNFILES,
 
     /** Google-specific legacy type. */
@@ -906,7 +906,7 @@ public abstract sealed class Artifact
     }
 
     @Override
-    public boolean isMiddlemanArtifact() {
+    public boolean isRunfilesTree() {
       return type == SpecialArtifactType.RUNFILES;
     }
 
@@ -1207,63 +1207,59 @@ public abstract sealed class Artifact
   public static final Function<Artifact, String> ROOT_RELATIVE_PATH_STRING =
       artifact -> artifact.getRootRelativePath().getPathString();
 
-  public static final Function<Artifact, String> RUNFILES_PATH_STRING =
-      artifact -> artifact.getRunfilesPath().getPathString();
-
   /**
-   * Converts a collection of artifacts into execution-time path strings, and
-   * adds those to a given collection. Middleman artifacts are ignored by this
-   * method.
+   * Converts a collection of artifacts into execution-time path strings, and adds those to a given
+   * collection. Runfiles trees are ignored by this method.
    */
   public static void addExecPaths(Iterable<Artifact> artifacts, Collection<String> output) {
-    addNonMiddlemanArtifacts(artifacts, output, ActionInput::getExecPathString);
+    addNonRunfilesTreeArtifacts(artifacts, output, ActionInput::getExecPathString);
   }
 
   /**
    * Converts a collection of artifacts into the outputs computed by outputFormatter and adds them
-   * to a given collection. Middleman artifacts are ignored.
+   * to a given collection. Runfiles trees are ignored.
    */
-  private static <E> void addNonMiddlemanArtifacts(
+  private static <E> void addNonRunfilesTreeArtifacts(
       Iterable<Artifact> artifacts,
       Collection<? super E> output,
       Function<? super Artifact, E> outputFormatter) {
     for (Artifact artifact : artifacts) {
-      if (MIDDLEMAN_FILTER.apply(artifact)) {
+      if (RUNFILES_FILTER.apply(artifact)) {
         output.add(outputFormatter.apply(artifact));
       }
     }
   }
 
   /**
-   * Lazily converts artifacts into root-relative path strings. Middleman artifacts are ignored by
-   * this method.
+   * Lazily converts artifacts into root-relative path strings. Runfiles trees are ignored by this
+   * method.
    */
   public static Iterable<String> toRootRelativePaths(NestedSet<Artifact> artifacts) {
     return toRootRelativePaths(artifacts.toList());
   }
 
   /**
-   * Lazily converts artifacts into root-relative path strings. Middleman artifacts are ignored by
-   * this method.
+   * Lazily converts artifacts into root-relative path strings. Runfiles trees are ignored by this
+   * method.
    */
   public static Iterable<String> toRootRelativePaths(Iterable<Artifact> artifacts) {
     return Iterables.transform(
-        Iterables.filter(artifacts, MIDDLEMAN_FILTER),
+        Iterables.filter(artifacts, RUNFILES_FILTER),
         artifact -> artifact.getRootRelativePath().getPathString());
   }
 
   /**
-   * Lazily converts artifacts into execution-time path strings. Middleman artifacts are ignored by
-   * this method.
+   * Lazily converts artifacts into execution-time path strings. Runfiles trees are ignored by this
+   * * method.
    */
   public static Iterable<String> toExecPaths(Iterable<Artifact> artifacts) {
     return Iterables.transform(
-        Iterables.filter(artifacts, MIDDLEMAN_FILTER), ActionInput::getExecPathString);
+        Iterables.filter(artifacts, RUNFILES_FILTER), ActionInput::getExecPathString);
   }
 
   /**
    * Converts a collection of artifacts into execution-time path strings, and returns those as an
-   * immutable list. Middleman artifacts are ignored by this method.
+   * immutable list. Runfiles trees are ignored by this method.
    *
    * <p>Avoid this method in production code - it flattens the given nested set unconditionally.
    */
@@ -1273,16 +1269,16 @@ public abstract sealed class Artifact
   }
 
   /**
-   * Converts a collection of artifacts into execution-time path strings, and
-   * returns those as an immutable list. Middleman artifacts are ignored by this method.
+   * Converts a collection of artifacts into execution-time path strings, and returns those as an
+   * immutable list. Runfiles trees are ignored by this method.
    */
   public static List<String> asExecPaths(Iterable<Artifact> artifacts) {
     return ImmutableList.copyOf(toExecPaths(artifacts));
   }
 
   /**
-   * Renders a collection of artifacts as execution-time paths and joins
-   * them into a single string. Middleman artifacts are ignored by this method.
+   * Renders a collection of artifacts as execution-time paths and joins them into a single string.
+   * Runfiles trees are ignored by this method.
    */
   public static String joinExecPaths(String delimiter, Iterable<Artifact> artifacts) {
     return Joiner.on(delimiter).join(toExecPaths(artifacts));

@@ -16,6 +16,7 @@ package com.google.devtools.build.lib.analysis;
 
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.google.common.truth.Truth.assertThat;
+import static com.google.common.truth.Truth.assertWithMessage;
 
 import com.google.common.collect.ImmutableList;
 import com.google.devtools.build.lib.analysis.test.AnalysisFailure;
@@ -23,11 +24,16 @@ import com.google.devtools.build.lib.analysis.test.AnalysisFailureInfo;
 import com.google.devtools.build.lib.analysis.util.BuildViewTestCase;
 import com.google.devtools.build.lib.cmdline.Label;
 import com.google.devtools.build.lib.cmdline.PackageIdentifier;
+import com.google.devtools.build.lib.packages.Attribute;
+import com.google.devtools.build.lib.packages.BuildType;
 import com.google.devtools.build.lib.packages.MacroInstance;
 import com.google.devtools.build.lib.packages.NoSuchPackageException;
 import com.google.devtools.build.lib.packages.Package;
 import com.google.devtools.build.lib.packages.Rule;
+import com.google.devtools.build.lib.packages.RuleClass;
 import com.google.devtools.build.lib.packages.Target;
+import com.google.devtools.build.lib.packages.Type;
+import com.google.devtools.build.lib.packages.Types;
 import com.google.errorprone.annotations.CanIgnoreReturnValue;
 import com.google.testing.junit.testparameterinjector.TestParameterInjector;
 import com.google.testing.junit.testparameterinjector.TestParameters;
@@ -81,7 +87,7 @@ public final class SymbolicMacroTest extends BuildViewTestCase {
       throws Exception {
     Target target = pkg.getTarget(name);
     assertThat(target).isNotNull();
-    return asStringList(target.getVisibility().getDeclaredLabels());
+    return asStringList(target.getActualVisibility().getDeclaredLabels());
   }
 
   /**
@@ -89,7 +95,7 @@ public final class SymbolicMacroTest extends BuildViewTestCase {
    * package.
    */
   private static ImmutableList<String> getMacroVisibility(Package pkg, String id) throws Exception {
-    return asStringList(getMacroById(pkg, id).getVisibility());
+    return asStringList(getMacroById(pkg, id).getActualVisibility());
   }
 
   /**
@@ -168,6 +174,25 @@ public final class SymbolicMacroTest extends BuildViewTestCase {
 
     assertGetPackageFailsWithEvent(
         "pkg", "_impl() got unexpected keyword arguments: name, visibility");
+  }
+
+  @Test
+  public void implementationMustNotReturnAValue() throws Exception {
+    scratch.file(
+        "pkg/foo.bzl",
+        """
+        def _impl(name, visibility):
+            return True
+        my_macro = macro(implementation=_impl)
+        """);
+    scratch.file(
+        "pkg/BUILD",
+        """
+        load(":foo.bzl", "my_macro")
+        my_macro(name="abc")
+        """);
+
+    assertGetPackageFailsWithEvent("pkg", "macro 'abc' may not return a non-None value (got True)");
   }
 
   /**
@@ -778,16 +803,19 @@ public final class SymbolicMacroTest extends BuildViewTestCase {
     scratch.file(
         "pkg/foo.bzl",
         """
-        def _impl(name, visibility, dep_nonconfigurable, dep_configurable):
+        def _impl(name, visibility, dep_nonconfigurable, dep_configurable, xyz_configurable):
             print("dep_nonconfigurable is %s" % dep_nonconfigurable)
             print("dep_configurable is %s" % dep_configurable)
+            print("xyz_configurable is %s" % xyz_configurable)
         my_macro = macro(
             implementation = _impl,
             attrs = {
               # Test label type, since LabelType#getDefaultValue returns null.
               "dep_nonconfigurable": attr.label(configurable=False),
-              # Try it again, this time in a select().
-              "dep_configurable": attr.label(configurable=True),
+              # Try it again, this time configurable. Select()-promotion doesn't apply to None.
+              "dep_configurable": attr.label(),
+              # Now do it for a value besides None. Select()-promotion applies.
+              "xyz_configurable": attr.string(),
             },
         )
         """);
@@ -801,7 +829,8 @@ public final class SymbolicMacroTest extends BuildViewTestCase {
     Package pkg = getPackage("pkg");
     assertPackageNotInError(pkg);
     assertContainsEvent("dep_nonconfigurable is None");
-    assertContainsEvent("dep_configurable is select({\"//conditions:default\": None})");
+    assertContainsEvent("dep_configurable is None");
+    assertContainsEvent("xyz_configurable is select({\"//conditions:default\": \"\"})");
   }
 
   @Test
@@ -1154,15 +1183,18 @@ my_macro = macro(
     assertContainsEvent(
         """
 attr_using_schema_default is select({Label("//common:some_configsetting"): None, \
-Label("//conditions:default"): None})""");
+Label("//conditions:default"): None})\
+""");
     assertContainsEvent(
         """
 attr_using_hardcoded_nonnull_default is select({Label("//common:some_configsetting"): None, \
-Label("//conditions:default"): None})""");
+Label("//conditions:default"): None})\
+""");
     assertContainsEvent(
         """
 attr_using_hardcoded_null_default is select({Label("//common:some_configsetting"): None, \
-Label("//conditions:default"): None})""");
+Label("//conditions:default"): None})\
+""");
   }
 
   @Test
@@ -1170,17 +1202,21 @@ Label("//conditions:default"): None})""");
     scratch.file(
         "pkg/foo.bzl",
         """
-        def _impl(name, visibility, configurable_xyz, nonconfigurable_xyz):
+        def _impl(name, visibility,
+                  configurable_xyz, nonconfigurable_xyz, configurable_default_xyz):
             print("configurable_xyz is '%s' (type %s)" %
                 (str(configurable_xyz), type(configurable_xyz)))
             print("nonconfigurable_xyz is '%s' (type %s)" %
                     (str(nonconfigurable_xyz), type(nonconfigurable_xyz)))
+            print("configurable_default_xyz is '%s' (type %s)" %
+                (str(configurable_default_xyz), type(configurable_default_xyz)))
 
         my_macro = macro(
             implementation = _impl,
             attrs = {
               "configurable_xyz": attr.string(),
               "nonconfigurable_xyz": attr.string(configurable=False),
+              "configurable_default_xyz": attr.string(default = "xyz"),
             },
         )
         """);
@@ -1192,6 +1228,7 @@ Label("//conditions:default"): None})""");
             name = "abc",
             configurable_xyz = "configurable",
             nonconfigurable_xyz = "nonconfigurable",
+            # configurable_default_xyz not set
         )
         """);
 
@@ -1200,6 +1237,8 @@ Label("//conditions:default"): None})""");
     assertContainsEvent(
         "configurable_xyz is 'select({\"//conditions:default\": \"configurable\"})' (type select)");
     assertContainsEvent("nonconfigurable_xyz is 'nonconfigurable' (type string)");
+    assertContainsEvent(
+        "configurable_default_xyz is 'select({\"//conditions:default\": \"xyz\"})' (type select)");
   }
 
   @Test
@@ -1305,7 +1344,7 @@ Label("//conditions:default"): None})""");
                 "//Q:cond2": None,
                 "//conditions:default": "//D:D",
             }),
-            configurable_withdefault = select({"//conditions:default": None}),
+            configurable_withdefault = select({"//Q:cond": "//E:E", "//conditions:default": None}),
             visibility = ["//common:my_package_group"],
         )
         """);
@@ -1325,6 +1364,7 @@ Label("//conditions:default"): None})""");
             "//C:C",
             // //Q:cond2 maps to default, which doesn't exist for that attr
             "//D:D",
+            "//E:E",
             "//common:configurable_withdefault", // from attr default
             // `omitted` ignored, it has no default
             // `_implicit_default` ignored because it's implicit
@@ -1458,5 +1498,485 @@ Label("//conditions:default"): None})""");
         .containsExactly("//lib:__pkg__");
     assertThat(getMacroVisibility(pkg, "macro_without_explicit_vis_sub:1"))
         .containsExactly("//lib:__pkg__");
+  }
+
+  @Test
+  public void wrongKeyTypeInAttrsDict_detected() throws Exception {
+    scratch.file(
+        "pkg/foo.bzl",
+        """
+        def _impl(name, visibility, **kwargs):
+            pass
+
+        my_macro = macro(
+            implementation = _impl,
+            attrs = {123: attr.string()},
+        )
+        """);
+    scratch.file(
+        "pkg/BUILD",
+        """
+        load(":foo.bzl", "my_macro")
+        my_macro(name = "abc")
+        """);
+    reporter.removeHandler(failFastHandler);
+    assertThat(getPackage("pkg")).isNull();
+    assertContainsEvent("got dict<int, Attribute> for 'attrs', want dict<string, Attribute|None>");
+  }
+
+  @Test
+  public void wrongKeyValueInAttrsDict_detected() throws Exception {
+    scratch.file(
+        "pkg/foo.bzl",
+        """
+        def _impl(name, visibility, **kwargs):
+            pass
+
+        my_macro = macro(
+            implementation = _impl,
+            attrs = {"bad attr": None},
+        )
+        """);
+    scratch.file(
+        "pkg/BUILD",
+        """
+        load(":foo.bzl", "my_macro")
+        my_macro(name = "abc")
+        """);
+    reporter.removeHandler(failFastHandler);
+    assertThat(getPackage("pkg")).isNull();
+    assertContainsEvent("attribute name `bad attr` is not a valid identifier");
+  }
+
+  @Test
+  public void wrongValueTypeInAttrsDict_detected() throws Exception {
+    scratch.file(
+        "pkg/foo.bzl",
+        """
+        def _impl(name, visibility, **kwargs):
+            pass
+
+        my_macro = macro(
+            implementation = _impl,
+            attrs = {"bad": 123},
+        )
+        """);
+    scratch.file(
+        "pkg/BUILD",
+        """
+        load(":foo.bzl", "my_macro")
+        my_macro(name = "abc")
+        """);
+    reporter.removeHandler(failFastHandler);
+    assertThat(getPackage("pkg")).isNull();
+    assertContainsEvent("got dict<string, int> for 'attrs', want dict<string, Attribute|None>");
+  }
+
+  @Test
+  public void noneValueInAttrsDict_ignored() throws Exception {
+    scratch.file(
+        "pkg/foo.bzl",
+        """
+        def _impl(name, visibility, **kwargs):
+            pass
+
+        my_macro = macro(
+            implementation = _impl,
+            attrs = {"disabled_attr": None},
+        )
+        """);
+    scratch.file(
+        "pkg/BUILD",
+        """
+        load(":foo.bzl", "my_macro")
+        my_macro(name = "abc")
+        """);
+    Package pkg = getPackage("pkg");
+    assertPackageNotInError(pkg);
+    assertThat(getMacroById(pkg, "abc:1").getMacroClass().getAttributes())
+        .doesNotContainKey("disabled_attr");
+  }
+
+  @Test
+  public void inheritAttrs_fromInvalidSource_fails() throws Exception {
+    scratch.file(
+        "pkg/foo.bzl",
+        """
+        def _my_macro_impl(name, visibility, **kwargs):
+            pass
+
+        my_macro = macro(
+            implementation = _my_macro_impl,
+            inherit_attrs = "???",
+        )
+        """);
+    scratch.file(
+        "pkg/BUILD",
+        """
+        load(":foo.bzl", "my_macro")
+        """);
+    reporter.removeHandler(failFastHandler);
+    assertThat(getPackage("pkg")).isNull();
+    assertContainsEvent(
+        "Invalid 'inherit_attrs' value \"???\"; expected a rule, a macro, or \"common\"");
+  }
+
+  @Test
+  public void inheritAttrs_withoutKwargsInImplementation_fails() throws Exception {
+    scratch.file(
+        "pkg/foo.bzl",
+        """
+        def _my_macro_impl(name, visibility, tags):
+            pass
+
+        my_macro = macro(
+            implementation = _my_macro_impl,
+            inherit_attrs = "common"
+        )
+        """);
+    scratch.file(
+        "pkg/BUILD",
+        """
+        load(":foo.bzl", "my_macro")
+        """);
+    reporter.removeHandler(failFastHandler);
+    assertThat(getPackage("pkg")).isNull();
+    assertContainsEvent(
+        "If inherit_attrs is set, implementation function must have a **kwargs parameter");
+  }
+
+  @Test
+  public void inheritAttrs_fromCommon_withOverrides() throws Exception {
+    scratch.file(
+        "pkg/my_macro.bzl",
+        """
+        def _my_macro_impl(name, visibility, **kwargs):
+            pass
+
+        my_macro = macro(
+            implementation = _my_macro_impl,
+            attrs = {
+                # add a new attr
+                "new_attr": attr.string(),
+                # override an inherited attr
+                "tags": attr.string_list(default = ["foo"]),
+                # remove an inherited attr
+                "features": None,
+            },
+            inherit_attrs = "common",
+        )
+        """);
+    scratch.file(
+        "pkg/BUILD",
+        """
+        load(":my_macro.bzl", "my_macro")
+        my_macro(name = "abc")
+        """);
+    Package pkg = getPackage("pkg");
+    assertPackageNotInError(pkg);
+    // inherited attrs
+    assertThat(getMacroById(pkg, "abc:1").getMacroClass().getAttributes().keySet())
+        .containsAtLeast("compatible_with", "testonly", "toolchains");
+    // overridden attr
+    assertThat(
+            getMacroById(pkg, "abc:1")
+                .getMacroClass()
+                .getAttributes()
+                .get("tags")
+                .getDefaultValueUnchecked())
+        .isEqualTo(ImmutableList.of("foo"));
+    // non-inherited attr
+    assertThat(getMacroById(pkg, "abc:1").getMacroClass().getAttributes())
+        .doesNotContainKey("features");
+    // internal public attrs which macro machinery must avoid inheriting
+    assertThat(getMacroById(pkg, "abc:1").getMacroClass().getAttributes().keySet())
+        .containsNoneOf("generator_name", "generator_location", "generator_function");
+  }
+
+  @Test
+  public void inheritAttrs_fromAnyNativeRule() throws Exception {
+    // Ensure that a symbolic macro can inherit attributes from (and thus, can conveniently wrap)
+    // any native rule. Native rules may use attribute definitions which are unavailable to Starlark
+    // rules, so to verify that we handle the native attribute corner cases, we exhaustively test
+    // wrapping of all builtin rule classes which are accessible from Starlark. We do not test rule
+    // classes which are exposed to Starlark via macro wrappers in @_builtins, because Starlark code
+    // typically cannot get at the wrapped native rule's rule class symbol from which to inherit
+    // attributes. We also do not test rule target instantiation (and thus, do not test whether such
+    // a target would pass analysis) because declaring arbitrary native rule targets is difficult to
+    // automate.
+    //
+    // This test is expected to fail if:
+    // * a native rule adds a mandatory attribute of a type which is not supported by this test's
+    //   fakeMandatoryArgs mechanism below (to fix, add support for it to fakeMandatoryArgs); or
+    // * a new AttributeValueSource or a new attribute type is introduced, and symbolic macros
+    //   cannot inherit an attribute with a default with this source or of such a type (to fix, add
+    //   a check for it in MacroClass#forceDefaultToNone).
+    for (RuleClass ruleClass : getBuiltinRuleClasses(false)) {
+      if (ruleClass.getAttributes().isEmpty()) {
+        continue;
+      }
+      if (!(ruleClass.getRuleClassType().equals(RuleClass.Builder.RuleClassType.NORMAL)
+          || ruleClass.getRuleClassType().equals(RuleClass.Builder.RuleClassType.TEST))) {
+        continue;
+      }
+      String pkgName = "pkg_" + ruleClass.getName();
+      String macroName = "my_" + ruleClass.getName();
+      // Provide fake values for mandatory attributes in macro invocation
+      StringBuilder fakeMandatoryArgs = new StringBuilder();
+      for (Attribute attr : ruleClass.getAttributes()) {
+        String fakeValue = null;
+        if (attr.isPublic() && attr.isMandatory() && !attr.getName().equals("name")) {
+          Type<?> type = attr.getType();
+          if (type.equals(Type.STRING)
+              || type.equals(BuildType.OUTPUT)
+              || type.equals(BuildType.LABEL)
+              || type.equals(BuildType.NODEP_LABEL)
+              || type.equals(BuildType.DORMANT_LABEL)
+              || type.equals(BuildType.GENQUERY_SCOPE_TYPE)) {
+            fakeValue = "\":fake\"";
+          } else if (type.equals(Types.STRING_LIST)
+              || type.equals(BuildType.OUTPUT_LIST)
+              || type.equals(BuildType.LABEL_LIST)
+              || type.equals(BuildType.NODEP_LABEL_LIST)
+              || type.equals(BuildType.DORMANT_LABEL_LIST)
+              || type.equals(BuildType.GENQUERY_SCOPE_TYPE_LIST)) {
+            fakeValue = "[\":fake\"]";
+          } else if (type.equals(BuildType.LABEL_DICT_UNARY)
+              || type.equals(BuildType.LABEL_KEYED_STRING_DICT)) {
+            fakeValue = "{\":fake\": \":fake\"}";
+          }
+        }
+        if (fakeValue != null) {
+          fakeMandatoryArgs.append(", ").append(attr.getName()).append(" = ").append(fakeValue);
+        }
+      }
+
+      scratch.file(
+          pkgName + "/macro.bzl",
+          String.format(
+              """
+              def _impl(name, visibility, **kwargs):
+                  pass
+
+              %s = macro(
+                  implementation = _impl,
+                  inherit_attrs = native.%s,
+              )
+              """,
+              macroName, ruleClass.getName()));
+      scratch.file(
+          pkgName + "/BUILD",
+          String.format(
+              """
+              load(":macro.bzl", "%s")
+              %s(name = "abc"%s)
+              """,
+              macroName, macroName, fakeMandatoryArgs));
+      Package pkg = getPackage(pkgName);
+      assertPackageNotInError(pkg);
+      assertWithMessage("rule '%s'", ruleClass.getName())
+          .that(getMacroById(pkg, "abc:1").getMacroClass().getAttributes().keySet())
+          .containsAtLeastElementsIn(
+              ruleClass.getAttributes().stream()
+                  .filter(a -> a.isPublic() && a.isDocumented())
+                  .map(Attribute::getName)
+                  .collect(toImmutableList()));
+      assertThat(getMacroById(pkg, "abc:1").getMacroClass().getAttributes().keySet())
+          .containsNoneOf("generator_name", "generator_location", "generator_function");
+    }
+  }
+
+  @Test
+  public void inheritAttrs_fromGenrule_producesTargetThatPassesAnalysis() throws Exception {
+    // inheritAttrs_fromAnyNativeRule() above is loading-phase only; by contrast, this test verifies
+    // that we can wrap a native rule (in this case, genrule) in a macro with inherit_attrs, and
+    // that the macro-wrapped rule target passes analysis.
+    scratch.file(
+        "pkg/my_genrule.bzl",
+        """
+def _my_genrule_impl(name, visibility, tags, **kwargs):
+    print("my_genrule: tags = %s" % tags)
+    for k in kwargs:
+        print("my_genrule: kwarg %s = %s" % (k, kwargs[k]))
+    native.genrule(name = name + "_wrapped_genrule", visibility = visibility, **kwargs)
+
+my_genrule = macro(
+    implementation = _my_genrule_impl,
+    inherit_attrs = native.genrule,
+)
+""");
+    scratch.file(
+        "pkg/BUILD",
+        """
+        load(":my_genrule.bzl", "my_genrule")
+        my_genrule(
+            name = "abc",
+            outs = ["out.txt"],
+            cmd = "touch $@",
+        )
+        """);
+
+    Package pkg = getPackage("pkg");
+    assertPackageNotInError(pkg);
+    assertThat(getConfiguredTarget("//pkg:abc_wrapped_genrule")).isNotNull();
+    assertContainsEvent("my_genrule: tags = None"); // Not []
+    assertContainsEvent(
+        "my_genrule: kwarg srcs = None"); // Not select({"//conditions:default": []})
+    assertContainsEvent(
+        "my_genrule: kwarg testonly = None"); // Not select({"//conditions:default": False})
+  }
+
+  @Test
+  public void inheritAttrs_fromExportedStarlarkRule() throws Exception {
+    scratch.file(
+        "pkg/my_macro.bzl",
+        """
+        def _my_rule_impl(ctx):
+            pass
+
+        _my_rule = rule(
+            implementation = _my_rule_impl,
+            attrs = {
+                "srcs": attr.label_list(),
+            },
+        )
+
+        def _my_macro_impl(name, visibility, **kwargs):
+            _my_rule(name = name + "_my_rule", visibility = visibility, **kwargs)
+
+        my_macro = macro(
+            implementation = _my_macro_impl,
+            inherit_attrs = _my_rule,
+        )
+        """);
+    scratch.file(
+        "pkg/BUILD",
+        """
+        load(":my_macro.bzl", "my_macro")
+        my_macro(name = "abc")
+        """);
+    Package pkg = getPackage("pkg");
+    assertPackageNotInError(pkg);
+    assertThat(getMacroById(pkg, "abc:1").getMacroClass().getAttributes().keySet())
+        .containsAtLeast("srcs", "tags");
+    assertThat(getMacroById(pkg, "abc:1").getMacroClass().getAttributes().keySet())
+        .containsNoneOf("generator_name", "generator_location", "generator_function");
+  }
+
+  @Test
+  public void inheritAttrs_fromUnexportedStarlarkRule_fails() throws Exception {
+    scratch.file(
+        "pkg/my_macro.bzl",
+        """
+        def _my_rule_impl(ctx):
+            pass
+
+        _unexported = struct(
+            rule = rule(
+                implementation = _my_rule_impl,
+                attrs = {
+                    "srcs": attr.label_list(),
+                },
+            ),
+        )
+
+        def _my_macro_impl(name, visibility, **kwargs):
+            pass
+
+        my_macro = macro(
+            implementation = _my_macro_impl,
+            inherit_attrs = _unexported.rule,
+        )
+        """);
+    scratch.file(
+        "pkg/BUILD",
+        """
+        load(":my_macro.bzl", "my_macro")
+        my_macro(name = "abc")
+        """);
+    reporter.removeHandler(failFastHandler);
+    assertThat(getPackage("pkg")).isNull();
+    assertContainsEvent(
+        "a rule or macro callable must be assigned to a global variable in a .bzl file before it"
+            + " can be inherited from");
+  }
+
+  @Test
+  public void inheritAttrs_fromExportedMacro() throws Exception {
+    scratch.file(
+        "pkg/my_macro.bzl",
+        """
+def _other_macro_impl(name, visibility, **kwargs):
+    pass
+
+_other_macro = macro(
+    implementation = _other_macro_impl,
+    attrs = {
+        "srcs": attr.label_list(),
+        "tags": attr.string_list(configurable = False),
+    },
+)
+
+def _my_macro_impl(name, visibility, tags, **kwargs):
+    print("my_macro: tags = %s" % tags)
+    for k in kwargs:
+        print("my_macro: kwarg %s = %s" % (k, kwargs[k]))
+    _other_macro(name = name + "_other_macro", visibility = visibility, tags = tags, **kwargs)
+
+my_macro = macro(
+    implementation = _my_macro_impl,
+    inherit_attrs = _other_macro,
+)
+""");
+    scratch.file(
+        "pkg/BUILD",
+        """
+        load(":my_macro.bzl", "my_macro")
+        my_macro(name = "abc")
+        """);
+    Package pkg = getPackage("pkg");
+    assertPackageNotInError(pkg);
+    assertThat(getMacroById(pkg, "abc:1").getMacroClass().getAttributes().keySet())
+        .containsExactly("name", "visibility", "srcs", "tags");
+    assertContainsEvent("my_macro: tags = None"); // Not []
+    assertContainsEvent("my_macro: kwarg srcs = None"); // Not select({"//conditions:default": []})
+  }
+
+  @Test
+  public void inheritAttrs_fromUnexportedMacro_fails() throws Exception {
+    scratch.file(
+        "pkg/my_macro.bzl",
+        """
+        def _other_macro_impl(name, visibility, **kwargs):
+            pass
+
+        _unexported = struct(
+            macro = macro(
+                implementation = _other_macro_impl,
+                attrs = {
+                    "srcs": attr.label_list(),
+                },
+            ),
+        )
+
+        def _my_macro_impl(name, visibility, **kwargs):
+            pass
+
+        my_macro = macro(
+            implementation = _my_macro_impl,
+            inherit_attrs = _unexported.macro,
+        )
+        """);
+    scratch.file(
+        "pkg/BUILD",
+        """
+        load(":my_macro.bzl", "my_macro")
+        my_macro(name = "abc")
+        """);
+    reporter.removeHandler(failFastHandler);
+    assertThat(getPackage("pkg")).isNull();
+    assertContainsEvent(
+        "a rule or macro callable must be assigned to a global variable in a .bzl file before it"
+            + " can be inherited from");
   }
 }

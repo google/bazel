@@ -21,6 +21,8 @@ import com.google.devtools.build.lib.collect.nestedset.NestedSetBuilder;
 import com.google.devtools.build.lib.collect.nestedset.Order;
 import com.google.devtools.build.lib.concurrent.ThreadSafety.Immutable;
 import com.google.devtools.build.lib.starlarkbuildapi.FileProviderApi;
+import net.starlark.java.eval.Printer;
+import net.starlark.java.eval.StarlarkThread;
 
 /**
  * A representation of the concept "this transitive info provider builds these files".
@@ -51,6 +53,13 @@ public final class FileProvider implements TransitiveInfoProvider, FileProviderA
   @Override
   public Depset /*<Artifact>*/ getFilesToBuildForStarlark() {
     return Depset.of(Artifact.class, filesToBuild);
+  }
+
+  @Override
+  public void debugPrint(Printer printer, StarlarkThread thread) {
+    printer.append("FileProvider(files_to_build = ");
+    printer.debugPrint(getFilesToBuildForStarlark(), thread);
+    printer.append(")");
   }
 
   public NestedSet<Artifact> getFilesToBuild() {

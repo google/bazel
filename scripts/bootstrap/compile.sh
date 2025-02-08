@@ -34,7 +34,7 @@ DIRS=$(echo src/{java_tools/singlejar/java/com/google/devtools/build/zip,main/ja
 EXCLUDE_FILES="src/java_tools/buildjar/java/com/google/devtools/build/buildjar/javac/testing/* src/main/java/com/google/devtools/build/lib/collect/nestedset/NestedSetCodecTestUtils.java"
 # Exclude whole directories under the bazel src tree that bazel itself
 # doesn't depend on.
-EXCLUDE_DIRS="src/main/java/com/google/devtools/build/docgen tools/java/runfiles/testing src/main/java/com/google/devtools/build/lib/skyframe/serialization/testutils src/main/java/com/google/devtools/common/options/testing src/main/java/com/google/devtools/build/lib/testing"
+EXCLUDE_DIRS="src/main/java/com/google/devtools/build/docgen src/main/java/com/google/devtools/build/lib/skyframe/serialization/testutils src/main/java/com/google/devtools/common/options/testing src/main/java/com/google/devtools/build/lib/testing"
 for d in $EXCLUDE_DIRS ; do
   for f in $(find $d -type f) ; do
     EXCLUDE_FILES+=" $f"
@@ -264,17 +264,17 @@ EOF
 
   link_dir ${PWD}/third_party ${BAZEL_TOOLS_REPO}/third_party
 
+  # Set up the function_transition_allowlist target, which needs to exist for
+  # Starlark rules that use Starlark transitions.
+  mkdir -p "${BAZEL_TOOLS_REPO}/tools/allowlists/function_transition_allowlist"
+  link_file "${PWD}/tools/allowlists/function_transition_allowlist/BUILD.tools" \
+      "${BAZEL_TOOLS_REPO}/tools/allowlists/function_transition_allowlist/BUILD"
+  link_children "${PWD}" tools/allowlists "${BAZEL_TOOLS_REPO}"
+
   # Create @bazel_tools//tools/cpp/runfiles
   mkdir -p ${BAZEL_TOOLS_REPO}/tools/cpp/runfiles
-  link_file "${PWD}/tools/cpp/runfiles/runfiles_src.h" \
+  link_file "${PWD}/tools/cpp/runfiles/runfiles.h" \
       "${BAZEL_TOOLS_REPO}/tools/cpp/runfiles/runfiles.h"
-  # Transform //tools/cpp/runfiles:runfiles_src.cc to
-  # @bazel_tools//tools/cpp/runfiles:runfiles.cc
-  # Keep this transformation logic in sync with the
-  # //tools/cpp/runfiles:srcs_for_embedded_tools genrule.
-  sed 's|^#include.*/runfiles_src.h.*|#include \"tools/cpp/runfiles/runfiles.h\"|' \
-      "${PWD}/tools/cpp/runfiles/runfiles_src.cc" > \
-      "${BAZEL_TOOLS_REPO}/tools/cpp/runfiles/runfiles.cc"
   link_file "${PWD}/tools/cpp/runfiles/BUILD.tools" \
       "${BAZEL_TOOLS_REPO}/tools/cpp/runfiles/BUILD"
 
@@ -284,7 +284,6 @@ EOF
 
   # Create @bazel_tools//tools/sh
   mkdir -p ${BAZEL_TOOLS_REPO}/tools/sh
-  link_file "${PWD}/tools/sh/sh_configure.bzl" "${BAZEL_TOOLS_REPO}/tools/sh/sh_configure.bzl"
   link_file "${PWD}/tools/sh/sh_toolchain.bzl" "${BAZEL_TOOLS_REPO}/tools/sh/sh_toolchain.bzl"
   link_file "${PWD}/tools/sh/BUILD.tools" "${BAZEL_TOOLS_REPO}/tools/sh/BUILD"
 
@@ -295,8 +294,6 @@ EOF
 
   # Create @bazel_tools//tools/java/runfiles
   mkdir -p ${BAZEL_TOOLS_REPO}/tools/java/runfiles
-  link_file "${PWD}/tools/java/runfiles/Runfiles.java" "${BAZEL_TOOLS_REPO}/tools/java/runfiles/Runfiles.java"
-  link_file "${PWD}/tools/java/runfiles/Util.java" "${BAZEL_TOOLS_REPO}/tools/java/runfiles/Util.java"
   link_file "${PWD}/tools/java/runfiles/BUILD.tools" "${BAZEL_TOOLS_REPO}/tools/java/runfiles/BUILD"
 
   # Create @bazel_tools/tools/python/BUILD

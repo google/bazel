@@ -809,85 +809,124 @@ function setup_undeclared_outputs_test() {
   mkdir -p dir
 
   cat <<'EOF' > dir/test.sh
-#!/bin/sh
+#!/bin/bash
+mkdir -p "$TEST_UNDECLARED_OUTPUTS_DIR/deeply/nested"
 echo "some text" > "$TEST_UNDECLARED_OUTPUTS_DIR/text.txt"
-echo "<!DOCTYPE html>" > "$TEST_UNDECLARED_OUTPUTS_DIR/fake.html"
-echo "pass"
-exit 0
+echo "<!DOCTYPE html>" > "$TEST_UNDECLARED_OUTPUTS_DIR/deeply/nested/index.html"
+if [[ -z "$FLAKY_FILE" ]]; then
+  # Non-flaky execution.
+  exit 0
+elif [[ -e "$FLAKY_FILE" ]]; then
+  # Flaky execution, second run.
+  exit 0
+else
+  # Flaky execution, first run.
+  touch "$FLAKY_FILE"
+  exit 1
+fi
 EOF
 
   chmod +x dir/test.sh
 
   cat <<'EOF' > dir/BUILD
 sh_test(
-    name = "test",
-    srcs = [ "test.sh" ],
-  )
+  name = "test",
+  srcs = ["test.sh"],
+)
 EOF
 }
 
 function test_undeclared_outputs_are_zipped() {
   setup_undeclared_outputs_test
 
+  local -r outputs_manifest=bazel-testlogs/dir/test/test.outputs_manifest/MANIFEST
   local -r outputs_dir=bazel-testlogs/dir/test/test.outputs
   local -r outputs_zip=$outputs_dir/outputs.zip
   local -r output_text=$outputs_dir/text.txt
-  local -r output_html=$outputs_dir/fake.html
+  local -r output_html=$outputs_dir/deeply/nested/index.html
 
   bazel test -s --zip_undeclared_test_outputs //dir:test &> $TEST_log || fail "expected success"
 
-  # Newlines are useful around diffs. This helps us get them in bash strings.
-  N=$'\n'
+  assert_exists "$outputs_zip"
+  assert_not_exists "$output_text"
+  assert_not_exists "$output_html"
 
-  # Check that the undeclared outputs zip file exists.
-  [ -s $outputs_zip ] || fail "$outputs_zip was not present after test"
-
-  # Check that the original undeclared outputs no longer exist.
-  [ -e $output_text ] && fail "$output_text was present after test"
-  [ -e $output_text ] && fail "$output_text was present after test"
-
-
-  # Check the contents of the zip file.
   unzip -q "$outputs_zip" -d unzipped_outputs || fail "failed to unzip $outputs_zip"
-  cat > expected_text <<EOF
-some text
+  assert_equals "$(cat unzipped_outputs/text.txt)" "some text"
+  assert_equals "$(cat unzipped_outputs/deeply/nested/index.html)" "<!DOCTYPE html>"
+
+  assert_exists "$outputs_manifest"
+  cat > expected_manifest <<EOF
+deeply/nested/index.html	16	text/html
+text.txt	10	text/plain
 EOF
-  diff "unzipped_outputs/text.txt" expected_text > d || fail "unzipped_outputs/text.txt differs from expected:$N$(cat d)$N"
-  cat > expected_html <<EOF
-<!DOCTYPE html>
-EOF
-  diff expected_html "unzipped_outputs/fake.html" > d || fail "unzipped_outputs/fake.html differs from expected:$N$(cat d)$N"
+  assert_equals "$(cat "$outputs_manifest")" "$(cat expected_manifest)"
+}
+
+function test_undeclared_outputs_are_zipped_multiple_attempts() {
+  setup_undeclared_outputs_test
+
+  local -r outputs_dir=bazel-testlogs/dir/test/test_attempts/attempt_1.outputs
+  local -r outputs_zip=$outputs_dir/outputs.zip
+  local -r output_text=$outputs_dir/text.txt
+  local -r output_html=$outputs_dir/deeply/nested/index.html
+
+  local -r flaky_file=$TEST_TMPDIR/flaky
+  rm -f "$flaky_file"
+
+  bazel test -s --zip_undeclared_test_outputs --spawn_strategy=local \
+      --flaky_test_attempts=2 --test_env=FLAKY_FILE="$flaky_file" \
+      //dir:test &> $TEST_log || fail "expected success"
+
+  assert_exists "$outputs_zip"
+  assert_not_exists "$output_text"
+  assert_not_exists "$output_html"
 }
 
 function test_undeclared_outputs_are_not_zipped() {
   setup_undeclared_outputs_test
 
+  local -r outputs_manifest=bazel-testlogs/dir/test/test.outputs_manifest/MANIFEST
   local -r outputs_dir=bazel-testlogs/dir/test/test.outputs
   local -r outputs_zip=$outputs_dir/outputs.zip
   local -r output_text=$outputs_dir/text.txt
-  local -r output_html=$outputs_dir/fake.html
+  local -r output_html=$outputs_dir/deeply/nested/index.html
 
   bazel test -s //dir:test &> $TEST_log || fail "expected success"
 
-  # Newlines are useful around diffs. This helps us get them in bash strings.
-  N=$'\n'
+  assert_not_exists "$outputs_zip"
+  assert_exists "$output_text"
+  assert_exists "$output_html"
 
-  # Check that the undeclared outputs zip file does not exist.
-  [ -e $outputs_zip ] && fail "$outputs_zip was present after test"
+  assert_equals "$(cat "$output_text")" "some text"
+  assert_equals "$(cat "$output_html")" "<!DOCTYPE html>"
 
-  # Check that the undeclared outputs exist.
-  [ -e $output_text ] || fail "$output_text was not present after test"
-  [ -e $output_text ] || fail "$output_text was not present after test"
-
-  # Check the contents of the undeclared outputs.
-  cat > expected_text <<EOF
-some text
+  assert_exists "$outputs_manifest"
+  cat > expected_manifest <<EOF
+deeply/nested/index.html	16	text/html
+text.txt	10	text/plain
 EOF
-  diff "$outputs_dir/text.txt" expected_text > d || fail "$outputs_dir/text.txt differs from expected:$N$(cat d)$N"
-  cat > expected_html <<EOF
-<!DOCTYPE html>
-EOF
-  diff expected_html "$outputs_dir/fake.html" > d || fail "$outputs_dir/fake.html differs from expected:$N$(cat d)$N"
+  assert_equals "$(cat "$outputs_manifest")" "$(cat expected_manifest)"
+}
+
+function test_undeclared_outputs_are_not_zipped_multiple_attempts() {
+  setup_undeclared_outputs_test
+
+  local -r outputs_dir=bazel-testlogs/dir/test/test_attempts/attempt_1.outputs
+  local -r outputs_zip=$outputs_dir/outputs.zip
+  local -r output_text=$outputs_dir/text.txt
+  local -r output_html=$outputs_dir/deeply/nested/index.html
+
+  local -r flaky_file=$TEST_TMPDIR/flaky
+  rm -f "$flaky_file"
+
+  bazel test -s --spawn_strategy=local \
+      --flaky_test_attempts=2 --test_env=FLAKY_FILE="$flaky_file" \
+      //dir:test &> $TEST_log || fail "expected success"
+
+  assert_not_exists "$outputs_zip"
+  assert_exists "$output_text"
+  assert_exists "$output_html"
 }
 
 function test_undeclared_outputs_zipped_then_unzipped() {
@@ -896,19 +935,19 @@ function test_undeclared_outputs_zipped_then_unzipped() {
   local -r outputs_dir=bazel-testlogs/dir/test/test.outputs
   local -r outputs_zip=$outputs_dir/outputs.zip
   local -r output_text=$outputs_dir/text.txt
-  local -r output_html=$outputs_dir/fake.html
+  local -r output_html=$outputs_dir/deeply/nested/index.html
 
   bazel test -s --zip_undeclared_test_outputs //dir:test &> $TEST_log || fail "expected success"
 
-  [ -s $output_text ] && fail "$output_text was present after test"
-  [ -s $output_html ] && fail "$output_html was present after test"
-  [ -s $outputs_zip ] || fail "$outputs_zip was not present after test"
+  assert_exists "$outputs_zip"
+  assert_not_exists "$output_text"
+  assert_not_exists "$output_html"
 
   bazel test -s //dir:test &> $TEST_log || fail "expected success"
 
-  [ -s $outputs_zip ] && fail "$outputs_zip was present after test"
-  [ -s $output_text ] || fail "$output_text was not present after test"
-  [ -s $output_html ] || fail "$output_html was not present after test"
+  assert_not_exists "$outputs_zip"
+  assert_exists "$output_text"
+  assert_exists "$output_html"
 }
 
 function test_undeclared_outputs_unzipped_then_zipped() {
@@ -917,38 +956,19 @@ function test_undeclared_outputs_unzipped_then_zipped() {
   local -r outputs_dir=bazel-testlogs/dir/test/test.outputs
   local -r outputs_zip=$outputs_dir/outputs.zip
   local -r output_text=$outputs_dir/text.txt
-  local -r output_html=$outputs_dir/fake.html
+  local -r output_html=$outputs_dir/deeply/nested/index.html
 
   bazel test -s //dir:test &> $TEST_log || fail "expected success"
 
-  [ -s $outputs_zip ] && fail "$outputs_zip was present after test"
-  [ -s $output_text ] || fail "$output_text was not present after test"
-  [ -s $output_html ] || fail "$output_html was not present after test"
+  assert_not_exists "$outputs_zip"
+  assert_exists "$output_text"
+  assert_exists "$output_html"
 
   bazel test -s --zip_undeclared_test_outputs //dir:test &> $TEST_log || fail "expected success"
 
-  [ -s $output_text ] && fail "$output_text was present after test"
-  [ -s $output_html ] && fail "$output_html was present after test"
-  [ -s $outputs_zip ] || fail "$outputs_zip was not present after test"
-}
-
-function test_undeclared_outputs_manifest_is_created() {
-  setup_undeclared_outputs_test
-
-  bazel test -s //dir:test &> $TEST_log || fail "expected success"
-
-  # Newlines are useful around diffs. This helps us get them in bash strings.
-  N=$'\n'
-
-  # Check that the undeclared outputs manifest exists and that it has the
-  # correct contents.
-  local -r outputs_manifest=bazel-testlogs/dir/test/test.outputs_manifest/MANIFEST
-  [ -s $outputs_manifest ] || fail "$outputs_manifest was not present after test"
-  cat > expected_manifest <<EOF
-fake.html	16	text/html
-text.txt	10	text/plain
-EOF
-  diff expected_manifest "$outputs_manifest" > d || fail "$outputs_manifest differs from expected:$N$(cat d)$N"
+  assert_exists "$outputs_zip"
+  assert_not_exists "$output_text"
+  assert_not_exists "$output_html"
 }
 
 function test_undeclared_outputs_annotations_are_added() {
@@ -1114,6 +1134,33 @@ EOF
 
   bazel test //:x --test_output=errors &> $TEST_log && fail "expected failure"
   expect_log "-- Test exited prematurely (TEST_PREMATURE_EXIT_FILE exists) --"
+}
+
+function test_test_env_change_preserves_cache() {
+  local -r pkg="pkg${LINENO}"
+  mkdir -p "${pkg}"
+  cat > "$pkg/BUILD" <<'EOF'
+load(":defs.bzl", "my_rule")
+my_rule(
+  name = "my_rule",
+)
+EOF
+  cat > "$pkg/defs.bzl" <<'EOF'
+def _my_rule_impl(ctx):
+  print("my_rule is being analyzed")
+  out = ctx.actions.declare_file(ctx.label.name)
+  ctx.actions.write(out, "hi")
+  return [DefaultInfo(files = depset([out]))]
+my_rule = rule(_my_rule_impl)
+EOF
+
+  bazel build "${pkg}:my_rule" >$TEST_log 2>&1 \
+   || fail "expected build to pass"
+  expect_log "my_rule is being analyzed"
+
+  bazel build --test_env=FOO=bar "${pkg}:my_rule" >$TEST_log 2>&1 \
+   || fail "expected build to pass"
+  expect_not_log "my_rule is being analyzed"
 }
 
 run_suite "bazel test tests"

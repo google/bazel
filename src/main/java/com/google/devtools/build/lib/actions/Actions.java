@@ -91,8 +91,8 @@ public final class Actions {
         // Non-Actions cannot be shared.
         && a instanceof Action
         && b instanceof Action
-        && a.getKey(actionKeyContext, /*artifactExpander=*/ null)
-            .equals(b.getKey(actionKeyContext, /*artifactExpander=*/ null))
+        && a.getKey(actionKeyContext, /* artifactExpander= */ null)
+            .equals(b.getKey(actionKeyContext, /* artifactExpander= */ null))
         && artifactsEqualWithoutOwner(
             a.getMandatoryInputs().toList(), b.getMandatoryInputs().toList())
         && artifactsEqualWithoutOwner(a.getOutputs(), b.getOutputs());
@@ -241,11 +241,7 @@ public final class Actions {
         if (equalOutput != null) {
           // Yes: assert that its generating action and this artifact's are compatible.
           verifyGeneratingActionKeys(
-              equalOutput,
-              generatingActionKey,
-              allowSharedAction,
-              actionKeyContext,
-              actions);
+              equalOutput, generatingActionKey, allowSharedAction, actionKeyContext, actions);
         }
         // Was this output already seen, so it has a generating action key set?
         if (!output.hasGeneratingActionKey()) {
@@ -264,11 +260,7 @@ public final class Actions {
           }
           // Key is already set: verify that the generating action and this action are compatible.
           verifyGeneratingActionKeys(
-              output,
-              generatingActionKey,
-              allowSharedAction,
-              actionKeyContext,
-              actions);
+              output, generatingActionKey, allowSharedAction, actionKeyContext, actions);
         }
       }
       actionIndex++;
@@ -301,14 +293,14 @@ public final class Actions {
       };
 
   /**
-   * Check whether two artifacts are a runfiles middleman - runfiles output manifest pair.
+   * Check whether two artifacts are a runfiles tree - runfiles output manifest pair.
    *
    * <p>This is necessary because these are exempt from the "path of one artifact cannot be a prefix
    * of another" rule. This is like this for historical reasons.
    */
   public static boolean isRunfilesArtifactPair(Artifact runfilesTree, Artifact runfilesManifest) {
-    if (!runfilesTree.isMiddlemanArtifact()) {
-      // The outside artifact is not a middleman. No go.
+    if (!runfilesTree.isRunfilesTree()) {
+      // The outside artifact is not a runfiles tree. No go.
       return false;
     }
 
@@ -381,18 +373,17 @@ public final class Actions {
   }
 
   /**
-   * Returns the escaped name for a given relative path as a string. This takes
-   * a short relative path and turns it into a string suitable for use as a
-   * filename. Invalid filename characters are escaped with an '_' + a single
-   * character token.
+   * Returns the escaped name for a given relative path as a string. This takes a short relative
+   * path and turns it into a string suitable for use as a filename. Invalid filename characters are
+   * escaped with an '_' + a single character token.
    */
   public static String escapedPath(String path) {
     return PATH_ESCAPER.escape(path);
   }
 
   /**
-   * Returns a string that is usable as a unique path component for a label. It is guaranteed
-   * that no other label maps to this string.
+   * Returns a string that is usable as a unique path component for a label. It is guaranteed that
+   * no other label maps to this string.
    */
   public static String escapeLabel(Label label) {
     String path = label.getPackageName() + ":" + label.getName();
@@ -419,20 +410,28 @@ public final class Actions {
       return null;
     }
 
-    var generatingActionKey = ((Artifact.DerivedArtifact) artifact).getGeneratingActionKey();
-    var actionLookupKey = generatingActionKey.getActionLookupKey();
+    return getAction(graph, ((Artifact.DerivedArtifact) artifact).getGeneratingActionKey());
+  }
+
+  public static ActionAnalysisMetadata getAction(
+      WalkableGraph graph, ActionLookupData actionLookupData) throws InterruptedException {
+    var actionLookupKey = actionLookupData.getActionLookupKey();
+
+    // In analysis caching build with cache hits, deserialized ActionLookupValues do not contain
+    // actions, so the generating action for the artifact does not exist in the graph. It would
+    // require a reanalysis of the entire configured target subgraph to produce the action,
+    // nullifying the benefits of analysis caching.
+    //
+    // In practice this should be fine for critical path computation and execution graph log,
+    // because this represents a pruned subgraph for the action and there was no work done other
+    // than deserialization.
     if (graph.getValue(actionLookupKey) instanceof ActionLookupValue actionLookupValue) {
-      return actionLookupValue.getActions().get(generatingActionKey.getActionIndex());
+      // Not all ActionLookupKeys resolve to an ActionLookupValue, e.g. RemoteConfiguredTargetValue.
+      if (actionLookupValue.getNumActions() > 0) {
+        return actionLookupValue.getActions().get(actionLookupData.getActionIndex());
+      }
     }
 
-    // In analysis caching build with cache hits, deserialized CTs are
-    // RemoteConfiguredTargetValues -- not ActionLookupValues -- and do not contain actions, so the
-    // generating action for the artifact does not exist in the graph. It would require a reanalysis
-    // of the entire configured target subgraph to produce the action, nullifying the benefits of
-    // analysis caching.
-    //
-    // In practice this should be fine for critical path computation, because this represents a
-    // pruned subgraph for the action and there was no work done other than deserialization.
     return null;
   }
 }

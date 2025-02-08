@@ -301,6 +301,7 @@ public class BazelPyBinaryConfiguredTargetTest extends BuildViewTestCase {
     }
     scratch.file(
         "toolchains/rules.bzl",
+        getPyLoad("PyRuntimeInfo"),
         "def _custom_impl(ctx):",
         indentedBody,
         "custom = rule(",

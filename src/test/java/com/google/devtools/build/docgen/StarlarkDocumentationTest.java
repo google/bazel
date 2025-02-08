@@ -54,8 +54,7 @@ import org.junit.runners.JUnit4;
 public class StarlarkDocumentationTest {
 
   private static final ImmutableList<String>
-      DEPRECATED_OR_EXPERIMENTAL_UNDOCUMENTED_TOP_LEVEL_SYMBOLS =
-          ImmutableList.of("Actions", "macro");
+      DEPRECATED_OR_EXPERIMENTAL_UNDOCUMENTED_TOP_LEVEL_SYMBOLS = ImmutableList.of("Actions");
 
   private static final StarlarkDocExpander expander =
       new StarlarkDocExpander(null) {

@@ -297,7 +297,7 @@ public class ModExecutorTest {
                 buildAugmentedModule("B", "1.0")
                     .addStillDependant(ModuleKey.ROOT)
                     .addChangedDep("C", "1.0", "0.1", ResolutionReason.MINIMAL_VERSION_SELECTION)
-                    .addChangedDep("E", "", "1.0", ResolutionReason.LOCAL_PATH_OVERRIDE)
+                    .addChangedDep("E", "", "1.0", ResolutionReason.NON_REGISTRY_OVERRIDE)
                     .buildEntry())
             .put(
                 buildAugmentedModule("C", "1.0")
@@ -359,13 +359,13 @@ public class ModExecutorTest {
     assertThat(
             formatter.getExtraResolutionExplanation(
                 createModuleKey("E", "1.0"), createModuleKey("B", "1.0"), depGraph, options))
-        .isEqualTo(Explanation.create(Version.EMPTY, ResolutionReason.LOCAL_PATH_OVERRIDE, null));
+        .isEqualTo(Explanation.create(Version.EMPTY, ResolutionReason.NON_REGISTRY_OVERRIDE, null));
 
     assertThat(
             formatter.getExtraResolutionExplanation(
                 createModuleKey("E", ""), createModuleKey("B", "1.0"), depGraph, options))
         .isEqualTo(
-            Explanation.create(Version.parse("1.0"), ResolutionReason.LOCAL_PATH_OVERRIDE, null));
+            Explanation.create(Version.parse("1.0"), ResolutionReason.NON_REGISTRY_OVERRIDE, null));
   }
 
   @Test

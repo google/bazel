@@ -59,7 +59,6 @@ import com.google.devtools.build.lib.actions.Executor;
 import com.google.devtools.build.lib.actions.FileArtifactValue;
 import com.google.devtools.build.lib.actions.FilesetOutputTree;
 import com.google.devtools.build.lib.actions.InputMetadataProvider;
-import com.google.devtools.build.lib.actions.MiddlemanType;
 import com.google.devtools.build.lib.actions.PackageRootResolver;
 import com.google.devtools.build.lib.actions.RunfilesArtifactValue;
 import com.google.devtools.build.lib.actions.RunfilesTree;
@@ -71,6 +70,7 @@ import com.google.devtools.build.lib.actions.cache.VirtualActionInput;
 import com.google.devtools.build.lib.analysis.actions.CustomCommandLine;
 import com.google.devtools.build.lib.analysis.actions.SpawnActionTemplate;
 import com.google.devtools.build.lib.analysis.configuredtargets.RuleConfiguredTarget;
+import com.google.devtools.build.lib.analysis.platform.PlatformInfo;
 import com.google.devtools.build.lib.buildeventstream.BuildEventStreamProtos;
 import com.google.devtools.build.lib.cmdline.Label;
 import com.google.devtools.build.lib.cmdline.RepositoryName;
@@ -97,7 +97,6 @@ import com.google.devtools.build.lib.vfs.inmemoryfs.InMemoryFileSystem;
 import com.google.devtools.build.skyframe.SkyFunction.Environment;
 import com.google.devtools.build.skyframe.SkyFunctionName;
 import com.google.errorprone.annotations.CanIgnoreReturnValue;
-import com.google.protobuf.ByteString;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.util.ArrayDeque;
@@ -320,13 +319,6 @@ public final class ActionsTestUtil {
   public static VirtualActionInput createVirtualActionInput(PathFragment path, String contents) {
     return new VirtualActionInput() {
       @Override
-      public ByteString getBytes() throws IOException {
-        ByteString.Output out = ByteString.newOutput();
-        writeTo(out);
-        return out.toByteString();
-      }
-
-      @Override
       public String getExecPathString() {
         return path.getPathString();
       }
@@ -390,7 +382,7 @@ public final class ActionsTestUtil {
               BuildEventStreamProtos.BuildEventId.getDefaultInstance(),
               BuildEventStreamProtos.BuildEvent.getDefaultInstance()),
           /* isToolConfiguration= */ false,
-          /* executionPlatform= */ null,
+          /* executionPlatform= */ PlatformInfo.EMPTY_PLATFORM_INFO,
           /* aspectDescriptors= */ ImmutableList.of(),
           /* execProperties= */ ImmutableMap.of());
 
@@ -453,40 +445,25 @@ public final class ActionsTestUtil {
   }
 
   /**
-   * A mocked action containing the inputs and outputs of the action and determines whether or not
-   * the action is a middleman. Used for tests that do not need to execute the action.
+   * A mocked action containing the inputs and outputs of the action. Used for tests that do not
+   * need to execute the action.
    */
   public static class MockAction extends AbstractAction {
-
-    private final boolean middleman;
     private final boolean isShareable;
 
     public MockAction(Iterable<Artifact> inputs, ImmutableSet<Artifact> outputs) {
-      this(inputs, outputs, /*middleman=*/ false, /*isShareable=*/ true);
-    }
-
-    public MockAction(
-        Iterable<Artifact> inputs, ImmutableSet<Artifact> outputs, boolean middleman) {
-      this(inputs, outputs, middleman, /*isShareable*/ true);
+      this(inputs, outputs, /* isShareable= */ true);
     }
 
     public MockAction(
         Iterable<Artifact> inputs,
         ImmutableSet<Artifact> outputs,
-        boolean middleman,
         boolean isShareable) {
       super(
           NULL_ACTION_OWNER,
           NestedSetBuilder.<Artifact>stableOrder().addAll(inputs).build(),
           outputs);
-      this.middleman = middleman;
       this.isShareable = isShareable;
-    }
-
-    @Override
-    public MiddlemanType getActionType() {
-      // RUNFILES_MIDDLEMAN is chosen arbitrarily among the middleman types.
-      return middleman ? MiddlemanType.RUNFILES_MIDDLEMAN : super.getActionType();
     }
 
     @Override
@@ -953,11 +930,6 @@ public final class ActionsTestUtil {
 
     @Override
     public ActionInput getInput(String execPath) {
-      throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public void setDigestForVirtualArtifact(Artifact artifact, byte[] digest) {
       throw new UnsupportedOperationException();
     }
 

@@ -21,7 +21,7 @@ java_library(
     data = [
         "//tools/jdk:srcs",
         "@bazel_skylib//:test_deps",
-        "@protobuf//bazel/private:for_bazel_tests",
+        "@com_google_protobuf//bazel/private:for_bazel_tests",
         "@rules_cc//cc:srcs",
         "@rules_cc//cc/common:srcs",
         "@rules_cc//cc/toolchains:srcs",
@@ -39,6 +39,7 @@ java_library(
         "//src/main/java/com/google/devtools/build/lib/analysis:analysis_cluster",
         "//src/main/java/com/google/devtools/build/lib/analysis:blaze_directories",
         "//src/main/java/com/google/devtools/build/lib/bazel:repository_module",
+        "//src/main/java/com/google/devtools/build/lib/bazel/bzlmod:common",
         "//src/main/java/com/google/devtools/build/lib/bazel/bzlmod:resolution",
         "//src/main/java/com/google/devtools/build/lib/bazel/repository",
         "//src/main/java/com/google/devtools/build/lib/bazel/rules",
@@ -50,7 +51,7 @@ java_library(
         "//src/test/java/com/google/devtools/build/lib/testutil",
         "//src/test/java/com/google/devtools/build/lib/testutil:TestConstants",
         "//third_party:guava",
-        "@bazel_tools//tools/java/runfiles",
+        "@rules_java//java/runfiles",
     ],
 )
 

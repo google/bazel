@@ -33,7 +33,7 @@ public class PackageIdentifierCodecTest {
 
     if (useSharedValues) {
       tester
-          .addCodec(PackageIdentifier.valueSharingCodec())
+          .addCodec(new ValueSharingAdapter<>(PackageIdentifier.deferredCodec()))
           .makeMemoizingAndAllowFutureBlocking(true);
     }
 

@@ -63,6 +63,10 @@ public class OptionDefaultValueConversionTest {
 
       List<OptionDefinition> optionDefinitions =
           allClasses.stream()
+              // This package contains classes that reference other classes that aren't available
+              // without manual setup.
+              .filter(
+                  c -> !c.getPackageName().equals("com.google.devtools.build.lib.profiler.memory"))
               .filter(c -> !isTestClass(c))
               .flatMap(c -> Arrays.stream(c.getFields()))
               .filter(f -> f.isAnnotationPresent(Option.class))

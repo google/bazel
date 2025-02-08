@@ -73,13 +73,13 @@ public class JavaInfoStarlarkApiTest extends BuildViewTestCase {
     JavaCompilationArgsProvider javaCompilationArgsProvider =
         fetchJavaInfo().getProvider(JavaCompilationArgsProvider.class);
 
-    assertThat(prettyArtifactNames(javaCompilationArgsProvider.getDirectCompileTimeJars()))
+    assertThat(prettyArtifactNames(javaCompilationArgsProvider.directCompileTimeJars()))
         .containsExactly("foo/my_starlark_rule_lib.jar");
-    assertThat(prettyArtifactNames(javaCompilationArgsProvider.getDirectFullCompileTimeJars()))
+    assertThat(prettyArtifactNames(javaCompilationArgsProvider.directFullCompileTimeJars()))
         .containsExactly("foo/my_starlark_rule_lib.jar");
-    assertThat(prettyArtifactNames(javaCompilationArgsProvider.getRuntimeJars()))
+    assertThat(prettyArtifactNames(javaCompilationArgsProvider.runtimeJars()))
         .containsExactly("foo/my_starlark_rule_lib.jar");
-    assertThat(prettyArtifactNames(javaCompilationArgsProvider.getTransitiveCompileTimeJars()))
+    assertThat(prettyArtifactNames(javaCompilationArgsProvider.transitiveCompileTimeJars()))
         .containsExactly("foo/my_starlark_rule_lib.jar");
   }
 
@@ -104,14 +104,14 @@ public class JavaInfoStarlarkApiTest extends BuildViewTestCase {
     JavaCompilationArgsProvider javaCompilationArgsProvider =
         fetchJavaInfo().getProvider(JavaCompilationArgsProvider.class);
 
-    assertThat(prettyArtifactNames(javaCompilationArgsProvider.getDirectCompileTimeJars()))
+    assertThat(prettyArtifactNames(javaCompilationArgsProvider.directCompileTimeJars()))
         .containsExactly("foo/my_starlark_rule_lib-ijar.jar");
-    assertThat(prettyArtifactNames(javaCompilationArgsProvider.getDirectFullCompileTimeJars()))
+    assertThat(prettyArtifactNames(javaCompilationArgsProvider.directFullCompileTimeJars()))
         .containsExactly("foo/my_starlark_rule_lib.jar");
 
-    assertThat(prettyArtifactNames(javaCompilationArgsProvider.getRuntimeJars()))
+    assertThat(prettyArtifactNames(javaCompilationArgsProvider.runtimeJars()))
         .containsExactly("foo/my_starlark_rule_lib.jar");
-    assertThat(prettyArtifactNames(javaCompilationArgsProvider.getTransitiveCompileTimeJars()))
+    assertThat(prettyArtifactNames(javaCompilationArgsProvider.transitiveCompileTimeJars()))
         .containsExactly("foo/my_starlark_rule_lib-ijar.jar");
   }
 
@@ -142,10 +142,10 @@ public class JavaInfoStarlarkApiTest extends BuildViewTestCase {
     assertThat(prettyArtifactNames(javaRuleOutputJarsProvider.getAllClassOutputJars()))
         .containsExactly("foo/my_starlark_rule_lib.jar");
 
-    assertThat(javaRuleOutputJarsProvider.getJavaOutputs()).hasSize(1);
-    JavaOutput javaOutput = javaRuleOutputJarsProvider.getJavaOutputs().get(0);
+    assertThat(javaRuleOutputJarsProvider.javaOutputs()).hasSize(1);
+    JavaOutput javaOutput = javaRuleOutputJarsProvider.javaOutputs().get(0);
 
-    assertThat(javaOutput.getCompileJar().prettyPrint())
+    assertThat(javaOutput.compileJar().prettyPrint())
         .isEqualTo("foo/my_starlark_rule_lib-ijar.jar");
   }
 
@@ -175,13 +175,13 @@ public class JavaInfoStarlarkApiTest extends BuildViewTestCase {
     JavaCompilationArgsProvider javaCompilationArgsProvider =
         fetchJavaInfo().getProvider(JavaCompilationArgsProvider.class);
 
-    assertThat(prettyArtifactNames(javaCompilationArgsProvider.getDirectCompileTimeJars()))
+    assertThat(prettyArtifactNames(javaCompilationArgsProvider.directCompileTimeJars()))
         .containsExactly("foo/my_starlark_rule_lib.jar");
-    assertThat(prettyArtifactNames(javaCompilationArgsProvider.getDirectFullCompileTimeJars()))
+    assertThat(prettyArtifactNames(javaCompilationArgsProvider.directFullCompileTimeJars()))
         .containsExactly("foo/my_starlark_rule_lib.jar");
-    assertThat(prettyArtifactNames(javaCompilationArgsProvider.getRuntimeJars()))
+    assertThat(prettyArtifactNames(javaCompilationArgsProvider.runtimeJars()))
         .containsExactly("foo/my_starlark_rule_lib.jar", "foo/libmy_java_lib_direct.jar");
-    assertThat(prettyArtifactNames(javaCompilationArgsProvider.getTransitiveCompileTimeJars()))
+    assertThat(prettyArtifactNames(javaCompilationArgsProvider.transitiveCompileTimeJars()))
         .containsExactly("foo/my_starlark_rule_lib.jar", "foo/libmy_java_lib_direct-hjar.jar");
   }
 
@@ -211,13 +211,13 @@ public class JavaInfoStarlarkApiTest extends BuildViewTestCase {
     JavaCompilationArgsProvider javaCompilationArgsProvider =
         fetchJavaInfo().getProvider(JavaCompilationArgsProvider.class);
 
-    assertThat(prettyArtifactNames(javaCompilationArgsProvider.getDirectCompileTimeJars()))
+    assertThat(prettyArtifactNames(javaCompilationArgsProvider.directCompileTimeJars()))
         .containsExactly("foo/my_starlark_rule_lib.jar");
-    assertThat(prettyArtifactNames(javaCompilationArgsProvider.getDirectFullCompileTimeJars()))
+    assertThat(prettyArtifactNames(javaCompilationArgsProvider.directFullCompileTimeJars()))
         .containsExactly("foo/my_starlark_rule_lib.jar");
-    assertThat(prettyArtifactNames(javaCompilationArgsProvider.getRuntimeJars()))
+    assertThat(prettyArtifactNames(javaCompilationArgsProvider.runtimeJars()))
         .containsExactly("foo/my_starlark_rule_lib.jar", "foo/libmy_java_lib_direct.jar");
-    assertThat(prettyArtifactNames(javaCompilationArgsProvider.getTransitiveCompileTimeJars()))
+    assertThat(prettyArtifactNames(javaCompilationArgsProvider.transitiveCompileTimeJars()))
         .containsExactly("foo/my_starlark_rule_lib.jar");
   }
 
@@ -279,12 +279,12 @@ public class JavaInfoStarlarkApiTest extends BuildViewTestCase {
     JavaCompilationArgsProvider javaCompilationArgsProvider =
         fetchJavaInfo().getProvider(JavaCompilationArgsProvider.class);
 
-    assertThat(prettyArtifactNames(javaCompilationArgsProvider.getDirectCompileTimeJars()))
+    assertThat(prettyArtifactNames(javaCompilationArgsProvider.directCompileTimeJars()))
         .containsExactly("foo/my_starlark_rule_lib.jar");
-    assertThat(prettyArtifactNames(javaCompilationArgsProvider.getDirectFullCompileTimeJars()))
+    assertThat(prettyArtifactNames(javaCompilationArgsProvider.directFullCompileTimeJars()))
         .containsExactly("foo/my_starlark_rule_lib.jar");
-    assertThat(prettyArtifactNames(javaCompilationArgsProvider.getRuntimeJars())).isEmpty();
-    assertThat(prettyArtifactNames(javaCompilationArgsProvider.getTransitiveCompileTimeJars()))
+    assertThat(prettyArtifactNames(javaCompilationArgsProvider.runtimeJars())).isEmpty();
+    assertThat(prettyArtifactNames(javaCompilationArgsProvider.transitiveCompileTimeJars()))
         .containsExactly("foo/my_starlark_rule_lib.jar", "foo/libmy_java_lib_direct-hjar.jar");
   }
 
@@ -307,10 +307,10 @@ public class JavaInfoStarlarkApiTest extends BuildViewTestCase {
     JavaSourceJarsProvider sourceJarsProvider =
         fetchJavaInfo().getProvider(JavaSourceJarsProvider.class);
 
-    assertThat(prettyArtifactNames(sourceJarsProvider.getSourceJars()))
+    assertThat(prettyArtifactNames(sourceJarsProvider.sourceJars()))
         .containsExactly("foo/my_starlark_rule_src.jar");
 
-    assertThat(prettyArtifactNames(sourceJarsProvider.getTransitiveSourceJars()))
+    assertThat(prettyArtifactNames(sourceJarsProvider.transitiveSourceJars()))
         .containsExactly("foo/my_starlark_rule_src.jar");
   }
 
@@ -333,10 +333,10 @@ public class JavaInfoStarlarkApiTest extends BuildViewTestCase {
     JavaSourceJarsProvider sourceJarsProvider =
         fetchJavaInfo().getProvider(JavaSourceJarsProvider.class);
 
-    assertThat(prettyArtifactNames(sourceJarsProvider.getSourceJars()))
+    assertThat(prettyArtifactNames(sourceJarsProvider.sourceJars()))
         .containsExactly("foo/my_starlark_rule_lib-src.jar");
 
-    assertThat(prettyArtifactNames(sourceJarsProvider.getTransitiveSourceJars()))
+    assertThat(prettyArtifactNames(sourceJarsProvider.transitiveSourceJars()))
         .containsExactly("foo/my_starlark_rule_lib-src.jar");
   }
 
@@ -371,10 +371,10 @@ public class JavaInfoStarlarkApiTest extends BuildViewTestCase {
     JavaSourceJarsProvider sourceJarsProvider =
         fetchJavaInfo().getProvider(JavaSourceJarsProvider.class);
 
-    assertThat(prettyArtifactNames(sourceJarsProvider.getSourceJars()))
+    assertThat(prettyArtifactNames(sourceJarsProvider.sourceJars()))
         .containsExactly("foo/my_starlark_rule_lib-src.jar");
 
-    assertThat(prettyArtifactNames(sourceJarsProvider.getTransitiveSourceJars()))
+    assertThat(prettyArtifactNames(sourceJarsProvider.transitiveSourceJars()))
         .containsExactly("foo/my_starlark_rule_lib-src.jar");
   }
 
@@ -410,10 +410,10 @@ public class JavaInfoStarlarkApiTest extends BuildViewTestCase {
     JavaSourceJarsProvider sourceJarsProvider =
         fetchJavaInfo().getProvider(JavaSourceJarsProvider.class);
 
-    assertThat(prettyArtifactNames(sourceJarsProvider.getSourceJars()))
+    assertThat(prettyArtifactNames(sourceJarsProvider.sourceJars()))
         .containsExactly("foo/my_starlark_rule_lib-src.jar");
 
-    assertThat(prettyArtifactNames(sourceJarsProvider.getTransitiveSourceJars()))
+    assertThat(prettyArtifactNames(sourceJarsProvider.transitiveSourceJars()))
         .containsExactly("foo/my_starlark_rule_lib-src.jar");
   }
 
@@ -443,10 +443,10 @@ public class JavaInfoStarlarkApiTest extends BuildViewTestCase {
     JavaSourceJarsProvider sourceJarsProvider =
         fetchJavaInfo().getProvider(JavaSourceJarsProvider.class);
 
-    assertThat(prettyArtifactNames(sourceJarsProvider.getSourceJars()))
+    assertThat(prettyArtifactNames(sourceJarsProvider.sourceJars()))
         .containsExactly("foo/my_starlark_rule_src.jar");
 
-    assertThat(prettyArtifactNames(sourceJarsProvider.getTransitiveSourceJars()))
+    assertThat(prettyArtifactNames(sourceJarsProvider.transitiveSourceJars()))
         .containsExactly("foo/my_starlark_rule_src.jar", "foo/libmy_java_lib_direct-src.jar");
   }
 
@@ -476,10 +476,10 @@ public class JavaInfoStarlarkApiTest extends BuildViewTestCase {
     JavaSourceJarsProvider sourceJarsProvider =
         fetchJavaInfo().getProvider(JavaSourceJarsProvider.class);
 
-    assertThat(prettyArtifactNames(sourceJarsProvider.getSourceJars()))
+    assertThat(prettyArtifactNames(sourceJarsProvider.sourceJars()))
         .containsExactly("foo/my_starlark_rule_src.jar");
 
-    assertThat(prettyArtifactNames(sourceJarsProvider.getTransitiveSourceJars()))
+    assertThat(prettyArtifactNames(sourceJarsProvider.transitiveSourceJars()))
         .containsExactly("foo/my_starlark_rule_src.jar", "foo/libmy_java_lib_direct-src.jar");
   }
 
@@ -515,10 +515,10 @@ public class JavaInfoStarlarkApiTest extends BuildViewTestCase {
     JavaSourceJarsProvider sourceJarsProvider =
         fetchJavaInfo().getProvider(JavaSourceJarsProvider.class);
 
-    assertThat(prettyArtifactNames(sourceJarsProvider.getSourceJars()))
+    assertThat(prettyArtifactNames(sourceJarsProvider.sourceJars()))
         .containsExactly("foo/my_starlark_rule_src.jar");
 
-    assertThat(prettyArtifactNames(sourceJarsProvider.getTransitiveSourceJars()))
+    assertThat(prettyArtifactNames(sourceJarsProvider.transitiveSourceJars()))
         .containsExactly(
             "foo/my_starlark_rule_src.jar",
             "foo/libmy_java_lib_direct-src.jar",
@@ -558,10 +558,10 @@ public class JavaInfoStarlarkApiTest extends BuildViewTestCase {
     JavaSourceJarsProvider sourceJarsProvider =
         fetchJavaInfo().getProvider(JavaSourceJarsProvider.class);
 
-    assertThat(prettyArtifactNames(sourceJarsProvider.getSourceJars()))
+    assertThat(prettyArtifactNames(sourceJarsProvider.sourceJars()))
         .containsExactly("foo/my_starlark_rule_src.jar");
 
-    assertThat(prettyArtifactNames(sourceJarsProvider.getTransitiveSourceJars()))
+    assertThat(prettyArtifactNames(sourceJarsProvider.transitiveSourceJars()))
         .containsExactly(
             "foo/my_starlark_rule_src.jar",
             "foo/libmy_java_lib_direct-src.jar",
@@ -596,18 +596,18 @@ public class JavaInfoStarlarkApiTest extends BuildViewTestCase {
     JavaSourceJarsProvider javaSourceJarsProvider =
         javaInfo.getProvider(JavaSourceJarsProvider.class);
 
-    assertThat(javaSourceJarsProvider.getSourceJars()).isEmpty();
+    assertThat(javaSourceJarsProvider.sourceJars()).isEmpty();
 
     JavaCompilationArgsProvider javaCompilationArgsProvider =
         javaInfo.getProvider(JavaCompilationArgsProvider.class);
 
-    assertThat(prettyArtifactNames(javaCompilationArgsProvider.getDirectCompileTimeJars()))
+    assertThat(prettyArtifactNames(javaCompilationArgsProvider.directCompileTimeJars()))
         .containsExactly("foo/my_starlark_rule_lib.jar", "foo/libmy_java_lib_exports-hjar.jar");
-    assertThat(prettyArtifactNames(javaCompilationArgsProvider.getDirectFullCompileTimeJars()))
+    assertThat(prettyArtifactNames(javaCompilationArgsProvider.directFullCompileTimeJars()))
         .containsExactly("foo/my_starlark_rule_lib.jar", "foo/libmy_java_lib_exports.jar");
-    assertThat(prettyArtifactNames(javaCompilationArgsProvider.getRuntimeJars()))
+    assertThat(prettyArtifactNames(javaCompilationArgsProvider.runtimeJars()))
         .containsExactly("foo/my_starlark_rule_lib.jar", "foo/libmy_java_lib_exports.jar");
-    assertThat(prettyArtifactNames(javaCompilationArgsProvider.getTransitiveCompileTimeJars()))
+    assertThat(prettyArtifactNames(javaCompilationArgsProvider.transitiveCompileTimeJars()))
         .containsExactly("foo/my_starlark_rule_lib.jar", "foo/libmy_java_lib_exports-hjar.jar");
   }
 
@@ -654,24 +654,24 @@ public class JavaInfoStarlarkApiTest extends BuildViewTestCase {
     JavaCompilationArgsProvider javaCompilationArgsProvider =
         javaInfo.getProvider(JavaCompilationArgsProvider.class);
 
-    assertThat(prettyArtifactNames(javaCompilationArgsProvider.getDirectCompileTimeJars()))
+    assertThat(prettyArtifactNames(javaCompilationArgsProvider.directCompileTimeJars()))
         .containsExactly(
             "foo/my_starlark_rule_lib.jar",
             "foo/libmy_java_lib_a-hjar.jar",
             "foo/libmy_java_lib_b-hjar.jar");
 
-    assertThat(prettyArtifactNames(javaCompilationArgsProvider.getDirectFullCompileTimeJars()))
+    assertThat(prettyArtifactNames(javaCompilationArgsProvider.directFullCompileTimeJars()))
         .containsExactly(
             "foo/my_starlark_rule_lib.jar", "foo/libmy_java_lib_a.jar", "foo/libmy_java_lib_b.jar");
 
-    assertThat(prettyArtifactNames(javaCompilationArgsProvider.getRuntimeJars()))
+    assertThat(prettyArtifactNames(javaCompilationArgsProvider.runtimeJars()))
         .containsExactly(
             "foo/my_starlark_rule_lib.jar",
             "foo/libmy_java_lib_a.jar",
             "foo/libmy_java_lib_b.jar",
             "foo/libmy_java_lib_c.jar");
 
-    assertThat(prettyArtifactNames(javaCompilationArgsProvider.getTransitiveCompileTimeJars()))
+    assertThat(prettyArtifactNames(javaCompilationArgsProvider.transitiveCompileTimeJars()))
         .containsExactly(
             "foo/my_starlark_rule_lib.jar",
             "foo/libmy_java_lib_a-hjar.jar",
@@ -734,17 +734,17 @@ public class JavaInfoStarlarkApiTest extends BuildViewTestCase {
     JavaCompilationArgsProvider javaCompilationArgsProvider =
         javaInfo.getProvider(JavaCompilationArgsProvider.class);
 
-    assertThat(prettyArtifactNames(javaCompilationArgsProvider.getDirectCompileTimeJars()))
+    assertThat(prettyArtifactNames(javaCompilationArgsProvider.directCompileTimeJars()))
         .containsExactly(
             "foo/my_starlark_rule_lib.jar",
             "foo/libmy_java_lib_a-hjar.jar",
             "foo/libmy_java_lib_b-hjar.jar");
 
-    assertThat(prettyArtifactNames(javaCompilationArgsProvider.getDirectFullCompileTimeJars()))
+    assertThat(prettyArtifactNames(javaCompilationArgsProvider.directFullCompileTimeJars()))
         .containsExactly(
             "foo/my_starlark_rule_lib.jar", "foo/libmy_java_lib_a.jar", "foo/libmy_java_lib_b.jar");
 
-    assertThat(prettyArtifactNames(javaCompilationArgsProvider.getRuntimeJars()))
+    assertThat(prettyArtifactNames(javaCompilationArgsProvider.runtimeJars()))
         .containsExactly(
             "foo/my_starlark_rule_lib.jar",
             "foo/libmy_java_lib_a.jar",
@@ -752,7 +752,7 @@ public class JavaInfoStarlarkApiTest extends BuildViewTestCase {
             "foo/libmy_java_lib_c.jar",
             "foo/libmy_java_lib_d.jar");
 
-    assertThat(prettyArtifactNames(javaCompilationArgsProvider.getTransitiveCompileTimeJars()))
+    assertThat(prettyArtifactNames(javaCompilationArgsProvider.transitiveCompileTimeJars()))
         .containsExactly(
             "foo/my_starlark_rule_lib.jar",
             "foo/libmy_java_lib_a-hjar.jar",
@@ -851,13 +851,13 @@ public class JavaInfoStarlarkApiTest extends BuildViewTestCase {
 
     JavaCompilationArgsProvider javaCompilationArgsProvider =
         fetchJavaInfo().getProvider(JavaCompilationArgsProvider.class);
-    assertThat(prettyArtifactNames(javaCompilationArgsProvider.getDirectFullCompileTimeJars()))
+    assertThat(prettyArtifactNames(javaCompilationArgsProvider.directFullCompileTimeJars()))
         .containsExactly("foo/my_starlark_rule_lib.jar");
-    assertThat(prettyArtifactNames(javaCompilationArgsProvider.getDirectCompileTimeJars()))
+    assertThat(prettyArtifactNames(javaCompilationArgsProvider.directCompileTimeJars()))
         .containsExactly("foo/my_starlark_rule_lib-stamped.jar");
-    assertThat(prettyArtifactNames(javaCompilationArgsProvider.getRuntimeJars()))
+    assertThat(prettyArtifactNames(javaCompilationArgsProvider.runtimeJars()))
         .containsExactly("foo/my_starlark_rule_lib.jar");
-    assertThat(prettyArtifactNames(javaCompilationArgsProvider.getTransitiveCompileTimeJars()))
+    assertThat(prettyArtifactNames(javaCompilationArgsProvider.transitiveCompileTimeJars()))
         .containsExactly("foo/my_starlark_rule_lib-stamped.jar");
   }
 
@@ -894,8 +894,8 @@ public class JavaInfoStarlarkApiTest extends BuildViewTestCase {
         .containsExactly("foo/my_starlark_rule_src.jar");
     assertThat(
             prettyArtifactNames(
-                ruleOutputs.getJavaOutputs().stream()
-                    .map(JavaOutput::getJdeps)
+                ruleOutputs.javaOutputs().stream()
+                    .map(JavaOutput::jdeps)
                     .collect(toImmutableList())))
         .containsExactly("foo/my_jdeps.pb");
   }
@@ -931,14 +931,14 @@ public class JavaInfoStarlarkApiTest extends BuildViewTestCase {
 
     assertThat(
             prettyArtifactNames(
-                ruleOutputs.getJavaOutputs().stream()
-                    .map(JavaOutput::getGeneratedClassJar)
+                ruleOutputs.javaOutputs().stream()
+                    .map(JavaOutput::generatedClassJar)
                     .collect(toImmutableList())))
         .containsExactly("foo/generated_class.jar");
     assertThat(
             prettyArtifactNames(
-                ruleOutputs.getJavaOutputs().stream()
-                    .map(JavaOutput::getGeneratedSourceJar)
+                ruleOutputs.javaOutputs().stream()
+                    .map(JavaOutput::generatedSourceJar)
                     .collect(toImmutableList())))
         .containsExactly("foo/generated_srcs.jar");
   }
@@ -1004,8 +1004,8 @@ public class JavaInfoStarlarkApiTest extends BuildViewTestCase {
 
     assertThat(
             prettyArtifactNames(
-                ruleOutputs.getJavaOutputs().stream()
-                    .map(JavaOutput::getCompileJdeps)
+                ruleOutputs.javaOutputs().stream()
+                    .map(JavaOutput::compileJdeps)
                     .collect(toImmutableList())))
         .containsExactly("foo/compile.deps");
   }
@@ -1040,8 +1040,8 @@ public class JavaInfoStarlarkApiTest extends BuildViewTestCase {
 
     assertThat(
             prettyArtifactNames(
-                ruleOutputs.getJavaOutputs().stream()
-                    .map(JavaOutput::getNativeHeadersJar)
+                ruleOutputs.javaOutputs().stream()
+                    .map(JavaOutput::nativeHeadersJar)
                     .collect(toImmutableList())))
         .containsExactly("foo/nativeheaders.jar");
   }
@@ -1076,8 +1076,8 @@ public class JavaInfoStarlarkApiTest extends BuildViewTestCase {
 
     assertThat(
             prettyArtifactNames(
-                ruleOutputs.getJavaOutputs().stream()
-                    .map(JavaOutput::getManifestProto)
+                ruleOutputs.javaOutputs().stream()
+                    .map(JavaOutput::manifestProto)
                     .collect(toImmutableList())))
         .containsExactly("foo/manifest.proto");
   }
@@ -1224,11 +1224,11 @@ public class JavaInfoStarlarkApiTest extends BuildViewTestCase {
                 "plugins", JavaPluginData.empty(),
                 "api_generating_plugins", JavaPluginData.empty()));
 
-    JavaPluginInfo pluginInfo = JavaPluginInfo.PROVIDER.wrap(starlarkPluginInfo);
+    JavaPluginInfo pluginInfo = JavaPluginInfo.wrap(starlarkPluginInfo);
 
     assertThat(pluginInfo).isNotNull();
     assertThat(pluginInfo.getJavaOutputs()).hasSize(1);
-    assertThat(pluginInfo.getJavaOutputs().get(0).getClassJar()).isEqualTo(classJar);
+    assertThat(pluginInfo.getJavaOutputs().get(0).classJar()).isEqualTo(classJar);
   }
 
   @Test
@@ -1236,6 +1236,7 @@ public class JavaInfoStarlarkApiTest extends BuildViewTestCase {
     scratch.file(
         "foo/extension.bzl",
         """
+        load("@rules_java//java/common:java_info.bzl", "JavaInfo")
         MyInfo = provider()
 
         def _impl(ctx):
@@ -1276,6 +1277,7 @@ public class JavaInfoStarlarkApiTest extends BuildViewTestCase {
     scratch.file(
         "foo/extension.bzl",
         """
+        load("@rules_java//java/common:java_info.bzl", "JavaInfo")
         def _impl(ctx):
             f = ctx.actions.declare_file(ctx.label.name + ".jar")
             ctx.actions.write(f, "")
@@ -1293,8 +1295,7 @@ public class JavaInfoStarlarkApiTest extends BuildViewTestCase {
     JavaOutput nativeOutput =
         JavaOutput.builder().setClassJar(createArtifact("native.jar")).build();
     StarlarkList<?> starlarkOutputs =
-        ((StarlarkInfo)
-                getConfiguredTarget("//foo:my_starlark_rule").get(JavaInfo.PROVIDER.getKey()))
+        JavaInfo.getJavaInfo(getConfiguredTarget("//foo:my_starlark_rule"))
             .getValue("java_outputs", StarlarkList.class);
 
     Depset depset =
@@ -1313,6 +1314,7 @@ public class JavaInfoStarlarkApiTest extends BuildViewTestCase {
     scratch.file(
         "foo/extension.bzl",
         """
+        load("@rules_java//java/common:java_info.bzl", "JavaInfo")
         def _impl(ctx):
             f = ctx.actions.declare_file(ctx.label.name + ".jar")
             ctx.actions.write(f, "")
@@ -1328,7 +1330,7 @@ public class JavaInfoStarlarkApiTest extends BuildViewTestCase {
         my_rule(name = "my_starlark_rule")
         """);
 
-    JavaInfo javaInfo = getConfiguredTarget("//foo:my_starlark_rule").get(JavaInfo.PROVIDER);
+    JavaInfo javaInfo = JavaInfo.getJavaInfo(getConfiguredTarget("//foo:my_starlark_rule"));
 
     assertThat(javaInfo).isNotNull();
     assertThat(javaInfo.isNeverlink()).isTrue();
@@ -1339,13 +1341,14 @@ public class JavaInfoStarlarkApiTest extends BuildViewTestCase {
     ImmutableMap<String, Object> fields = getBuilderWithMandataryFields().buildOrThrow();
     StarlarkInfo starlarkInfo = makeStruct(fields);
 
-    JavaInfo javaInfo = JavaInfo.PROVIDER.wrap(starlarkInfo);
+    JavaInfo javaInfo = JavaInfo.wrap(starlarkInfo);
 
     assertThat(javaInfo).isNotNull();
     assertThat(javaInfo.getProvider(JavaCompilationArgsProvider.class)).isNotNull();
     assertThat(javaInfo.getCompilationInfoProvider()).isNull();
     assertThat(javaInfo.getJavaModuleFlagsInfo()).isEqualTo(JavaModuleFlagsProvider.EMPTY);
-    assertThat(javaInfo.getJavaPluginInfo()).isEqualTo(JavaPluginInfo.empty());
+    assertThat(javaInfo.getJavaPluginInfo())
+        .isEqualTo(JavaPluginInfo.empty(JavaPluginInfo.PROVIDER));
   }
 
   @Test
@@ -1354,7 +1357,7 @@ public class JavaInfoStarlarkApiTest extends BuildViewTestCase {
         getBuilderWithMandataryFields().put("_is_binary", true).buildOrThrow();
     StarlarkInfo starlarkInfo = makeStruct(fields);
 
-    JavaInfo javaInfo = JavaInfo.PROVIDER.wrap(starlarkInfo);
+    JavaInfo javaInfo = JavaInfo.wrap(starlarkInfo);
 
     assertThat(javaInfo).isNotNull();
     assertThat(javaInfo.getProvider(JavaCompilationArgsProvider.class)).isNull();
@@ -1376,7 +1379,7 @@ public class JavaInfoStarlarkApiTest extends BuildViewTestCase {
             .buildOrThrow();
     StarlarkInfo starlarkInfo = makeStruct(fields);
 
-    JavaInfo javaInfo = JavaInfo.PROVIDER.wrap(starlarkInfo);
+    JavaInfo javaInfo = JavaInfo.wrap(starlarkInfo);
 
     assertThat(javaInfo).isNotNull();
     assertThat(javaInfo.getCompilationInfoProvider()).isNotNull();
@@ -1433,7 +1436,7 @@ public class JavaInfoStarlarkApiTest extends BuildViewTestCase {
             .buildOrThrow();
     StarlarkInfo starlarkInfo = makeStruct(fields);
 
-    JavaInfo javaInfo = JavaInfo.PROVIDER.wrap(starlarkInfo);
+    JavaInfo javaInfo = JavaInfo.wrap(starlarkInfo);
 
     assertThat(javaInfo).isNotNull();
     assertThat(javaInfo.getJavaModuleFlagsInfo()).isNotNull();
@@ -1456,7 +1459,7 @@ public class JavaInfoStarlarkApiTest extends BuildViewTestCase {
             .buildKeepingLast();
     StarlarkInfo starlarkInfo = makeStruct(fields);
 
-    JavaInfo javaInfo = JavaInfo.PROVIDER.wrap(starlarkInfo);
+    JavaInfo javaInfo = JavaInfo.wrap(starlarkInfo);
 
     assertThat(javaInfo).isNotNull();
     assertThat(javaInfo.plugins()).isNotNull();
@@ -1534,7 +1537,8 @@ public class JavaInfoStarlarkApiTest extends BuildViewTestCase {
       assertThat(useIJar && stampJar).isFalse();
       ImmutableList.Builder<String> lines = ImmutableList.builder();
       lines.add(
-          "load('@rules_java//java:defs.bzl', 'java_common')",
+          "load('@rules_java//java:defs.bzl', 'java_common', 'JavaInfo',"
+              + " 'JavaPluginInfo')",
           "result = provider()",
           "def _impl(ctx):",
           "  ctx.actions.write(ctx.outputs.output_jar, 'JavaInfo API Test', is_executable=False) ",
@@ -1653,6 +1657,6 @@ public class JavaInfoStarlarkApiTest extends BuildViewTestCase {
                 new StarlarkProvider.Key(
                     keyForBuild(Label.parseCanonical("//foo:extension.bzl")), "result"));
 
-    return JavaInfo.PROVIDER.wrap(info.getValue("property", Info.class));
+    return JavaInfo.wrap(info.getValue("property", Info.class));
   }
 }

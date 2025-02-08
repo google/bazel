@@ -19,6 +19,7 @@ import com.google.devtools.common.options.Option;
 import com.google.devtools.common.options.OptionDocumentationCategory;
 import com.google.devtools.common.options.OptionEffectTag;
 import com.google.devtools.common.options.OptionsBase;
+import java.util.List;
 
 /** Provides Bazel startup flags. */
 public class BazelStartupOptionsModule extends BlazeModule {
@@ -26,6 +27,7 @@ public class BazelStartupOptionsModule extends BlazeModule {
   public static final class Options extends OptionsBase {
     @Option(
         name = "bazelrc",
+        allowMultiple = true,
         defaultValue = "null", // NOTE: purely decorative, rc files are read by the client.
         documentationCategory = OptionDocumentationCategory.BAZEL_CLIENT_OPTIONS,
         effectTags = {OptionEffectTag.CHANGES_INPUTS},
@@ -45,7 +47,7 @@ public class BazelStartupOptionsModule extends BlazeModule {
                 + "the following two locations: the workspace directory, then the user's home "
                 + "directory.\n"
                 + "Note: command line options will always supersede any option in bazelrc.")
-    public String blazerc;
+    public List<String> blazerc;
 
     // For the system_rc, it can be /etc/bazel.bazelrc, or a special Windows value, or can be
     // custom-set by the Bazel distributor. We don't list a known path in the help output in order

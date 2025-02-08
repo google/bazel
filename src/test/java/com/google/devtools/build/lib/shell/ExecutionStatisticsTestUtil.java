@@ -51,7 +51,7 @@ public class ExecutionStatisticsTestUtil {
 
     Command command = new Command(fullCommandLine.toArray(new String[0]));
     CommandResult commandResult = command.execute();
-    assertThat(commandResult.getTerminationStatus().success()).isTrue();
+    assertThat(commandResult.terminationStatus().success()).isTrue();
 
     Optional<ExecutionStatistics.ResourceUsage> resourceUsage =
         ExecutionStatistics.getResourceUsage(statisticsFilePath);

@@ -53,6 +53,12 @@ native_image(
             # Statically link zlib but not glibc.
             "-H:+StaticExecutableWithDynamicLibC",
         ],
+        "@platforms//os:windows": [
+            # The charset specified by sun.jnu.encoding is not automatically included in the image,
+            # but may be one of the legacy code pages on Windows, which aren't added by default.
+            # https://github.com/oracle/graal/pull/10232
+            "-H:+AddAllCharsets",
+        ],
         "//conditions:default": [],
     }) + select({
         "@platforms//cpu:x86_64": [

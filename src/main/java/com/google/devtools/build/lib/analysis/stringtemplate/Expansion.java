@@ -13,20 +13,21 @@
 // limitations under the License.
 package com.google.devtools.build.lib.analysis.stringtemplate;
 
-import com.google.auto.value.AutoValue;
+import static java.util.Objects.requireNonNull;
+
 import com.google.common.collect.ImmutableSet;
 
 /**
  * Holds the result of expanding a string with make variables: both the new (expanded) string and
  * the set of variables that were expanded.
  */
-@AutoValue
-public abstract class Expansion {
-  public static Expansion create(String expansion, ImmutableSet<String> lookedUpVariables) {
-    return new AutoValue_Expansion(expansion, lookedUpVariables);
+public record Expansion(String expansion, ImmutableSet<String> lookedUpVariables) {
+  public Expansion {
+    requireNonNull(expansion, "expansion");
+    requireNonNull(lookedUpVariables, "lookedUpVariables");
   }
 
-  public abstract String expansion();
-
-  public abstract ImmutableSet<String> lookedUpVariables();
+  public static Expansion create(String expansion, ImmutableSet<String> lookedUpVariables) {
+    return new Expansion(expansion, lookedUpVariables);
+  }
 }

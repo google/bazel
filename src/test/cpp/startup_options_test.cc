@@ -31,8 +31,8 @@ namespace blaze {
 // Minimal StartupOptions class for testing.
 class FakeStartupOptions : public StartupOptions {
  public:
-  FakeStartupOptions(const WorkspaceLayout *workspace_layout)
-      : StartupOptions("Bazel", workspace_layout) {}
+  FakeStartupOptions()
+      : StartupOptions("Bazel", /* lock_install_base= */ true) {}
   blaze_exit_code::ExitCode ProcessArgExtra(
       const char *arg, const char *next_arg, const std::string &rcfile,
       const char **value, bool *is_processed, std::string *error) override {
@@ -42,14 +42,15 @@ class FakeStartupOptions : public StartupOptions {
   void MaybeLogStartupOptionWarnings() const override {}
 
  protected:
+  blaze_util::Path GetDefaultOutputRoot() const override {
+    return blaze_util::Path("/output_root");
+  }
+
   std::string GetRcFileBaseName() const override { return ".bazelrc"; }
 };
 
 class StartupOptionsTest : public ::testing::Test {
  protected:
-  StartupOptionsTest() : workspace_layout_(new WorkspaceLayout()) {}
-  ~StartupOptionsTest() = default;
-
   void SetUp() override {
     // This knowingly ignores the possibility of these environment variables
     // being unset because we expect our test runner to set them in all cases.
@@ -67,7 +68,7 @@ class StartupOptionsTest : public ::testing::Test {
 
   // Recreates startup_options_ after changes to the environment.
   void ReinitStartupOptions() {
-    startup_options_.reset(new FakeStartupOptions(workspace_layout_.get()));
+    startup_options_ = std::make_unique<FakeStartupOptions>();
   }
 
  private:
@@ -90,66 +91,16 @@ TEST_F(StartupOptionsTest, JavaLoggingOptions) {
             startup_options_->java_logging_formatter);
 }
 
-// TODO(bazel-team): remove the ifdef guard once the implementation of
-// GetOutputRoot is stable among the different platforms.
-#ifdef __linux
-TEST_F(StartupOptionsTest, OutputRootPreferTestTmpdirIfSet) {
-  SetEnv("HOME", "/nonexistent/home");
-  SetEnv("XDG_CACHE_HOME", "/nonexistent/cache");
-  SetEnv("TEST_TMPDIR", "/nonexistent/tmpdir");
-  ReinitStartupOptions();
-
-  ASSERT_EQ("/nonexistent/tmpdir", startup_options_->output_root);
-}
-
-TEST_F(StartupOptionsTest,
-       OutputRootPreferXdgCacheHomeIfSetAndTestTmpdirUnset) {
-  SetEnv("HOME", "/nonexistent/home");
-  SetEnv("XDG_CACHE_HOME", "/nonexistent/cache");
-  UnsetEnv("TEST_TMPDIR");
-  ReinitStartupOptions();
-
-  ASSERT_EQ("/nonexistent/cache/bazel", startup_options_->output_root);
-}
-
-TEST_F(StartupOptionsTest, OutputRootUseHomeDirectory) {
-  SetEnv("HOME", "/nonexistent/home");
-  UnsetEnv("TEST_TMPDIR");
-  UnsetEnv("XDG_CACHE_HOME");
-  ReinitStartupOptions();
-
-  ASSERT_EQ("/nonexistent/home/.cache/bazel", startup_options_->output_root);
-}
-
-TEST_F(StartupOptionsTest, OutputRootIsAbsoluteAndNotShellExpanded) {
-  SetEnv("TEST_TMPDIR", "~/\"$foo/test\"");
-  SetEnv("XDG_CACHE_HOME", "~/cache${bar}");
-  SetEnv("HOME", "~/home$(echo baz)");
-
-  ReinitStartupOptions();
-  ASSERT_EQ(blaze_util::GetCwd() + "/~/\"$foo/test\"",
-            startup_options_->output_root);
-
-  UnsetEnv("TEST_TMPDIR");
-  ReinitStartupOptions();
-  ASSERT_EQ(blaze_util::GetCwd() + "/~/cache${bar}/bazel",
-            startup_options_->output_root);
-
-  UnsetEnv("XDG_CACHE_HOME");
-  ReinitStartupOptions();
-  ASSERT_EQ(blaze_util::GetCwd() + "/~/home$(echo baz)/.cache/bazel",
-            startup_options_->output_root);
-}
-#endif  // __linux
-
 TEST_F(StartupOptionsTest, OutputUserRootTildeExpansion) {
 #if defined(_WIN32)
-  std::string home = "C:/nonexistent/home/";
+  std::string home_str = "C:/nonexistent/home/";
 #else
-  std::string home = "/nonexistent/home/";
+  std::string home_str = "/nonexistent/home/";
 #endif
 
-  SetEnv("HOME", home);
+  SetEnv("HOME", home_str);
+
+  blaze_util::Path home(home_str);
 
   std::string error;
 
@@ -164,8 +115,7 @@ TEST_F(StartupOptionsTest, OutputUserRootTildeExpansion) {
     ASSERT_EQ(blaze_exit_code::SUCCESS, ec)
         << "ProcessArgs failed with error " << error;
 
-    EXPECT_EQ(blaze_util::JoinPath(home, "test"),
-              startup_options_->output_user_root);
+    EXPECT_EQ(home.GetRelative("test"), startup_options_->output_user_root);
   }
 
   {

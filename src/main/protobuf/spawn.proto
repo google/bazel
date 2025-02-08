@@ -213,9 +213,9 @@ message SpawnExec {
 // serialized after all other entries it references by ID. However, entries
 // aren't guaranteed to be serialized in increasing ID order.
 //
-// Entries other than spawns and non-spawn actions may not be assumed to be
-// canonical. For performance reasons, the same file, directory or input set may
-// be serialized multiple times with a different ID.
+// Entries other than Invocation, Spawn and SymlinkSction must not be assumed to
+// be canonical: they may be serialized multiple times with different IDs for
+// performance reasons.
 message ExecLogEntry {
   // Information pertaining to the entire invocation.
   // May appear at most once in the initial position.
@@ -232,6 +232,9 @@ message ExecLogEntry {
 
     // Whether --experimental_sibling_repository_layout is enabled.
     bool sibling_repository_layout = 3;
+
+    // The ID of the invocation.
+    string id = 4;
   }
 
   // An input or output file.

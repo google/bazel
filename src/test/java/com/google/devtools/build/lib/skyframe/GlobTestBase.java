@@ -164,8 +164,7 @@ public abstract class GlobTestBase {
         SkyFunctions.REPO_FILE,
         new RepoFileFunction(
             ruleClassProvider.getBazelStarlarkEnvironment(), directories.getWorkspace()));
-    skyFunctions.put(
-        SkyFunctions.IGNORED_PACKAGE_PREFIXES, IgnoredPackagePrefixesFunction.INSTANCE);
+    skyFunctions.put(SkyFunctions.IGNORED_SUBDIRECTORIES, IgnoredSubdirectoriesFunction.INSTANCE);
     skyFunctions.put(
         FileStateKey.FILE_STATE,
         new FileStateFunction(
@@ -389,51 +388,6 @@ public abstract class GlobTestBase {
   @Test
   public void testGlobDoesNotCrossPackageBoundaryUnderOtherPackagePath() throws Exception {
     writableRoot.getRelative("pkg/foo/bar").createDirectoryAndParents();
-    FileSystemUtils.createEmptyFile(writableRoot.getRelative("pkg/foo/bar/BUILD"));
-    // "foo/bar" should not be in the results because foo/bar is detected as a separate package,
-    // even though it is under a different package path.
-    assertSingleGlobMatches("foo/**", /* => */ "foo/barnacle/wiz", "foo/barnacle", "foo");
-  }
-
-  @Test
-  public void testGlobDoesNotCrossRepositoryBoundary() throws Exception {
-    FileSystemUtils.appendIsoLatin1(
-        root.getRelative("WORKSPACE"), "local_repository(name='local', path='pkg/foo')");
-    FileSystemUtils.createEmptyFile(pkgPath.getRelative("foo/WORKSPACE"));
-    FileSystemUtils.createEmptyFile(pkgPath.getRelative("foo/BUILD"));
-    // "foo/bar" should not be in the results because foo is a separate repository.
-    assertSingleGlobMatches("f*/*", /* => */ "food/barnacle", "fool/barnacle");
-  }
-
-  @Test
-  public void testGlobDirectoryMatchDoesNotCrossRepositoryBoundary() throws Exception {
-    FileSystemUtils.appendIsoLatin1(
-        root.getRelative("WORKSPACE"), "local_repository(name='local', path='pkg/foo/bar')");
-    FileSystemUtils.createEmptyFile(pkgPath.getRelative("foo/bar/WORKSPACE"));
-    FileSystemUtils.createEmptyFile(pkgPath.getRelative("foo/bar/BUILD"));
-    // "foo/bar" should not be in the results because foo/bar is a separate repository.
-    assertSingleGlobMatches("foo/*", /* => */ "foo/barnacle");
-  }
-
-  @Test
-  public void testStarStarDoesNotCrossRepositoryBoundary() throws Exception {
-    FileSystemUtils.appendIsoLatin1(
-        root.getRelative("WORKSPACE"), "local_repository(name='local', path='pkg/foo/bar')");
-    FileSystemUtils.createEmptyFile(pkgPath.getRelative("foo/bar/WORKSPACE"));
-    FileSystemUtils.createEmptyFile(pkgPath.getRelative("foo/bar/BUILD"));
-    // "foo/bar" should not be in the results because foo/bar is a separate repository.
-    assertSingleGlobMatches("foo/**", /* => */ "foo/barnacle/wiz", "foo/barnacle", "foo");
-  }
-
-  @Test
-  public void testGlobDoesNotCrossRepositoryBoundaryUnderOtherPackagePath() throws Exception {
-    FileSystemUtils.appendIsoLatin1(
-        root.getRelative("WORKSPACE"),
-        "local_repository(name='local', path='"
-            + writableRoot.getRelative("pkg/foo/bar").getPathString()
-            + "')");
-    writableRoot.getRelative("pkg/foo/bar").createDirectoryAndParents();
-    FileSystemUtils.createEmptyFile(writableRoot.getRelative("pkg/foo/bar/WORKSPACE"));
     FileSystemUtils.createEmptyFile(writableRoot.getRelative("pkg/foo/bar/BUILD"));
     // "foo/bar" should not be in the results because foo/bar is detected as a separate package,
     // even though it is under a different package path.

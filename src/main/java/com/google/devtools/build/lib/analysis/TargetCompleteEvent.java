@@ -16,8 +16,6 @@ package com.google.devtools.build.lib.analysis;
 
 import static com.google.devtools.build.lib.analysis.config.BuildConfigurationValue.configurationId;
 import static com.google.devtools.build.lib.buildeventstream.TestFileNameConstants.BASELINE_COVERAGE;
-import static java.nio.charset.StandardCharsets.ISO_8859_1;
-import static java.nio.charset.StandardCharsets.UTF_8;
 
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
@@ -30,7 +28,6 @@ import com.google.devtools.build.lib.actions.CompletionContext;
 import com.google.devtools.build.lib.actions.CompletionContext.ArtifactReceiver;
 import com.google.devtools.build.lib.actions.EventReportingArtifacts;
 import com.google.devtools.build.lib.actions.FileArtifactValue;
-import com.google.devtools.build.lib.actions.FileArtifactValue.UnresolvedSymlinkArtifactValue;
 import com.google.devtools.build.lib.analysis.TopLevelArtifactHelper.ArtifactsInOutputGroup;
 import com.google.devtools.build.lib.analysis.config.BuildConfigurationValue;
 import com.google.devtools.build.lib.analysis.test.InstrumentedFilesInfo;
@@ -63,7 +60,7 @@ import com.google.devtools.build.lib.skyframe.ConfiguredTargetAndData;
 import com.google.devtools.build.lib.skyframe.ConfiguredTargetKey;
 import com.google.devtools.build.lib.util.DetailedExitCode;
 import com.google.devtools.build.lib.util.DetailedExitCode.DetailedExitCodeComparator;
-import com.google.devtools.build.lib.util.OS;
+import com.google.devtools.build.lib.util.StringEncoding;
 import com.google.devtools.build.lib.vfs.Path;
 import com.google.devtools.build.lib.vfs.PathFragment;
 import com.google.devtools.build.skyframe.SkyValue;
@@ -269,7 +266,7 @@ public final class TargetCompleteEvent
     }
     return Iterables.filter(
         builder.build().toList(),
-        (artifact) -> !artifact.isSourceArtifact() && !artifact.isMiddlemanArtifact());
+        (artifact) -> !artifact.isSourceArtifact() && !artifact.isRunfilesTree());
   }
 
   @Override
@@ -366,26 +363,21 @@ public final class TargetCompleteEvent
       CompletionContext completionContext,
       @Nullable String uri) {
     if (name == null) {
-      name = artifact.getRootRelativePath().getRelative(relPath).getPathString();
-      if (OS.getCurrent() != OS.WINDOWS) {
-        // TODO(b/36360490): Unix file names are currently always Latin-1 strings, even if they
-        // contain UTF-8 bytes. Protobuf specifies string fields to contain UTF-8 and passing a
-        // "Latin-1 with UTF-8 bytes" string will lead to double-encoding the bytes with the high
-        // bit set. Until we address the pervasive use of "Latin-1 with UTF-8 bytes" throughout
-        // Bazel (eg. by standardizing on UTF-8 on Unix systems) we will need to silently swap out
-        // the encoding at the protobuf library boundary. Windows does not suffer from this issue
-        // due to the corresponding OS APIs supporting UTF-16.
-        name = new String(name.getBytes(ISO_8859_1), UTF_8);
-      }
+      name =
+          StringEncoding.internalToUnicode(
+              artifact.getRootRelativePath().getRelative(relPath).getPathString());
     }
     File.Builder file =
         File.newBuilder()
             .setName(name)
-            .addAllPathPrefix(artifact.getRoot().getExecPath().segments());
+            .addAllPathPrefix(
+                Iterables.transform(
+                    artifact.getRoot().getExecPath().segments(),
+                    StringEncoding::internalToUnicode));
     FileArtifactValue fileArtifactValue = completionContext.getFileArtifactValue(artifact);
-    if (fileArtifactValue instanceof UnresolvedSymlinkArtifactValue) {
+    if (fileArtifactValue != null && fileArtifactValue.getType().isSymlink()) {
       file.setSymlinkTargetPath(
-          ((UnresolvedSymlinkArtifactValue) fileArtifactValue).getSymlinkTarget());
+          StringEncoding.internalToUnicode(fileArtifactValue.getUnresolvedSymlinkTarget()));
     } else if (fileArtifactValue != null && fileArtifactValue.getType().exists()) {
       byte[] digest = fileArtifactValue.getDigest();
       if (digest != null) {
@@ -394,7 +386,7 @@ public final class TargetCompleteEvent
       file.setLength(fileArtifactValue.getSize());
     }
     if (uri != null) {
-      file.setUri(uri);
+      file.setUri(StringEncoding.internalToUnicode(uri));
     }
     return file.build();
   }
@@ -620,6 +612,6 @@ public final class TargetCompleteEvent
         .getFragment(TestConfiguration.class)
         .getTestTimeout()
         .get(categoricalTimeout)
-        .getSeconds();
+        .toSeconds();
   }
 }

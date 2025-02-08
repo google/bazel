@@ -13,42 +13,51 @@
 // limitations under the License.
 
 #include "src/main/cpp/option_processor.h"
-#include "src/main/cpp/option_processor-internal.h"
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
+
 #include <algorithm>
 #include <cassert>
 #include <iterator>
+#include <memory>
 #include <set>
-#include <sstream>
+#include <string>
 #include <utility>
+#include <vector>
 
 #include "src/main/cpp/blaze_util.h"
 #include "src/main/cpp/blaze_util_platform.h"
-#include "src/main/cpp/util/file.h"
+#include "src/main/cpp/option_processor-internal.h"
+#include "src/main/cpp/util/file_platform.h"
 #include "src/main/cpp/util/logging.h"
 #include "src/main/cpp/util/path.h"
 #include "src/main/cpp/util/path_platform.h"
 #include "src/main/cpp/util/strings.h"
 #include "src/main/cpp/workspace_layout.h"
+#include "absl/container/flat_hash_map.h"
+#include "absl/strings/str_cat.h"
+#include "src/main/cpp/rc_file.h"
+#include "src/main/cpp/startup_options.h"
+#include "src/main/cpp/util/exit_code.h"
 
 // On OSX, there apparently is no header that defines this.
 #ifndef environ
 extern char **environ;
 #endif
 
+#ifdef _WIN32
+#define WIN32_LEAN_AND_MEAN
+#include <windows.h>
+#endif
+
 namespace blaze {
 
-using std::map;
 using std::set;
 using std::string;
 using std::vector;
 
-constexpr char WorkspaceLayout::WorkspacePrefix[];
 static constexpr const char* kRcBasename = ".bazelrc";
-static std::vector<std::string> GetProcessedEnv();
 
 OptionProcessor::OptionProcessor(
     const WorkspaceLayout* workspace_layout,
@@ -147,6 +156,14 @@ std::unique_ptr<CommandLine> OptionProcessor::SplitCommandLine(
         std::move(path_to_binary), std::move(startup_args), "", {}));
   }
   string& command = args[i];
+  // Distinguish an empty command from the case of no command above.
+  if (command.empty()) {
+    blaze_util::StringPrintf(error,
+                             "Command cannot be the empty string.\n"
+                             "  For more info, run '%s help'.",
+                             lowercase_product_name.c_str());
+    return nullptr;
+  }
 
   // The rest are the command arguments.
   vector<string> command_args(std::make_move_iterator(args.begin() + i + 1),
@@ -512,8 +529,9 @@ blaze_exit_code::ExitCode OptionProcessor::ParseOptions(
     return parse_startup_options_exit_code;
   }
 
-  blazerc_and_env_command_args_ =
-      GetBlazercAndEnvCommandArgs(cwd, rc_file_ptrs, GetProcessedEnv());
+  parsed_blazercs_ = GetBlazercOptions(cwd, rc_file_ptrs);
+  blazerc_and_env_command_args_ = GetBlazercAndEnvCommandArgs(
+      cwd, parsed_blazercs_, blaze::internal::GetProcessedEnv());
   return blaze_exit_code::SUCCESS;
 }
 
@@ -583,110 +601,23 @@ blaze_exit_code::ExitCode OptionProcessor::ParseStartupOptions(
   return startup_options_->ProcessArgs(rcstartup_flags, error);
 }
 
-static bool IsValidEnvName(const char* p) {
-#if defined(_WIN32) || defined(__CYGWIN__)
-  for (; *p && *p != '='; ++p) {
-    if (!((*p >= 'a' && *p <= 'z') || (*p >= 'A' && *p <= 'Z') ||
-          (*p >= '0' && *p <= '9') || *p == '_' || *p == '(' || *p == ')')) {
-      return false;
-    }
-  }
-#endif
-  return true;
-}
+std::vector<BlazercOption> OptionProcessor::GetBlazercOptions(
+    const std::string& cwd, const std::vector<RcFile*>& blazercs) {
+  std::vector<BlazercOption> result;
 
-#if defined(_WIN32)
-static void PreprocessEnvString(string* env_str) {
-  static constexpr const char* vars_to_uppercase[] = {"PATH", "SYSTEMROOT",
-                                                      "SYSTEMDRIVE",
-                                                      "TEMP", "TEMPDIR", "TMP"};
-
-  int pos = env_str->find_first_of('=');
-  if (pos == string::npos) return;
-
-  string name = env_str->substr(0, pos);
-  // We do not care about locale. All variable names are ASCII.
-  std::transform(name.begin(), name.end(), name.begin(), ::toupper);
-  if (std::find(std::begin(vars_to_uppercase), std::end(vars_to_uppercase),
-                name) != std::end(vars_to_uppercase)) {
-    env_str->assign(name + "=" + env_str->substr(pos + 1));
-  }
-}
-
-#elif defined(__CYGWIN__)  // not defined(_WIN32)
-
-static void PreprocessEnvString(string* env_str) {
-  int pos = env_str->find_first_of('=');
-  if (pos == string::npos) return;
-  string name = env_str->substr(0, pos);
-  if (name == "PATH") {
-    env_str->assign("PATH=" + env_str->substr(pos + 1));
-  } else if (name == "TMP") {
-    // A valid Windows path "c:/foo" is also a valid Unix path list of
-    // ["c", "/foo"] so must use ConvertPath here. See GitHub issue #1684.
-    env_str->assign("TMP=" + blaze_util::ConvertPath(env_str->substr(pos + 1)));
-  }
-}
-
-#else  // Non-Windows platforms.
-
-static void PreprocessEnvString(const string* env_str) {
-  // do nothing.
-}
-#endif  // defined(_WIN32)
-
-static std::vector<std::string> GetProcessedEnv() {
-  std::vector<std::string> processed_env;
-  for (char** env = environ; *env != nullptr; env++) {
-    string env_str(*env);
-    if (IsValidEnvName(*env)) {
-      PreprocessEnvString(&env_str);
-      processed_env.push_back(std::move(env_str));
-    }
-  }
-  return processed_env;
-}
-
-// IMPORTANT: The options added here do not come from the user. In order for
-// their source to be correctly tracked, the options must either be passed
-// as --default_override=0, 0 being "client", or must be listed in
-// BlazeOptionHandler.INTERNAL_COMMAND_OPTIONS!
-std::vector<std::string> OptionProcessor::GetBlazercAndEnvCommandArgs(
-    const std::string& cwd,
-    const std::vector<RcFile*>& blazercs,
-    const std::vector<std::string>& env) {
-  // Provide terminal options as coming from the least important rc file.
-  std::vector<std::string> result = {
-      // LINT.IfChange
-      "--rc_source=client",
-      // LINT.ThenChange(src/main/java/com/google/devtools/common/options/GlobalRcUtils.java)
-      "--default_override=0:common=--isatty=" +
-          blaze_util::ToString(IsStandardTerminal()),
-      "--default_override=0:common=--terminal_columns=" +
-          blaze_util::ToString(GetTerminalColumns())};
+  // Provide terminal options as least important options.
+  // LINT.IfChange
+  std::string terminal_rc_source = "client";
+  // LINT.ThenChange(src/main/java/com/google/devtools/common/options/GlobalRcUtils.java)
+  result.push_back({terminal_rc_source, "common",
+                    "--isatty=" + blaze_util::ToString(IsStandardTerminal())});
+  result.push_back(
+      {terminal_rc_source, "common",
+       "--terminal_columns=" + blaze_util::ToString(GetTerminalColumns())});
   if (IsEmacsTerminal()) {
-    result.push_back("--default_override=0:common=--emacs");
+    result.push_back({terminal_rc_source, "common", "--emacs"});
   }
 
-  EnsurePythonPathOption(&result);
-
-  // Map .blazerc numbers to filenames. The indexes here start at 1 because #0
-  // is reserved the "client" options created by this function.
-  int cur_index = 1;
-  std::map<std::string, int> rcfile_indexes;
-  for (const auto* blazerc : blazercs) {
-    for (const std::string& source_path : blazerc->canonical_source_paths()) {
-      // Deduplicate the rc_source list because the same file might be included
-      // from multiple places.
-      if (rcfile_indexes.find(source_path) != rcfile_indexes.end()) continue;
-
-      result.push_back("--rc_source=" + blaze_util::ConvertPath(source_path));
-      rcfile_indexes[source_path] = cur_index;
-      cur_index++;
-    }
-  }
-
-  // Add RcOptions as default_overrides.
   for (const auto* blazerc : blazercs) {
     for (const auto& command_options : blazerc->options()) {
       const string& command = command_options.first;
@@ -696,12 +627,43 @@ std::vector<std::string> OptionProcessor::GetBlazercAndEnvCommandArgs(
       for (const RcOption& rcoption : command_options.second) {
         const std::string& source_path =
             blazerc->canonical_source_paths()[rcoption.source_index];
-        std::ostringstream oss;
-        oss << "--default_override=" << rcfile_indexes[source_path] << ':'
-            << command << '=' << rcoption.option;
-        result.push_back(oss.str());
+        result.push_back({source_path, command, rcoption.option});
       }
     }
+  }
+
+  return result;
+}
+
+// IMPORTANT: The options added here do not come from the user. In order for
+// their source to be correctly tracked, the options must either be passed
+// as --default_override=0, 0 being "client", or must be listed in
+// BlazeOptionHandler.INTERNAL_COMMAND_OPTIONS!
+std::vector<std::string> OptionProcessor::GetBlazercAndEnvCommandArgs(
+    const std::string& cwd, const std::vector<BlazercOption>& blazerc_options,
+    const std::vector<std::string>& env) {
+  std::vector<std::string> result;
+  absl::flat_hash_map<std::string, int> rcfile_index;
+
+  // Fix first value of `--rc_source` to allow for user-defined
+  // `--default_override=0` values.
+  // LINT.IfChange
+  result.push_back("--rc_source=client");
+  rcfile_index["client"] = 0;
+  // LINT.ThenChange(src/main/java/com/google/devtools/common/options/GlobalRcUtils.java)
+  int cur_index = 1;
+  for (const auto& option : blazerc_options) {
+    if (rcfile_index.contains(option.source_path)) continue;
+    rcfile_index[option.source_path] = cur_index;
+    result.push_back(absl::StrCat("--rc_source=",
+                                  blaze_util::ConvertPath(option.source_path)));
+    ++cur_index;
+  }
+  EnsurePythonPathOption(&result);
+  for (const auto& option : blazerc_options) {
+    result.push_back(
+        absl::StrCat("--default_override=", rcfile_index[option.source_path],
+                     ":", option.command, "=", option.option));
   }
 
   // Pass the client environment to the server.
@@ -740,6 +702,11 @@ std::string OptionProcessor::GetCommand() const {
 StartupOptions* OptionProcessor::GetParsedStartupOptions() const {
   assert(parse_options_called_);
   return startup_options_.get();
+}
+
+std::vector<BlazercOption> OptionProcessor::GetParsedBlazercOptions() const {
+  assert(parse_options_called_);
+  return parsed_blazercs_;
 }
 
 }  // namespace blaze

@@ -16,17 +16,19 @@
 
 package com.tonicsystems.jarjar;
 
-import com.tonicsystems.jarjar.util.*;
+import com.tonicsystems.jarjar.util.EntryStruct;
+import com.tonicsystems.jarjar.util.JarProcessor;
 import java.io.IOException;
-import java.util.*;
+import java.util.List;
 
 class ZapProcessor implements JarProcessor {
-  private List<Wildcard> wildcards;
+  private final List<Wildcard> wildcards;
 
   public ZapProcessor(List<Zap> zapList) {
     wildcards = PatternElement.createWildcards(zapList);
   }
 
+  @Override
   public boolean process(EntryStruct struct) throws IOException {
     String name = struct.name;
     if (struct.isClass()) {

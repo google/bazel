@@ -221,8 +221,8 @@ public final class StarlarkFlagGuardingTest {
     ev.new Scenario(FLAG1_FALSE)
         .update("mock", new Mock())
         .testIfErrorContains(
-            "mixed_params_method() accepts no more than 1 positional argument but got 2",
-            "mock.mixed_params_method(1, True, c=3, d=True)");
+            "parameter 'c' is experimental and thus unavailable with the current flags",
+            "mock.mixed_params_method(1, c=3, d=True)");
   }
 
   @Test

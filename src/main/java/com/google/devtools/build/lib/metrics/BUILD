@@ -62,7 +62,7 @@ java_library(
         "//third_party:error_prone_annotations",
         "//third_party:flogger",
         "//third_party:guava",
-        "@protobuf//:protobuf_java_util",
+        "@com_google_protobuf//:protobuf_java_util",
     ],
 )
 
@@ -100,6 +100,7 @@ java_library(
         "//src/main/java/com/google/devtools/build/lib/clock",
         "//src/main/java/com/google/devtools/build/lib/sandbox:cgroups_info",
         "//third_party:auto_value",
+        "//third_party:error_prone_annotations",
         "//third_party:flogger",
         "//third_party:guava",
     ],

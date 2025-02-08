@@ -17,6 +17,7 @@ package com.google.devtools.build.lib.shell;
 import static com.google.common.truth.Truth.assertThat;
 
 import com.google.common.collect.ImmutableList;
+import com.google.devtools.build.lib.actions.ActionInputHelper;
 import com.google.devtools.build.lib.runtime.ProcessWrapper;
 import com.google.devtools.build.lib.testutil.BlazeTestUtils;
 import com.google.devtools.build.lib.testutil.TestConstants;
@@ -25,10 +26,10 @@ import com.google.devtools.build.lib.unix.UnixFileSystem;
 import com.google.devtools.build.lib.vfs.DigestHashFunction;
 import com.google.devtools.build.lib.vfs.FileSystem;
 import com.google.devtools.build.lib.vfs.Path;
+import com.google.devtools.build.lib.vfs.PathFragment;
 import java.io.IOException;
 import java.time.Duration;
 import java.util.List;
-import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -36,23 +37,22 @@ import org.junit.runners.JUnit4;
 /** Unit tests for {@link Command}s that are wrapped using the {@code process-wrapper}. */
 @RunWith(JUnit4.class)
 public final class CommandUsingProcessWrapperTest {
-  private FileSystem testFS;
 
-  @Before
-  public final void createFileSystem() {
-    testFS = new UnixFileSystem(DigestHashFunction.SHA256, /*hashAttributeName=*/ "");
-  }
+  private final FileSystem fs =
+      new UnixFileSystem(DigestHashFunction.SHA256, /* hashAttributeName= */ "");
 
-  private ProcessWrapper getProcessWrapper() {
+  private static ProcessWrapper getProcessWrapper() {
+    PathFragment path =
+        PathFragment.create(BlazeTestUtils.runfilesDir())
+            .getRelative(TestConstants.PROCESS_WRAPPER_PATH);
     return new ProcessWrapper(
-        testFS
-            .getPath(BlazeTestUtils.runfilesDir())
-            .getRelative(TestConstants.PROCESS_WRAPPER_PATH),
-        /*killDelay=*/ null,
-        /*gracefulSigterm=*/ false);
+        path,
+        ActionInputHelper.fromPath(path),
+        /* killDelay= */ null,
+        /* gracefulSigterm= */ false);
   }
 
-  private String getCpuTimeSpenderPath() {
+  private static String getCpuTimeSpenderPath() {
     return BlazeTestUtils.runfilesDir() + "/" + TestConstants.CPU_TIME_SPENDER_PATH;
   }
 
@@ -63,8 +63,8 @@ public final class CommandUsingProcessWrapperTest {
     Command command = new Command(commandArguments.toArray(new String[0]));
     CommandResult commandResult = command.execute();
 
-    assertThat(commandResult.getTerminationStatus().success()).isTrue();
-    assertThat(commandResult.getStdoutStream().toString()).contains("worker bees can leave");
+    assertThat(commandResult.terminationStatus().success()).isTrue();
+    assertThat(commandResult.stdoutStream().toString()).contains("worker bees can leave");
   }
 
   @Test
@@ -76,8 +76,8 @@ public final class CommandUsingProcessWrapperTest {
     Command command = new Command(fullCommandLine.toArray(new String[0]));
     CommandResult commandResult = command.execute();
 
-    assertThat(commandResult.getTerminationStatus().success()).isTrue();
-    assertThat(commandResult.getStdoutStream().toString()).contains("even drones can fly away");
+    assertThat(commandResult.terminationStatus().success()).isTrue();
+    assertThat(commandResult.stdoutStream().toString()).contains("even drones can fly away");
   }
 
   private void checkProcessWrapperStatistics(Duration userTimeToSpend, Duration systemTimeToSpend)
@@ -85,16 +85,16 @@ public final class CommandUsingProcessWrapperTest {
     ImmutableList<String> commandArguments =
         ImmutableList.of(
             getCpuTimeSpenderPath(),
-            Long.toString(userTimeToSpend.getSeconds()),
-            Long.toString(systemTimeToSpend.getSeconds()));
+            Long.toString(userTimeToSpend.toSeconds()),
+            Long.toString(systemTimeToSpend.toSeconds()));
 
-    Path outputDir = TestUtils.createUniqueTmpDir(testFS);
+    Path outputDir = TestUtils.createUniqueTmpDir(fs);
     Path statisticsFilePath = outputDir.getRelative("stats.out");
 
     List<String> fullCommandLine =
         getProcessWrapper()
             .commandLineBuilder(commandArguments)
-            .setStatisticsPath(statisticsFilePath)
+            .setStatisticsPath(statisticsFilePath.asFragment())
             .build();
 
     ExecutionStatisticsTestUtil.executeCommandAndCheckStatisticsAboutCpuTimeSpent(
@@ -102,8 +102,7 @@ public final class CommandUsingProcessWrapperTest {
   }
 
   @Test
-  public void testProcessWrappedCommand_withStatistics_spendUserTime()
-      throws CommandException, IOException, InterruptedException {
+  public void testProcessWrappedCommand_withStatistics_spendUserTime() throws Exception {
     Duration userTimeToSpend = Duration.ofSeconds(10);
     Duration systemTimeToSpend = Duration.ZERO;
 
@@ -111,8 +110,7 @@ public final class CommandUsingProcessWrapperTest {
   }
 
   @Test
-  public void testProcessWrappedCommand_withStatistics_spendSystemTime()
-      throws CommandException, IOException, InterruptedException {
+  public void testProcessWrappedCommand_withStatistics_spendSystemTime() throws Exception {
     Duration userTimeToSpend = Duration.ZERO;
     Duration systemTimeToSpend = Duration.ofSeconds(10);
 
@@ -120,8 +118,7 @@ public final class CommandUsingProcessWrapperTest {
   }
 
   @Test
-  public void testProcessWrappedCommand_withStatistics_spendUserAndSystemTime()
-      throws CommandException, IOException, InterruptedException {
+  public void testProcessWrappedCommand_withStatistics_spendUserAndSystemTime() throws Exception {
     Duration userTimeToSpend = Duration.ofSeconds(10);
     Duration systemTimeToSpend = Duration.ofSeconds(10);
 

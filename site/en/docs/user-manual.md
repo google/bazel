@@ -1659,7 +1659,7 @@ command.
 The environment can be accessed from within a test by using
 `System.getenv("var")` (Java), `getenv("var")` (C or C++),
 
-#### `--run_under={{ "<var>" }}command-prefix{{ "</var>" }}` {:#run_under}
+#### `--run_under={{ "<var>" }}command-prefix{{ "</var>" }}` {:#test-run-under}
 
 This specifies a prefix that the test runner will insert in front
 of the test command before running it. The
@@ -1751,16 +1751,20 @@ The following extra environment variables are also available to the binary:
     build was run.
 *   `BUILD_WORKING_DIRECTORY`: the current working directory where
     Bazel was run from.
+*   `BUILD_ID`: the build ID of the `bazel run` invocation. This is usually
+    unique, except if Bazel was run with `--script_path` and the resulting
+    script is re-used.
+*   `BUILD_EXECROOT`: the execution root of the `bazel run` invocation.
 
 These can be used, for example, to interpret file names on the command line in
 a user-friendly way.
 
 ### Options for `bazel run` {:#bazel-run-options}
 
-#### `--run_under={{ "<var>" }}command-prefix{{ "</var>" }}` {:#run-under}
+#### `--run_under={{ "<var>" }}command-prefix{{ "</var>" }}` {:#run-run-under}
 
 This has the same effect as the `--run_under` option for
-`bazel test` ([see above](#run-under)),
+`bazel test` ([see above](#test-run-under)),
 except that it applies to the command being run by `bazel
 run` rather than to the tests being run by `bazel test`
 and cannot run under label.
@@ -2174,12 +2178,12 @@ Following options are supported:
 Some `dump` commands require memory tracking. To turn this on, you have to pass
 startup flags to Bazel:
 
-*   `--host_jvm_args=-javaagent:$BAZEL/third_party/allocation_instrumenter/java-allocation-instrumenter-3.3.0.jar`
+*   `--host_jvm_args=-javaagent:$BAZEL/third_party/allocation_instrumenter/java-allocation-instrumenter-3.3.4.jar`
 *   `--host_jvm_args=-DRULE_MEMORY_TRACKER=1`
 
 The java-agent is checked into Bazel at
-`third_party/allocation_instrumenter/java-allocation-instrumenter-3.3.0.jar`, so make
-sure you adjust `$BAZEL` for where you keep your Bazel repository.
+`third_party/allocation_instrumenter/java-allocation-instrumenter-3.3.4.jar`, so
+make sure you adjust `$BAZEL` for where you keep your Bazel repository.
 
 Do not forget to keep passing these options to Bazel for every command or the server will
 restart.
@@ -2187,17 +2191,17 @@ restart.
 Example:
 
 <pre>
-    % bazel --host_jvm_args=-javaagent:$BAZEL/third_party/allocation_instrumenter/java-allocation-instrumenter-3.3.0.jar \
+    % bazel --host_jvm_args=-javaagent:$BAZEL/third_party/allocation_instrumenter/java-allocation-instrumenter-3.3.4.jar \
     --host_jvm_args=-DRULE_MEMORY_TRACKER=1 \
     build --nobuild &lt;targets&gt;
 
     # Dump rules
-    % bazel --host_jvm_args=-javaagent:$BAZEL/third_party/allocation_instrumenter/java-allocation-instrumenter-3.3.0.jar \
+    % bazel --host_jvm_args=-javaagent:$BAZEL/third_party/allocation_instrumenter/java-allocation-instrumenter-3.3.4.jar \
     --host_jvm_args=-DRULE_MEMORY_TRACKER=1 \
     dump --rules
 
     # Dump Starlark heap and analyze it with pprof
-    % bazel --host_jvm_args=-javaagent:$BAZEL/third_party/allocation_instrumenter/java-allocation-instrumenter-3.3.0.jar \
+    % bazel --host_jvm_args=-javaagent:$BAZEL/third_party/allocation_instrumenter/java-allocation-instrumenter-3.3.4.jar \
     --host_jvm_args=-DRULE_MEMORY_TRACKER=1 \
     dump --skylark_memory=$HOME/prof.gz
     % pprof -flame $HOME/prof.gz
@@ -2398,6 +2402,8 @@ Bazel server process to persist indefinitely.
 
 Note: this flag is only read if Bazel needs
 to start a new server. Changing this option will not cause the server to restart.
+
+Note: system sleep time where a build is not running is counted as idle time.
 
 This option may be used by scripts that invoke Bazel to ensure that
 they do not leave Bazel server processes on a user's machine when they

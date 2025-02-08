@@ -61,12 +61,14 @@ import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.OptionalInt;
 import java.util.OptionalLong;
+import java.util.SequencedMap;
 import java.util.Set;
 import java.util.concurrent.Semaphore;
 import javax.annotation.Nullable;
@@ -1107,7 +1109,7 @@ public class Package {
 
     // The map from each repository to that repository's remappings map.
     // This is only used in the //external package, it is an empty map for all other packages.
-    private final HashMap<RepositoryName, HashMap<String, RepositoryName>>
+    private final HashMap<RepositoryName, LinkedHashMap<String, RepositoryName>>
         externalPackageRepositoryMappings = new HashMap<>();
 
     /** Estimates the package overhead of this package. */
@@ -1357,7 +1359,7 @@ public class Package {
         RepositoryName repoWithin, String localName, RepositoryName mappedName) {
       HashMap<String, RepositoryName> mapping =
           externalPackageRepositoryMappings.computeIfAbsent(
-              repoWithin, (RepositoryName k) -> new HashMap<>());
+              repoWithin, (RepositoryName k) -> new LinkedHashMap<>());
       mapping.put(localName, mappedName);
       return this;
     }
@@ -1387,11 +1389,11 @@ public class Package {
      * the main workspace to the canonical main name '@').
      */
     RepositoryMapping getRepositoryMappingFor(RepositoryName name) {
-      Map<String, RepositoryName> mapping = externalPackageRepositoryMappings.get(name);
+      SequencedMap<String, RepositoryName> mapping = externalPackageRepositoryMappings.get(name);
       if (mapping == null) {
         return RepositoryMapping.ALWAYS_FALLBACK;
       } else {
-        return RepositoryMapping.createAllowingFallback(mapping);
+        return RepositoryMapping.createAllowingFallback(ImmutableMap.copyOf(mapping));
       }
     }
 

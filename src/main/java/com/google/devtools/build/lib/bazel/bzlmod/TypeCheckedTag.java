@@ -60,18 +60,18 @@ public class TypeCheckedTag implements Structure {
   public static TypeCheckedTag create(
       TagClass tagClass, Tag tag, LabelConverter labelConverter, String moduleDisplayString)
       throws ExternalDepsException {
-    Object[] attrValues = new Object[tagClass.getAttributes().size()];
+    Object[] attrValues = new Object[tagClass.attributes().size()];
     for (Map.Entry<String, Object> attrValue : tag.getAttributeValues().attributes().entrySet()) {
-      Integer attrIndex = tagClass.getAttributeIndices().get(attrValue.getKey());
+      Integer attrIndex = tagClass.attributeIndices().get(attrValue.getKey());
       if (attrIndex == null) {
         throw ExternalDepsException.withMessage(
             Code.BAD_MODULE,
             "in tag at %s, unknown attribute %s provided%s",
             tag.getLocation(),
             attrValue.getKey(),
-            SpellChecker.didYouMean(attrValue.getKey(), tagClass.getAttributeIndices().keySet()));
+            SpellChecker.didYouMean(attrValue.getKey(), tagClass.attributeIndices().keySet()));
       }
-      Attribute attr = tagClass.getAttributes().get(attrIndex);
+      Attribute attr = tagClass.attributes().get(attrIndex);
       Object nativeValue;
       try {
         nativeValue =
@@ -101,7 +101,7 @@ public class TypeCheckedTag implements Structure {
     // Check that all mandatory attributes have been specified, and fill in default values.
     // Along the way, verify that labels in the attribute values refer to visible repos only.
     for (int i = 0; i < attrValues.length; i++) {
-      Attribute attr = tagClass.getAttributes().get(i);
+      Attribute attr = tagClass.attributes().get(i);
       if (attr.isMandatory() && attrValues[i] == null) {
         throw ExternalDepsException.withMessage(
             Code.BAD_MODULE,
@@ -143,7 +143,7 @@ public class TypeCheckedTag implements Structure {
   @Nullable
   @Override
   public Object getValue(String name) throws EvalException {
-    Integer attrIndex = tagClass.getAttributeIndices().get(name);
+    Integer attrIndex = tagClass.attributeIndices().get(name);
     if (attrIndex == null) {
       return null;
     }
@@ -152,7 +152,7 @@ public class TypeCheckedTag implements Structure {
 
   @Override
   public ImmutableCollection<String> getFieldNames() {
-    return tagClass.getAttributeIndices().keySet();
+    return tagClass.attributeIndices().keySet();
   }
 
   @Nullable

@@ -14,7 +14,8 @@
 
 package com.google.devtools.build.lib.bazel.bzlmod;
 
-import com.google.auto.value.AutoValue;
+import static java.util.Objects.requireNonNull;
+
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.devtools.build.lib.packages.Attribute;
@@ -23,20 +24,22 @@ import java.util.Optional;
 
 /**
  * Represents a tag class, which is a "class" of {@link Tag}s that share the same attribute schema.
+ *
+ * @param attributes The list of attributes of this tag class.
+ * @param doc Documentation about this tag class.
+ * @param attributeIndices A mapping from the <em> public </em> name of an attribute to the position
+ *     of said attribute in {@link #getAttributes}.
  */
-@AutoValue
-public abstract class TagClass implements TagClassApi {
-  /** The list of attributes of this tag class. */
-  public abstract ImmutableList<Attribute> getAttributes();
-
-  /** Documentation about this tag class. */
-  public abstract Optional<String> getDoc();
-
-  /**
-   * A mapping from the <em>public</em> name of an attribute to the position of said attribute in
-   * {@link #getAttributes}.
-   */
-  public abstract ImmutableMap<String, Integer> getAttributeIndices();
+public record TagClass(
+    ImmutableList<Attribute> attributes,
+    Optional<String> doc,
+    ImmutableMap<String, Integer> attributeIndices)
+    implements TagClassApi {
+  public TagClass {
+    requireNonNull(attributes, "attributes");
+    requireNonNull(doc, "doc");
+    requireNonNull(attributeIndices, "attributeIndices");
+  }
 
   public static TagClass create(ImmutableList<Attribute> attributes, Optional<String> doc) {
     ImmutableMap.Builder<String, Integer> attributeIndicesBuilder =
@@ -44,6 +47,6 @@ public abstract class TagClass implements TagClassApi {
     for (int i = 0; i < attributes.size(); i++) {
       attributeIndicesBuilder.put(attributes.get(i).getPublicName(), i);
     }
-    return new AutoValue_TagClass(attributes, doc, attributeIndicesBuilder.buildOrThrow());
+    return new TagClass(attributes, doc, attributeIndicesBuilder.buildOrThrow());
   }
 }

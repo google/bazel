@@ -15,10 +15,13 @@
 
 package com.google.devtools.build.lib.bazel.bzlmod;
 
+import static java.util.Objects.requireNonNull;
+
 import com.google.auto.value.AutoValue;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
+import com.google.devtools.build.lib.skyframe.serialization.autocodec.AutoCodec;
 import com.google.errorprone.annotations.CanIgnoreReturnValue;
 import java.util.Optional;
 import java.util.function.UnaryOperator;
@@ -49,16 +52,15 @@ public abstract class InterimModule extends ModuleBase {
   public abstract ImmutableList<String> getBazelCompatibility();
 
   /** The specification of a dependency. */
-  @AutoValue
-  public abstract static class DepSpec {
-    public abstract String getName();
-
-    public abstract Version getVersion();
-
-    public abstract int getMaxCompatibilityLevel();
+  @AutoCodec
+  public record DepSpec(String name, Version version, int maxCompatibilityLevel) {
+    public DepSpec {
+      requireNonNull(name, "name");
+      requireNonNull(version, "version");
+    }
 
     public static DepSpec create(String name, Version version, int maxCompatibilityLevel) {
-      return new AutoValue_InterimModule_DepSpec(name, version, maxCompatibilityLevel);
+      return new DepSpec(name, version, maxCompatibilityLevel);
     }
 
     public static DepSpec fromModuleKey(ModuleKey key) {
@@ -66,7 +68,7 @@ public abstract class InterimModule extends ModuleBase {
     }
 
     public final ModuleKey toModuleKey() {
-      return new ModuleKey(getName(), getVersion());
+      return new ModuleKey(name(), version());
     }
   }
 
@@ -214,40 +216,32 @@ public abstract class InterimModule extends ModuleBase {
     if (!(override instanceof SingleVersionOverride singleVersion)) {
       return repoSpec;
     }
-    if (singleVersion.getPatches().isEmpty()) {
+    if (singleVersion.patches().isEmpty()) {
       return repoSpec;
     }
     ImmutableMap.Builder<String, Object> attrBuilder = ImmutableMap.builder();
     attrBuilder.putAll(repoSpec.attributes().attributes());
-    attrBuilder.put("patches", singleVersion.getPatches());
-    attrBuilder.put("patch_cmds", singleVersion.getPatchCmds());
-    attrBuilder.put("patch_args", ImmutableList.of("-p" + singleVersion.getPatchStrip()));
-    return RepoSpec.builder()
-        .setBzlFile(repoSpec.bzlFile())
-        .setRuleClassName(repoSpec.ruleClassName())
-        .setAttributes(AttributeValues.create(attrBuilder.buildOrThrow()))
-        .build();
+    attrBuilder.put("patches", singleVersion.patches());
+    attrBuilder.put("patch_cmds", singleVersion.patchCmds());
+    attrBuilder.put("patch_args", ImmutableList.of("-p" + singleVersion.patchStrip()));
+    return new RepoSpec(repoSpec.repoRuleId(), AttributeValues.create(attrBuilder.buildOrThrow()));
   }
 
   static UnaryOperator<DepSpec> applyOverrides(
       ImmutableMap<String, ModuleOverride> overrides, String rootModuleName) {
     return depSpec -> {
-      if (rootModuleName.equals(depSpec.getName())) {
+      if (rootModuleName.equals(depSpec.name())) {
         return DepSpec.fromModuleKey(ModuleKey.ROOT);
       }
 
-      Version newVersion = depSpec.getVersion();
-      @Nullable ModuleOverride override = overrides.get(depSpec.getName());
-      if (override instanceof NonRegistryOverride) {
-        newVersion = Version.EMPTY;
-      } else if (override instanceof SingleVersionOverride singleVersionOverride) {
-        Version overrideVersion = singleVersionOverride.getVersion();
-        if (!overrideVersion.isEmpty()) {
-          newVersion = overrideVersion;
-        }
-      }
+      Version newVersion =
+          switch (overrides.get(depSpec.name())) {
+            case NonRegistryOverride nro -> Version.EMPTY;
+            case SingleVersionOverride svo when !svo.version().isEmpty() -> svo.version();
+            case null, default -> depSpec.version();
+          };
 
-      return DepSpec.create(depSpec.getName(), newVersion, depSpec.getMaxCompatibilityLevel());
+      return DepSpec.create(depSpec.name(), newVersion, depSpec.maxCompatibilityLevel());
     };
   }
 }

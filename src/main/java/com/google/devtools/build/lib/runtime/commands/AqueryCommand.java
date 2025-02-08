@@ -163,7 +163,9 @@ public final class AqueryCommand implements BlazeCommand {
     }
     try {
       return BlazeCommandResult.detailedExitCode(
-          new BuildTool(env, aqueryBuildTool).processRequest(request, null).getDetailedExitCode());
+          new BuildTool(env, aqueryBuildTool)
+              .processRequest(request, null, options)
+              .getDetailedExitCode());
     } catch (StackOverflowError e) {
       String message = "Aquery output was too large to handle: " + query;
       env.getReporter().handle(Event.error(message));

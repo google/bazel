@@ -15,20 +15,34 @@ package com.google.devtools.build.lib.skyframe.serialization.analysis;
 
 import static com.google.common.base.MoreObjects.toStringHelper;
 
-import com.google.common.collect.ImmutableSet;
-
 /** Type representing a directory listing operation. */
 final class ListingDependencies
-    implements FileDependencyDeserializer.GetListingDependenciesResult, FileSystemDependencies {
+    implements FileSystemDependencies.FileOpDependency,
+        FileDependencyDeserializer.ListingDependenciesOrFuture {
   private final FileDependencies realDirectory;
 
   ListingDependencies(FileDependencies realDirectory) {
     this.realDirectory = realDirectory;
   }
 
-  /** True if this entry matches any directory name in {@code directoryPaths}. */
-  boolean matchesAnyDirectory(ImmutableSet<String> directoryPaths) {
-    return directoryPaths.contains(realDirectory.resolvedPath());
+  /**
+   * Determines if this listing is invalidated by anything in {@code changes}.
+   *
+   * <p>The caller should ensure the following.
+   *
+   * <ul>
+   *   <li>This listing is known to be valid at {@code validityHorizon} (VH).
+   *   <li>All changes over the range {@code (VH, VC])} are registered with {@code changes} before
+   *       calling this method. (VC is the synced version of the cache reader.)
+   * </ul>
+   *
+   * <p>See description of {@link VersionedChanges} for more details.
+   *
+   * @return the earliest version where a matching (invalidating) change is identified, otherwise
+   *     {@link VersionedChanges#NO_MATCH}.
+   */
+  int findEarliestMatch(VersionedChanges changes, int validityHorizon) {
+    return changes.matchListingChange(realDirectory.resolvedPath(), validityHorizon);
   }
 
   FileDependencies realDirectory() {

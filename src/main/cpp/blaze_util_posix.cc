@@ -12,7 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#ifndef _GNU_SOURCE
+#define _GNU_SOURCE 1  // for F_OFD_SETLK on Linux
+#endif
+
 #define _WITH_DPRINTF
+
 #include <dirent.h>
 #include <errno.h>
 #include <fcntl.h>
@@ -39,15 +44,18 @@
 #include <cstdlib>
 #include <fstream>
 #include <iterator>
+#include <map>
 #include <set>
 #include <string>
+#include <utility>
+#include <vector>
 
 #include "src/main/cpp/blaze_util.h"
 #include "src/main/cpp/blaze_util_platform.h"
 #include "src/main/cpp/startup_options.h"
 #include "src/main/cpp/util/errors.h"
 #include "src/main/cpp/util/exit_code.h"
-#include "src/main/cpp/util/file.h"
+#include "src/main/cpp/util/file_platform.h"
 #include "src/main/cpp/util/logging.h"
 #include "src/main/cpp/util/md5.h"
 #include "src/main/cpp/util/numbers.h"
@@ -69,13 +77,14 @@ class PosixDumper : public Dumper {
  public:
   static PosixDumper* Create(string* error);
   ~PosixDumper() { Finish(nullptr); }
-  void Dump(const void* data, const size_t size, const string& path) override;
+  void Dump(const void* data, size_t size,
+            const blaze_util::Path& path) override;
   bool Finish(string* error) override;
 
  private:
   PosixDumper() : was_error_(false) {}
 
-  set<string> dir_cache_;
+  set<blaze_util::Path> dir_cache_;
   string error_msg_;
   bool was_error_;
 };
@@ -85,20 +94,21 @@ Dumper* Create(string* error) { return PosixDumper::Create(error); }
 PosixDumper* PosixDumper::Create(string* error) { return new PosixDumper(); }
 
 void PosixDumper::Dump(const void* data, const size_t size,
-                       const string& path) {
+                       const blaze_util::Path& path) {
   if (was_error_) {
     return;
   }
 
-  string dirname = blaze_util::Dirname(path);
+  blaze_util::Path parent = path.GetParent();
   // Performance optimization: memoize the paths we already created a
   // directory for, to spare a stat in attempting to recreate an already
   // existing directory.
-  if (dir_cache_.insert(dirname).second) {
-    if (!blaze_util::MakeDirectories(dirname, 0777)) {
+  if (dir_cache_.insert(parent).second) {
+    if (!blaze_util::MakeDirectories(parent, 0777)) {
       was_error_ = true;
       string msg = GetLastErrorString();
-      error_msg_ = string("couldn't create '") + path + "': " + msg;
+      error_msg_ =
+          string("couldn't create '") + path.AsPrintablePath() + "': " + msg;
     }
   }
 
@@ -109,7 +119,8 @@ void PosixDumper::Dump(const void* data, const size_t size,
   if (!blaze_util::WriteFile(data, size, path, 0755)) {
     was_error_ = true;
     string msg = GetLastErrorString();
-    error_msg_ = string("Failed to write zipped file '") + path + "': " + msg;
+    error_msg_ = string("Failed to write zipped file '") +
+                 path.AsPrintablePath() + "': " + msg;
   }
 }
 
@@ -213,9 +224,7 @@ ATTRIBUTE_NORETURN void SignalHandler::PropagateSignalOrExit(int exit_code) {
   }
 }
 
-string GetProcessIdAsString() {
-  return blaze_util::ToString(getpid());
-}
+string GetProcessIdAsString() { return blaze_util::ToString(getpid()); }
 
 string GetHomeDir() { return GetPathEnv("HOME"); }
 
@@ -294,9 +303,7 @@ class CharPP {
   }
 
   // Obtains the raw pointer to the array of strings.
-  char** get() {
-    return charpp_;
-  }
+  char** get() { return charpp_; }
 
   // Prevent copies as we manually manage memory.
   CharPP(const CharPP&) = delete;
@@ -306,8 +313,9 @@ class CharPP {
   char** charpp_;
 };
 
-ATTRIBUTE_NORETURN static void ExecuteProgram(
-    const blaze_util::Path& exe, const vector<string>& args_vector) {
+ATTRIBUTE_NORETURN static void ExecuteProgram(const blaze_util::Path& exe,
+                                              const vector<string>& args_vector,
+                                              const bool run_in_user_cgroup) {
   BAZEL_LOG(INFO) << "Invoking binary " << exe.AsPrintablePath() << " in "
                   << blaze_util::GetCwd();
 
@@ -327,19 +335,23 @@ ATTRIBUTE_NORETURN static void ExecuteProgram(
 }
 
 void ExecuteServerJvm(const blaze_util::Path& exe,
-                      const std::vector<string>& server_jvm_args) {
-  ExecuteProgram(exe, server_jvm_args);
+                      const std::vector<string>& server_jvm_args,
+                      const bool run_in_user_cgroup) {
+  ExecuteProgram(exe, server_jvm_args, run_in_user_cgroup);
 }
 
 void ExecuteRunRequest(const blaze_util::Path& exe,
                        const std::vector<string>& run_request_args) {
-  ExecuteProgram(exe, run_request_args);
+  ExecuteProgram(exe, run_request_args,
+                 /* run_in_user_cgroup= */ false);
 }
 
 const char kListSeparator = ':';
 
-bool SymlinkDirectories(const string& target, const blaze_util::Path& link) {
-  return symlink(target.c_str(), link.AsNativePath().c_str()) == 0;
+bool SymlinkDirectories(const blaze_util::Path& target,
+                        const blaze_util::Path& link) {
+  return symlink(target.AsNativePath().c_str(), link.AsNativePath().c_str()) ==
+         0;
 }
 
 // Notifies the client about the death of the server process by keeping a socket
@@ -355,13 +367,9 @@ class SocketBlazeServerStartup : public BlazeServerStartup {
   int fd;
 };
 
-SocketBlazeServerStartup::SocketBlazeServerStartup(int fd)
-    : fd(fd) {
-}
+SocketBlazeServerStartup::SocketBlazeServerStartup(int fd) : fd(fd) {}
 
-SocketBlazeServerStartup::~SocketBlazeServerStartup() {
-  close(fd);
-}
+SocketBlazeServerStartup::~SocketBlazeServerStartup() { close(fd); }
 
 bool SocketBlazeServerStartup::IsStillAlive() {
   struct pollfd pfd;
@@ -386,21 +394,19 @@ bool SocketBlazeServerStartup::IsStillAlive() {
 // Returns zero on success or -1 on error, in which case errno is set to the
 // corresponding error details.
 int ConfigureDaemonProcess(posix_spawnattr_t* attrp,
-                           const StartupOptions &options);
+                           const StartupOptions& options);
 
 void WriteSystemSpecificProcessIdentifier(const blaze_util::Path& server_dir,
                                           pid_t server_pid);
 
-int ExecuteDaemon(const blaze_util::Path& exe,
-                  const std::vector<string>& args_vector,
-                  const std::map<string, EnvVarValue>& env,
-                  const blaze_util::Path& daemon_output,
-                  const bool daemon_output_append, const string& binaries_dir,
-                  const blaze_util::Path& server_dir,
-                  const StartupOptions& options,
-                  BlazeServerStartup** server_startup) {
+int ExecuteDaemon(
+    const blaze_util::Path& exe, const std::vector<string>& args_vector,
+    const std::map<string, EnvVarValue>& env,
+    const blaze_util::Path& daemon_output, const bool daemon_output_append,
+    const blaze_util::Path& binaries_dir, const blaze_util::Path& server_dir,
+    const StartupOptions& options, BlazeServerStartup** server_startup) {
   const blaze_util::Path pid_file = server_dir.GetRelative(kServerPidFile);
-  const string daemonize = blaze_util::JoinPath(binaries_dir, "daemonize");
+  const string daemonize = binaries_dir.GetRelative("daemonize").AsNativePath();
 
   std::vector<string> daemonize_args = {"daemonize", "-l",
                                         daemon_output.AsNativePath(), "-p",
@@ -412,6 +418,11 @@ int ExecuteDaemon(const blaze_util::Path& exe,
   if (!options.cgroup_parent.empty()) {
     daemonize_args.push_back("-c");
     daemonize_args.push_back(options.cgroup_parent);
+  }
+  if (options.run_in_user_cgroup) {
+    daemonize_args.push_back("-s");
+    daemonize_args.push_back(
+        server_dir.GetRelative("systemd-wrapper.sh").AsNativePath());
   }
 #endif
   daemonize_args.push_back("--");
@@ -429,11 +440,13 @@ int ExecuteDaemon(const blaze_util::Path& exe,
   posix_spawn_file_actions_t file_actions;
   if (posix_spawn_file_actions_init(&file_actions) != 0) {
     BAZEL_DIE(blaze_exit_code::INTERNAL_ERROR)
-      << "Failed to create posix_spawn_file_actions: " << GetLastErrorString();
+        << "Failed to create posix_spawn_file_actions: "
+        << GetLastErrorString();
   }
   if (posix_spawn_file_actions_addclose(&file_actions, fds[0]) != 0) {
     BAZEL_DIE(blaze_exit_code::INTERNAL_ERROR)
-      << "Failed to modify posix_spawn_file_actions: "<< GetLastErrorString();
+        << "Failed to modify posix_spawn_file_actions: "
+        << GetLastErrorString();
   }
 
   posix_spawnattr_t attrp;
@@ -450,8 +463,8 @@ int ExecuteDaemon(const blaze_util::Path& exe,
   if (posix_spawn(&transient_pid, daemonize.c_str(), &file_actions, &attrp,
                   CharPP(daemonize_args).get(), CharPP(env).get()) != 0) {
     BAZEL_DIE(blaze_exit_code::INTERNAL_ERROR)
-      << "Failed to execute JVM via " << daemonize
-      << ": " << GetLastErrorString();
+        << "Failed to execute JVM via " << daemonize << ": "
+        << GetLastErrorString();
   }
   close(fds[1]);
 
@@ -488,15 +501,16 @@ int ExecuteDaemon(const blaze_util::Path& exe,
   return server_pid;
 }
 
-string GetHashedBaseDir(const string& root, const string& hashable) {
+blaze_util::Path GetHashedBaseDir(const blaze_util::Path& root,
+                                  const string& hashable) {
   unsigned char buf[blaze_util::Md5Digest::kDigestLength];
   blaze_util::Md5Digest digest;
   digest.Update(hashable.data(), hashable.size());
   digest.Finish(buf);
-  return blaze_util::JoinPath(root, digest.String());
+  return root.GetRelative(digest.String());
 }
 
-void CreateSecureOutputRoot(const blaze_util::Path& path) {
+void CreateSecureDirectory(const blaze_util::Path& path) {
   struct stat fileinfo = {};
 
   if (!blaze_util::MakeDirectories(path, 0755)) {
@@ -556,9 +570,7 @@ void SetEnv(const string& name, const string& value) {
   setenv(name.c_str(), value.c_str(), 1);
 }
 
-void UnsetEnv(const string& name) {
-  unsetenv(name.c_str());
-}
+void UnsetEnv(const string& name) { unsetenv(name.c_str()); }
 
 bool WarnIfStartedFromDesktop() { return false; }
 
@@ -589,7 +601,7 @@ void SetupStdStreams() {
 // Blaze server.
 // Also, it's a good idea to start each message with a newline,
 // in case the Blaze server has written a partial line.
-void SigPrintf(const char *format, ...) {
+void SigPrintf(const char* format, ...) {
   char buf[1024];
   va_list ap;
   va_start(ap, format);
@@ -600,95 +612,124 @@ void SigPrintf(const char *format, ...) {
   }
 }
 
-static int setlk(int fd, struct flock* lock) {
-#ifdef __linux__
-// If we're building with glibc <2.20, or another libc which predates
-// OFD locks, define the constant ourselves.  This assumes that the libc
-// and kernel definitions for struct flock are identical.
-#ifndef F_OFD_SETLK
-#define F_OFD_SETLK 37
-#endif
-#endif
-#ifdef F_OFD_SETLK
-  // Prefer OFD locks if available.  POSIX locks can be lost "accidentally"
-  // due to any close() on the lock file, and are not reliably preserved
-  // across execve() on Linux, which we need for --batch mode.
-  if (fcntl(fd, F_OFD_SETLK, lock) == 0) return 0;
-  if (errno != EINVAL) {
-    if (errno != EACCES && errno != EAGAIN) {
-      BAZEL_DIE(blaze_exit_code::LOCAL_ENVIRONMENTAL_ERROR)
-          << "unexpected result from F_OFD_SETLK: " << GetLastErrorString();
-    }
-    return -1;
-  }
-  // F_OFD_SETLK was added in Linux 3.15.  Older kernels return EINVAL.
-  // Fall back to F_SETLK in that case.
-#endif
-  if (fcntl(fd, F_SETLK, lock) == 0) return 0;
-  if (errno != EACCES && errno != EAGAIN) {
-    BAZEL_DIE(blaze_exit_code::LOCAL_ENVIRONMENTAL_ERROR)
-        << "unexpected result from F_SETLK: " << GetLastErrorString();
-  }
-  return -1;
-}
-
-LockHandle AcquireLock(const std::string& name, const blaze_util::Path& path,
-                       LockMode mode, bool batch_mode, bool block,
-                       uint64_t* wait_time) {
-  int flags = O_CREAT;
-  switch (mode) {
-    case LockMode::kShared:
-      flags |= O_RDONLY;
-      break;
-    case LockMode::kExclusive:
-      flags |= O_RDWR;
-      break;
-  }
-  // Keep server from inheriting a useless fd if we are not in batch mode.
-  if (!batch_mode) {
-    flags |= O_CLOEXEC;
-  }
-
-  int fd = open(path.AsNativePath().c_str(), flags, 0644);
-  if (fd < 0) {
-    string err = GetLastErrorString();
-    BAZEL_DIE(blaze_exit_code::LOCAL_ENVIRONMENTAL_ERROR)
-        << "open failed for " << name << " lock: " << err;
-  }
-
+static bool TryLock(int fd, LockMode mode, const string& name) {
   struct flock lock = {};
   lock.l_type = static_cast<short>(  // NOLINT (short is the right type)
       mode == LockMode::kShared ? F_RDLCK : F_WRLCK);
+  // Locking is advisory, so any range works as long as it overlaps with the
+  // ones requested by other processes.
   lock.l_whence = SEEK_SET;
   lock.l_start = 0;
-  // This doesn't really matter now, but allows us to subdivide the lock
-  // later if that becomes meaningful.  (Ranges beyond EOF can be locked.)
-  lock.l_len = 4096;
+  lock.l_len = 1;
+  // Prefer OFD locks when available. POSIX locks can be lost "accidentally"
+  // due to any close() on the lock file, and are not reliably preserved
+  // across execve() on Linux, which we need for --batch mode.
+#ifdef F_OFD_SETLK
+  if (fcntl(fd, F_OFD_SETLK, &lock) == 0) {
+    return true;
+  }
+  if (errno != EINVAL) {
+    if (errno != EACCES && errno != EAGAIN) {
+      BAZEL_DIE(blaze_exit_code::LOCAL_ENVIRONMENTAL_ERROR)
+          << "fcntl failed for " << name << " lock: " << GetLastErrorString();
+    }
+    return false;
+  }
+  // Fall back to POSIX locks on EINVAL.
+#endif
+  if (fcntl(fd, F_SETLK, &lock) == 0) {
+    return true;
+  }
+  if (errno != EACCES && errno != EAGAIN) {
+    BAZEL_DIE(blaze_exit_code::LOCAL_ENVIRONMENTAL_ERROR)
+        << "fctnl failed for " << name << " lock: " << GetLastErrorString();
+  }
+  return false;
+}
 
-  // Take the lock. If it fails, busy-wait until it becomes available unless
-  // --noblock_for_lock was set.
-  //
-  // We used to rely on fcntl(F_SETLKW) to lazy-wait for the lock to become
-  // available, which is theoretically fine, but doing so prevents us from
-  // determining if the PID of the server holding the lock has changed under the
-  // hood.  There have been multiple bug reports where users (especially macOS
-  // ones) mention that the Blaze invocation hangs on a non-existent PID.  This
-  // should help troubleshoot those scenarios in case there really is a bug
-  // somewhere.
+static bool StillExists(int fd, const string& name) {
+  struct stat st;
+  if (fstat(fd, &st) < 0) {
+    BAZEL_DIE(blaze_exit_code::LOCAL_ENVIRONMENTAL_ERROR)
+        << "fstat failed for " << name << " lock: " << GetLastErrorString();
+  }
+  return st.st_nlink > 0;
+}
+
+static string ReadOwnerInformation(int fd, const string& name) {
+  // Assume that 4KB are sufficient to fit the owner information.
+  string buffer(4096, 0);
+  ssize_t r = pread(fd, &buffer[0], buffer.size(), 0);
+  if (r < 0) {
+    BAZEL_LOG(WARNING) << "pread failed for " << name
+                       << " lock: " << GetLastErrorString();
+    r = 0;
+  }
+  buffer.resize(r);
+  return buffer;
+}
+
+static void WriteOwnerInformation(int fd) {
+  (void)ftruncate(fd, 0);
+  lseek(fd, 0, SEEK_SET);
+  // Locking is advisory, so it doesn't matter that this may overflow the
+  // locked range.
+  dprintf(fd, "pid=%d\nowner=client\n", getpid());
+  string cwd = blaze_util::GetCwd();
+  dprintf(fd, "cwd=%s\n", cwd.c_str());
+  const char* tty = ttyname(STDIN_FILENO);  // NOLINT (single-threaded)
+  if (tty != nullptr) {
+    dprintf(fd, "tty=%s\n", tty);
+  }
+}
+
+std::pair<LockHandle, DurationMillis> AcquireLock(const std::string& name,
+                                                  const blaze_util::Path& path,
+                                                  LockMode mode,
+                                                  bool batch_mode, bool block) {
+  const uint64_t start_time = GetMillisecondsMonotonic();
   bool multiple_attempts = false;
   string owner;
-  const uint64_t start_time = GetMillisecondsMonotonic();
-  while (setlk(fd, &lock) == -1) {
-    string buffer(4096, 0);
-    ssize_t r = pread(fd, &buffer[0], buffer.size(), 0);
-    if (r < 0) {
-      BAZEL_LOG(WARNING) << "pread() " << name << " lock: " << strerror(errno);
-      r = 0;
+
+  while (true) {
+    int flags = O_CREAT | (mode == LockMode::kShared ? O_RDONLY : O_RDWR);
+    // Keep server from inheriting a useless fd if we are not in batch mode.
+    if (!batch_mode) {
+      flags |= O_CLOEXEC;
     }
-    buffer.resize(r);
-    if (owner != buffer) {
-      // Each time we learn a new lock owner, print it out.
-      owner = buffer;
+
+    int fd = open(path.AsNativePath().c_str(), flags, 0644);
+    if (fd < 0) {
+      BAZEL_DIE(blaze_exit_code::LOCAL_ENVIRONMENTAL_ERROR)
+          << "open failed for " << name << " lock: " << GetLastErrorString();
+    }
+
+    // Attempt to take the lock.
+    if (TryLock(fd, mode, name)) {
+      // Check that the lock file was not concurrently deleted.
+      if (StillExists(fd, name)) {
+        // If taking an exclusive lock, identify ourselves in the lock file.
+        // The contents are printed for human consumption when another client
+        // fails to take the lock, but not parsed otherwise.
+        if (mode == LockMode::kExclusive) {
+          WriteOwnerInformation(fd);
+        }
+        // If we succeeded on the first try, report zero wait time to avoid
+        // unnecessary noise in the logs. We are interested in how long it took
+        // for other commands to complete, not how fast acquiring a lock is.
+        const uint64_t end_time = GetMillisecondsMonotonic();
+        const auto wait_time = multiple_attempts
+                                   ? DurationMillis(start_time, end_time)
+                                   : DurationMillis();
+        return std::make_pair(static_cast<LockHandle>(fd), wait_time);
+      }
+    }
+
+    // Someone else holds the lock. Obtain the identity of the current lock
+    // owner and print it out.
+    string new_owner = ReadOwnerInformation(fd, name);
+    if (new_owner != owner) {
+      owner = new_owner;
       BAZEL_LOG(USER) << "Another command holds the " << name << " lock: \n"
                       << owner;
       if (block) {
@@ -703,36 +744,11 @@ LockHandle AcquireLock(const std::string& name, const blaze_util::Path& path,
           << " lock is held and --noblock_for_lock was given.";
     }
 
-    TrySleep(500);
     multiple_attempts = true;
+
+    close(fd);
+    TrySleep(500);
   }
-  const uint64_t end_time = GetMillisecondsMonotonic();
-
-  // If we took the lock on the first try, force the reported wait time to 0 to
-  // avoid unnecessary noise in the logs.  In this metric, we are only
-  // interested in knowing how long it took for other commands to complete, not
-  // how fast acquiring a lock is.
-  const uint64_t elapsed_time = !multiple_attempts ? 0 : end_time - start_time;
-
-  // If taking an exclusive lock, identify ourselves in the lockfile.
-  // The contents are printed for human consumption when another client
-  // fails to take the lock, but not parsed otherwise.
-  if (mode == LockMode::kExclusive) {
-    (void)ftruncate(fd, 0);
-    lseek(fd, 0, SEEK_SET);
-    // Arguably we should ensure this fits in the 4KB we lock.  In practice no
-    // one will have a cwd long enough to overflow that, and nothing currently
-    // uses the rest of the lock file anyway.
-    dprintf(fd, "pid=%d\nowner=client\n", getpid());
-    string cwd = blaze_util::GetCwd();
-    dprintf(fd, "cwd=%s\n", cwd.c_str());
-    if (const char* tty = ttyname(STDIN_FILENO)) {  // NOLINT (single-threaded)
-      dprintf(fd, "tty=%s\n", tty);
-    }
-  }
-
-  *wait_time = elapsed_time;
-  return static_cast<LockHandle>(fd);
 }
 
 void ReleaseLock(LockHandle lock_handle) {
@@ -769,7 +785,7 @@ string GetUserName() {
     return user;
   }
   errno = 0;
-  passwd *pwent = getpwuid(getuid());  // NOLINT (single-threaded)
+  passwd* pwent = getpwuid(getuid());  // NOLINT (single-threaded)
   if (pwent == nullptr || pwent->pw_name == nullptr) {
     BAZEL_DIE(blaze_exit_code::LOCAL_ENVIRONMENTAL_ERROR)
         << "$USER is not set, and unable to look up name of current user: "
@@ -853,7 +869,7 @@ static bool UnlimitResource(const int resource, const bool allow_infinity) {
     rl.rlim_cur = rl.rlim_max;
   } else {
     if ((rl.rlim_max == RLIM_INFINITY && !allow_infinity) ||
-       rl.rlim_max > explicit_limit) {
+        rl.rlim_max > explicit_limit) {
       rl.rlim_cur = explicit_limit;
     } else {
       rl.rlim_cur = rl.rlim_max;
@@ -877,12 +893,10 @@ bool UnlimitResources() {
   return success;
 }
 
-bool UnlimitCoredumps() {
-  return UnlimitResource(RLIMIT_CORE, true);
-}
+bool UnlimitCoredumps() { return UnlimitResource(RLIMIT_CORE, true); }
 
 void EnsurePythonPathOption(vector<string>* options) {
   // do nothing.
 }
 
-}   // namespace blaze.
+}  // namespace blaze

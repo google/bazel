@@ -23,7 +23,7 @@
 
 #include "src/tools/singlejar/input_jar_scan_entries_test.h"
 
-using bazel::tools::cpp::runfiles::Runfiles;
+using rules_cc::cc::runfiles::Runfiles;
 
 class JartoolCreator {
  public:

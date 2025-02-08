@@ -37,6 +37,8 @@ import com.google.devtools.build.lib.concurrent.ThreadSafety.Immutable;
 import com.google.devtools.build.lib.packages.Info;
 import com.google.devtools.build.lib.packages.PackageSpecification.PackageGroupContents;
 import com.google.devtools.build.lib.packages.Provider;
+import com.google.devtools.build.lib.skyframe.serialization.VisibleForSerialization;
+import com.google.devtools.build.lib.skyframe.serialization.autocodec.AutoCodec;
 import javax.annotation.Nullable;
 import net.starlark.java.eval.Dict;
 import net.starlark.java.eval.EvalException;
@@ -61,8 +63,12 @@ import net.starlark.java.eval.Structure;
  *   <li>{@code actual} has a self transition. Self transitions don't get applied to the alias rule,
  *       and so the configuration keys actually differ.
  * </ul>
+ *
+ * <p>An {@code alias} target may not be used to redirect a {@code package_group} target in a {@code
+ * visibility} declaration or a {@code package_group}'s {@code includes} attribute.
  */
 @Immutable
+@AutoCodec
 public final class AliasConfiguredTarget implements ConfiguredTarget, Structure {
 
   /**
@@ -124,7 +130,8 @@ public final class AliasConfiguredTarget implements ConfiguredTarget, Structure 
   private final ImmutableClassToInstanceMap<TransitiveInfoProvider> overrides;
   private final ImmutableMap<Label, ConfigMatchingProvider> configConditions;
 
-  private AliasConfiguredTarget(
+  @VisibleForSerialization
+  AliasConfiguredTarget(
       ActionLookupKey actionLookupKey,
       ConfiguredTarget actual,
       ImmutableClassToInstanceMap<TransitiveInfoProvider> overrides,
@@ -133,6 +140,11 @@ public final class AliasConfiguredTarget implements ConfiguredTarget, Structure 
     this.actual = checkNotNull(actual);
     this.overrides = checkNotNull(overrides);
     this.configConditions = checkNotNull(configConditions);
+  }
+
+  @Override
+  public ConfiguredTarget getActualNoFollow() {
+    return actual;
   }
 
   @Override

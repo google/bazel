@@ -45,9 +45,9 @@ java_library(
         "//third_party:rxjava3",
         "//third_party:truth",
         "//third_party/grpc-java:grpc-jar",
+        "@com_google_protobuf//:protobuf_java",
         "@googleapis//google/bytestream:bytestream_java_grpc",
         "@googleapis//google/bytestream:bytestream_java_proto",
-        "@protobuf//:protobuf_java",
         "@remoteapis//:build_bazel_remote_execution_v2_remote_execution_java_proto",
     ],
 )
@@ -72,6 +72,6 @@ java_library(
         "//src/test/java/com/google/devtools/build/lib/testutil:TestUtils",
         "//third_party:guava",
         "//third_party:jsr305",
-        "@bazel_tools//tools/java/runfiles",
+        "@rules_java//java/runfiles",
     ],
 )

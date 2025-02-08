@@ -71,8 +71,8 @@ public final class SkyFunctions {
 
   public static final SkyFunctionName COLLECT_PACKAGES_UNDER_DIRECTORY =
       SkyFunctionName.createHermetic("COLLECT_PACKAGES_UNDER_DIRECTORY");
-  public static final SkyFunctionName IGNORED_PACKAGE_PREFIXES =
-      SkyFunctionName.createHermetic("IGNORED_PACKAGE_PREFIXES");
+  public static final SkyFunctionName IGNORED_SUBDIRECTORIES =
+      SkyFunctionName.createHermetic("IGNORED_SUBDIRECTORIES");
   static final SkyFunctionName TEST_SUITE_EXPANSION =
       SkyFunctionName.createHermetic("TEST_SUITE_EXPANSION");
   static final SkyFunctionName TESTS_IN_SUITE = SkyFunctionName.createHermetic("TESTS_IN_SUITE");
@@ -179,9 +179,10 @@ public final class SkyFunctions {
   public static final SkyFunctionName MODULE_EXTENSION_REPO_MAPPING_ENTRIES =
       SkyFunctionName.createHermetic("MODULE_EXTENSION_REPO_MAPPING_ENTRIES");
   public static final SkyFunctionName VENDOR_FILE = SkyFunctionName.createHermetic("VENDOR_FILE");
-  ;
 
   public static final SkyFunctionName FLAG_SET = SkyFunctionName.createHermetic("FLAG_SET");
+  public static final SkyFunctionName BUILD_OPTIONS_SCOPE =
+      SkyFunctionName.createHermetic("BUILD_OPTIONS_SCOPE");
 
   public static Predicate<SkyKey> isSkyFunction(SkyFunctionName functionName) {
     return key -> key.functionName().equals(functionName);

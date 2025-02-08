@@ -14,10 +14,10 @@
 package com.google.devtools.build.lib.skyframe.serialization;
 
 import static com.google.common.util.concurrent.MoreExecutors.directExecutor;
+import static java.util.Objects.requireNonNull;
 
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
-import com.google.auto.value.AutoValue;
 import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
@@ -285,18 +285,18 @@ public final class FingerprintValueCache {
    *
    * <p>Including a <em>distinguisher</em> in the key to account for the contextual value can be
    * used to avoid conflicts in cases like this.
+   *
+   * @param fingerprint The primary key for a {@link #deserializationCache} entry.
+   * @param distinguisher A secondary key, sometimes needed to resolve ambiguity.
    */
-  @AutoValue
-  abstract static class FingerprintWithDistinguisher {
-    /** The primary key for a {@link #deserializationCache} entry. */
-    abstract PackedFingerprint fingerprint();
-
-    /** A secondary key, sometimes needed to resolve ambiguity. */
-    abstract Object distinguisher();
+  record FingerprintWithDistinguisher(PackedFingerprint fingerprint, Object distinguisher) {
+    FingerprintWithDistinguisher {
+      requireNonNull(fingerprint, "fingerprint");
+      requireNonNull(distinguisher, "distinguisher");
+    }
 
     static FingerprintWithDistinguisher of(PackedFingerprint fingerprint, Object distinguisher) {
-      return new AutoValue_FingerprintValueCache_FingerprintWithDistinguisher(
-          fingerprint, distinguisher);
+      return new FingerprintWithDistinguisher(fingerprint, distinguisher);
     }
   }
 }

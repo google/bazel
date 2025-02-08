@@ -23,7 +23,6 @@ import com.google.devtools.build.lib.unsafe.StringUnsafe;
 import com.google.protobuf.CodedInputStream;
 import com.google.protobuf.CodedOutputStream;
 import java.io.IOException;
-import java.util.Arrays;
 
 /**
  * A high-performance {@link ObjectCodec} for {@link String} objects specialized for Strings in
@@ -39,7 +38,7 @@ public final class UnsafeStringCodec extends LeafObjectCodec<String> {
    */
   private static final UnsafeStringCodec INSTANCE = new UnsafeStringCodec();
 
-  private final StringUnsafe stringUnsafe = StringUnsafe.getInstance();
+  private static final StringUnsafe STRING_UNSAFE = StringUnsafe.getInstance();
 
   public static UnsafeStringCodec stringCodec() {
     return INSTANCE;
@@ -53,8 +52,8 @@ public final class UnsafeStringCodec extends LeafObjectCodec<String> {
   @Override
   public void serialize(LeafSerializationContext context, String obj, CodedOutputStream codedOut)
       throws SerializationException, IOException {
-    byte coder = stringUnsafe.getCoder(obj);
-    byte[] value = stringUnsafe.getByteArray(obj);
+    byte coder = STRING_UNSAFE.getCoder(obj);
+    byte[] value = STRING_UNSAFE.getByteArray(obj);
     // Optimize for the case that coder == 0, in which case we can just write the length here,
     // potentially using just one byte. If coder != 0, we'll use 4 bytes, but that's vanishingly
     // rare.
@@ -80,11 +79,6 @@ public final class UnsafeStringCodec extends LeafObjectCodec<String> {
       length = -length;
     }
     byte[] value = codedIn.readRawBytes(length);
-    try {
-      return stringUnsafe.newInstance(value, coder);
-    } catch (ReflectiveOperationException e) {
-      throw new SerializationException(
-          "Could not instantiate string: " + Arrays.toString(value) + ", " + coder, e);
-    }
+    return STRING_UNSAFE.newInstance(value, coder);
   }
 }

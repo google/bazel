@@ -258,7 +258,7 @@ public class AspectCollectionTest {
       ImmutableList<Aspect> expectedUsedAspects,
       Pair<Aspect, ImmutableList<Aspect>>... expectedPaths) {
 
-    assertThat(Iterables.transform(collection.getUsedAspects(), AspectDeps::getAspect))
+    assertThat(Iterables.transform(collection.getUsedAspects(), AspectDeps::aspect))
         .containsExactlyElementsIn(Iterables.transform(expectedUsedAspects, Aspect::getDescriptor))
         .inOrder();
     validateAspectPaths(
@@ -279,7 +279,7 @@ public class AspectCollectionTest {
     for (Pair<Aspect, ImmutableList<Aspect>> expected : expectedList) {
       assertThat(allPaths).containsKey(expected.first.getDescriptor());
       AspectDeps aspectPath = allPaths.get(expected.first.getDescriptor());
-      assertThat(Iterables.transform(aspectPath.getUsedAspects(), AspectDeps::getAspect))
+      assertThat(Iterables.transform(aspectPath.usedAspects(), AspectDeps::aspect))
           .containsExactlyElementsIn(Iterables.transform(expected.second, Aspect::getDescriptor))
           .inOrder();
       expectedKeys.add(expected.first.getDescriptor());
@@ -295,14 +295,14 @@ public class AspectCollectionTest {
    */
   private static void collectAndValidateAspectDeps(AspectDeps aspectDeps,
       HashMap<AspectDescriptor, AspectDeps> allDeps) {
-    if (allDeps.containsKey(aspectDeps.getAspect())) {
-      assertWithMessage(String.format("Two different deps for aspect %s", aspectDeps.getAspect()))
-          .that(allDeps.get(aspectDeps.getAspect()))
+    if (allDeps.containsKey(aspectDeps.aspect())) {
+      assertWithMessage(String.format("Two different deps for aspect %s", aspectDeps.aspect()))
+          .that(allDeps.get(aspectDeps.aspect()))
           .isSameInstanceAs(aspectDeps);
       return;
     }
-    allDeps.put(aspectDeps.getAspect(), aspectDeps);
-    for (AspectDeps path : aspectDeps.getUsedAspects()) {
+    allDeps.put(aspectDeps.aspect(), aspectDeps);
+    for (AspectDeps path : aspectDeps.usedAspects()) {
       collectAndValidateAspectDeps(path, allDeps);
     }
   }

@@ -59,7 +59,7 @@ public interface InputMetadataProvider {
 
   /**
    * Returns the {@link RunfilesArtifactValue} for the given {@link ActionInput}, which must be a
-   * runfiles middleman artifact.
+   * runfiles tree artifact.
    *
    * @return the appropriate {@link RunfilesArtifactValue} or null if it's not found.
    */

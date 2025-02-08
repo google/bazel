@@ -26,6 +26,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Set;
+import javax.annotation.Nullable;
 import net.starlark.java.syntax.Location;
 
 /**
@@ -143,10 +144,18 @@ public class PackageGroup implements Target {
   }
 
   @Override
+  @Nullable
+  public RuleVisibility getRawVisibility() {
+    return null;
+  }
+
+  @Override
   public RuleVisibility getVisibility() {
     // Package groups are always public to avoid a PackageGroupConfiguredTarget
     // needing itself for the visibility check. It may work, but I did not
     // think it over completely.
+    // (We override getRawVisibility() separately so as to not display this value during
+    // introspection.)
     return RuleVisibility.PUBLIC;
   }
 

@@ -22,7 +22,7 @@
 
 namespace {
 
-using bazel::tools::cpp::runfiles::Runfiles;
+using rules_cc::cc::runfiles::Runfiles;
 
 static const char kTag1Contents[] = "<tag1>Contents1</tag1>";
 static const char kTag2Contents[] = "<tag2>Contents2</tag2>";

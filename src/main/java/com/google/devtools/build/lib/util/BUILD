@@ -1,5 +1,4 @@
 load("@rules_java//java:defs.bzl", "java_library")
-load("//src:build_defs.bzl", "java_11_library")
 
 package(
     default_applicable_licenses = ["//:license"],
@@ -31,7 +30,7 @@ java_library(
     ],
 )
 
-java_11_library(
+java_library(
     name = "os",
     srcs = ["OS.java"],
 )
@@ -46,6 +45,7 @@ java_library(
     name = "file_system_lock",
     srcs = ["FileSystemLock.java"],
     deps = [
+        ":string_encoding",
         "//src/main/java/com/google/devtools/build/lib/vfs",
         "//third_party:guava",
     ],
@@ -202,7 +202,7 @@ java_library(
     ],
 )
 
-java_11_library(
+java_library(
     name = "pair",
     srcs = [
         "Pair.java",
@@ -250,6 +250,7 @@ java_library(
     deps = [
         ":os",
         ":shell_escaper",
+        ":string_encoding",
         "//src/main/java/com/google/devtools/build/lib/bugreport",
         "//src/main/java/com/google/devtools/build/lib/concurrent",
         "//src/main/java/com/google/devtools/build/lib/vfs",
@@ -259,11 +260,11 @@ java_library(
         "//third_party:flogger",
         "//third_party:guava",
         "//third_party:jsr305",
-        "@protobuf//:protobuf_java",
+        "@com_google_protobuf//:protobuf_java",
     ],
 )
 
-java_11_library(
+java_library(
     name = "stream_writer",
     srcs = [
         "StreamWriter.java",
@@ -318,6 +319,16 @@ java_library(
 )
 
 java_library(
+    name = "string_encoding",
+    srcs = ["StringEncoding.java"],
+    deps = [
+        ":os",
+        "//src/main/java/com/google/devtools/build/lib/unsafe:string",
+        "//third_party:guava",
+    ],
+)
+
+java_library(
     name = "string",
     srcs = [
         "StringUtil.java",
@@ -336,7 +347,7 @@ java_library(
     ],
 )
 
-java_11_library(
+java_library(
     name = "exit_code",
     srcs = [
         "ExitCode.java",
@@ -352,6 +363,7 @@ java_library(
     name = "custom_exit_code_publisher",
     srcs = ["CustomExitCodePublisher.java"],
     deps = [
+        "//third_party:flogger",
         "//third_party:guava",
         "//third_party:jsr305",
     ],
@@ -375,7 +387,7 @@ java_library(
         "//src/main/protobuf:failure_details_java_proto",
         "//third_party:guava",
         "//third_party:jsr305",
-        "@protobuf//:protobuf_java",
+        "@com_google_protobuf//:protobuf_java",
     ],
 )
 
@@ -400,6 +412,7 @@ java_library(
     name = "heap_offset_helper",
     srcs = ["HeapOffsetHelper.java"],
     deps = [
+        ":TestType",
         "//src/main/java/com/google/devtools/build/lib/bugreport",
         "//third_party:flogger",
         "//third_party:guava",

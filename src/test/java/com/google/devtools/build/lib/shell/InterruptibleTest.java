@@ -101,7 +101,7 @@ public class InterruptibleTest {
 
     CommandResult result =
         command.executeAsync(Command.NO_INPUT, Command.CONTINUE_SUBPROCESS_ON_INTERRUPT).get();
-    assertThat(result.getTerminationStatus().success()).isTrue();
+    assertThat(result.terminationStatus().success()).isTrue();
     assertThat(new String(result.getStdout(), UTF_8)).isEqualTo("start\n");
     assertThat(new String(result.getStderr(), UTF_8)).isEqualTo("end\n");
     assertThat(Files.exists(tmpDir.resolve("endfile"))).isTrue();

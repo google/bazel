@@ -72,7 +72,7 @@ public class RegistryFunction implements SkyFunction {
     RegistryKey key = (RegistryKey) skyKey.argument();
     try {
       return registryFactory.createRegistry(
-          key.getUrl().replace("%workspace%", workspaceRoot.getPathString()),
+          key.url().replace("%workspace%", workspaceRoot.getPathString()),
           lockfileMode,
           lockfile.getRegistryFileHashes(),
           lockfile.getSelectedYankedVersions(),
@@ -83,7 +83,7 @@ public class RegistryFunction implements SkyFunction {
               FailureDetails.ExternalDeps.Code.INVALID_REGISTRY_URL,
               e,
               "Invalid registry URL: %s",
-              key.getUrl()));
+              key.url()));
     }
   }
 

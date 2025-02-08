@@ -53,7 +53,13 @@ msys*|mingw*|cygwin*)
   ;;
 esac
 
-add_to_bazelrc "test --notest_loasd"
+if $is_windows; then
+  export LC_ALL=C.utf8
+elif [[ "$(uname -s)" == "Linux" ]]; then
+  export LC_ALL=C.UTF-8
+else
+  export LC_ALL=en_US.UTF-8
+fi
 
 #### HELPER FUNCTIONS ##################################################
 
@@ -195,33 +201,97 @@ function test_script_file_generation {
 }
 
 function test_consistent_command_line_encoding {
-  # todo(aehlig): reenable: https://github.com/bazelbuild/bazel/issues/1775
-  return 0
-
-  # TODO(bazel-team): fix bazel to have consistent encoding, also on darwin;
-  # see https://github.com/bazelbuild/bazel/issues/1766
-  [ "$PLATFORM" != "darwin" ] || warn "test disabled on darwin, see Github issue 1766"
-  [ "$PLATFORM" != "darwin" ] || return 0
-
-  # äöüÄÖÜß in UTF8
-  local arg=$(echo -e '\xC3\xA4\xC3\xB6\xC3\xBC\xC3\x84\xC3\x96\xC3\x9C\xC3\x9F')
+  local -r arg="äöüÄÖÜß🌱"
 
   mkdir -p foo || fail "mkdir foo failed"
   echo 'sh_binary(name = "foo", srcs = ["foo.sh"])' > foo/BUILD
   echo 'sh_test(name = "foo_test", srcs = ["foo.sh"])' >> foo/BUILD
-  echo 'test "$1" = "'"$arg"'"' > foo/foo.sh
+  cat > foo/foo.sh <<EOF
+echo "got : \$1"
+echo "want: $arg"
+test "\$1" = '$arg'
+EOF
   chmod +x foo/foo.sh
 
-  bazel run //foo -- "$arg" > output \
+  bazel run //foo -- "$arg" > $TEST_log 2>&1 \
     || fail "${PRODUCT_NAME} run failed."
 
-  bazel test //foo:foo_test --test_arg="$arg" \
+  bazel test //foo:foo_test --test_arg="$arg" --test_output=errors \
     || fail "${PRODUCT_NAME} test failed"
 
-  bazel --batch run //foo -- "$arg" > output \
+  bazel --batch run //foo -- "$arg" > $TEST_log 2>&1 \
     || fail "${PRODUCT_NAME} run failed (--batch)."
-  bazel --batch test //foo:foo_test --test_arg="$arg" \
+
+  bazel --batch test //foo:foo_test --test_arg="$arg" --test_output=errors \
     || fail "${PRODUCT_NAME} test failed (--batch)"
+}
+
+function test_consistent_env_var_encoding {
+  local -r env="äöüÄÖÜß🌱"
+
+  mkdir -p foo || fail "mkdir foo failed"
+  cat > foo/BUILD <<EOF
+sh_test(
+    name = "foo_test",
+    srcs = ["foo_test.sh"],
+    env = {
+        "FIXED_KEY": "fixed_value_$env",
+    },
+    env_inherit = [
+        "INHERITED_KEY",
+    ],
+)
+EOF
+  cat > foo/foo_test.sh <<EOF
+echo "FIXED_KEY:"
+echo "got : \${FIXED_KEY}"
+echo "want: fixed_value_$env"
+test "\${FIXED_KEY}" = "fixed_value_$env"
+echo "INHERITED_KEY:"
+echo "got : \${INHERITED_KEY}"
+echo "want: inherited_value_$env"
+test "\${INHERITED_KEY}" = "inherited_value_$env"
+EOF
+  chmod +x foo/foo_test.sh
+
+  env INHERITED_KEY="inherited_value_$env" \
+    bazel run //foo:foo_test > $TEST_log 2>&1 \
+    || fail "${PRODUCT_NAME} run failed."
+
+  env INHERITED_KEY="inherited_value_$env" \
+    bazel test //foo:foo_test --test_output=errors \
+    || fail "${PRODUCT_NAME} test failed"
+
+  env INHERITED_KEY="inherited_value_$env" \
+    bazel --batch test //foo:foo_test --test_output=errors \
+    || fail "${PRODUCT_NAME} test failed (--batch)"
+}
+
+function test_consistent_working_directory_encoding {
+  local -r unicode_string="äöüÄÖÜß🌱"
+
+  mkdir -p foo || fail "mkdir foo failed"
+  cat > foo/BUILD <<EOF
+sh_binary(
+    name = "foo",
+    srcs = ["foo.sh"],
+)
+EOF
+  cat > foo/foo.sh <<EOF
+echo "        got: \${BUILD_WORKING_DIRECTORY}"
+echo "want suffix: /foo/subdir_$unicode_string"
+[[ "\${BUILD_WORKING_DIRECTORY}" == *"/foo/subdir_$unicode_string" ]]
+EOF
+  chmod +x foo/foo.sh
+
+  mkdir -p "foo/subdir_$unicode_string"
+  cd "foo/subdir_$unicode_string" || fail "cd foo/subdir_$unicode_string failed"
+
+  bazel run //foo > $TEST_log 2>&1 \
+    || fail "${PRODUCT_NAME} run failed."
+
+  bazel --batch run //foo \
+    || fail "${PRODUCT_NAME} run failed (--batch)."
 }
 
 # Tests bazel run with --color=no on a failed build does not produce color.
@@ -608,6 +678,94 @@ EOF
   fi
 }
 
+function test_run_under_command_change_preserves_cache() {
+  if $is_windows; then
+    echo "This test requires --run_under to be able to run echo."
+    return
+  fi
+
+  local -r pkg="pkg${LINENO}"
+  mkdir -p "${pkg}"
+  cat > "$pkg/BUILD" <<'EOF'
+load(":defs.bzl", "my_rule")
+my_rule(
+  name = "my_rule",
+)
+EOF
+  cat > "$pkg/defs.bzl" <<'EOF'
+def _my_rule_impl(ctx):
+  print("my_rule is being analyzed")
+  out = ctx.actions.declare_file(ctx.label.name)
+  ctx.actions.write(out, "echo -n world", is_executable = True)
+  return [DefaultInfo(executable = out)]
+
+my_rule = rule(
+  implementation = _my_rule_impl,
+  executable = True,
+)
+EOF
+
+  bazel run "${pkg}:my_rule" >$TEST_log 2>&1 \
+   || fail "expected run to pass"
+  expect_log "my_rule is being analyzed"
+  expect_not_log "hello"
+  expect_log "world"
+
+  bazel run --run_under="echo -n hello &&" "${pkg}:my_rule" >$TEST_log 2>&1 \
+   || fail "expected run to pass"
+  expect_not_log "my_rule is being analyzed"
+  expect_log "hello"
+  expect_log "world"
+}
+
+function test_build_id_env_var() {
+  local -r pkg="pkg${LINENO}"
+  mkdir -p "${pkg}"
+  cat > "$pkg/BUILD" <<'EOF'
+sh_binary(
+  name = "foo",
+  srcs = ["foo.sh"],
+)
+EOF
+  cat > "$pkg/foo.sh" <<'EOF'
+#!/bin/bash
+echo build_id=\"${BUILD_ID}\"
+EOF
+
+  chmod +x "$pkg/foo.sh"
+  bazel run "//$pkg:foo" --build_event_text_file=bep.txt >& "$TEST_log" || fail "run failed"
+  cat "$TEST_log" | grep "^build_id=" > actual.txt
+  cat bep.txt | grep '^  uuid: "' | sed 's/^  uuid: /build_id=/' > expected.txt
+
+  if ! cmp expected.txt actual.txt; then
+    fail "BUILD_ID env var not set correctly: expected '$(cat expected.txt)', got '$(cat actual.txt)'"
+  fi
+}
+
+function test_execroot_env_var() {
+  local -r pkg="pkg${LINENO}"
+  mkdir -p "${pkg}"
+  cat > "$pkg/BUILD" <<'EOF'
+sh_binary(
+  name = "foo",
+  srcs = ["foo.sh"],
+)
+EOF
+  cat > "$pkg/foo.sh" <<'EOF'
+#!/bin/bash
+echo execroot=\"${BUILD_EXECROOT}\"
+EOF
+
+  chmod +x "$pkg/foo.sh"
+  echo "execroot=\"$(bazel info execution_root)\"" > expected.txt
+  bazel run "//$pkg:foo" >& "$TEST_log" || fail "run failed"
+  cat "$TEST_log" | grep "^execroot=" > actual.txt
+
+  if ! cmp expected.txt actual.txt; then
+    fail "BUILD_EXECROOT env var not set correctly: expected '$(cat expected.txt)', got '$(cat actual.txt)'"
+  fi
+}
+
 function test_run_env() {
   local -r pkg="pkg${LINENO}"
   mkdir -p "${pkg}"
@@ -634,6 +792,40 @@ EOF
   chmod +x "$pkg/foo.sh"
 
   bazel run --run_env=OVERRIDDEN_RUN_ENV=FOO --run_env=RUN_ENV_ONLY=BAR "//$pkg:foo" >"$TEST_log" || fail "expected run to succeed"
+
+  expect_log "FROMBUILD: '1'"
+  expect_log "OVERRIDDEN_RUN_ENV: 'FOO'"
+  expect_log "RUN_ENV_ONLY: 'BAR'"
+}
+
+function test_run_env_script_path() {
+  local -r pkg="pkg${LINENO}"
+  mkdir -p "${pkg}"
+  cat > "$pkg/BUILD" <<'EOF'
+sh_binary(
+  name = "foo",
+  srcs = ["foo.sh"],
+  env = {
+    "FROMBUILD": "1",
+    "OVERRIDDEN_RUN_ENV": "2",
+  }
+)
+EOF
+  cat > "$pkg/foo.sh" <<'EOF'
+#!/bin/bash
+
+set -euo pipefail
+
+echo "FROMBUILD: '$FROMBUILD'"
+echo "OVERRIDDEN_RUN_ENV: '$OVERRIDDEN_RUN_ENV'"
+echo "RUN_ENV_ONLY: '$RUN_ENV_ONLY'"
+EOF
+
+  chmod +x "$pkg/foo.sh"
+
+  bazel run --script_path=script.bat --run_env=OVERRIDDEN_RUN_ENV=FOO --run_env=RUN_ENV_ONLY=BAR "//$pkg:foo" || fail "expected run to succeed"
+
+  ./script.bat >"$TEST_log" || fail "expected script to succeed"
 
   expect_log "FROMBUILD: '1'"
   expect_log "OVERRIDDEN_RUN_ENV: 'FOO'"

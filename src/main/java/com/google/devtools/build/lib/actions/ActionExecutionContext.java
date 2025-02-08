@@ -30,6 +30,7 @@ import com.google.devtools.build.lib.events.EventKind;
 import com.google.devtools.build.lib.events.ExtendedEventHandler;
 import com.google.devtools.build.lib.util.CommandDescriptionForm;
 import com.google.devtools.build.lib.util.CommandFailureUtils;
+import com.google.devtools.build.lib.util.Fingerprint;
 import com.google.devtools.build.lib.util.io.FileOutErr;
 import com.google.devtools.build.lib.vfs.FileSystem;
 import com.google.devtools.build.lib.vfs.Path;
@@ -124,28 +125,34 @@ public class ActionExecutionContext implements Closeable, ActionContext.ActionCo
     public boolean isMappingCached() {
       return wrapped.isMappingCached();
     }
+
+    @Override
+    public void fingerprint(
+        ActionKeyContext actionKeyContext, Fingerprint fp, boolean digestAbsolutePaths) {
+      wrapped.fingerprint(actionKeyContext, fp, digestAbsolutePaths);
+    }
   }
 
   /**
    * An {@link InputMetadataProvider} wrapping another while overriding the materialization path of
    * a chosen runfiles tree.
    *
-   * <p>The choice is made by passing in the runfiles middleman which represents the tree whose path
-   * is to be overridden.
+   * <p>The choice is made by passing in the runfiles tree artifact which represents the tree whose
+   * path is is to be overridden.
    */
   private static class OverriddenRunfilesPathInputMetadataProvider
       implements InputMetadataProvider {
     private final InputMetadataProvider wrapped;
-    private final ActionInput wrappedMiddleman;
+    private final ActionInput wrappedRunfilesArtifact;
     private final OverriddenPathRunfilesTree overriddenTree;
 
     private OverriddenRunfilesPathInputMetadataProvider(
-        InputMetadataProvider wrapped, ActionInput wrappedMiddleman, PathFragment execPath) {
+        InputMetadataProvider wrapped, ActionInput wrappedRunfilesArtifact, PathFragment execPath) {
       this.wrapped = wrapped;
-      this.wrappedMiddleman = wrappedMiddleman;
+      this.wrappedRunfilesArtifact = wrappedRunfilesArtifact;
       this.overriddenTree =
           new OverriddenPathRunfilesTree(
-              wrapped.getRunfilesMetadata(wrappedMiddleman).getRunfilesTree(), execPath);
+              wrapped.getRunfilesMetadata(wrappedRunfilesArtifact).getRunfilesTree(), execPath);
     }
 
     @Nullable
@@ -165,7 +172,7 @@ public class ActionExecutionContext implements Closeable, ActionContext.ActionCo
     @Override
     public RunfilesArtifactValue getRunfilesMetadata(ActionInput input) {
       RunfilesArtifactValue original = wrapped.getRunfilesMetadata(input);
-      if (wrappedMiddleman.equals(input)) {
+      if (wrappedRunfilesArtifact.equals(input)) {
         return original.withOverriddenRunfilesTree(overriddenTree);
       } else {
         return original;
@@ -445,10 +452,10 @@ public class ActionExecutionContext implements Closeable, ActionContext.ActionCo
   }
 
   /**
-   * Report a subcommand event to this Executor's Reporter and, if action
-   * logging is enabled, post it on its EventBus.
+   * Report a subcommand event to this Executor's Reporter and, if action logging is enabled, post
+   * it on its EventBus.
    */
-  public void maybeReportSubcommand(Spawn spawn) {
+  public void maybeReportSubcommand(Spawn spawn, @Nullable String spawnRunner) {
     ShowSubcommands showSubcommands = executor.reportsSubcommands();
     if (!showSubcommands.shouldShowSubcommands) {
       return;
@@ -485,7 +492,8 @@ public class ActionExecutionContext implements Closeable, ActionContext.ActionCo
             /* environmentVariablesToClear= */ null,
             getExecRoot().getPathString(),
             spawn.getConfigurationChecksum(),
-            spawn.getExecutionPlatformLabel());
+            spawn.getExecutionPlatformLabel(),
+            spawnRunner);
     getEventHandler().handle(Event.of(EventKind.SUBCOMMAND, null, "# " + reason + "\n" + message));
   }
 
@@ -593,10 +601,10 @@ public class ActionExecutionContext implements Closeable, ActionContext.ActionCo
   }
 
   public ActionExecutionContext withOverriddenRunfilesPath(
-      ActionInput overriddenMiddleman, PathFragment overrideRunfilesPath) {
+      ActionInput overriddenRunfilesArtifact, PathFragment overrideRunfilesPath) {
     return withInputMetadataProvider(
         new OverriddenRunfilesPathInputMetadataProvider(
-            inputMetadataProvider, overriddenMiddleman, overrideRunfilesPath));
+            inputMetadataProvider, overriddenRunfilesArtifact, overrideRunfilesPath));
   }
 
   /**

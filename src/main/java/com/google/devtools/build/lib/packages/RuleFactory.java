@@ -24,7 +24,6 @@ import com.google.devtools.build.lib.packages.RuleClass.Builder.RuleClassType;
 import com.google.devtools.build.lib.packages.TargetRecorder.NameConflictException;
 import com.google.devtools.build.lib.packages.semantics.BuildLanguageOptions;
 import com.google.errorprone.annotations.CanIgnoreReturnValue;
-import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import javax.annotation.Nullable;
@@ -85,22 +84,15 @@ public class RuleFactory {
           ruleClass + " cannot be in the WORKSPACE file " + "(used by " + label + ")");
     }
 
-    // Add the generator_name attribute, and possibly append the declaration location to the
-    // visibility attribute.
+    // Add the generator_name attribute.
     BuildLangTypedAttributeValuesMap processedAttributes;
     @Nullable String generatorName = getGeneratorName(pkgBuilder, attributeValues, callstack);
-    @Nullable List<Label> modifiedVisibility = getModifiedVisibility(pkgBuilder, attributeValues);
     // Don't bother copying anything if nothing changed.
-    if (generatorName != null || modifiedVisibility != null) {
+    if (generatorName != null) {
       ImmutableMap.Builder<String, Object> builder =
-          ImmutableMap.builderWithExpectedSize(attributeValues.attributeValues.size() + 2);
+          ImmutableMap.builderWithExpectedSize(attributeValues.attributeValues.size() + 1);
       builder.putAll(attributeValues.attributeValues);
-      if (generatorName != null) {
-        builder.put("generator_name", generatorName);
-      }
-      if (modifiedVisibility != null) {
-        builder.put("visibility", modifiedVisibility);
-      }
+      builder.put("generator_name", generatorName);
       processedAttributes = new BuildLangTypedAttributeValuesMap(builder.buildKeepingLast());
     } else {
       processedAttributes = attributeValues;
@@ -272,46 +264,6 @@ public class RuleFactory {
       generatorName = (String) args.getAttributeValue("name");
     }
     return generatorName;
-  }
-
-  /**
-   * Given the attribute values of the rule being instantiated, computes and returns the new value
-   * for its visibility attribute, or null if no change is needed.
-   *
-   * <p>For targets created inside one or more symbolic macros, the new visibility value is whatever
-   * the original visibility attribute was (possibly the package's default visibility), unioned with
-   * the package where the innermost currently executing symbolic macro was exported.
-   *
-   * <p>For targets not created inside one or more symbolic macros, no change is made to the
-   * visibility attribute. The visibility check will account for this by permitting access to the
-   * target from locations in the same package as the target.
-   */
-  @Nullable
-  private static List<Label> getModifiedVisibility(
-      Package.Builder pkgBuilder, BuildLangTypedAttributeValuesMap args) {
-    MacroInstance currentMacro = pkgBuilder.currentMacro();
-    if (currentMacro == null) {
-      return null;
-    }
-
-    RuleVisibility visibility = null;
-    Object uncheckedVisibilityAttr = args.getAttributeValue("visibility");
-    if (uncheckedVisibilityAttr == null) {
-      visibility = RuleVisibility.PRIVATE;
-    } else {
-      try {
-        List<Label> visibilityAttr =
-            BuildType.LABEL_LIST.convert(
-                uncheckedVisibilityAttr, "visibility attribute", pkgBuilder.getLabelConverter());
-        visibility = RuleVisibility.parse(visibilityAttr);
-      } catch (EvalException ex) {
-        // Can't modify the visibility attribute because it's invalid. Let it be caught in
-        // RuleClass#populateDefinedRuleAttributeValues.
-        return null;
-      }
-    }
-
-    return visibility.concatWithPackage(currentMacro.getDefinitionPackage()).getDeclaredLabels();
   }
 
   /**

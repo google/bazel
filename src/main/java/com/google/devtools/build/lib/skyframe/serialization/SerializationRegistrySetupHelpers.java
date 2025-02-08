@@ -23,17 +23,24 @@ import com.google.devtools.build.lib.analysis.ConfiguredRuleClassProvider;
 import com.google.devtools.build.lib.analysis.TransitiveInfoProviderMapImpl;
 import com.google.devtools.build.lib.analysis.config.BuildOptions;
 import com.google.devtools.build.lib.analysis.config.OutputDirectories.OutputDirectory;
+import com.google.devtools.build.lib.analysis.configuredtargets.EnvironmentGroupConfiguredTarget;
+import com.google.devtools.build.lib.analysis.configuredtargets.InputFileConfiguredTarget;
+import com.google.devtools.build.lib.analysis.configuredtargets.MergedConfiguredTarget;
+import com.google.devtools.build.lib.analysis.configuredtargets.OutputFileConfiguredTarget;
+import com.google.devtools.build.lib.analysis.configuredtargets.PackageGroupConfiguredTarget;
+import com.google.devtools.build.lib.analysis.configuredtargets.RuleConfiguredTarget;
 import com.google.devtools.build.lib.analysis.test.TestConfiguration;
 import com.google.devtools.build.lib.cmdline.Label;
 import com.google.devtools.build.lib.cmdline.PackageIdentifier;
 import com.google.devtools.build.lib.collect.nestedset.DeferredNestedSetCodec;
 import com.google.devtools.build.lib.packages.BazelStarlarkEnvironment;
 import com.google.devtools.build.lib.packages.StructProvider;
-import com.google.devtools.build.lib.runtime.BlazeRuntime;
+import com.google.devtools.build.lib.rules.AliasConfiguredTarget;
 import com.google.devtools.build.lib.skyframe.ConfiguredTargetKey;
 import com.google.devtools.build.lib.skyframe.RemoteConfiguredTargetValue;
 import com.google.devtools.build.lib.vfs.Root;
 import com.google.errorprone.annotations.CanIgnoreReturnValue;
+import java.lang.reflect.Constructor;
 import java.util.function.Supplier;
 import net.starlark.java.eval.Starlark;
 import net.starlark.java.syntax.Location;
@@ -122,32 +129,80 @@ public final class SerializationRegistrySetupHelpers {
     return builder;
   }
 
-  public static final ImmutableList<ObjectCodec<?>> ANALYSIS_CACHING_CODECS =
-      ImmutableList.<ObjectCodec<?>>builder()
-          .add(ArrayCodec.forComponentType(Artifact.class))
-          .add(new DeferredNestedSetCodec())
-          .add(Label.valueSharingCodec())
-          .add(PackageIdentifier.valueSharingCodec())
-          .add(ConfiguredTargetKey.valueSharingCodec())
-          .add(TransitiveInfoProviderMapImpl.valueSharingCodec())
-          .add(RemoteConfiguredTargetValue.codec())
-          .add(BuildOptions.valueSharingCodec())
-          .addAll(ArtifactCodecs.VALUE_SHARING_CODECS)
-          .build();
+  public static ImmutableList<ObjectCodec<?>> analysisCachingCodecs() {
+    return AnalysisCachingCodecsHolder.INSTANCE;
+  }
 
   /**
-   * Initializes an {@link ObjectCodecRegistry} for analysis serialization.
+   * Holder to ensure codecs are not loaded unless {@link #analysisCachingCodecs} is called.
+   *
+   * <p>This class is loaded on-demand, which is especially important for
+   * bazel_bootstrap_distfile_test, where AutoCodec doesn't exist. This is fine for the test,
+   * because it doesn't actually use the codecs. See <a
+   * href="https://en.wikipedia.org/wiki/Initialization-on-demand_holder_idiom">Initialization on
+   * demand idiom</a>.
    */
+  private static class AnalysisCachingCodecsHolder {
+    private static final ImmutableList<Class<?>> CONFIGURED_TARGET_CLASSES =
+        ImmutableList.of(
+            EnvironmentGroupConfiguredTarget.class,
+            InputFileConfiguredTarget.class,
+            MergedConfiguredTarget.class,
+            OutputFileConfiguredTarget.class,
+            PackageGroupConfiguredTarget.class,
+            RuleConfiguredTarget.class,
+            AliasConfiguredTarget.class);
+
+    private static final ImmutableList<ObjectCodec<?>> INSTANCE;
+
+    static {
+      var builder =
+          ImmutableList.<ObjectCodec<?>>builder()
+              .add(ArrayCodec.forComponentType(Artifact.class))
+              .add(new DeferredNestedSetCodec())
+              .add(new ValueSharingAdapter<>(Label.deferredCodec()))
+              .add(ModuleCodec.moduleCodec())
+              .add(new ValueSharingAdapter<>(PackageIdentifier.deferredCodec()))
+              .add(ConfiguredTargetKey.valueSharingCodec())
+              .add(TransitiveInfoProviderMapImpl.valueSharingCodec())
+              .add(RemoteConfiguredTargetValue.codec())
+              .add(BuildOptions.valueSharingCodec())
+              .addAll(ArtifactCodecs.VALUE_SHARING_CODECS);
+
+      for (Class<?> configuredTargetClass : CONFIGURED_TARGET_CLASSES) {
+        try {
+          // Looks up the AutoCodec implementations with reflection. Since the autocodec-plugin is
+          // not marked with generates_api = True (to avoid build time impact) the actual AutoCodec
+          // classes are not visible as imports. The dependency on the respective ConfiguredTarget
+          // class ensures that the required target dependency exists. The corresponding AutoCodec
+          // class will be in the same jar file.
+          Constructor<?> autoCodecConstructor =
+              Class.forName(configuredTargetClass.getName() + "_AutoCodec")
+                  .getDeclaredConstructor();
+          autoCodecConstructor.setAccessible(true);
+          builder.add(
+              new ValueSharingAdapter<>(
+                  (DeferredObjectCodec<?>) autoCodecConstructor.newInstance()));
+        } catch (ReflectiveOperationException e) {
+          throw new ExceptionInInitializerError(e);
+        }
+      }
+      INSTANCE = builder.build();
+    }
+  }
+
+  /** Initializes an {@link ObjectCodecRegistry} for analysis serialization. */
   public static Supplier<ObjectCodecRegistry> createAnalysisCodecRegistrySupplier(
-      BlazeRuntime runtime, ImmutableList<Object> additionalReferenceConstants) {
+      ConfiguredRuleClassProvider ruleClassProvider,
+      ImmutableList<Object> additionalReferenceConstants) {
     return () -> {
       ObjectCodecRegistry.Builder builder =
           AutoRegistry.get()
               .getBuilder()
               .addReferenceConstants(additionalReferenceConstants)
               .computeChecksum(false);
-      builder = addStarlarkFunctionality(builder, runtime.getRuleClassProvider());
-      ANALYSIS_CACHING_CODECS.forEach(builder::add);
+      builder = addStarlarkFunctionality(builder, ruleClassProvider);
+      analysisCachingCodecs().forEach(builder::add);
       return builder.build();
     };
   }

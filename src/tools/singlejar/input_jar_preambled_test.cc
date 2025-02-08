@@ -40,7 +40,7 @@
 
 namespace {
 
-using bazel::tools::cpp::runfiles::Runfiles;
+using rules_cc::cc::runfiles::Runfiles;
 
 void Verify(const std::string &path) {
   InputJar input_jar;

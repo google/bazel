@@ -35,7 +35,7 @@ final class CredentialCacheExpiry implements Expiry<URI, GetCredentialsResponse>
   private Duration getExpirationTime(GetCredentialsResponse response, Instant currentTime) {
     Preconditions.checkNotNull(response);
 
-    var expires = response.getExpires();
+    var expires = response.expires();
     if (expires.isEmpty()) {
       return defaultCacheDuration;
     }

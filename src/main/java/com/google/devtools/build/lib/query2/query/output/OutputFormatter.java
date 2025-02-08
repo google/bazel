@@ -22,9 +22,11 @@ import com.google.devtools.build.lib.query2.engine.QueryEnvironment;
 import com.google.devtools.build.lib.query2.engine.QueryException;
 import com.google.devtools.build.lib.query2.engine.QueryExpression;
 import com.google.devtools.build.lib.query2.query.aspectresolvers.AspectResolver;
+import com.google.devtools.build.lib.vfs.PathFragment;
 import java.io.IOException;
 import java.io.OutputStream;
 import javax.annotation.Nullable;
+import net.starlark.java.syntax.Location;
 
 /** Interface for classes which order, format and print the result of a Blaze graph query. */
 public abstract class OutputFormatter {
@@ -62,4 +64,13 @@ public abstract class OutputFormatter {
       HashFunction hashFunction,
       LabelPrinter labelPrinter)
       throws IOException, InterruptedException;
+
+  /**
+   * Sets a source root to use when formatting an absolute {@link Location}.
+   *
+   * <p>If set, the given root replaces the source root in packages. This is useful to replace a
+   * {@linkplain com.google.devtools.build.lib.analysis.BlazeDirectories#getVirtualSourceRoot
+   * virtual source root}.
+   */
+  public void setOverrideSourceRoot(PathFragment sourceRoot) {}
 }

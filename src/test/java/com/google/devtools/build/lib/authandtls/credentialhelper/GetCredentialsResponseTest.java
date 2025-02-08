@@ -32,8 +32,8 @@ public class GetCredentialsResponseTest {
 
   @Test
   public void parseValid() {
-    assertThat(GSON.fromJson("{}", GetCredentialsResponse.class).getHeaders()).isEmpty();
-    assertThat(GSON.fromJson("{\"headers\": {}}", GetCredentialsResponse.class).getHeaders())
+    assertThat(GSON.fromJson("{}", GetCredentialsResponse.class).headers()).isEmpty();
+    assertThat(GSON.fromJson("{\"headers\": {}}", GetCredentialsResponse.class).headers())
         .isEmpty();
 
     GetCredentialsResponse.Builder expectedResponseBuilder = GetCredentialsResponse.newBuilder();
@@ -51,10 +51,8 @@ public class GetCredentialsResponseTest {
 
   @Test
   public void parseWithExtraFields() {
-    assertThat(GSON.fromJson("{\"foo\": 123}", GetCredentialsResponse.class).getHeaders())
-        .isEmpty();
-    assertThat(
-            GSON.fromJson("{\"foo\": 123, \"bar\": []}", GetCredentialsResponse.class).getHeaders())
+    assertThat(GSON.fromJson("{\"foo\": 123}", GetCredentialsResponse.class).headers()).isEmpty();
+    assertThat(GSON.fromJson("{\"foo\": 123, \"bar\": []}", GetCredentialsResponse.class).headers())
         .isEmpty();
 
     GetCredentialsResponse.Builder expectedResponseBuilder = GetCredentialsResponse.newBuilder();
@@ -143,22 +141,22 @@ public class GetCredentialsResponseTest {
   public void parseExpires() {
     assertThat(
             GSON.fromJson("{\"expires\": \"1970-09-29T11:46:29Z\"}", GetCredentialsResponse.class)
-                .getExpires())
+                .expires())
         .hasValue(Instant.ofEpochSecond(23456789));
     assertThat(
             GSON.fromJson(
                     "{\"expires\": \"1970-09-29T11:46:29+00:00\"}", GetCredentialsResponse.class)
-                .getExpires())
+                .expires())
         .hasValue(Instant.ofEpochSecond(23456789));
     assertThat(
             GSON.fromJson(
                     "{\"expires\": \"1970-09-29T13:46:29+02:00\"}", GetCredentialsResponse.class)
-                .getExpires())
+                .expires())
         .hasValue(Instant.ofEpochSecond(23456789));
     assertThat(
             GSON.fromJson(
                     "{\"expires\": \"1970-09-28T23:46:29-12:00\"}", GetCredentialsResponse.class)
-                .getExpires())
+                .expires())
         .hasValue(Instant.ofEpochSecond(23456789));
   }
 

@@ -113,7 +113,7 @@ public abstract class Util {
     ToolchainCollection<ResolvedToolchainContext> toolchainContexts =
         ruleContext.getToolchainContexts();
     if (toolchainContexts != null) {
-      for (ResolvedToolchainContext toolchainContext : toolchainContexts.getContextMap().values()) {
+      for (ResolvedToolchainContext toolchainContext : toolchainContexts.contextMap().values()) {
         if (toolchainContext != null) {
           // This logic should stay up to date with the dep creation logic in
           // DependencyResolver#partiallyResolveDependencies.

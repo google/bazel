@@ -41,15 +41,13 @@ final class NodePrinter {
     } else if (n instanceof Statement) {
       printStmt((Statement) n);
 
-    } else if (n instanceof StarlarkFile) {
-      StarlarkFile file = (StarlarkFile) n;
+    } else if (n instanceof StarlarkFile file) {
       // Only statements are printed, not comments.
       for (Statement stmt : file.getStatements()) {
         printStmt(stmt);
       }
 
-    } else if (n instanceof Comment) {
-      Comment comment = (Comment) n;
+    } else if (n instanceof Comment comment) {
       // We can't really print comments in the right place anyway,
       // due to how their relative order is lost in the representation
       // of StarlarkFile. So don't bother word-wrapping and just print
@@ -277,8 +275,7 @@ final class NodePrinter {
           printNode(comp.getBody()); // Expression or DictExpression.Entry
           for (Comprehension.Clause clause : comp.getClauses()) {
             buf.append(' ');
-            if (clause instanceof Comprehension.For) {
-              Comprehension.For forClause = (Comprehension.For) clause;
+            if (clause instanceof Comprehension.For forClause) {
               buf.append("for ");
               printExpr(forClause.getVars());
               buf.append(" in ");

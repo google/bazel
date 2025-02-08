@@ -6,7 +6,6 @@ load(":launcher_flag_alias.bzl", "launcher_flag_alias")
 
 exports_files([
     "BUILD.java_tools",
-    "java_stub_template.txt",
 ])
 
 # A single binary distribution of a JDK (e.g., OpenJDK 17 for Windows arm64) provides three

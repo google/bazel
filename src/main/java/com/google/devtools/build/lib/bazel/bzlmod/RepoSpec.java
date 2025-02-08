@@ -14,59 +14,16 @@
 
 package com.google.devtools.build.lib.bazel.bzlmod;
 
-import com.google.auto.value.AutoValue;
+import com.google.devtools.build.lib.skyframe.serialization.autocodec.AutoCodec;
 import com.ryanharter.auto.value.gson.GenerateTypeAdapter;
-import javax.annotation.Nullable;
 
 /**
- * A class holding information about the attributes of a repository rule and where the rule class is
- * defined.
+ * Contains information about a repo definition, including the ID of the underlying repo rule, and
+ * all its attributes (except for the name).
+ *
+ * @param repoRuleId The repo rule backing this repo.
+ * @param attributes All attribute values provided to the repo rule, except for <code>name</code>.
  */
-@AutoValue
+@AutoCodec
 @GenerateTypeAdapter
-public abstract class RepoSpec {
-
-  /**
-   * The unambiguous canonical label string for the bzl file this repository rule is defined in,
-   * empty for native rule.
-   */
-  @Nullable
-  public abstract String bzlFile();
-
-  public abstract String ruleClassName();
-
-  /**
-   * All attribute values provided to the repository rule, except for the <code>name</code>
-   * attribute, which is set in {@link
-   * com.google.devtools.build.lib.skyframe.BzlmodRepoRuleFunction}.
-   */
-  public abstract AttributeValues attributes();
-
-  public static Builder builder() {
-    return new AutoValue_RepoSpec.Builder();
-  }
-
-  /** The builder for {@link RepoSpec} */
-  @AutoValue.Builder
-  public abstract static class Builder {
-    public abstract Builder setBzlFile(String bzlFile);
-
-    public abstract Builder setRuleClassName(String name);
-
-    public abstract Builder setAttributes(AttributeValues attributes);
-
-    abstract RepoSpec build();
-  }
-
-  public boolean isNativeRepoRule() {
-    return bzlFile() == null;
-  }
-
-  /**
-   * Return a string representing the rule class eg. Native repo rule: local_repository, Starlark
-   * repo rule: //:repo.bzl%my_repo
-   */
-  public String getRuleClass() {
-    return (bzlFile() == null ? "" : bzlFile() + "%") + ruleClassName();
-  }
-}
+public record RepoSpec(RepoRuleId repoRuleId, AttributeValues attributes) {}

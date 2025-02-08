@@ -113,14 +113,13 @@ public class RepoPackageArgsFunction implements SkyFunction {
     }
 
     String repoDisplayName =
-        RepoFileFunction.getDisplayNameForRepo(
-            repositoryName, mainRepoMapping.getRepositoryMapping());
+        RepoFileFunction.getDisplayNameForRepo(repositoryName, mainRepoMapping.repositoryMapping());
 
     PackageArgs.Builder pkgArgsBuilder = PackageArgs.builder();
     LabelConverter labelConverter =
         new LabelConverter(
             PackageIdentifier.create(repositoryName, PathFragment.EMPTY_FRAGMENT),
-            repositoryMappingValue.getRepositoryMapping());
+            repositoryMappingValue.repositoryMapping());
     try {
       for (Map.Entry<String, Object> kwarg : repoFileValue.packageArgsMap().entrySet()) {
         PackageArgs.processParam(

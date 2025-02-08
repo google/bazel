@@ -13,7 +13,6 @@
 // limitations under the License.
 package com.google.devtools.build.lib.skyframe.serialization;
 
-import com.google.auto.value.AutoValue;
 import com.google.protobuf.CodedInputStream;
 import com.google.protobuf.CodedOutputStream;
 import java.io.IOException;
@@ -139,15 +138,11 @@ final class NotNestedSet {
     }
   }
 
-  @AutoValue
-  abstract static class Coordinate {
+  record Coordinate(int layer, int index) {
     private static Coordinate create(int layer, int index) {
-      return new AutoValue_NotNestedSet_Coordinate(layer, index);
+      return new Coordinate(layer, index);
     }
 
-    abstract int layer();
-
-    abstract int index();
   }
 
   private static void setContents(NotNestedSet set, Object contents) {

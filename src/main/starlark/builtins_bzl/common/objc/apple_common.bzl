@@ -18,7 +18,6 @@ load(":common/objc/apple_env.bzl", "apple_host_system_env", "target_apple_env")
 load(":common/objc/apple_platform.bzl", "PLATFORM", "PLATFORM_TYPE", "apple_platform")
 load(":common/objc/apple_toolchain.bzl", "apple_toolchain")
 load(":common/objc/compilation_support.bzl", "compilation_support")
-load(":common/objc/linking_support.bzl", "AppleDebugOutputsInfo", "AppleDynamicFrameworkInfo", "AppleExecutableBinaryInfo", "linking_support")
 load(":common/objc/objc_info.bzl", "ObjcInfo")
 load(":common/xcode/providers.bzl", "XcodeVersionInfo", "XcodeVersionPropertiesInfo")
 
@@ -32,16 +31,9 @@ apple_common = struct(
     XcodeProperties = XcodeVersionPropertiesInfo,
     XcodeVersionConfig = XcodeVersionInfo,
     Objc = ObjcInfo,
-    AppleDynamicFramework = AppleDynamicFrameworkInfo,
-    AppleExecutableBinary = AppleExecutableBinaryInfo,
-    AppleDebugOutputs = AppleDebugOutputsInfo,
     apple_host_system_env = apple_host_system_env,
     target_apple_env = target_apple_env,
     new_objc_provider = ObjcInfo,
-    new_dynamic_framework_provider = lambda **kwargs: AppleDynamicFrameworkInfo(**kwargs),
-    new_executable_binary_provider = lambda **kwargs: AppleExecutableBinaryInfo(**kwargs),
-    link_multi_arch_binary = linking_support.link_multi_arch_binary,
-    link_multi_arch_static_library = linking_support.link_multi_arch_static_library,
     dotted_version = lambda version: native_apple_common.dotted_version(version),
     apple_platform = apple_platform,
     compilation_support = compilation_support,

@@ -104,3 +104,13 @@ landing_page:
       - label: Learn more
         path:  https://virtuslab.com/expertise/monorepo-expertise-with-bazel/
         classname: button
+    # Item 9
+    - image_path: /community/images/buildkite.svg
+      heading: Buildkite
+      description: >
+        Based in San Francisco and Sydney, Buildkite is a fast-growing software delivery provider that offers the industry’s first and only Scale-Out Delivery Platform. Buildkite's Scale-Out Delivery platform is the only solution that provides the flexibility and scale required by the world's most demanding companies for delivering software across a broad range of use cases, including AI/ML workloads and mobile application development. Global innovation leaders including Airbnb, Block, Canva, Cruise, Culture Amp, Elastic, Lyft, PagerDuty, Pinterest, PlanetScale, Rippling, Shopify, Slack, Tinder, Twilio, Uber, and Wayfair have standardized on Buildkite for software delivery.
+        Buildkite delivers seamless Bazel integration, enabling teams to scale CI/CD for complex monorepos. Buildkite sponsors CI for the Bazel project as part of its commitment to developers, driving faster builds and broader adoption.
+      buttons:
+      - label: Learn more
+        path:  https://buildkite.com/
+        classname: button

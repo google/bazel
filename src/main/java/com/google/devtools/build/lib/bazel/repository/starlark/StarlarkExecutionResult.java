@@ -13,7 +13,7 @@
 // limitations under the License.
 package com.google.devtools.build.lib.bazel.repository.starlark;
 
-import static java.nio.charset.StandardCharsets.UTF_8;
+import static java.nio.charset.StandardCharsets.ISO_8859_1;
 
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Maps;
@@ -35,9 +35,9 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import net.starlark.java.annot.StarlarkBuiltin;
 import net.starlark.java.annot.StarlarkMethod;
-import net.starlark.java.eval.EvalException;
 import net.starlark.java.eval.StarlarkValue;
 
 /**
@@ -158,6 +158,13 @@ final class StarlarkExecutionResult implements StarlarkValue {
       return this;
     }
 
+    /** Ensure that an environment variable is not passed to the process. */
+    @CanIgnoreReturnValue
+    Builder removeEnvironmentVariables(Set<String> removeEnvVariables) {
+      removeEnvVariables.forEach(envBuilder::remove);
+      return this;
+    }
+
     /** Sets the timeout, in milliseconds, after which the executed command will be terminated. */
     @CanIgnoreReturnValue
     Builder setTimeout(long timeout) {
@@ -174,14 +181,14 @@ final class StarlarkExecutionResult implements StarlarkValue {
 
     private static String toString(ByteArrayOutputStream stream) {
       try {
-        return new String(stream.toByteArray(), UTF_8);
+        return stream.toString(ISO_8859_1);
       } catch (IllegalStateException e) {
         return "";
       }
     }
 
-    /** Execute the command specified by {@link #addArguments(Iterable)}. */
-    StarlarkExecutionResult execute() throws EvalException, InterruptedException {
+    /** Execute the command specified by {@link #addArguments}. */
+    StarlarkExecutionResult execute() throws InterruptedException {
       Preconditions.checkArgument(timeout > 0, "Timeout must be set prior to calling execute().");
       Preconditions.checkArgument(!args.isEmpty(), "No command specified.");
       Preconditions.checkState(!executed, "Command was already executed, cannot re-use builder.");
@@ -206,23 +213,24 @@ final class StarlarkExecutionResult implements StarlarkValue {
         CommandResult result =
             command.execute(delegator.getOutputStream(), delegator.getErrorStream());
         return new StarlarkExecutionResult(
-            result.getTerminationStatus().getExitCode(),
+            result.terminationStatus().getExitCode(),
             recorder.outAsLatin1(),
             recorder.errAsLatin1());
       } catch (BadExitStatusException e) {
         return new StarlarkExecutionResult(
-            e.getResult().getTerminationStatus().getExitCode(), recorder.outAsLatin1(),
+            e.getResult().terminationStatus().getExitCode(),
+            recorder.outAsLatin1(),
             recorder.errAsLatin1());
       } catch (AbnormalTerminationException e) {
-        TerminationStatus status = e.getResult().getTerminationStatus();
+        TerminationStatus status = e.getResult().terminationStatus();
         if (status.timedOut()) {
           // Signal a timeout by an exit code outside the normal range
           return new StarlarkExecutionResult(256, "", e.getMessage());
         } else if (status.exited()) {
           return new StarlarkExecutionResult(
               status.getExitCode(),
-              toString(e.getResult().getStdoutStream()),
-              toString(e.getResult().getStderrStream()));
+              toString(e.getResult().stdoutStream()),
+              toString(e.getResult().stderrStream()));
         } else if (status.getTerminatingSignal() == 15) {
           // We have a bit of a problem here: we cannot distingusih between the case where
           // the SIGTERM was sent by something that the calling rule wants to legitimately handle,
@@ -235,8 +243,8 @@ final class StarlarkExecutionResult implements StarlarkValue {
         } else {
           return new StarlarkExecutionResult(
               status.getRawExitCode(),
-              toString(e.getResult().getStdoutStream()),
-              toString(e.getResult().getStderrStream()));
+              toString(e.getResult().stdoutStream()),
+              toString(e.getResult().stderrStream()));
         }
       } catch (CommandException e) {
         // 256 is outside of the standard range for exit code on Unixes. We are not guaranteed that

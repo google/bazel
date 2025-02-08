@@ -448,7 +448,7 @@ public final class Utils {
     action.setCommandDigest(command);
     action.setInputRootDigest(inputRoot);
     if (!timeout.isZero()) {
-      action.setTimeout(Duration.newBuilder().setSeconds(timeout.getSeconds()));
+      action.setTimeout(Duration.newBuilder().setSeconds(timeout.toSeconds()));
     }
     if (!cacheable) {
       action.setDoNotCache(true);

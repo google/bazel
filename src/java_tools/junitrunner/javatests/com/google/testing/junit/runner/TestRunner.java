@@ -14,7 +14,6 @@
 
 package com.google.testing.junit.runner;
 
-import com.google.testing.junit.runner.util.GoogleTestSecurityManager;
 import java.util.ArrayList;
 import java.util.List;
 import org.junit.runner.JUnitCore;
@@ -38,10 +37,8 @@ public class TestRunner {
 
     JUnitCore junitCore = new JUnitCore();
     junitCore.addListener(new TestListener());
-    SecurityManager previousSecurityManager = setGoogleTestSecurityManager();
     Request request = createRequest(args);
     Result result = junitCore.run(request);
-    restorePreviousSecurityManager(previousSecurityManager);
 
     System.exit(result.wasSuccessful() ? 0 : 1);
   }
@@ -60,18 +57,5 @@ public class TestRunner {
       className = className.substring(0, className.length() - 5);
     }
     return Class.forName(PACKAGE + "." + className);
-  }
-
-  // Sets a new GoogleTestSecurityManager as security manager and returns the previous one.
-  private static SecurityManager setGoogleTestSecurityManager() {
-    SecurityManager previousSecurityManager = System.getSecurityManager();
-    GoogleTestSecurityManager newSecurityManager = new GoogleTestSecurityManager();
-    System.setSecurityManager(newSecurityManager);
-    return previousSecurityManager;
-  }
-
-  private static void restorePreviousSecurityManager(SecurityManager previousSecurityManager) {
-    GoogleTestSecurityManager.uninstallIfInstalled();
-    System.setSecurityManager(previousSecurityManager);
   }
 }

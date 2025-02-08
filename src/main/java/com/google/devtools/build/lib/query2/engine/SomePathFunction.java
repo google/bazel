@@ -59,6 +59,16 @@ class SomePathFunction implements QueryFunction {
       final QueryExpression expression,
       List<Argument> args,
       final Callback<T> callback) {
+    if (env instanceof StreamableQueryEnvironment) {
+      return ((StreamableQueryEnvironment<T>) env)
+          .somePath(
+              args.get(0).getExpression(),
+              args.get(1).getExpression(),
+              context,
+              callback,
+              expression);
+    }
+
     final QueryTaskFuture<ThreadSafeMutableSet<T>> fromValueFuture =
         QueryUtil.evalAll(env, context, args.get(0).getExpression());
     final QueryTaskFuture<ThreadSafeMutableSet<T>> toValueFuture =

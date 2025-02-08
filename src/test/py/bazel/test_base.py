@@ -16,7 +16,6 @@
 
 """Bazel Python integration test framework."""
 
-import locale
 import os
 import shutil
 import socket
@@ -104,10 +103,6 @@ class TestBase(absltest.TestCase):
         # pylint: disable=line-too-long
         f.write('common --extra_toolchains=@bazel_tools//tools/python:autodetecting_toolchain\n')
 
-      # Disable WORKSPACE in python tests by default
-      # TODO(pcloudy): Remove when --enable_workspace defaults to false
-      f.write('common --noenable_workspace\n')
-
     # An empty MODULE.bazel and a corresponding MODULE.bazel.lock will prevent
     # tests from accessing BCR
     self.ScratchFile('MODULE.bazel')
@@ -116,11 +111,6 @@ class TestBase(absltest.TestCase):
         'MODULE.bazel.lock',
     )
     os.chdir(self._test_cwd)
-
-  def DisableBzlmod(self):
-    with open(self._test_bazelrc, 'at') as f:
-      f.write('common --noenable_bzlmod\n')
-      f.write('common --enable_workspace\n')
 
   def tearDown(self):
     self.RunBazel(['shutdown'])
@@ -313,7 +303,7 @@ class TestBase(absltest.TestCase):
     if os.path.exists(abspath) and not os.path.isfile(abspath):
       raise IOError('"%s" (%s) exists and is not a file' % (path, abspath))
     self.ScratchDir(os.path.dirname(path))
-    with open(abspath, 'w') as f:
+    with open(abspath, 'w', encoding='utf-8') as f:
       if lines:
         for l in lines:
           f.write(l)
@@ -445,8 +435,7 @@ class TestBase(absltest.TestCase):
 
     self._worker_stdout.seek(0)
     stdout_lines = [
-        l.decode(locale.getpreferredencoding()).strip()
-        for l in self._worker_stdout.readlines()
+        l.decode('utf-8').strip() for l in self._worker_stdout.readlines()
     ]
     if stdout_lines:
       print('Local remote worker stdout')
@@ -455,8 +444,7 @@ class TestBase(absltest.TestCase):
 
     self._worker_stderr.seek(0)
     stderr_lines = [
-        l.decode(locale.getpreferredencoding()).strip()
-        for l in self._worker_stderr.readlines()
+        l.decode('utf-8').strip() for l in self._worker_stderr.readlines()
     ]
     if stderr_lines:
       print('Local remote worker stderr')
@@ -509,17 +497,13 @@ class TestBase(absltest.TestCase):
 
         stdout.seek(0)
         stdout_lines = [
-            l.decode(locale.getpreferredencoding()).rstrip()
-            if rstrip
-            else l.decode(locale.getpreferredencoding()).strip()
+            l.decode('utf-8').rstrip() if rstrip else l.decode('utf-8').strip()
             for l in stdout.readlines()
         ]
 
         stderr.seek(0)
         stderr_lines = [
-            l.decode(locale.getpreferredencoding()).rstrip()
-            if rstrip
-            else l.decode(locale.getpreferredencoding()).strip()
+            l.decode('utf-8').rstrip() if rstrip else l.decode('utf-8').strip()
             for l in stderr.readlines()
         ]
 

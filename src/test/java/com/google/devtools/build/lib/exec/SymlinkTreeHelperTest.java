@@ -15,39 +15,61 @@
 package com.google.devtools.build.lib.exec;
 
 import static com.google.common.truth.Truth.assertThat;
+import static com.google.devtools.build.lib.testutil.TestConstants.WORKSPACE_NAME;
+import static java.nio.charset.StandardCharsets.UTF_8;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
+import com.google.devtools.build.lib.actions.Artifact;
+import com.google.devtools.build.lib.actions.ArtifactRoot;
+import com.google.devtools.build.lib.actions.ArtifactRoot.RootType;
 import com.google.devtools.build.lib.actions.FilesetOutputSymlink;
+import com.google.devtools.build.lib.actions.util.ActionsTestUtil;
 import com.google.devtools.build.lib.shell.Command;
 import com.google.devtools.build.lib.vfs.DigestHashFunction;
 import com.google.devtools.build.lib.vfs.FileSystem;
+import com.google.devtools.build.lib.vfs.FileSystemUtils;
 import com.google.devtools.build.lib.vfs.Path;
 import com.google.devtools.build.lib.vfs.PathFragment;
 import com.google.devtools.build.lib.vfs.inmemoryfs.InMemoryFileSystem;
+import com.google.testing.junit.testparameterinjector.TestParameter;
+import com.google.testing.junit.testparameterinjector.TestParameterInjector;
+import java.util.HashMap;
 import java.util.Map;
+import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
-import org.junit.runners.JUnit4;
 
 /** Unit tests for {@link SymlinkTreeHelper}. */
-@RunWith(JUnit4.class)
+@RunWith(TestParameterInjector.class)
 public final class SymlinkTreeHelperTest {
+
+  private enum TreeType {
+    RUNFILES,
+    FILESET
+  }
+
   private final FileSystem fs = new InMemoryFileSystem(DigestHashFunction.SHA256);
+  private final Path execRoot = fs.getPath("/execroot");
+  private final ArtifactRoot outputRoot =
+      ArtifactRoot.asDerivedRoot(execRoot, RootType.Output, "out");
+
+  @Before
+  public void setUp() throws Exception {
+    outputRoot.getRoot().asPath().createDirectoryAndParents();
+  }
 
   @Test
   public void checkCreatedSpawn() {
     Path execRoot = fs.getPath("/my/workspace");
     Path inputManifestPath = execRoot.getRelative("input_manifest");
+    Path outputManifestPath = execRoot.getRelative("output/MANIFEST");
+    Path symlinkTreeRoot = execRoot.getRelative("output");
     BinTools binTools =
         BinTools.forUnitTesting(execRoot, ImmutableList.of(SymlinkTreeHelper.BUILD_RUNFILES));
     Command command =
         new SymlinkTreeHelper(
-                execRoot,
-                inputManifestPath,
-                execRoot.getRelative("output/MANIFEST"),
-                false,
-                "__main__")
+                execRoot, inputManifestPath, outputManifestPath, symlinkTreeRoot, false, "__main__")
             .createCommand(binTools, ImmutableMap.of());
     assertThat(command.getEnvironment()).isEmpty();
     assertThat(command.getWorkingDirectory()).isEqualTo(execRoot.getPathFile());
@@ -56,7 +78,7 @@ public final class SymlinkTreeHelperTest {
     assertThat(commandLine.get(0)).endsWith(SymlinkTreeHelper.BUILD_RUNFILES);
     assertThat(commandLine.get(1)).isEqualTo("--allow_relative");
     assertThat(commandLine.get(2)).isEqualTo("input_manifest");
-    assertThat(commandLine.get(3)).isEqualTo("output/MANIFEST");
+    assertThat(commandLine.get(3)).isEqualTo("output");
   }
 
   @Test
@@ -103,5 +125,67 @@ public final class SymlinkTreeHelperTest {
             execRoot.getRelative("path"),
             PathFragment.create("workspace2/rel2"),
             PathFragment.create("/path"));
+  }
+
+  @Test
+  public void createSymlinksDirectly(
+      @TestParameter TreeType treeType, @TestParameter boolean replace) throws Exception {
+    Path treeRoot = execRoot.getRelative("foo.runfiles");
+    Path inputManifestPath = execRoot.getRelative("foo.runfiles_manifest");
+    Path outputManifestPath = execRoot.getRelative("foo.runfiles/MANIFEST");
+    SymlinkTreeHelper helper =
+        new SymlinkTreeHelper(
+            execRoot, inputManifestPath, outputManifestPath, treeRoot, false, WORKSPACE_NAME);
+
+    Artifact file = ActionsTestUtil.createArtifact(outputRoot, "file");
+    Artifact symlink = ActionsTestUtil.createUnresolvedSymlinkArtifact(outputRoot, "symlink");
+
+    FileSystemUtils.writeContent(file.getPath(), UTF_8, "content");
+    FileSystemUtils.ensureSymbolicLink(symlink.getPath(), "/path/to/target");
+
+    Path treeWorkspace = treeRoot.getRelative(WORKSPACE_NAME);
+    Path treeEmpty = treeWorkspace.getRelative("empty");
+    Path treeFile = treeWorkspace.getRelative("file");
+    Path treeSymlink = treeWorkspace.getRelative("symlink");
+    Path treeMissing = treeWorkspace.getRelative("missing");
+
+    if (replace) {
+      treeEmpty.createDirectoryAndParents();
+      treeFile.createDirectoryAndParents();
+      treeSymlink.createDirectoryAndParents();
+      treeMissing.createDirectoryAndParents();
+      treeWorkspace.chmod(000);
+    }
+
+    switch (treeType) {
+      case RUNFILES -> {
+        HashMap<PathFragment, Artifact> symlinkMap = new HashMap<>();
+        symlinkMap.put(PathFragment.create(WORKSPACE_NAME + "/empty"), null);
+        symlinkMap.put(PathFragment.create(WORKSPACE_NAME + "/file"), file);
+        symlinkMap.put(PathFragment.create(WORKSPACE_NAME + "/symlink"), symlink);
+
+        helper.createRunfilesSymlinksDirectly(symlinkMap);
+      }
+      case FILESET -> {
+        HashMap<PathFragment, PathFragment> symlinkMap = new HashMap<>();
+        symlinkMap.put(PathFragment.create(WORKSPACE_NAME + "/empty"), null);
+        symlinkMap.put(PathFragment.create(WORKSPACE_NAME + "/file"), file.getPath().asFragment());
+        symlinkMap.put(
+            PathFragment.create(WORKSPACE_NAME + "/symlink"),
+            PathFragment.create("/path/to/target"));
+
+        helper.createFilesetSymlinksDirectly(symlinkMap);
+      }
+    }
+
+    assertThat(treeRoot.isDirectory()).isTrue();
+    assertThat(treeWorkspace.isDirectory()).isTrue();
+    assertThat(treeEmpty.isFile()).isTrue();
+    assertThat(FileSystemUtils.readContent(treeEmpty)).isEmpty();
+    assertThat(treeFile.isSymbolicLink()).isTrue();
+    assertThat(treeFile.readSymbolicLink()).isEqualTo(file.getPath().asFragment());
+    assertThat(treeSymlink.isSymbolicLink()).isTrue();
+    assertThat(treeSymlink.readSymbolicLink()).isEqualTo(PathFragment.create("/path/to/target"));
+    assertThat(treeMissing.exists()).isFalse();
   }
 }

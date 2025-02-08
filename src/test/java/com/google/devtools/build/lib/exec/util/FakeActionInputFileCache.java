@@ -38,7 +38,7 @@ public final class FakeActionInputFileCache implements InputMetadataProvider {
     inputs.put(artifact, metadata);
   }
 
-  public void putRunfilesTree(ActionInput middleman, RunfilesTree runfilesTree) {
+  public void putRunfilesTree(ActionInput runfilesTreeArtifact, RunfilesTree runfilesTree) {
     RunfilesArtifactValue runfilesArtifactValue =
         new RunfilesArtifactValue(
             runfilesTree,
@@ -46,7 +46,7 @@ public final class FakeActionInputFileCache implements InputMetadataProvider {
             ImmutableList.of(),
             ImmutableList.of(),
             ImmutableList.of());
-    runfilesInputs.put(middleman, runfilesArtifactValue);
+    runfilesInputs.put(runfilesTreeArtifact, runfilesArtifactValue);
     runfilesTrees.add(runfilesTree);
   }
 

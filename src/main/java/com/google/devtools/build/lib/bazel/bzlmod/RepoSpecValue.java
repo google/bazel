@@ -15,21 +15,26 @@
 
 package com.google.devtools.build.lib.bazel.bzlmod;
 
-import com.google.auto.value.AutoValue;
+import static java.util.Objects.requireNonNull;
+
 import com.google.common.collect.ImmutableMap;
 import com.google.devtools.build.lib.bazel.repository.downloader.Checksum;
+import com.google.devtools.build.lib.skyframe.serialization.autocodec.AutoCodec;
 import com.google.devtools.build.skyframe.SkyValue;
 import java.util.Optional;
 
 /** The value for {@link RepoSpecFunction}. */
-@AutoValue
-public abstract class RepoSpecValue implements SkyValue {
-  public abstract RepoSpec repoSpec();
-
-  public abstract ImmutableMap<String, Optional<Checksum>> registryFileHashes();
+@AutoCodec
+public record RepoSpecValue(
+    RepoSpec repoSpec, ImmutableMap<String, Optional<Checksum>> registryFileHashes)
+    implements SkyValue {
+  public RepoSpecValue {
+    requireNonNull(repoSpec, "repoSpec");
+    requireNonNull(registryFileHashes, "registryFileHashes");
+  }
 
   public static RepoSpecValue create(
       RepoSpec repoSpec, ImmutableMap<String, Optional<Checksum>> registryFileHashes) {
-    return new AutoValue_RepoSpecValue(repoSpec, registryFileHashes);
+    return new RepoSpecValue(repoSpec, registryFileHashes);
   }
 }

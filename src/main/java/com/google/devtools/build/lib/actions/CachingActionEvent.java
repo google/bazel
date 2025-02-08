@@ -14,22 +14,26 @@
 package com.google.devtools.build.lib.actions;
 
 import static com.google.common.base.Preconditions.checkNotNull;
+import static java.util.Objects.requireNonNull;
 
-import com.google.auto.value.AutoValue;
 import com.google.devtools.build.lib.events.ExtendedEventHandler.Postable;
 
-/** Notifies that an in-flight action is checking the cache. */
-@AutoValue
-public abstract class CachingActionEvent implements Postable {
+/**
+ * Notifies that an in-flight action is checking the cache.
+ *
+ * @param action Gets the metadata associated with the action.
+ * @param strategy Gets the name of the strategy on which the action is caching.
+ */
+public record CachingActionEvent(ActionExecutionMetadata action, String strategy)
+    implements Postable {
+  public CachingActionEvent {
+    requireNonNull(action, "action");
+    requireNonNull(strategy, "strategy");
+  }
 
   public static CachingActionEvent create(ActionExecutionMetadata action, String strategy) {
-    return new AutoValue_CachingActionEvent(
+    return new CachingActionEvent(
         action, checkNotNull(strategy, "Strategy names are not optional"));
   }
 
-  /** Gets the metadata associated with the action. */
-  public abstract ActionExecutionMetadata action();
-
-  /** Gets the name of the strategy on which the action is caching. */
-  public abstract String strategy();
 }

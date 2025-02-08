@@ -320,7 +320,7 @@ public abstract class AbstractCollectPackagesUnderDirectoryTest {
             PrecomputedValue.injected(
                 RepositoryDelegatorFunction.RESOLVED_FILE_INSTEAD_OF_WORKSPACE, Optional.empty()),
             PrecomputedValue.injected(
-                RepositoryDelegatorFunction.REPOSITORY_OVERRIDES, ImmutableMap.of()),
+                RepositoryMappingFunction.REPOSITORY_OVERRIDES, ImmutableMap.of()),
             PrecomputedValue.injected(
                 RepositoryDelegatorFunction.FORCE_FETCH,
                 RepositoryDelegatorFunction.FORCE_FETCH_DISABLED),

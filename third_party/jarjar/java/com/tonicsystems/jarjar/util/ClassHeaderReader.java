@@ -16,9 +16,12 @@
 
 package com.tonicsystems.jarjar.util;
 
-import java.io.*;
+import java.io.ByteArrayInputStream;
+import java.io.DataInputStream;
+import java.io.EOFException;
+import java.io.IOException;
+import java.io.InputStream;
 import java.lang.reflect.Array;
-import java.util.*;
 
 public class ClassHeaderReader {
   private int access;
@@ -30,8 +33,8 @@ public class ClassHeaderReader {
   private byte[] b = new byte[0x2000];
   private int[] items = new int[1000];
   private int bsize = 0;
-  private MyByteArrayInputStream bin = new MyByteArrayInputStream();
-  private DataInputStream data = new DataInputStream(bin);
+  private final MyByteArrayInputStream bin = new MyByteArrayInputStream();
+  private final DataInputStream data = new DataInputStream(bin);
 
   public int getAccess() {
     return access;
@@ -73,11 +76,11 @@ public class ClassHeaderReader {
       readUnsignedShort(4); // minorVersion
       readUnsignedShort(6); // majorVersion
       // TODO: check version
-      int constant_pool_count = readUnsignedShort(8);
-      items = (int[]) resizeArray(items, constant_pool_count);
+      int constantPoolCount = readUnsignedShort(8);
+      items = (int[]) resizeArray(items, constantPoolCount);
 
       int index = 10;
-      for (int i = 1; i < constant_pool_count; i++) {
+      for (int i = 1; i < constantPoolCount; i++) {
         int size;
         buffer(index + 3); // TODO: reduce calls to buffer
         int tag = b[index];
@@ -112,18 +115,30 @@ public class ClassHeaderReader {
       access = readUnsignedShort(index);
       thisClass = readClass(index + 2);
       superClass = readClass(index + 4);
-      int interfaces_count = readUnsignedShort(index + 6);
+      int interfacesCount = readUnsignedShort(index + 6);
 
       index += 8;
-      buffer(index + interfaces_count * 2);
-      interfaces = new String[interfaces_count];
-      for (int i = 0; i < interfaces_count; i++) {
+      buffer(index + interfacesCount * 2);
+      interfaces = new String[interfacesCount];
+      for (int i = 0; i < interfacesCount; i++) {
         interfaces[i] = readClass(index);
         index += 2;
       }
     } finally {
       in.close();
     }
+  }
+
+  private static int read(InputStream in, byte[] b, int off, int len) throws IOException {
+    int total = 0;
+    while (total < len) {
+      int result = in.read(b, off + total, len - total);
+      if (result == -1) {
+        break;
+      }
+      total += result;
+    }
+    return total;
   }
 
   private String readClass(int index) throws IOException {
@@ -154,18 +169,6 @@ public class ClassHeaderReader {
         throw new EOFException();
       }
     }
-  }
-
-  private static int read(InputStream in, byte[] b, int off, int len) throws IOException {
-    int total = 0;
-    while (total < len) {
-      int result = in.read(b, off + total, len - total);
-      if (result == -1) {
-        break;
-      }
-      total += result;
-    }
-    return total;
   }
 
   private static Object resizeArray(Object array, int length) {

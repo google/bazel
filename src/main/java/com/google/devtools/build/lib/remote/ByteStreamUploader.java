@@ -16,8 +16,6 @@ package com.google.devtools.build.lib.remote;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.util.concurrent.Futures.immediateVoidFuture;
 import static com.google.devtools.build.lib.remote.util.DigestUtil.isOldStyleDigestFunction;
-import static com.google.devtools.build.lib.remote.util.Utils.getFromFuture;
-import static com.google.devtools.build.lib.remote.util.Utils.waitForBulkTransfer;
 import static java.lang.String.format;
 import static java.util.concurrent.TimeUnit.SECONDS;
 
@@ -50,9 +48,6 @@ import io.grpc.stub.ClientCallStreamObserver;
 import io.grpc.stub.ClientResponseObserver;
 import io.netty.util.ReferenceCounted;
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.Semaphore;
 import javax.annotation.Nullable;
@@ -104,54 +99,6 @@ final class ByteStreamUploader {
     this.digestFunction = digestFunction;
   }
 
-  @VisibleForTesting
-  ReferenceCountedChannel getChannel() {
-    return channel;
-  }
-
-  @VisibleForTesting
-  RemoteRetrier getRetrier() {
-    return retrier;
-  }
-
-  /**
-   * Uploads a BLOB, as provided by the {@link Chunker}, to the remote {@code ByteStream} service.
-   * The call blocks until the upload is complete, or throws an {@link Exception} in case of error.
-   *
-   * <p>Uploads are retried according to the specified {@link RemoteRetrier}. Retrying is
-   * transparent to the user of this API.
-   *
-   * @param digest the digest of the data to upload.
-   * @param chunker the data to upload.
-   * @throws IOException when reading of the {@link Chunker}s input source fails
-   */
-  public void uploadBlob(RemoteActionExecutionContext context, Digest digest, Chunker chunker)
-      throws IOException, InterruptedException {
-    getFromFuture(uploadBlobAsync(context, digest, chunker));
-  }
-
-  /**
-   * Uploads a list of BLOBs concurrently to the remote {@code ByteStream} service. The call blocks
-   * until the upload of all BLOBs is complete, or throws an {@link
-   * com.google.devtools.build.lib.remote.common.BulkTransferException} if there are errors.
-   *
-   * <p>Uploads are retried according to the specified {@link RemoteRetrier}. Retrying is
-   * transparent to the user of this API.
-   *
-   * @param chunkers the data to upload.
-   * @throws IOException when reading of the {@link Chunker}s input source or uploading fails
-   */
-  public void uploadBlobs(RemoteActionExecutionContext context, Map<Digest, Chunker> chunkers)
-      throws IOException, InterruptedException {
-    List<ListenableFuture<Void>> uploads = new ArrayList<>();
-
-    for (Map.Entry<Digest, Chunker> chunkerEntry : chunkers.entrySet()) {
-      uploads.add(uploadBlobAsync(context, chunkerEntry.getKey(), chunkerEntry.getValue()));
-    }
-
-    waitForBulkTransfer(uploads, /* cancelRemainingOnInterrupt= */ true);
-  }
-
   /**
    * Uploads a BLOB asynchronously to the remote {@code ByteStream} service. The call returns
    * immediately and one can listen to the returned future for the success/failure of the upload.
@@ -163,20 +110,14 @@ final class ByteStreamUploader {
    * performed. This is transparent to the user of this API.
    *
    * @param digest the {@link Digest} of the data to upload.
-   * @param chunker the data to upload.
+   * @param chunker the data to upload. Callers are responsible for closing the {@link Chunker}.
    */
   public ListenableFuture<Void> uploadBlobAsync(
       RemoteActionExecutionContext context, Digest digest, Chunker chunker) {
     return Futures.catchingAsync(
         startAsyncUpload(context, digest, chunker),
         StatusRuntimeException.class,
-        (sre) ->
-            Futures.immediateFailedFuture(
-                new IOException(
-                    String.format(
-                        "Error while uploading artifact with digest '%s/%s'",
-                        digest.getHash(), digest.getSizeBytes()),
-                    sre)),
+        (sre) -> Futures.immediateFailedFuture(new IOException(sre)),
         MoreExecutors.directExecutor());
   }
 

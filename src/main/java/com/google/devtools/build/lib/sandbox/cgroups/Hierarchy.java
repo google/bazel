@@ -14,7 +14,8 @@
 
 package com.google.devtools.build.lib.sandbox.cgroups;
 
-import com.google.auto.value.AutoValue;
+import static java.util.Objects.requireNonNull;
+
 import com.google.common.collect.ImmutableList;
 import com.google.common.io.Files;
 import java.io.File;
@@ -26,13 +27,11 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /** Represents a cgroup hierarchy of a process from `/proc/self/cgroup`. */
-@AutoValue
-public abstract class Hierarchy {
-  public abstract int id();
-
-  public abstract ImmutableList<String> controllers();
-
-  public abstract Path path();
+public record Hierarchy(int id, ImmutableList<String> controllers, Path path) {
+  public Hierarchy {
+    requireNonNull(controllers, "controllers");
+    requireNonNull(path, "path");
+  }
 
   public boolean isV2() {
     return controllers().size() == 1 && controllers().contains("") && id() == 0;
@@ -47,7 +46,7 @@ public abstract class Hierarchy {
       Pattern.compile("^(?<id>\\d+):(?<controllers>[^:]*):(?<file>.+)");
 
   static Hierarchy create(int id, ImmutableList<String> controllers, Path path) {
-    return new AutoValue_Hierarchy(id, controllers, path);
+    return new Hierarchy(id, controllers, path);
   }
 
   static ImmutableList<Hierarchy> parse(File procCgroup) throws IOException {

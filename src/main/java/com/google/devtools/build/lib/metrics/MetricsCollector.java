@@ -14,8 +14,8 @@
 package com.google.devtools.build.lib.metrics;
 
 import static com.google.common.collect.ImmutableList.toImmutableList;
+import static java.util.Objects.requireNonNull;
 
-import com.google.auto.value.AutoValue;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.eventbus.AllowConcurrentEvents;
@@ -655,17 +655,15 @@ class MetricsCollector {
       }
     }
 
-    @AutoValue
-    abstract static class RaceIdentifier {
-      abstract String mnemonic();
-
-      abstract String localName();
-
-      abstract String remoteName();
+    record RaceIdentifier(String mnemonic, String localName, String remoteName) {
+      RaceIdentifier {
+        requireNonNull(mnemonic, "mnemonic");
+        requireNonNull(localName, "localName");
+        requireNonNull(remoteName, "remoteName");
+      }
 
       static RaceIdentifier create(String mnemonic, String localName, String remoteName) {
-        return new AutoValue_MetricsCollector_DynamicExecutionStats_RaceIdentifier(
-            mnemonic, localName, remoteName);
+        return new RaceIdentifier(mnemonic, localName, remoteName);
       }
     }
 

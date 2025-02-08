@@ -29,7 +29,6 @@ import com.google.devtools.build.lib.bazel.commands.TargetFetcher.TargetFetcherE
 import com.google.devtools.build.lib.cmdline.RepositoryName;
 import com.google.devtools.build.lib.events.Event;
 import com.google.devtools.build.lib.events.Reporter;
-import com.google.devtools.build.lib.packages.semantics.BuildLanguageOptions;
 import com.google.devtools.build.lib.pkgcache.PackageOptions;
 import com.google.devtools.build.lib.rules.repository.RepositoryDelegatorFunction;
 import com.google.devtools.build.lib.rules.repository.RepositoryDirectoryValue;
@@ -152,14 +151,6 @@ public final class FetchCommand implements BlazeCommand {
           env.getReporter(), Code.OPTIONS_INVALID, "You cannot run fetch with --nofetch");
     }
     FetchOptions fetchOptions = options.getOptions(FetchOptions.class);
-    // Only fetch targets works without bzlmod, other than that, fail.
-    if (options.getResidue().isEmpty()
-        && !options.getOptions(BuildLanguageOptions.class).enableBzlmod) {
-      return createFailedBlazeCommandResult(
-          env.getReporter(),
-          "Bzlmod has to be enabled for the following options to work: --all, "
-              + "--configure, --repo or --force. Run with --enable_bzlmod");
-    }
     int optionsCount =
         countTrue(
             fetchOptions.all,

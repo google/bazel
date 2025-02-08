@@ -39,21 +39,10 @@ import javax.annotation.Nullable;
  *
  * <p>TODO(b/323880131): Remove documentation once we completely remove the legacy implementation.
  *
- * <p>Difference in internal implementation from {@code WorkerPoolLegacy}:
- *
- * <ul>
- *   <li>Legacy: WorkerPoolLegacy wraps multiple {@code SimpleWorkerPool} for each mnemonic. Each
- *       SimpleWorkerPool contains {@code Worker} instances capped per {@code WorkerKey}.
- *   <li>Current: This implementation flattens this to have a single {@code WorkerKeyPool} for each
- *       worker key (we don't need the indirection in referencing both mnemonic and worker key since
- *       the mnemonic is part of the key).
- *   <li>Legacy: SimpleWorkerPool extends {@code GenericKeyedObjectPool} that handles the logic to
- *       concurrent calls to borrow, return, invalidate and evict workers.
- *   <li>Current: WorkerKeyPool replaces this functionality directly, but can only handle pool logic
- *       for a single key (as compared to SimpleWorkerPool that handles multiple worker keys of the
- *       same mnemonic). Additionally, it bakes in pool shrinking logic so that we can handle
- *       concurrent calls.
- * </ul>
+ * <p>This implementation flattens this to have a single {@code WorkerKeyPool} for each worker key
+ * (we don't need the indirection in referencing both mnemonic and worker key since the mnemonic is
+ * part of the key). Additionally, it bakes in pool shrinking logic so that we can handle concurrent
+ * calls.
  */
 public class WorkerPoolImpl implements WorkerPool {
 
@@ -127,27 +116,18 @@ public class WorkerPoolImpl implements WorkerPool {
   }
 
   @Override
-  public Worker borrowObject(WorkerKey key) throws IOException, InterruptedException {
+  public Worker borrowWorker(WorkerKey key) throws IOException, InterruptedException {
     return getPool(key).borrowWorker(key);
   }
 
   @Override
-  public void returnObject(WorkerKey key, Worker obj) {
+  public void returnWorker(WorkerKey key, Worker obj) {
     getPool(key).returnWorker(key, /* worker= */ obj);
   }
 
   @Override
-  public void invalidateObject(WorkerKey key, Worker obj) throws InterruptedException {
-    invalidateWorker(
-        /* worker= */ obj, /* shouldShrinkPool= */ obj.getStatus().isPendingEviction());
-  }
-
-  /**
-   * TODO(b/323880131): This should be the main interface once the we remove the legacy worker pool
-   * implementation.
-   */
-  private void invalidateWorker(Worker worker, boolean shouldShrinkPool) {
-    getPool(worker.getWorkerKey()).invalidateWorker(worker, shouldShrinkPool);
+  public void invalidateWorker(Worker worker) throws InterruptedException {
+    getPool(worker.getWorkerKey()).invalidateWorker(worker, worker.getStatus().isPendingEviction());
   }
 
   @Override

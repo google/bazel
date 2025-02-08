@@ -15,6 +15,7 @@
 #include "src/tools/singlejar/combiners.h"
 #include "src/tools/singlejar/desugar_checking.h"
 #include "src/tools/singlejar/diag.h"
+#include "src/tools/singlejar/log4j2_plugin_dat_combiner.h"
 #include "src/tools/singlejar/options.h"
 #include "src/tools/singlejar/output_jar.h"
 
@@ -33,6 +34,11 @@ int main(int argc, char *argv[]) {
                 options.verbose)
           : static_cast<Combiner *>(new NullCombiner());
   output_jar.ExtraCombiner("META-INF/desugar_deps", desugar_checker);
+  output_jar.ExtraCombiner(
+      "META-INF/org/apache/logging/log4j/core/config/plugins/Log4j2Plugins.dat",
+      new Log4J2PluginDatCombiner("META-INF/org/apache/logging/log4j/core/"
+                                  "config/plugins/Log4j2Plugins.dat",
+                                  options.no_duplicates));
   output_jar.ExtraCombiner("reference.conf",
                            new Concatenator("reference.conf"));
   return output_jar.Doit(&options);

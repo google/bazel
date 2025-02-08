@@ -13,17 +13,21 @@
 // limitations under the License.
 #include "src/main/cpp/bazel_startup_options.h"
 
-#include <cassert>
+#include <assert.h>
+
+#include <string>
+#include <vector>
 
 #include "src/main/cpp/blaze_util.h"
+#include "src/main/cpp/blaze_util_platform.h"
+#include "src/main/cpp/startup_options.h"
 #include "src/main/cpp/util/logging.h"
-#include "src/main/cpp/workspace_layout.h"
+#include "src/main/cpp/util/path_platform.h"
 
 namespace blaze {
 
-BazelStartupOptions::BazelStartupOptions(
-    const WorkspaceLayout *workspace_layout)
-    : StartupOptions("Bazel", workspace_layout),
+BazelStartupOptions::BazelStartupOptions()
+    : StartupOptions("Bazel", /* lock_install_base= */ true),
       user_bazelrc_(""),
       use_system_rc(true),
       use_workspace_rc(true),
@@ -32,6 +36,10 @@ BazelStartupOptions::BazelStartupOptions(
   RegisterNullaryStartupFlagNoRc("system_rc", &use_system_rc);
   RegisterNullaryStartupFlagNoRc("workspace_rc", &use_workspace_rc);
   RegisterUnaryStartupFlag("bazelrc");
+}
+
+blaze_util::Path BazelStartupOptions::GetDefaultOutputRoot() const {
+  return blaze_util::Path(blaze::GetCacheDir());
 }
 
 blaze_exit_code::ExitCode BazelStartupOptions::ProcessArgExtra(
@@ -77,11 +85,9 @@ void BazelStartupOptions::MaybeLogStartupOptionWarnings() const {
                             "ignored, since --ignore_all_rc_files is on.";
     }
   }
-  bool output_user_root_has_space =
-      output_user_root.find_first_of(' ') != std::string::npos;
-  if (output_user_root_has_space) {
+  if (output_user_root.Contains(' ')) {
     BAZEL_LOG(WARNING)
-        << "Output user root \"" << output_user_root
+        << "Output user root \"" << output_user_root.AsPrintablePath()
         << "\" contains a space. This will probably break the build. "
            "You should set a different --output_user_root.";
   } else if (output_base.Contains(' ')) {

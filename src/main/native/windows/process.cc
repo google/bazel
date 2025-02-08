@@ -18,8 +18,8 @@
 
 #include "src/main/native/windows/process.h"
 
+#include <versionhelpers.h>
 #include <windows.h>
-#include <VersionHelpers.h>
 
 #include <memory>
 #include <sstream>

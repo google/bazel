@@ -329,14 +329,30 @@ create [packages](#package). [Macros](#macro) and certain functions like
 build, the [analysis phase](#analysis-phase), to build up a [target
 graph](#target-graph).
 
+### Legacy macro {:#legacy-macro}
+
+A flavor of [macro](#macro) which is declared as an ordinary
+[Starlark](#starlark) function, and which runs as a side effect of executing a
+`BUILD` file.
+
+Legacy macros can do anything a function can. This means they can be convenient,
+but they can also be harder to read, write, and use. A legacy macro might
+unexpectedly mutate its arguments or fail when given a `select()` or ill-typed
+argument.
+
+Contrast with [symbolic macros](#symbolic-macro).
+
+**See also:** [Legacy macro documentation](/extending/legacy-macros)
+
 ### Macro {:#macro}
 
 A mechanism to compose multiple [rule](#rule) target declarations together under
-a single [Starlark](#starlark) function. Enables reusing common rule declaration
+a single [Starlark](#starlark) callable. Enables reusing common rule declaration
 patterns across `BUILD` files. Expanded to the underlying rule target
 declarations during the [loading phase](#loading-phase).
 
-**See also:** [Macro documentation](/extending/macros)
+Comes in two flavors: [symbolic macros](#symbolic-macro) (since Bazel 8) and
+[legacy macros](#legacy-macro).
 
 ### Mnemonic {:#mnemonic}
 
@@ -586,6 +602,16 @@ for example, bazel `--host_jvm_debug` build. These flags modify the
 [configuration](#configuration) of the Bazel server, so any modification to
 startup flags causes a server restart. Startup flags are not specific to any
 command.
+
+### Symbolic macro {:#symbolic-macro}
+
+A flavor of [macro](#macro) which is declared with a [rule](#rule)-like
+[attribute](#attribute) schema, allows hiding internal declared
+[targets](#target) from their own package, and enforces a predictable naming
+pattern on the targets that the macro declares. Designed to avoid some of the
+problems seen in large [legacy macro](#legacy-macro) codebases.
+
+**See also:** [Symbolic macro documentation](/extending/macros)
 
 ### Target {:#target}
 

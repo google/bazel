@@ -54,7 +54,7 @@ public abstract class FileWriteActionTestCase extends BuildViewTestCase {
   public final void createAction() throws Exception {
     outputArtifact = getBinArtifactWithNoOwner("destination.txt");
     output = outputArtifact.getPath();
-    FileSystemUtils.createDirectoryAndParents(output.getParentDirectory());
+    output.getParentDirectory().createDirectoryAndParents();
     action = createAction(NULL_ACTION_OWNER, outputArtifact, "Hello World", false);
   }
 

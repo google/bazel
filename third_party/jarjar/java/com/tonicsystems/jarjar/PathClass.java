@@ -17,8 +17,8 @@
 package com.tonicsystems.jarjar;
 
 public class PathClass {
-  private String classPath;
-  private String className;
+  private final String classPath;
+  private final String className;
 
   public PathClass(String classPath, String className) {
     this.classPath = classPath;
@@ -33,6 +33,7 @@ public class PathClass {
     return className;
   }
 
+  @Override
   public String toString() {
     return classPath + "!" + className;
   }

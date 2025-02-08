@@ -9,24 +9,17 @@ This page describes how to integrate with C++ rules on various levels.
 
 ## Accessing the C++ toolchain {:#access-c-toolchain}
 
-Because of
-[ongoing migration of C++ rules](https://github.com/bazelbuild/bazel/issues/6516){: .external}
-to [platforms](/extending/platforms) and
-[toolchains](/extending/toolchains), you
-should use the helper function available at
-[@bazel_tools//tools/cpp:toolchain_utils.bzl](https://source.bazel.build/bazel/+/main:tools/cpp/toolchain_utils.bzl;l=23),
-which works both when toolchains are disabled and enabled. To depend on a C++
-toolchain in your rule, add a
-[`Label`](/rules/lib/toplevel/attr#label)
-attribute named `_cc_toolchain` and point it
-to `@bazel_tools//tools/cpp:current_cc_toolchain` (an instance of
-`cc_toolchain_alias` rule, that points to the currently selected C++ toolchain).
-Then, in the rule implementation, use
-[`find_cpp_toolchain(ctx)`](https://source.bazel.build/bazel/+/main:tools/cpp/toolchain_utils.bzl;l=23)
-to get the
-[`CcToolchainInfo`](/rules/lib/providers/CcToolchainInfo).
-A complete working example can be found
-[in the rules_cc examples](https://github.com/bazelbuild/rules_cc/blob/main/examples/write_cc_toolchain_cpu/write_cc_toolchain_cpu.bzl){: .external}.
+You should use the helper functions available at
+[`@rules_cc//cc:find_cc_toolchain.bzl`](https://github.com/bazelbuild/rules_cc/blob/main/cc/find_cc_toolchain.bzl)
+to depend on a CC toolchain from a Starlark rule.
+
+To depend on a C++ toolchain in your rule, set the `toolchains` parameter to
+`use_cc_toolchain()`. Then, in the rule implementation, use
+`find_cpp_toolchain(ctx)` to get the
+[`CcToolchainInfo`](/rules/lib/providers/CcToolchainInfo). A complete working
+example can be found [in the rules_cc
+examples](https://github.com/bazelbuild/rules_cc/blob/main/examples/write_cc_toolchain_cpu/write_cc_toolchain_cpu.bzl){:
+.external}.
 
 ## Generating command lines and environment variables using the C++ toolchain {:#generate-command-lines-toolchain}
 

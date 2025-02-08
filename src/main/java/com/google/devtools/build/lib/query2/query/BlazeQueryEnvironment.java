@@ -76,7 +76,7 @@ public class BlazeQueryEnvironment extends AbstractBlazeQueryEnvironment<Target>
   private static final int MAX_DEPTH_FULL_SCAN_LIMIT = 20;
   private final Map<String, Collection<Target>> resolvedTargetPatterns = new HashMap<>();
   private final TargetPatternPreloader targetPatternPreloader;
-  private final TargetPattern.Parser mainRepoTargetParser;
+  private final TargetPattern.Parser targetParser;
   @Nullable private final QueryTransitivePackagePreloader queryTransitivePackagePreloader;
   private final TargetProvider targetProvider;
   private final CachingPackageLocator cachingPackageLocator;
@@ -106,7 +106,7 @@ public class BlazeQueryEnvironment extends AbstractBlazeQueryEnvironment<Target>
       TargetProvider targetProvider,
       CachingPackageLocator cachingPackageLocator,
       TargetPatternPreloader targetPatternPreloader,
-      Parser mainRepoTargetParser,
+      Parser targetParser,
       boolean keepGoing,
       boolean strictScope,
       int loadingPhaseThreads,
@@ -118,7 +118,7 @@ public class BlazeQueryEnvironment extends AbstractBlazeQueryEnvironment<Target>
     super(
         keepGoing, strictScope, labelFilter, eventHandler, settings, extraFunctions, labelPrinter);
     this.targetPatternPreloader = targetPatternPreloader;
-    this.mainRepoTargetParser = mainRepoTargetParser;
+    this.targetParser = targetParser;
     this.queryTransitivePackagePreloader = queryTransitivePackagePreloader;
     this.targetProvider = targetProvider;
     this.cachingPackageLocator = cachingPackageLocator;
@@ -446,7 +446,7 @@ public class BlazeQueryEnvironment extends AbstractBlazeQueryEnvironment<Target>
     // being called from within a SkyFunction.
     resolvedTargetPatterns.putAll(
         targetPatternPreloader.preloadTargetPatterns(
-            eventHandler, mainRepoTargetParser, patterns, keepGoing));
+            eventHandler, targetParser, patterns, keepGoing));
   }
 
   @Override

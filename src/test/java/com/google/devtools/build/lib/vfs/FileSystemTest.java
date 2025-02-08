@@ -16,6 +16,7 @@ package com.google.devtools.build.lib.vfs;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.truth.Truth.assertThat;
+import static com.google.common.truth.TruthJUnit.assume;
 import static java.lang.Math.min;
 import static java.nio.charset.StandardCharsets.ISO_8859_1;
 import static java.nio.charset.StandardCharsets.UTF_8;
@@ -25,11 +26,13 @@ import static org.junit.Assume.assumeTrue;
 
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableSet;
+import com.google.common.collect.Iterables;
+import com.google.common.collect.Sets;
 import com.google.common.io.BaseEncoding;
 import com.google.devtools.build.lib.testutil.TestUtils;
-import com.google.devtools.build.lib.unix.FileStatus;
-import com.google.devtools.build.lib.unix.NativePosixFiles;
 import com.google.devtools.build.lib.util.Fingerprint;
+import com.google.devtools.build.lib.util.StringEncoding;
 import com.google.testing.junit.testparameterinjector.TestParameter;
 import com.google.testing.junit.testparameterinjector.TestParameterInjector;
 import com.google.testing.junit.testparameterinjector.TestParameterValuesProvider;
@@ -42,12 +45,13 @@ import java.nio.ByteBuffer;
 import java.nio.channels.ReadableByteChannel;
 import java.nio.channels.SeekableByteChannel;
 import java.nio.channels.WritableByteChannel;
+import java.nio.charset.Charset;
 import java.nio.file.FileAlreadyExistsException;
+import java.nio.file.Files;
+import java.nio.file.attribute.PosixFilePermission;
 import java.time.Instant;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -125,81 +129,51 @@ public abstract class FileSystemTest {
   protected abstract FileSystem getFreshFileSystem(DigestHashFunction digestHashFunction)
       throws IOException;
 
-  protected boolean isSymbolicLink(File file) throws IOException {
-    return NativePosixFiles.lstat(file.getPath()).isSymbolicLink();
-  }
-
-  private static final Pattern STAT_SUBDIR_ERROR = Pattern.compile("(.*) \\(Not a directory\\)");
-
-  // Test that file is not present, using statIfFound. Base implementation throws an exception, but
-  // subclasses may override statIfFound to return null, in which case their tests should override
-  // this method.
-  @SuppressWarnings("unused") // Subclasses may throw.
-  protected void expectNotFound(Path path) throws IOException {
-    try {
-      assertThat(path.statIfFound()).isNull();
-    } catch (IOException e) {
-      // May be because of a non-directory path component. Parse exception to check this.
-      Matcher matcher = STAT_SUBDIR_ERROR.matcher(e.getMessage());
-      if (!matcher.matches() || !path.getPathString().startsWith(matcher.group(1))) {
-        // Throw if this doesn't match what an ENOTDIR error looks like.
-        throw e;
-      }
-    }
-  }
-
   /**
    * Cleans up the working directory by removing everything.
    */
   protected void cleanUpWorkingDirectory(Path workingPath)
       throws IOException {
     if (workingPath.exists()) {
-      removeEntireDirectory(workingPath.getPathFile()); // uses java.io.File!
+      removeEntireDirectory(workingPath.getPathFile().toPath()); // uses java.nio.file.Path!
     }
     workingPath.createDirectoryAndParents();
   }
 
   /**
-   * This function removes an entire directory and all of its contents.
-   * Much like rm -rf directoryToRemove
+   * This function removes an entire directory and all of its contents. Much like rm -rf
+   * directoryToRemove
+   *
+   * <p>This method explicitly only uses Java APIs to interact with files to prevent any issues with
+   * Bazel's own file systems from leaking from one test to another.
    */
-  protected void removeEntireDirectory(File directoryToRemove)
-      throws IOException {
+  protected void removeEntireDirectory(java.nio.file.Path directoryToRemove) throws IOException {
     // make sure that we do not remove anything outside the test directory
     Path testDirPath = testFS.getPath(getTestTmpDir());
-    if (!testFS.getPath(directoryToRemove.getAbsolutePath()).startsWith(testDirPath)) {
+    if (!testFS.getPath(directoryToRemove.toAbsolutePath().toString()).startsWith(testDirPath)) {
       throw new IOException("trying to remove files outside of the testdata directory");
     }
     // Some tests set the directories read-only and/or non-executable, so
     // override that:
-    NativePosixFiles.chmod(
-        directoryToRemove.getPath(),
-        NativePosixFiles.lstat(directoryToRemove.getPath()).getPermissions()
-            | FileStatus.S_IWUSR
-            | FileStatus.S_IXUSR);
+    Files.setPosixFilePermissions(
+        directoryToRemove,
+        Sets.union(
+            Files.getPosixFilePermissions(directoryToRemove),
+            ImmutableSet.of(PosixFilePermission.OWNER_WRITE, PosixFilePermission.OWNER_EXECUTE)));
 
-    File[] files = directoryToRemove.listFiles();
-    if (files != null) {
-      for (File currentFile : files) {
-        boolean isSymbolicLink = isSymbolicLink(currentFile);
-        if (!isSymbolicLink && currentFile.isDirectory()) {
-          removeEntireDirectory(currentFile);
-        } else {
-          if (!isSymbolicLink) {
-            NativePosixFiles.chmod(
-                currentFile.getPath(),
-                NativePosixFiles.lstat(currentFile.getPath()).getPermissions()
-                    | FileStatus.S_IWUSR);
-          }
-          if (!currentFile.delete()) {
-            throw new IOException("Failed to delete '" + currentFile + "'");
-          }
-        }
+    java.nio.file.Path[] entries;
+    try (var entriesStream = Files.list(directoryToRemove)) {
+      entries = entriesStream.toArray(java.nio.file.Path[]::new);
+    }
+    for (var entry : entries) {
+      boolean isSymbolicLink = Files.isSymbolicLink(entry);
+      if (!isSymbolicLink && Files.isDirectory(entry)) {
+        removeEntireDirectory(entry);
+      } else {
+        Files.delete(entry);
       }
     }
-    if (!directoryToRemove.delete()) {
-      throw new IOException("Failed to delete '" + directoryToRemove + "'");
-    }
+    Files.delete(directoryToRemove);
   }
 
   /** Recursively make directories readable/executable and files readable. */
@@ -289,7 +263,7 @@ public abstract class FileSystemTest {
   public void testExistsForNonexistingPath() throws Exception {
     Path nonExistingPath = testFS.getPath("/something/strange");
     assertThat(nonExistingPath.exists()).isFalse();
-    expectNotFound(nonExistingPath);
+    assertThat(nonExistingPath.statIfFound()).isNull();
   }
 
   @Test
@@ -473,7 +447,7 @@ public abstract class FileSystemTest {
     FileSystemUtils.createEmptyFile(somePath);
     Path childOfNonDir = somePath.getChild("child");
     assertThat(childOfNonDir.exists()).isFalse();
-    expectNotFound(childOfNonDir);
+    assertThat(childOfNonDir.statIfFound()).isNull();
   }
 
   @Test
@@ -1978,5 +1952,87 @@ public abstract class FileSystemTest {
   protected boolean isHardLinked(Path a, Path b) throws IOException {
     return testFS.stat(a.asFragment(), false).getNodeId()
         == testFS.stat(b.asFragment(), false).getNodeId();
+  }
+
+  @Test
+  public void testGetNioPath_basic() {
+    java.nio.file.Path javaPath = getJavaPathOrSkipIfUnsupported(xFile);
+    assertThat(Files.isRegularFile(javaPath)).isTrue();
+  }
+
+  @Test
+  public void testGetNioPath_externalUtf8() throws IOException {
+    assumeUtf8CompatibleEncoding();
+
+    // Simulates a Starlark string constant, which is read from a presumably UTF-8 encoded source
+    // file into Bazel's internal representation.
+    Path utf8File = absolutize(StringEncoding.unicodeToInternal("some_dir/入力_A_🌱.txt"));
+    utf8File.getParentDirectory().createDirectoryAndParents();
+    FileSystemUtils.writeContent(utf8File, UTF_8, "hello 入力_A_🌱");
+
+    java.nio.file.Path javaPath = getJavaPathOrSkipIfUnsupported(utf8File);
+    assertThat(Files.isRegularFile(javaPath)).isTrue();
+    assertThat(Files.readString(javaPath)).isEqualTo("hello 入力_A_🌱");
+
+    // Ensure that the view of the file as a directory entry is consistent with how it was created.
+    assertThat(utf8File.getParentDirectory().getDirectoryEntries()).containsExactly(utf8File);
+  }
+
+  @Test
+  public void testGetNioPath_internalUtf8() throws IOException {
+    assumeUtf8CompatibleEncoding();
+
+    Path dirPath = absolutize("some_dir");
+    dirPath.createDirectoryAndParents();
+
+    // Create a file through Java APIs.
+    java.nio.file.Path javaDirPath = getJavaPathOrSkipIfUnsupported(dirPath);
+    Files.writeString(javaDirPath.resolve(unicodeToPlatform("入力_A_🌱.txt")), "hello 入力_A_🌱");
+
+    // Retrieve its path through the filesystem API.
+    var entries = dirPath.getDirectoryEntries();
+    assertThat(entries).hasSize(1);
+    var filePath = Iterables.getOnlyElement(entries);
+    assertThat(filePath.exists()).isTrue();
+
+    // Verify the file content through the Java APIs.
+    var javaFilePath = getJavaPathOrSkipIfUnsupported(filePath);
+    assertThat(Files.isRegularFile(javaFilePath)).isTrue();
+    assertThat(Files.readString(javaFilePath)).isEqualTo("hello 入力_A_🌱");
+  }
+
+  protected java.nio.file.Path getJavaPathOrSkipIfUnsupported(Path path) {
+    java.nio.file.Path javaPath = null;
+    try {
+      javaPath = testFS.getNioPath(path.asFragment());
+    } catch (UnsupportedOperationException e) {
+      // Intentionally ignored.
+    }
+
+    File javaFile = null;
+    try {
+      javaFile = testFS.getIoFile(path.asFragment());
+    } catch (UnsupportedOperationException e) {
+      // Intentionally ignored.
+    }
+
+    assertThat(javaPath == null).isEqualTo(javaFile == null);
+    assumeTrue(javaPath != null && javaFile != null);
+    assertThat(javaFile.toPath()).isEqualTo(javaPath);
+
+    return javaPath;
+  }
+
+  protected static String unicodeToPlatform(String s) {
+    return StringEncoding.internalToPlatform(StringEncoding.unicodeToInternal(s));
+  }
+
+  protected static String platformToUnicode(String s) {
+    return StringEncoding.internalToUnicode(StringEncoding.platformToInternal(s));
+  }
+
+  protected static void assumeUtf8CompatibleEncoding() {
+    Charset sunJnuEncoding = Charset.forName(System.getProperty("sun.jnu.encoding"));
+    assume().that(ImmutableList.of(UTF_8, ISO_8859_1)).contains(sunJnuEncoding);
   }
 }

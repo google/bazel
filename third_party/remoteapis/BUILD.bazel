@@ -1,7 +1,7 @@
+load("@com_google_protobuf//bazel:java_proto_library.bzl", "java_proto_library")
+load("@com_google_protobuf//bazel:proto_library.bzl", "proto_library")
 load("@io_bazel//third_party/grpc:build_defs.bzl", "java_grpc_library")
 load("@io_bazel//tools/build_rules:utilities.bzl", "java_library_srcs")
-load("@protobuf//bazel:proto_library.bzl", "proto_library")
-load("@protobuf//bazel:java_proto_library.bzl", "java_proto_library")
 
 package(default_visibility = ["//visibility:public"])
 
@@ -44,10 +44,10 @@ proto_library(
     srcs = ["build/bazel/remote/asset/v1/remote_asset.proto"],
     deps = [
         ":build_bazel_remote_execution_v2_remote_execution_proto",
+        "@com_google_protobuf//:duration_proto",
+        "@com_google_protobuf//:timestamp_proto",
         "@googleapis//google/api:annotations_proto",
         "@googleapis//google/rpc:status_proto",
-        "@protobuf//:duration_proto",
-        "@protobuf//:timestamp_proto",
     ],
 )
 
@@ -56,14 +56,14 @@ proto_library(
     srcs = ["build/bazel/remote/execution/v2/remote_execution.proto"],
     deps = [
         ":build_bazel_semver_semver_proto",
+        "@com_google_protobuf//:any_proto",
+        "@com_google_protobuf//:duration_proto",
+        "@com_google_protobuf//:timestamp_proto",
+        "@com_google_protobuf//:wrappers_proto",
         "@googleapis//google/api:annotations_proto",
         "@googleapis//google/api:http_proto",
         "@googleapis//google/longrunning:operations_proto",
         "@googleapis//google/rpc:status_proto",
-        "@protobuf//:any_proto",
-        "@protobuf//:duration_proto",
-        "@protobuf//:timestamp_proto",
-        "@protobuf//:wrappers_proto",
     ],
 )
 

@@ -119,7 +119,7 @@ public final class FilesetEntryFunctionTest extends FoundationTestCase {
             CrossRepositoryLabelViolationStrategy.ERROR,
             BazelSkyframeExecutorConstants.BUILD_FILES_BY_PRIORITY,
             BazelSkyframeExecutorConstants.EXTERNAL_PACKAGE_HELPER));
-    skyFunctions.put(SkyFunctions.IGNORED_PACKAGE_PREFIXES, IgnoredPackagePrefixesFunction.NOOP);
+    skyFunctions.put(SkyFunctions.IGNORED_SUBDIRECTORIES, IgnoredSubdirectoriesFunction.NOOP);
     skyFunctions.put(
         SkyFunctions.FILESET_ENTRY, new FilesetEntryFunction((unused) -> rootDirectory));
     skyFunctions.put(SkyFunctions.WORKSPACE_NAME, new TestWorkspaceNameFunction());
@@ -209,7 +209,7 @@ public final class FilesetEntryFunctionTest extends FoundationTestCase {
             // Strip the metadata from the actual results.
             (input) ->
                 FilesetOutputSymlink.createAlreadyRelativizedForTesting(
-                    input.getName(), input.getTargetPath(), input.isRelativeToExecRoot()));
+                    input.name(), input.targetPath(), input.relativeToExecRoot()));
     assertThat(actual).containsExactlyElementsIn(expectedSymlinks).inOrder();
   }
 

@@ -246,7 +246,8 @@ public final class CppCompileActionBuilder {
     }
   }
 
-  static final class UnconfiguredActionConfigException extends Exception {
+  /** Exception thrown when the action is not configured in the toolchain. */
+  public static final class UnconfiguredActionConfigException extends Exception {
     private UnconfiguredActionConfigException(String actionName) {
       super(String.format("Expected action_config for '%s' to be configured", actionName));
     }

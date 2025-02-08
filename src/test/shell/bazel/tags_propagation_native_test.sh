@@ -40,35 +40,34 @@ EOF
 int main() { std::cout << "Hello test!" << std::endl; return 0; }
 EOF
 
-  bazel aquery --experimental_allow_tags_propagation 'mnemonic("CppCompile", //test:test)' > output1 2> $TEST_log \
+  bazel aquery --incompatible_allow_tags_propagation 'mnemonic("CppCompile", //test:test)' > output1 2> $TEST_log \
       || fail "should have generated output successfully"
 
-  assert_contains "ExecutionInfo: {" output1
-  assert_contains "local:" output1
-  assert_contains "no-cache:" output1
-  assert_contains "no-remote:" output1
+  assert_contains_n "Command Line:" 1 output1
+  assert_contains_n "local:" 1 output1
+  assert_contains_n "no-cache:" 1 output1
+  assert_contains_n "no-remote:" 1 output1
 
-  bazel aquery --experimental_allow_tags_propagation 'mnemonic("CppArchive", outputs(".*/libtest.a", //test:test))' > output1 2> $TEST_log \
+  bazel aquery --incompatible_allow_tags_propagation 'mnemonic("CppArchive", outputs(".*/libtest.a", //test:test))' > output1 2> $TEST_log \
       || fail "should have generated output successfully"
 
-  assert_contains "ExecutionInfo: {" output1
-  assert_contains "local:" output1
-  assert_contains "no-cache:" output1
-  assert_contains "no-remote:" output1
+  assert_contains_n "Command Line:" 1 output1
+  assert_contains_n "local:" 1 output1
+  assert_contains_n "no-cache:" 1 output1
+  assert_contains_n "no-remote:" 1 output1
   if [ "${PLATFORM}" != "darwin" ]; then
     # Darwin does not support implicit "nodeps" shared libraries.
-    bazel aquery --experimental_allow_tags_propagation 'mnemonic("CppLink", outputs(".*/libtest.so", //test:test))' > output1 2> $TEST_log \
+    bazel aquery --incompatible_allow_tags_propagation 'mnemonic("CppLink", outputs(".*/libtest.so", //test:test))' > output1 2> $TEST_log \
         || fail "should have generated output successfully"
 
-    assert_contains "ExecutionInfo: {" output1
-    assert_contains "local:" output1
-    assert_contains "no-cache:" output1
-    assert_contains "no-remote:" output1
+    assert_contains_n "Command Line:" 1 output1
+    assert_contains_n "local:" 1 output1
+    assert_contains_n "no-cache:" 1 output1
+    assert_contains_n "no-remote:" 1 output1
   fi
 }
 
 function test_cc_binary_tags_propagated() {
-
  mkdir -p test
   cat > test/BUILD <<EOF
 package(default_visibility = ["//visibility:public"])
@@ -83,21 +82,21 @@ EOF
 int main() { std::cout << "Hello test!" << std::endl; return 0; }
 EOF
 
-  bazel aquery --experimental_allow_tags_propagation 'mnemonic("CppCompile", //test:test)' > output1 2> $TEST_log \
+  bazel aquery --incompatible_allow_tags_propagation 'mnemonic("CppCompile", //test:test)' > output1 2> $TEST_log \
       || fail "should have generated output successfully"
 
-  assert_contains "ExecutionInfo: {" output1
-  assert_contains "local:" output1
-  assert_contains "no-cache:" output1
-  assert_contains "no-remote:" output1
+  assert_contains_n "Command Line:" 1 output1
+  assert_contains_n "local:" 1 output1
+  assert_contains_n "no-cache:" 1 output1
+  assert_contains_n "no-remote:" 1 output1
 
-  bazel aquery --experimental_allow_tags_propagation 'mnemonic("CppLink", //test:test)' > output1 2> $TEST_log \
+  bazel aquery --incompatible_allow_tags_propagation 'mnemonic("CppLink", //test:test)' > output1 2> $TEST_log \
       || fail "should have generated output successfully"
 
-  assert_contains "ExecutionInfo: {" output1
-  assert_contains "local:" output1
-  assert_contains "no-cache:" output1
-  assert_contains "no-remote:" output1
+  assert_contains_n "Command Line:" 1 output1
+  assert_contains_n "local:" 1 output1
+  assert_contains_n "no-cache:" 1 output1
+  assert_contains_n "no-remote:" 1 output1
 }
 
 function test_java_library_tags_propagated() {
@@ -119,13 +118,13 @@ public class Main {
 }
 EOF
 
-  bazel aquery --experimental_allow_tags_propagation '//test:test' > output1 2> $TEST_log \
+  bazel aquery --incompatible_allow_tags_propagation '//test:test' > output1 2> $TEST_log \
       || fail "should have generated output successfully"
 
-  assert_contains "ExecutionInfo: {" output1
-  assert_contains "local:" output1
-  assert_contains "no-cache:" output1
-  assert_contains "no-remote:" output1
+  assert_contains_n "Command Line:" 3 output1
+  assert_contains_n "local:" 3 output1
+  assert_contains_n "no-cache:" 3 output1
+  assert_contains_n "no-remote:" 3 output1
 }
 
 function test_java_binary_tags_propagated() {
@@ -148,13 +147,13 @@ public class Main {
 }
 EOF
 
-  bazel aquery --experimental_allow_tags_propagation '//test:test' > output1 2> $TEST_log \
+  bazel aquery --incompatible_allow_tags_propagation '//test:test' > output1 2> $TEST_log \
       || fail "should have generated output successfully"
 
-  assert_contains "ExecutionInfo: {" output1
-  assert_contains "local:" output1
-  assert_contains "no-cache:" output1
-  assert_contains "no-remote:" output1
+  assert_contains_n "Command Line:" 4 output1
+  assert_contains_n "local:" 4 output1
+  assert_contains_n "no-cache:" 4 output1
+  assert_contains_n "no-remote:" 4 output1
 }
 
 function write_hello_library_files() {
@@ -203,14 +202,13 @@ function test_java_header_tags_propagated() {
   mkdir "$pkg" || fail "mkdir $pkg"
   write_hello_library_files "$pkg"
 
-  bazel aquery --experimental_allow_tags_propagation --java_header_compilation=true //$pkg/java/main:main > output1 2> $TEST_log \
+  bazel aquery --incompatible_allow_tags_propagation --java_header_compilation=true //$pkg/java/main:main > output1 2> $TEST_log \
       || fail "should have generated output successfully"
 
-  assert_contains "ExecutionInfo: {" output1
-  assert_contains "local:" output1
-  assert_contains "no-cache:" output1
-  assert_contains "no-remote:" output1
-
+  assert_contains_n "Command Line:" 4 output1
+  assert_contains_n "local:" 4 output1
+  assert_contains_n "no-cache:" 4 output1
+  assert_contains_n "no-remote:" 4 output1
 }
 
 function test_genrule_tags_propagated() {
@@ -225,16 +223,16 @@ genrule(
 )
 EOF
 
-  bazel aquery --experimental_allow_tags_propagation '//test:test' > output1 2> $TEST_log \
+  bazel aquery --incompatible_allow_tags_propagation '//test:test' > output1 2> $TEST_log \
       || fail "should have generated output successfully"
 
-  assert_contains "ExecutionInfo: {" output1
-  assert_contains "local:" output1
-  assert_contains "no-cache:" output1
-  assert_contains "no-remote:" output1
+  assert_contains_n "Command Line:" 1 output1
+  assert_contains_n "local:" 1 output1
+  assert_contains_n "no-cache:" 1 output1
+  assert_contains_n "no-remote:" 1 output1
 }
 
-# Test a native test rule rule which has tags, that should be propagated (independent of flags)
+# Test a native test rule which has tags, that should be propagated (independent of flags)
 function test_test_rules_tags_propagated() {
   mkdir -p test
   cat > test/BUILD <<EOF
@@ -250,17 +248,17 @@ EOF
 int main() { std::cout << "Hello test!" << std::endl; return 0; }
 EOF
 
-  bazel aquery --experimental_allow_tags_propagation=false '//test:test' > output1 2> $TEST_log \
+  bazel aquery --incompatible_allow_tags_propagation=false '//test:test' > output1 2> $TEST_log \
       || fail "should have generated output successfully"
 
-  assert_contains "ExecutionInfo: {" output1
-  assert_contains "local:" output1
-  assert_contains "no-cache:" output1
-  assert_contains "no-remote:" output1
+  assert_contains_n "Command Line:" 4 output1
+  assert_contains_n "local:" 1 output1
+  assert_contains_n "no-cache:" 1 output1
+  assert_contains_n "no-remote:" 1 output1
 }
 
 # Test a basic native rule which has tags, that should not be propagated
-# as --experimental_allow_tags_propagation flag set to false
+# as --incompatible_allow_tags_propagation flag set to false
 function test_cc_library_tags_not_propagated_when_incompatible_flag_off() {
   mkdir -p test
   cat > test/BUILD <<EOF
@@ -276,9 +274,16 @@ EOF
 int main() { std::cout << "Hello test!" << std::endl; return 0; }
 EOF
 
-  bazel aquery --experimental_allow_tags_propagation=false '//test:test' > output1 2> $TEST_log \
+  bazel aquery --incompatible_allow_tags_propagation=false '//test:test' > output1 2> $TEST_log \
       || fail "should have generated output successfully"
 
+  if is_darwin; then
+    # CppCompile, CppArchive
+    assert_contains_n "Command Line:" 2 output1
+  else
+    # CppCompile, CppArchive, CppLink
+    assert_contains_n "Command Line:" 3 output1
+  fi
   assert_not_contains "local:" output1
   assert_not_contains "no-cache:" output1
   assert_not_contains "no-remote:" output1
@@ -300,9 +305,10 @@ EOF
 int main() { std::cout << "Hello test!" << std::endl; return 0; }
 EOF
 
-  bazel aquery --experimental_allow_tags_propagation=false '//test:test' > output1 2> $TEST_log \
+  bazel aquery --incompatible_allow_tags_propagation=false '//test:test' > output1 2> $TEST_log \
       || fail "should have generated output successfully"
 
+  assert_contains_n "Command Line:" 3 output1
   assert_not_contains "local:" output1
   assert_not_contains "no-cache:" output1
   assert_not_contains "no-remote:" output1
@@ -327,9 +333,10 @@ public class Main {
 }
 EOF
 
-  bazel aquery --experimental_allow_tags_propagation=false '//test:test' > output1 2> $TEST_log \
+  bazel aquery --incompatible_allow_tags_propagation=false '//test:test' > output1 2> $TEST_log \
       || fail "should have generated output successfully"
 
+  assert_contains_n "Command Line:" 3 output1
   assert_not_contains "local:" output1
   assert_not_contains "no-cache:" output1
   assert_not_contains "no-remote:" output1

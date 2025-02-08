@@ -14,7 +14,9 @@
 
 package com.google.devtools.build.lib.analysis;
 
-import com.google.auto.value.AutoValue;
+import static java.util.Objects.requireNonNull;
+
+import com.google.auto.value.AutoBuilder;
 import com.google.devtools.build.lib.packages.RuleClass;
 import com.google.devtools.build.lib.packages.RuleClass.Builder.RuleClassType;
 import com.google.errorprone.annotations.CanIgnoreReturnValue;
@@ -51,35 +53,29 @@ public interface RuleDefinition {
   /**
    * Value class that contains the name, type, ancestors of a rule, as well as a reference to the
    * configured target factory.
+   *
+   * @param name The name of the rule, as it appears in the BUILD file. If it starts with '$', the
+   *     rule will be hidden from users and will only be usable from inside Blaze.
+   * @param type The type of the rule. It can be an abstract rule, a normal rule or a test rule. If
+   *     the rule type is abstract, the configured class must not be set.
+   * @param factoryClass The {@link RuleConfiguredTargetFactory} class that implements this rule. If
+   *     the rule is abstract, this must not be set.
+   * @param ancestors The list of other rule classes this rule inherits from.
    */
-  @AutoValue
-  public abstract static class Metadata {
-    /**
-     * The name of the rule, as it appears in the BUILD file. If it starts with
-     * '$', the rule will be hidden from users and will only be usable from
-     * inside Blaze.
-     */
-    public abstract String name();
-
-    /**
-     * The type of the rule. It can be an abstract rule, a normal rule or a test
-     * rule. If the rule type is abstract, the configured class must not be set.
-     */
-    public abstract RuleClassType type();
-
-    /**
-     * The {@link RuleConfiguredTargetFactory} class that implements this rule. If the rule is
-     * abstract, this must not be set.
-     */
-    public abstract Class<? extends RuleConfiguredTargetFactory> factoryClass();
-
-    /**
-     * The list of other rule classes this rule inherits from.
-     */
-    public abstract List<Class<? extends RuleDefinition>> ancestors();
+  public record Metadata(
+      String name,
+      RuleClassType type,
+      Class<? extends RuleConfiguredTargetFactory> factoryClass,
+      List<Class<? extends RuleDefinition>> ancestors) {
+    public Metadata {
+      requireNonNull(name, "name");
+      requireNonNull(type, "type");
+      requireNonNull(factoryClass, "factoryClass");
+      requireNonNull(ancestors, "ancestors");
+    }
 
     public static Builder builder() {
-      return new AutoValue_RuleDefinition_Metadata.Builder()
+      return new AutoBuilder_RuleDefinition_Metadata_Builder()
           .type(RuleClassType.NORMAL)
           .factoryClass(RuleConfiguredTargetFactory.class)
           .ancestors(Collections.<Class<? extends RuleDefinition>>emptyList());
@@ -89,10 +85,8 @@ public interface RuleDefinition {
       return builder().build();
     }
 
-    /**
-     * Builder class for the Metadata class.
-     */
-    @AutoValue.Builder
+    /** Builder class for the Metadata class. */
+    @AutoBuilder
     public abstract static class Builder {
       public abstract Builder name(String s);
       public abstract Builder type(RuleClassType type);

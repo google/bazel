@@ -13,7 +13,6 @@
 // limitations under the License.
 package com.google.devtools.build.lib.analysis.config.transitions;
 
-import com.google.auto.value.AutoValue;
 import com.google.common.collect.ImmutableSet;
 import com.google.devtools.build.lib.analysis.config.BuildOptions;
 import com.google.devtools.build.lib.analysis.config.BuildOptionsView;
@@ -45,7 +44,7 @@ public class NoConfigTransition implements PatchTransition {
 
   @SerializationConstant public static final NoConfigTransition INSTANCE = new NoConfigTransition();
   private static final TransitionFactory<? extends TransitionFactory.Data> FACTORY_INSTANCE =
-      new AutoValue_NoConfigTransition_Factory<>();
+      new Factory<>();
 
   /**
    * Returns {@code true} if the given {@link TransitionFactory} is an instance of the no
@@ -76,8 +75,7 @@ public class NoConfigTransition implements PatchTransition {
   }
 
   /** A {@link TransitionFactory} implementation that generates the transition. */
-  @AutoValue
-  abstract static class Factory<T extends TransitionFactory.Data>
+  record Factory<T extends TransitionFactory.Data>()
       implements TransitionFactory<T>, ConfigurationTransitionApi {
     @Override
     public PatchTransition create(T unused) {

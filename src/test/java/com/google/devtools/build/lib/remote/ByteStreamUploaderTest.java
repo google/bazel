@@ -15,6 +15,8 @@ package com.google.devtools.build.lib.remote;
 
 import static com.google.common.base.Preconditions.checkState;
 import static com.google.common.truth.Truth.assertThat;
+import static com.google.devtools.build.lib.remote.util.Utils.getFromFuture;
+import static com.google.devtools.build.lib.remote.util.Utils.waitForBulkTransfer;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.fail;
@@ -42,6 +44,7 @@ import com.google.common.util.concurrent.MoreExecutors;
 import com.google.devtools.build.lib.analysis.BlazeVersionInfo;
 import com.google.devtools.build.lib.authandtls.CallCredentialsProvider;
 import com.google.devtools.build.lib.remote.common.RemoteActionExecutionContext;
+import com.google.devtools.build.lib.remote.common.RemoteCacheClient.Blob;
 import com.google.devtools.build.lib.remote.util.DigestUtil;
 import com.google.devtools.build.lib.remote.util.TestUtils;
 import com.google.devtools.build.lib.remote.util.TracingMetadataUtils;
@@ -179,7 +182,7 @@ public class ByteStreamUploaderTest {
 
     serviceRegistry.addService(TestUtils.newNoErrorByteStreamService(blob));
 
-    uploader.uploadBlob(context, digest, chunker);
+    uploadBlob(uploader, context, digest, chunker);
 
     // This test should not have triggered any retries.
     Mockito.verifyNoInteractions(mockBackoff);
@@ -242,7 +245,7 @@ public class ByteStreamUploaderTest {
           }
         });
 
-    uploader.uploadBlob(context, digest, chunker);
+    uploadBlob(uploader, context, digest, chunker);
 
     // This test should not have triggered any retries.
     Mockito.verifyNoInteractions(mockBackoff);
@@ -357,7 +360,7 @@ public class ByteStreamUploaderTest {
           }
         });
 
-    uploader.uploadBlob(context, digest, chunker);
+    uploadBlob(uploader, context, digest, chunker);
 
     // This test triggers one retry.
     Mockito.verify(mockBackoff, Mockito.times(1))
@@ -473,7 +476,7 @@ public class ByteStreamUploaderTest {
           }
         });
 
-    uploader.uploadBlob(context, digest, chunker);
+    uploadBlob(uploader, context, digest, chunker);
     byte[] decompressed = Zstd.decompress(output.toByteArray(), blob.length - skipSize);
     assertThat(Arrays.equals(decompressed, 0, decompressed.length, blob, skipSize, blob.length))
         .isTrue();
@@ -540,7 +543,7 @@ public class ByteStreamUploaderTest {
           }
         });
 
-    uploader.uploadBlob(context, digest, chunker);
+    uploadBlob(uploader, context, digest, chunker);
   }
 
   @Test
@@ -597,7 +600,7 @@ public class ByteStreamUploaderTest {
           }
         });
 
-    uploader.uploadBlob(context, digest, chunker);
+    uploadBlob(uploader, context, digest, chunker);
 
     // This test should not have triggered any retries.
     assertThat(numWriteCalls.get()).isEqualTo(1);
@@ -668,7 +671,7 @@ public class ByteStreamUploaderTest {
           }
         });
 
-    uploader.uploadBlob(context, digest, chunker);
+    uploadBlob(uploader, context, digest, chunker);
 
     // This test should have triggered a single retry, because it made
     // no progress.
@@ -693,7 +696,8 @@ public class ByteStreamUploaderTest {
     // provide only enough data to write a single chunk
     InputStream in = new ByteArrayInputStream(blob, 0, CHUNK_SIZE);
 
-    Chunker chunker = Chunker.builder().setInput(blob.length, in).setChunkSize(CHUNK_SIZE).build();
+    Chunker chunker =
+        Chunker.builder().setInput(blob.length, () -> in).setChunkSize(CHUNK_SIZE).build();
     Digest digest = DIGEST_UTIL.compute(blob);
 
     serviceRegistry.addService(
@@ -706,7 +710,7 @@ public class ByteStreamUploaderTest {
           }
         });
 
-    uploader.uploadBlob(context, digest, chunker);
+    uploadBlob(uploader, context, digest, chunker);
 
     // This test should not have triggered any retries.
     Mockito.verifyNoInteractions(mockBackoff);
@@ -757,7 +761,7 @@ public class ByteStreamUploaderTest {
         });
 
     try {
-      uploader.uploadBlob(context, digest, chunker);
+      uploadBlob(uploader, context, digest, chunker);
       fail("Should have thrown an exception.");
     } catch (IOException e) {
       // expected
@@ -796,7 +800,7 @@ public class ByteStreamUploaderTest {
           }
         });
 
-    uploader.uploadBlob(context, digest, chunker);
+    uploadBlob(uploader, context, digest, chunker);
   }
 
   @Test
@@ -829,7 +833,7 @@ public class ByteStreamUploaderTest {
 
     serviceRegistry.addService(new MaybeFailOnceUploadService(blobsByHash));
 
-    uploader.uploadBlobs(context, chunkers);
+    uploadBlobs(uploader, context, chunkers);
   }
 
   @Test
@@ -857,7 +861,8 @@ public class ByteStreamUploaderTest {
             + " --bep_maximum_open_remote_upload_files flag to a number lower than your system"
             + " default (run 'ulimit -a' for *nix-based operating systems). Original error message:"
             + " Too many open files";
-    assertThat(assertThrows(IOException.class, () -> uploader.uploadBlob(context, digest, chunker)))
+    assertThat(
+            assertThrows(IOException.class, () -> uploadBlob(uploader, context, digest, chunker)))
         .hasMessageThat()
         .isEqualTo(newMessage);
   }
@@ -899,7 +904,7 @@ public class ByteStreamUploaderTest {
 
     serviceRegistry.addService(new MaybeFailOnceUploadService(blobsByHash));
 
-    uploader.uploadBlobs(context, chunkers);
+    uploadBlobs(uploader, context, chunkers);
 
     assertThat(uploader.getOpenedFilePermits().availablePermits()).isEqualTo(maximumOpenFiles);
   }
@@ -935,7 +940,7 @@ public class ByteStreamUploaderTest {
 
     serviceRegistry.addService(new MaybeFailOnceUploadService(blobsByHash));
 
-    uploader.uploadBlobs(context, chunkers);
+    uploadBlobs(uploader, context, chunkers);
     assertThat(uploader.getOpenedFilePermits()).isNull();
   }
 
@@ -1132,7 +1137,7 @@ public class ByteStreamUploaderTest {
               }
             }));
 
-    uploader.uploadBlob(context, digest, chunker);
+    uploadBlob(uploader, context, digest, chunker);
   }
 
   @Test
@@ -1163,7 +1168,7 @@ public class ByteStreamUploaderTest {
         });
 
     try {
-      uploader.uploadBlob(context, digest, chunker);
+      uploadBlob(uploader, context, digest, chunker);
       fail("Should have thrown an exception.");
     } catch (IOException e) {
       assertThat(RemoteRetrierUtils.causedByStatus(e, Code.INTERNAL)).isTrue();
@@ -1205,7 +1210,7 @@ public class ByteStreamUploaderTest {
     Chunker chunker = Chunker.builder().setInput(blob).setChunkSize(CHUNK_SIZE).build();
     Digest digest = DIGEST_UTIL.compute(blob);
     try {
-      uploader.uploadBlob(context, digest, chunker);
+      uploadBlob(uploader, context, digest, chunker);
       fail("Should have thrown an exception.");
     } catch (IOException e) {
       assertThat(e).hasCauseThat().isInstanceOf(RejectedExecutionException.class);
@@ -1253,7 +1258,7 @@ public class ByteStreamUploaderTest {
     Chunker chunker = Chunker.builder().setInput(blob).setChunkSize(CHUNK_SIZE).build();
     Digest digest = DIGEST_UTIL.compute(blob);
 
-    uploader.uploadBlob(context, digest, chunker);
+    uploadBlob(uploader, context, digest, chunker);
   }
 
   @Test
@@ -1297,7 +1302,7 @@ public class ByteStreamUploaderTest {
     Chunker chunker = Chunker.builder().setInput(blob).setChunkSize(CHUNK_SIZE).build();
     Digest digest = DIGEST_UTIL.compute(blob);
 
-    uploader.uploadBlob(context, digest, chunker);
+    uploadBlob(uploader, context, digest, chunker);
   }
 
   @Test
@@ -1332,7 +1337,7 @@ public class ByteStreamUploaderTest {
     Digest digest = DIGEST_UTIL.compute(blob);
 
     try {
-      uploader.uploadBlob(context, digest, chunker);
+      uploadBlob(uploader, context, digest, chunker);
       fail("Should have thrown an exception.");
     } catch (IOException e) {
       assertThat(numCalls.get()).isEqualTo(1);
@@ -1387,7 +1392,7 @@ public class ByteStreamUploaderTest {
           }
         });
 
-    assertThrows(IOException.class, () -> uploader.uploadBlob(context, digest, chunker));
+    assertThrows(IOException.class, () -> uploadBlob(uploader, context, digest, chunker));
 
     assertThat(refreshTimes.get()).isEqualTo(1);
     assertThat(numUploads.get()).isEqualTo(2);
@@ -1472,7 +1477,7 @@ public class ByteStreamUploaderTest {
           }
         });
 
-    uploader.uploadBlob(context, digest, chunker);
+    uploadBlob(uploader, context, digest, chunker);
 
     assertThat(refreshTimes.get()).isEqualTo(1);
     assertThat(numUploads.get()).isEqualTo(2);
@@ -1538,7 +1543,7 @@ public class ByteStreamUploaderTest {
     Chunker chunker = Chunker.builder().setInput(blob).setChunkSize(CHUNK_SIZE).build();
     Digest digest = DIGEST_UTIL.compute(blob);
 
-    uploader.uploadBlob(context, digest, chunker);
+    uploadBlob(uploader, context, digest, chunker);
 
     assertThat(numUploads.get()).isEqualTo(1);
   }
@@ -1628,12 +1633,59 @@ public class ByteStreamUploaderTest {
         Chunker.builder().setInput(blob).setCompressed(true).setChunkSize(CHUNK_SIZE).build();
     Digest digest = DIGEST_UTIL.compute(blob);
 
-    uploader.uploadBlob(context, digest, chunker);
+    uploadBlob(uploader, context, digest, chunker);
 
     // This test should not have triggered any retries.
     Mockito.verifyNoInteractions(mockBackoff);
 
     assertThat(numUploads.get()).isEqualTo(1);
+  }
+
+  /**
+   * Uploads a BLOB, as provided by the {@link Chunker}, to the remote {@code ByteStream} service.
+   * The call blocks until the upload is complete, or throws an {@link Exception} in case of error.
+   *
+   * <p>Uploads are retried according to the specified {@link RemoteRetrier}. Retrying is
+   * transparent to the user of this API.
+   *
+   * @param digest the digest of the data to upload.
+   * @param chunker the data to upload.
+   * @throws IOException when reading of the {@link Chunker}s input source fails
+   */
+  private static void uploadBlob(
+      ByteStreamUploader byteStreamUploader,
+      RemoteActionExecutionContext context,
+      Digest digest,
+      Chunker chunker)
+      throws IOException, InterruptedException {
+    getFromFuture(byteStreamUploader.uploadBlobAsync(context, digest, chunker));
+  }
+
+  /**
+   * Uploads a list of BLOBs concurrently to the remote {@code ByteStream} service. The call blocks
+   * until the upload of all BLOBs is complete, or throws an {@link
+   * com.google.devtools.build.lib.remote.common.BulkTransferException} if there are errors.
+   *
+   * <p>Uploads are retried according to the specified {@link RemoteRetrier}. Retrying is
+   * transparent to the user of this API.
+   *
+   * @param chunkers the data to upload.
+   * @throws IOException when reading of the {@link Chunker}s input source or uploading fails
+   */
+  private static void uploadBlobs(
+      ByteStreamUploader byteStreamUploader,
+      RemoteActionExecutionContext context,
+      Map<Digest, Chunker> chunkers)
+      throws IOException, InterruptedException {
+    List<ListenableFuture<Void>> uploads = new ArrayList<>();
+
+    for (Map.Entry<Digest, Chunker> chunkerEntry : chunkers.entrySet()) {
+      uploads.add(
+          byteStreamUploader.uploadBlobAsync(
+              context, chunkerEntry.getKey(), chunkerEntry.getValue()));
+    }
+
+    waitForBulkTransfer(uploads, /* cancelRemainingOnInterrupt= */ true);
   }
 
   private static class NoopStreamObserver implements StreamObserver<WriteRequest> {
@@ -1763,7 +1815,7 @@ public class ByteStreamUploaderTest {
   /* Custom Chunker used to track number of open files */
   private static class TestChunker extends Chunker {
 
-    TestChunker(ChunkDataSupplier dataSupplier, long size, int chunkSize, boolean compressed) {
+    TestChunker(Blob dataSupplier, long size, int chunkSize, boolean compressed) {
       super(dataSupplier, size, chunkSize, compressed);
     }
 
@@ -1782,7 +1834,8 @@ public class ByteStreamUploaderTest {
       public Chunker.Builder setInput(byte[] existingData) {
         checkState(this.inputStream == null);
         this.size = existingData.length;
-        return setInputSupplier(
+        return setInput(
+            existingData.length,
             () -> new TestByteArrayInputStream(existingData, customFileTracker));
       }
     }

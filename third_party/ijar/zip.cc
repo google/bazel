@@ -190,10 +190,10 @@ class InputZipFile : public ZipExtractor {
   u1* UncompressFile();
 
   // Skip a file
-  int SkipFile(const bool compressed);
+  int SkipFile(bool compressed);
 
   // Process a file
-  int ProcessFile(const bool compressed);
+  int ProcessFile(bool compressed);
 };
 
 //
@@ -217,7 +217,7 @@ class OutputZipFile : public ZipBuilder {
   }
 
   virtual ~OutputZipFile() { Finish(); }
-  virtual u1* NewFile(const char* filename, const u4 attr);
+  virtual u1 *NewFile(const char *filename, u4 attr);
   virtual int FinishFile(size_t filelength, bool compress = false,
                          bool compute_crc = false);
   virtual int WriteEmptyFile(const char *filename);
@@ -298,14 +298,12 @@ class OutputZipFile : public ZipBuilder {
   // known in advance, it must be recorded later. This method returns a pointer
   // to "compressed size" in the file header that should be passed to
   // WriteFileSizeInLocalFileHeader() later.
-  u1* WriteLocalFileHeader(const char *filename, const u4 attr);
+  u1 *WriteLocalFileHeader(const char *filename, u4 attr);
 
   // Fill in the "compressed size" and "uncompressed size" fields in a local
   // file header previously written by WriteLocalFileHeader().
-  size_t WriteFileSizeInLocalFileHeader(u1 *header_ptr,
-                                        size_t out_length,
-                                        bool compress = false,
-                                        const u4 crc = 0);
+  size_t WriteFileSizeInLocalFileHeader(u1 *header_ptr, size_t out_length,
+                                        bool compress = false, u4 crc = 0);
 };
 
 //

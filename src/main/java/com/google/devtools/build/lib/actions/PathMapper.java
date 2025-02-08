@@ -14,11 +14,10 @@
 
 package com.google.devtools.build.lib.actions;
 
-import com.github.benmanes.caffeine.cache.Caffeine;
-import com.github.benmanes.caffeine.cache.LoadingCache;
 import com.google.devtools.build.docgen.annot.DocCategory;
 import com.google.devtools.build.lib.actions.CommandLineItem.ExceptionlessMapFn;
 import com.google.devtools.build.lib.actions.CommandLineItem.MapFn;
+import com.google.devtools.build.lib.analysis.config.CoreOptions;
 import com.google.devtools.build.lib.starlarkbuildapi.FileRootApi;
 import com.google.devtools.build.lib.vfs.PathFragment;
 import com.google.errorprone.annotations.CheckReturnValue;
@@ -45,7 +44,7 @@ public interface PathMapper {
    * {@link #storeIn(StarlarkSemantics)}.
    */
   static PathMapper loadFrom(StarlarkSemantics semantics) {
-    return semantics.get(SEMANTICS_KEY);
+    return semantics.get(PathMapperConstants.SEMANTICS_KEY);
   }
 
   /**
@@ -65,10 +64,11 @@ public interface PathMapper {
   default StarlarkSemantics storeIn(StarlarkSemantics semantics) {
     // This in particular covers the case where the semantics do not have a path mapper yet and this
     // is NOOP.
-    if (semantics.get(SEMANTICS_KEY) == this) {
+    if (semantics.get(PathMapperConstants.SEMANTICS_KEY) == this) {
       return semantics;
     }
-    return new StarlarkSemantics(semantics.toBuilder().set(SEMANTICS_KEY, this).build()) {
+    return new StarlarkSemantics(
+        semantics.toBuilder().set(PathMapperConstants.SEMANTICS_KEY, this).build()) {
       // The path mapper doesn't affect which fields or methods are available on any given Starlark
       // object; it just affects the behavior of certain methods on Artifact. We thus preserve the
       // original semantics as a cache key. Otherwise, even if PathMapper#equals returned true for
@@ -80,6 +80,13 @@ public interface PathMapper {
         return semantics;
       }
     };
+  }
+
+  /** Returns the instance to use during action key computation. */
+  static PathMapper forActionKey(CoreOptions.OutputPathsMode effectiveOutputPathsMode) {
+    return effectiveOutputPathsMode == CoreOptions.OutputPathsMode.OFF
+        ? NOOP
+        : PathMapperConstants.FOR_FINGERPRINTING;
   }
 
   /**
@@ -142,7 +149,7 @@ public interface PathMapper {
     if (root.isSourceRoot()) {
       // Source roots' paths are never mapped, but we still need to wrap them in a
       // MappedArtifactRoot to ensure correct Starlark comparison behavior.
-      return mappedSourceRoots.get(root);
+      return PathMapperConstants.mappedSourceRoots.get(root);
     }
     // It would *not* be correct to just apply #map to the exec path of the root: The root part of
     // the mapped exec path of this artifact may depend on its complete exec path as well as on e.g.
@@ -191,15 +198,6 @@ public interface PathMapper {
           return artifact.getRoot();
         }
       };
-
-  StarlarkSemantics.Key<PathMapper> SEMANTICS_KEY =
-      new StarlarkSemantics.Key<>("path_mapper", PathMapper.NOOP);
-
-  // Not meant for use outside this interface.
-  LoadingCache<ArtifactRoot, MappedArtifactRoot> mappedSourceRoots =
-      Caffeine.newBuilder()
-          .weakKeys()
-          .build(sourceRoot -> new MappedArtifactRoot(sourceRoot.getExecPath()));
 
   /** A {@link FileRootApi} returned by {@link PathMapper#mapRoot(Artifact)}. */
   @StarlarkBuiltin(

@@ -24,13 +24,9 @@ import com.google.devtools.build.lib.cmdline.Label;
 import com.google.devtools.build.lib.concurrent.ThreadSafety.Immutable;
 import com.google.devtools.build.lib.events.Event;
 import com.google.devtools.build.lib.events.EventHandler;
-import com.google.devtools.build.lib.packages.BuiltinRestriction;
-import com.google.devtools.build.lib.rules.cpp.CcModule;
 import com.google.devtools.build.lib.starlarkbuildapi.apple.J2ObjcConfigurationApi;
 import java.util.Collections;
 import javax.annotation.Nullable;
-import net.starlark.java.eval.EvalException;
-import net.starlark.java.eval.StarlarkThread;
 
 /**
  * A J2ObjC transpiler configuration fragment containing J2ObjC translation flags. This
@@ -57,9 +53,6 @@ public class J2ObjcConfiguration extends Fragment implements J2ObjcConfiguration
   private static final ImmutableList<String> J2OBJC_DEFAULT_TRANSLATION_FLAGS =
       ImmutableList.of("-g:relative"); // Java source debugging with WORKSPACE-relative paths.
 
-  /** The j2objc flag to generate ARC-compatible code. */
-  private static final String J2OBJC_USE_ARC_FLAG = "-use-arc";
-
   /**
    * Disallowed flags for J2ObjC translation. See https://j2objc.org/reference/j2objc.html for flag
    * documentation.
@@ -71,10 +64,7 @@ public class J2ObjcConfiguration extends Fragment implements J2ObjcConfiguration
       "J2Objc translation flags: %s not supported. Unsupported flags are: %s";
 
   private final ImmutableList<String> translationFlags;
-  private final boolean removeDeadCode;
-  private final boolean experimentalJ2ObjcHeaderMap;
-  private final boolean experimentalShorterHeaderPath;
-  private final boolean j2objcLibraryMigration;
+
   @Nullable private final Label deadCodeReport;
 
   public J2ObjcConfiguration(BuildOptions buildOptions) {
@@ -85,11 +75,7 @@ public class J2ObjcConfiguration extends Fragment implements J2ObjcConfiguration
             .addAll(j2ObjcOptions.translationFlags)
             .addAll(J2OBJC_ALWAYS_ON_TRANSLATION_FLAGS)
             .build();
-    this.removeDeadCode = j2ObjcOptions.removeDeadCode;
-    this.experimentalJ2ObjcHeaderMap = j2ObjcOptions.experimentalJ2ObjcHeaderMap;
-    this.experimentalShorterHeaderPath = j2ObjcOptions.experimentalShorterHeaderPath;
     this.deadCodeReport = j2ObjcOptions.deadCodeReport;
-    this.j2objcLibraryMigration = j2ObjcOptions.j2objcLibraryMigration;
   }
 
   /**
@@ -119,66 +105,6 @@ public class J2ObjcConfiguration extends Fragment implements J2ObjcConfiguration
       defaultLabel = "")
   public Label deadCodeReport() {
     return deadCodeReport;
-  }
-
-  /**
-   * Returns whether to perform J2ObjC dead code removal. If true, the list of entry classes will be
-   * collected transitively throuh "entry_classes" attribute on j2objc_library and used as entry
-   * points to perform dead code analysis. Unused classes will then be removed from the final ObjC
-   * app bundle.
-   */
-  public boolean removeDeadCode() {
-    return removeDeadCode;
-  }
-
-  @Override
-  public boolean getRemoveDeadCodeForStarlark(StarlarkThread thread) throws EvalException {
-    BuiltinRestriction.failIfCalledOutsideDefaultAllowlist(thread);
-    return removeDeadCode;
-  }
-
-  /**
-   * Returns whether to generate J2ObjC header map in a separate action in parallel of the J2ObjC
-   * transpilation action.
-   */
-  public boolean experimentalJ2ObjcHeaderMap() {
-    return experimentalJ2ObjcHeaderMap;
-  }
-
-  @Override
-  public boolean getExperimentalJ2ObjcHeaderMapForStarlark(StarlarkThread thread)
-      throws EvalException {
-    BuiltinRestriction.failIfCalledOutsideDefaultAllowlist(thread);
-    return experimentalJ2ObjcHeaderMap;
-  }
-
-  /**
-   * Returns whether to use a shorter path for generated header files.
-   */
-  public boolean experimentalShorterHeaderPath() {
-    return experimentalShorterHeaderPath;
-  }
-
-  @Override
-  public boolean experimentalShorterHeaderPathforStarlark(StarlarkThread thread)
-      throws EvalException {
-    BuiltinRestriction.failIfCalledOutsideDefaultAllowlist(thread);
-    return experimentalShorterHeaderPath;
-  }
-
-  /** Returns whether objc_library should build generated files using ARC (-fobjc-arc). */
-  public boolean compileWithARC() {
-    return translationFlags.contains(J2OBJC_USE_ARC_FLAG);
-  }
-
-  public boolean j2objcLibraryMigration() {
-    return j2objcLibraryMigration;
-  }
-
-  @Override
-  public boolean j2objcLibraryMigrationForStarlark(StarlarkThread thread) throws EvalException {
-    CcModule.checkPrivateStarlarkificationAllowlist(thread);
-    return j2objcLibraryMigration();
   }
 
   @Override

@@ -477,7 +477,7 @@ function assert_contains() {
     local message=${3:-"Expected regexp '$pattern' not found in '$file'"}
     grep -sq -- "$pattern" "$file" && return 0
 
-    fail "$message" $(__copy_to_undeclared_outputs "$2")
+    fail "$message" $(__copy_to_undeclared_outputs "$file")
     return 1
 }
 
@@ -497,7 +497,7 @@ function assert_not_contains() {
       return 1
     fi
 
-    fail "$message" $(__copy_to_undeclared_outputs "$2")
+    fail "$message" $(__copy_to_undeclared_outputs "$file")
     return 1
 }
 
@@ -515,7 +515,7 @@ function assert_contains_n() {
     fi
     (( count == expectednum )) && return 0
 
-    fail "$message" $(__copy_to_undeclared_outputs "$2")
+    fail "$message" $(__copy_to_undeclared_outputs "$file")
     return 1
 }
 
@@ -556,7 +556,7 @@ function assert_empty_file() {
         return 0
     fi
 
-    fail "$message" $(__copy_to_undeclared_outputs "$1")
+    fail "$message" $(__copy_to_undeclared_outputs "$file")
     return 1
 }
 
@@ -571,7 +571,7 @@ function assert_nonempty_file() {
         return 0
     fi
 
-    fail "$message" $(__copy_to_undeclared_outputs "$1")
+    fail "$message" $(__copy_to_undeclared_outputs "$file")
     return 1
 }
 

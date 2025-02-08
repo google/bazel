@@ -112,8 +112,10 @@ public class ToolchainTest extends BuildViewTestCase {
             ConstraintValueInfo.create(
                 basicConstraintSetting, Label.parseCanonicalUnchecked("//constraint:bar")));
 
-    assertThat(provider.toolchainLabel())
+    assertThat(provider.resolvedToolchainLabel())
         .isEqualTo(Label.parseCanonicalUnchecked("//toolchain:toolchain_def1"));
+    assertThat(provider.targetLabel())
+        .isEqualTo(Label.parseCanonicalUnchecked("//toolchain:toolchain1"));
   }
 
   @Test
@@ -178,8 +180,10 @@ public class ToolchainTest extends BuildViewTestCase {
             provider.targetSettings().stream()
                 .anyMatch(x -> x.result() instanceof ConfigMatchingProvider.MatchResult.InError))
         .isFalse();
-    assertThat(provider.toolchainLabel())
+    assertThat(provider.resolvedToolchainLabel())
         .isEqualTo(Label.parseCanonicalUnchecked("//toolchain:toolchain_def1"));
+    assertThat(provider.targetLabel())
+        .isEqualTo(Label.parseCanonicalUnchecked("//toolchain:toolchain1"));
   }
 
   @Test
@@ -238,8 +242,10 @@ public class ToolchainTest extends BuildViewTestCase {
             provider.targetSettings().stream()
                 .anyMatch(x -> x.result().equals(ConfigMatchingProvider.MatchResult.MATCH)))
         .isFalse();
-    assertThat(provider.toolchainLabel())
+    assertThat(provider.resolvedToolchainLabel())
         .isEqualTo(Label.parseCanonicalUnchecked("//toolchain:toolchain_def1"));
+    assertThat(provider.targetLabel())
+        .isEqualTo(Label.parseCanonicalUnchecked("//toolchain:toolchain1"));
   }
 
   @Test

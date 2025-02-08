@@ -186,9 +186,11 @@ public final class StarlarkAttrModule implements StarlarkAttrModuleApi {
 
   /** The object available as the {@code ctx} argument of materializers. */
   private static class StarlarkMaterializerContext implements StarlarkValue {
+    private final Label label;
     private final StructImpl attrs;
 
-    private StarlarkMaterializerContext(Map<String, Object> attributeMap) {
+    private StarlarkMaterializerContext(Label label, Map<String, Object> attributeMap) {
+      this.label = label;
       attrs =
           StructProvider.STRUCT.create(
               attributeMap,
@@ -202,6 +204,14 @@ public final class StarlarkAttrModule implements StarlarkAttrModuleApi {
         doc = "A struct to access the attributes of the rule in a materializer function.")
     public StructApi getAttr() {
       return attrs;
+    }
+
+    @StarlarkMethod(
+        name = "label",
+        structField = true,
+        doc = "The label of the rule whose attribute the materializer is computing.")
+    public Label getLabel() {
+      return label;
     }
   }
 
@@ -245,7 +255,7 @@ public final class StarlarkAttrModule implements StarlarkAttrModuleApi {
         result.put(attribute.getPublicName(), starlarkValue);
       }
 
-      return new StarlarkMaterializerContext(ImmutableMap.copyOf(result));
+      return new StarlarkMaterializerContext(rule.getLabel(), ImmutableMap.copyOf(result));
     }
 
     @Override
@@ -290,7 +300,7 @@ public final class StarlarkAttrModule implements StarlarkAttrModuleApi {
         thread.setPrintHandler(Event.makeDebugPrintHandler(eventHandler));
 
         new MaterializationContext().storeInThread(thread);
-        return Starlark.fastcall(thread, implementation, new Object[] {ctx}, new Object[0]);
+        return Starlark.positionalOnlyCall(thread, implementation, ctx);
       }
     }
   }

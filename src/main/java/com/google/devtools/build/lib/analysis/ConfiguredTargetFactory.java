@@ -106,24 +106,22 @@ public final class ConfiguredTargetFactory {
   }
 
   /**
-   * Returns the visibility of the given target. Errors during package group resolution are reported
-   * to the {@code AnalysisEnvironment}.
+   * Returns the visibility of the given target, as represented by {@link
+   * VisibilityProvider#getVisibility}.
+   *
+   * <p>This is constructed by starting with the value obtained from either {@link
+   * Target#getVisibility} or {@link Target#getActualVisibility}, and recursively expanding package
+   * groups. Errors during package group resolution are reported to the {@code AnalysisEnvironment}.
    */
   private static NestedSet<PackageGroupContents> convertVisibility(
       OrderedSetMultimap<DependencyKind, ConfiguredTargetAndData> prerequisiteMap,
       EventHandler reporter,
       Target target) {
-    // Targets declared inside symbolic macros already have a RuleVisibility that includes the
-    // target's declaration location. Targets that are *not* declared inside symbolic macros do not
-    // necessarily have their declaration location (i.e. the package they live in) in their
-    // RuleVisibility, but CommonPrerequisiteValidator takes that into account. See also javadoc of
-    // Rule#getRuleVisibility.
-    //
-    // TODO: #19922 - Ideally we'd just put the location into the visibility attribute even for
-    // targets not declared in symbolic macros. But this has a wide user-facing blast radius since
-    // it changes all existing targets' visibilities (when inspected via existing_rules(),
-    // `bazel query`, etc.).
-    RuleVisibility ruleVisibility = target.getVisibility();
+    // Optimization: don't use actual visibility if not in a symbolic macro. See javadoc on
+    // VisibilityProvider#getVisibility. Since the actual visibility only ever adds a ...:__pkg__
+    // item, not a package group, it doesn't need to be handled here.
+    RuleVisibility ruleVisibility =
+        target.isCreatedInSymbolicMacro() ? target.getActualVisibility() : target.getVisibility();
     if (ruleVisibility.equals(RuleVisibility.PUBLIC)) {
       return VisibilityProvider.PUBLIC_VISIBILITY;
     }

@@ -59,9 +59,7 @@ import org.junit.Before;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * Testing framework for tests which create configuration collections.
- */
+/** Testing framework for tests which create configuration collections. */
 @RunWith(JUnit4.class)
 public abstract class ConfigurationTestCase extends FoundationTestCase {
 
@@ -107,7 +105,6 @@ public abstract class ConfigurationTestCase extends FoundationTestCase {
     mockToolsConfig = new MockToolsConfig(rootDirectory);
     analysisMock.setupMockToolsRepository(mockToolsConfig);
     analysisMock.setupMockClient(mockToolsConfig);
-    analysisMock.setupMockWorkspaceFiles(directories.getEmbeddedBinariesRoot());
 
     PackageFactory pkgFactory =
         analysisMock
@@ -135,6 +132,11 @@ public abstract class ConfigurationTestCase extends FoundationTestCase {
             .add(
                 PrecomputedValue.injected(
                     PrecomputedValue.BASELINE_CONFIGURATION, defaultBuildOptions))
+            .add(
+                PrecomputedValue.injected(
+                    // Reuse the build options as the baseline exec. This is technically wrong but
+                    // will only impact the exec configuration output path.
+                    PrecomputedValue.BASELINE_EXEC_CONFIGURATION, defaultBuildOptions))
             .addAll(analysisMock.getPrecomputedValues())
             .build());
     PackageOptions packageOptions = Options.getDefaults(PackageOptions.class);
@@ -156,7 +158,6 @@ public abstract class ConfigurationTestCase extends FoundationTestCase {
 
     mockToolsConfig = new MockToolsConfig(rootDirectory);
     analysisMock.setupMockClient(mockToolsConfig);
-    analysisMock.setupMockWorkspaceFiles(directories.getEmbeddedBinariesRoot());
     fragmentFactory = new FragmentFactory();
   }
 
@@ -189,7 +190,7 @@ public abstract class ConfigurationTestCase extends FoundationTestCase {
     BuildOptions targetOptions = parseBuildOptions(starlarkOptions, args);
 
     skyframeExecutor.handleDiffsForTesting(reporter);
-    skyframeExecutor.setBaselineConfiguration(targetOptions);
+    skyframeExecutor.setBaselineConfiguration(targetOptions, reporter);
     return skyframeExecutor.createConfiguration(reporter, targetOptions, false);
   }
 

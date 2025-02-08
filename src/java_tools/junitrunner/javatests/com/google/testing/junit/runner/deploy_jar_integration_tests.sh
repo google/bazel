@@ -24,6 +24,18 @@
 
 [ -z "$TEST_SRCDIR" ] && { echo "TEST_SRCDIR not set!" >&2; exit 1; }
 
+# --- begin runfiles.bash initialization v3 ---
+# Copy-pasted from the Bazel Bash runfiles library v3.
+set -uo pipefail; set +e; f=bazel_tools/tools/bash/runfiles/runfiles.bash
+source "${RUNFILES_DIR:-/dev/null}/$f" 2>/dev/null || \
+# shellcheck disable=SC1090
+  source "$(grep -sm1 "^$f " "${RUNFILES_MANIFEST_FILE:-/dev/null}" | cut -f2- -d' ')" 2>/dev/null || \
+  source "$0.runfiles/$f" 2>/dev/null || \
+  source "$(grep -sm1 "^$f " "$0.runfiles_manifest" | cut -f2- -d' ')" 2>/dev/null || \
+  source "$(grep -sm1 "^$f " "$0.exe.runfiles_manifest" | cut -f2- -d' ')" 2>/dev/null || \
+  { echo>&2 "ERROR: cannot find $f"; exit 1; }; f=; set -e
+# --- end runfiles.bash initialization v3 ---
+
 # Load the unit-testing framework
 source "$1" || \
   { echo "Failed to load unit-testing framework $1" >&2; exit 1; }
@@ -31,7 +43,14 @@ source "$1" || \
 set +o errexit
 
 unset TEST_PREMATURE_EXIT_FILE
-JAVA_HOME="$2"
+JAVABASE="$2"
+if [[ "$TEST_WORKSPACE" == "_main" ]]; then
+  # For Bazel
+  RUNFILES_JAVABASE=${JAVABASE#external/}
+else
+  # For Blaze
+  RUNFILES_JAVABASE=${TEST_WORKSPACE}/${JAVABASE}
+fi
 TESTBED_JAR="${PWD}/$3"
 
 shift 3
@@ -41,7 +60,7 @@ shift 3
 # Test that we see a warning about missing the test suite Java system property
 function test_Warning() {
   test_pid=""
-  ${JAVA_HOME}/bin/java -jar $TESTBED_JAR >& $TEST_log && test_pid=$!
+  $(rlocation $RUNFILES_JAVABASE/bin/java) -jar $TESTBED_JAR >& $TEST_log && test_pid=$!
 
   expect_log "The test suite Java system property .* is required but missing"
 

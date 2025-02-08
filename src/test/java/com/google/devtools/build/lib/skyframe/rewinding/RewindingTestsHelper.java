@@ -1556,8 +1556,6 @@ public class RewindingTestsHelper {
             "Linking tree/libconsumes_tree.so",
             "Linking tree/libconsumes_tree.a");
 
-    // Rules like cc_library depend on middleman inputs which are part of the toolchain, but none
-    // are involved in rewinding.
     recorder.assertEvents(
         /* runOnce= */ ImmutableList.of(
             "Compiling tree/make_cc_dir.cc/file2.cc",
@@ -1666,8 +1664,6 @@ public class RewindingTestsHelper {
             "Linking tree/libconsumes_tree.so",
             "Linking tree/libconsumes_tree.a");
 
-    // Rules like cc_library depend on middleman inputs which are part of the toolchain, but none
-    // are involved in rewinding.
     recorder.assertEvents(
         /* runOnce= */ ImmutableList.of(
             "Action tree/make_cc_dir.cc", "Linking tree/libconsumes_tree.a"),
@@ -1691,7 +1687,7 @@ public class RewindingTestsHelper {
 
   public final void runGeneratedRunfilesRewound_allFilesLost_spawnFailed() throws Exception {
     // This test demonstrates that rewinding works when an action fails due to lost inputs which are
-    // generated files in the action's runfiles. Rewinding must propagate across the middleman
+    // generated files in the action's runfiles. Rewinding must propagate across the runfiles tree
     // artifacts and actions associated with the runfiles.
 
     ImmutableList<String> lostRunfiles = ImmutableList.of("gen1.dat", "gen2.dat");

@@ -13,6 +13,7 @@
 // limitations under the License.
 package com.google.devtools.build.lib.runtime;
 
+import static com.google.common.base.StandardSystemProperty.JAVA_IO_TMPDIR;
 import static com.google.common.truth.Truth.assertThat;
 import static org.junit.Assert.assertThrows;
 import static org.mockito.Mockito.mock;
@@ -20,10 +21,11 @@ import static org.mockito.Mockito.mock;
 import com.google.devtools.build.lib.buildeventstream.BuildEventArtifactUploader;
 import com.google.devtools.build.lib.buildtool.util.BuildIntegrationTestCase;
 import com.google.devtools.build.lib.events.Event;
+import com.google.devtools.build.lib.events.EventHandler;
 import com.google.devtools.build.lib.events.EventKind;
 import com.google.devtools.build.lib.events.ExtendedEventHandler;
-import com.google.devtools.build.lib.vfs.DigestHashFunction;
-import com.google.devtools.build.lib.vfs.inmemoryfs.InMemoryFileSystem;
+import com.google.devtools.build.lib.runtime.InstrumentationOutputFactory.DestinationRelativeTo;
+import com.google.devtools.build.lib.vfs.PathFragment;
 import com.google.errorprone.annotations.CanIgnoreReturnValue;
 import com.google.testing.junit.testparameterinjector.TestParameter;
 import com.google.testing.junit.testparameterinjector.TestParameterInjector;
@@ -60,16 +62,25 @@ public final class InstrumentationOutputFactoryTest extends BuildIntegrationTest
         factoryBuilder::build);
   }
 
-  @Test
-  public void testInstrumentationOutputFactory_successfullyCreateLocalOutputWithConvenientLink()
-      throws Exception {
+  private static InstrumentationOutputFactory createInstrumentationOutputFactory(
+      boolean setLocalTempLoggingDir) {
     InstrumentationOutputFactory.Builder factoryBuilder =
         new InstrumentationOutputFactory.Builder();
     factoryBuilder.setLocalInstrumentationOutputBuilderSupplier(
         LocalInstrumentationOutput.Builder::new);
     factoryBuilder.setBuildEventArtifactInstrumentationOutputBuilderSupplier(
         BuildEventArtifactInstrumentationOutput.Builder::new);
-    InstrumentationOutputFactory outputFactory = factoryBuilder.build();
+    if (setLocalTempLoggingDir) {
+      factoryBuilder.setLocalTempLoggingDirPathStr("/tmp");
+    }
+    return factoryBuilder.build();
+  }
+
+  @Test
+  public void testInstrumentationOutputFactory_successfullyCreateLocalOutputWithConvenientLink()
+      throws Exception {
+    InstrumentationOutputFactory outputFactory =
+        createInstrumentationOutputFactory(/* setLocalTempLoggingDir= */ false);
 
     CommandEnvironment env = runtimeWrapper.newCommand();
     InstrumentationOutput output =
@@ -81,6 +92,100 @@ public final class InstrumentationOutputFactoryTest extends BuildIntegrationTest
 
     ((LocalInstrumentationOutput) output).makeConvenienceLink();
     assertThat(env.getWorkspace().getRelative("link-to-output").isSymbolicLink()).isTrue();
+  }
+
+  @Test
+  public void testInstrumentationOutputFactory_localRelativeToOutputBase() throws Exception {
+    InstrumentationOutputFactory outputFactory =
+        createInstrumentationOutputFactory(/* setLocalTempLoggingDir= */ false);
+
+    CommandEnvironment env = runtimeWrapper.newCommand();
+    InstrumentationOutput output =
+        outputFactory.createInstrumentationOutput(
+            /* name= */ "output-baseoutput",
+            PathFragment.create("output-baseoutput"),
+            DestinationRelativeTo.OUTPUT_BASE,
+            env,
+            mock(EventHandler.class),
+            /* append= */ null,
+            /* internal= */ null);
+
+    assertThat(output).isInstanceOf(LocalInstrumentationOutput.class);
+    assertThat(output.getPathString())
+        .isEqualTo(env.getOutputBase().getRelative("output-baseoutput").getPathString());
+  }
+
+  @Test
+  public void testInstrumentationOutputFactory_localAbsolutePath() throws Exception {
+    InstrumentationOutputFactory outputFactory =
+        createInstrumentationOutputFactory(/* setLocalTempLoggingDir= */ false);
+
+    CommandEnvironment env = runtimeWrapper.newCommand();
+    InstrumentationOutput output =
+        outputFactory.createInstrumentationOutput(
+            /* name= */ "output-absolute",
+            PathFragment.create("/tmp/absolute-path-output"),
+            DestinationRelativeTo.WORKSPACE_OR_HOME,
+            env,
+            mock(EventHandler.class),
+            /* append= */ null,
+            /* internal= */ null);
+
+    assertThat(output).isInstanceOf(LocalInstrumentationOutput.class);
+    assertThat(output.getPathString())
+        .isEqualTo(
+            env.getRuntime().getFileSystem().getPath("/tmp/absolute-path-output").getPathString());
+  }
+
+  @Test
+  public void testInstrumentationOutputFactory_localRelativePath(
+      @TestParameter({"WORKSPACE_OR_HOME", "WORKING_DIRECTORY_OR_HOME"})
+          DestinationRelativeTo relativeTo)
+      throws Exception {
+    InstrumentationOutputFactory outputFactory =
+        createInstrumentationOutputFactory(/* setLocalTempLoggingDir= */ false);
+
+    CommandEnvironment env = runtimeWrapper.newCommand();
+    InstrumentationOutput output =
+        outputFactory.createInstrumentationOutput(
+            /* name= */ "output-relative",
+            PathFragment.create("relative-output"),
+            relativeTo,
+            env,
+            mock(EventHandler.class),
+            /* append= */ null,
+            /* internal= */ null);
+
+    assertThat(output).isInstanceOf(LocalInstrumentationOutput.class);
+    assertThat(output.getPathString())
+        .isEqualTo(
+            (relativeTo.equals(DestinationRelativeTo.WORKSPACE_OR_HOME)
+                    ? env.getWorkspace()
+                    : env.getWorkingDirectory())
+                .getRelative("relative-output")
+                .getPathString());
+  }
+
+  @Test
+  public void testInstrumentationOutputFactory_localRelativeToTempLogging(
+      @TestParameter boolean setLocalTempLoggingDir) throws Exception {
+    InstrumentationOutputFactory outputFactory =
+        createInstrumentationOutputFactory(setLocalTempLoggingDir);
+
+    CommandEnvironment env = runtimeWrapper.newCommand();
+    InstrumentationOutput output =
+        outputFactory.createInstrumentationOutput(
+            /* name= */ "output-relative",
+            PathFragment.create("relative-output"),
+            DestinationRelativeTo.TEMP_LOGGING_DIRECTORY,
+            env,
+            mock(EventHandler.class),
+            /* append= */ null,
+            /* internal= */ null);
+
+    assertThat(output).isInstanceOf(LocalInstrumentationOutput.class);
+    String expectedOutputBaseDir = setLocalTempLoggingDir ? "/tmp" : JAVA_IO_TMPDIR.value();
+    assertThat(output.getPathString()).isEqualTo(expectedOutputBaseDir + "/relative-output");
   }
 
   @Test
@@ -111,6 +216,12 @@ public final class InstrumentationOutputFactoryTest extends BuildIntegrationTest
             }
 
             @Override
+            @CanIgnoreReturnValue
+            public InstrumentationOutputBuilder setCreateParent(boolean createParent) {
+              return this;
+            }
+
+            @Override
             public InstrumentationOutput build() {
               return fakeRedirectInstrumentationOutput;
             }
@@ -136,7 +247,8 @@ public final class InstrumentationOutputFactoryTest extends BuildIntegrationTest
     var instrumentationOutput =
         outputFactory.createInstrumentationOutput(
             /* name= */ "local",
-            new InMemoryFileSystem(DigestHashFunction.SHA256).getPath("/file"),
+            /* destination= */ PathFragment.create("/file"),
+            DestinationRelativeTo.WORKSPACE_OR_HOME,
             env,
             eventHandler,
             /* append= */ null,

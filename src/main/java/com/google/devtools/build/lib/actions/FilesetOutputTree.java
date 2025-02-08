@@ -111,9 +111,9 @@ public final class FilesetOutputTree {
       for (FilesetOutputSymlink symlink : symlinks) {
         if (!isRelativeSymlink(symlink)) {
           visitor.acceptSymlink(
-              symlink.getName(),
-              symlink.getTargetPath(),
-              symlink.getMetadata() instanceof FileArtifactValue metadata ? metadata : null);
+              symlink.name(),
+              symlink.targetPath(),
+              symlink.metadata() instanceof FileArtifactValue metadata ? metadata : null);
         }
       }
       return;
@@ -127,14 +127,14 @@ public final class FilesetOutputTree {
     Map<String, FileArtifactValue> artifactValues = new HashMap<>();
 
     for (FilesetOutputSymlink outputSymlink : symlinks) {
-      PathFragment name = outputSymlink.getName();
-      String targetPath = outputSymlink.getTargetPath().getPathString();
+      PathFragment name = outputSymlink.name();
+      String targetPath = outputSymlink.targetPath().getPathString();
       var map = isRelativeSymlink(outputSymlink) ? relativeLinks : resolvedLinks;
 
       // Symlinks are already deduplicated by name in SkyframeFilesetManifestAction.
       checkState(map.put(name, targetPath) == null, "Duplicate fileset entry at %s", name);
 
-      if (outputSymlink.getMetadata() instanceof FileArtifactValue metadata) {
+      if (outputSymlink.metadata() instanceof FileArtifactValue metadata) {
         artifactValues.put(targetPath, metadata);
       }
     }
@@ -218,7 +218,7 @@ public final class FilesetOutputTree {
   }
 
   private static boolean isRelativeSymlink(FilesetOutputSymlink symlink) {
-    return !symlink.getTargetPath().isAbsolute() && !symlink.isRelativeToExecRoot();
+    return !symlink.targetPath().isAbsolute() && !symlink.relativeToExecRoot();
   }
 
   /** Fully resolves relative symlinks, including internal directory symlinks. */
@@ -320,7 +320,7 @@ public final class FilesetOutputTree {
     private ForbiddenRelativeSymlinkException(FilesetOutputSymlink relativeLink) {
       super(
           "Fileset symlink %s -> %s is not absolute"
-              .formatted(relativeLink.getName(), relativeLink.getTargetPath()));
+              .formatted(relativeLink.name(), relativeLink.targetPath()));
     }
   }
 }

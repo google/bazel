@@ -24,12 +24,14 @@ import com.google.devtools.build.lib.vfs.DigestHashFunction;
 import com.google.devtools.build.lib.vfs.FileSystem;
 import com.google.devtools.build.lib.vfs.Path;
 import com.google.devtools.build.lib.vfs.inmemoryfs.InMemoryFileSystem;
+import com.google.testing.junit.testparameterinjector.TestParameter;
+import com.google.testing.junit.testparameterinjector.TestParameterInjector;
+import java.io.IOException;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
-import org.junit.runners.JUnit4;
 
-@RunWith(JUnit4.class)
+@RunWith(TestParameterInjector.class)
 public final class LocalInstrumentationOutputTest {
   private LocalInstrumentationOutput.Builder localInstrumentationOutputBuilder;
 
@@ -77,5 +79,27 @@ public final class LocalInstrumentationOutputTest {
         .containsExactly(
             new LogFileEntry(
                 "local", new LocalFile(path, LocalFileType.LOG, /* artifactMetadata= */ null)));
+  }
+
+  @Test
+  public void testLocalInstrumentation_recursiveCreateParentDirectory(
+      @TestParameter boolean enableRecursiveCreateDirectory) throws IOException {
+    FileSystem fs = new InMemoryFileSystem(DigestHashFunction.SHA256);
+    Path path = fs.getPath("/subdir1/subdir2/file");
+    assertThat(path.exists()).isFalse();
+
+    localInstrumentationOutputBuilder.setName("recursive-dir-output").setPath(path);
+    if (enableRecursiveCreateDirectory) {
+      InstrumentationOutput localInstrumentationOutput =
+          localInstrumentationOutputBuilder.setCreateParent(/* createParent= */ true).build();
+      var unused = localInstrumentationOutput.createOutputStream();
+      assertThat(path.exists()).isTrue();
+    } else {
+      InstrumentationOutput localInstrumentationOutput = localInstrumentationOutputBuilder.build();
+      assertThrows(
+          "No such file or directory",
+          IOException.class,
+          localInstrumentationOutput::createOutputStream);
+    }
   }
 }

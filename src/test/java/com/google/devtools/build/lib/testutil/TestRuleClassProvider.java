@@ -38,6 +38,7 @@ import com.google.devtools.build.lib.analysis.TemplateVariableInfo;
 import com.google.devtools.build.lib.analysis.TransitiveInfoProvider;
 import com.google.devtools.build.lib.analysis.config.CoreOptions;
 import com.google.devtools.build.lib.analysis.config.ToolchainTypeRequirement;
+import com.google.devtools.build.lib.bazel.repository.starlark.StarlarkRepositoryModule;
 import com.google.devtools.build.lib.cmdline.Label;
 import com.google.devtools.build.lib.cmdline.PackageIdentifier;
 import com.google.devtools.build.lib.cmdline.RepositoryName;
@@ -50,6 +51,7 @@ import com.google.devtools.build.lib.packages.Types;
 import com.google.devtools.build.lib.rules.config.ConfigRules;
 import com.google.devtools.build.lib.rules.core.CoreRules;
 import com.google.devtools.build.lib.rules.platform.PlatformRules;
+import com.google.devtools.build.lib.starlarkbuildapi.repository.RepositoryBootstrap;
 import com.google.devtools.build.lib.util.FileTypeSet;
 import java.lang.reflect.Method;
 import java.util.Map;
@@ -60,7 +62,6 @@ import net.starlark.java.syntax.Location;
 public class TestRuleClassProvider {
 
   private static ConfiguredRuleClassProvider ruleClassProvider = null;
-  private static ConfiguredRuleClassProvider ruleClassProviderWithClearedSuffix = null;
 
   private TestRuleClassProvider() {}
 
@@ -71,40 +72,31 @@ public class TestRuleClassProvider {
       Method setupMethod =
           providerClass.getMethod("setup", ConfiguredRuleClassProvider.Builder.class);
       setupMethod.invoke(null, builder);
+
+      // Add the repository module for any unit tests that test local_repository behavior
+      builder.addStarlarkBootstrap(new RepositoryBootstrap(new StarlarkRepositoryModule()));
     } catch (Exception e) {
       throw new IllegalStateException(e);
     }
   }
 
-  private static ConfiguredRuleClassProvider createRuleClassProvider(boolean clearSuffix) {
+  private static ConfiguredRuleClassProvider createRuleClassProvider() {
     ConfiguredRuleClassProvider.Builder builder = new ConfiguredRuleClassProvider.Builder();
     addStandardRules(builder);
     // TODO(b/174773026): Eliminate TestingDummyRule/MockToolchainRule from this class, push them
     // down into the tests that use them. It's better for tests to avoid spooky mocks at a distance.
-    // The same might also be said for the cleared-workspace variant of getRuleClassProvider(). If
-    // we eliminate both, TestRuleClassProvider probably doesn't need to exist anymore.
+    // If we eliminate it, TestRuleClassProvider probably doesn't need to exist anymore.
     builder.addRuleDefinition(new TestingDummyRule());
     builder.addRuleDefinition(new MockToolchainRule());
-    if (clearSuffix) {
-      builder.clearWorkspaceFileSuffixForTesting().clearWorkspaceFilePrefixForTesting();
-    }
     return builder.build();
   }
 
   /** Returns a rule class provider. */
   public static ConfiguredRuleClassProvider getRuleClassProvider() {
     if (ruleClassProvider == null) {
-      ruleClassProvider = createRuleClassProvider(false);
+      ruleClassProvider = createRuleClassProvider();
     }
     return ruleClassProvider;
-  }
-
-  /** Returns a rule class provider with the workspace suffix cleared. */
-  public static ConfiguredRuleClassProvider getRuleClassProviderWithClearedSuffix() {
-    if (ruleClassProviderWithClearedSuffix == null) {
-      ruleClassProviderWithClearedSuffix = createRuleClassProvider(true);
-    }
-    return ruleClassProviderWithClearedSuffix;
   }
 
   // TODO(bazel-team): The logic for the "minimal" rule class provider is currently split between

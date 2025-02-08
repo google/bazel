@@ -949,8 +949,6 @@ See <a href="${link cc_binary.linkshared}"><code>cc_binary.linkshared</code></a>
         "licenses": attr.license() if hasattr(attr, "license") else attr.string_list(),
         "_stl": semantics.get_stl(),
         "_def_parser": semantics.get_def_parser(),
-        # TODO(b/288421584): necessary because IDE aspect can't see toolchains
-        "_cc_toolchain": attr.label(default = "@" + semantics.get_repo() + "//tools/cpp:current_cc_toolchain"),
         "_use_auto_exec_groups": attr.bool(default = True),
     } | semantics.get_distribs_attr() | semantics.get_implementation_deps_allowed_attr() | semantics.get_nocopts_attr(),
     toolchains = cc_helper.use_cpp_toolchain() +

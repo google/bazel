@@ -26,7 +26,6 @@ import com.google.devtools.build.docgen.annot.DocCategory;
 import com.google.devtools.build.lib.bazel.bzlmod.ModuleExtensionUsage.Proxy;
 import com.google.devtools.build.lib.cmdline.RepositoryName;
 import com.google.devtools.build.lib.events.Event;
-import com.google.devtools.build.lib.events.EventHandler;
 import com.google.devtools.build.lib.vfs.PathFragment;
 import com.ryanharter.auto.value.gson.GenerateTypeAdapter;
 import java.util.ArrayList;
@@ -171,8 +170,7 @@ public abstract class ModuleExtensionMetadata implements StarlarkValue {
   }
 
   public Optional<RootModuleFileFixup> generateFixup(
-      ModuleExtensionUsage rootUsage, Set<String> allRepos, EventHandler eventHandler)
-      throws EvalException {
+      ModuleExtensionUsage rootUsage, Set<String> allRepos) throws EvalException {
     var rootModuleDirectDevDeps = getRootModuleDirectDevDeps(allRepos);
     var rootModuleDirectDeps = getRootModuleDirectDeps(allRepos);
     if (rootModuleDirectDevDeps.isEmpty() && rootModuleDirectDeps.isEmpty()) {
@@ -193,19 +191,14 @@ public abstract class ModuleExtensionMetadata implements StarlarkValue {
     }
 
     return generateFixup(
-        rootUsage,
-        allRepos,
-        rootModuleDirectDeps.get(),
-        rootModuleDirectDevDeps.get(),
-        eventHandler);
+        rootUsage, allRepos, rootModuleDirectDeps.get(), rootModuleDirectDevDeps.get());
   }
 
   private static Optional<RootModuleFileFixup> generateFixup(
       ModuleExtensionUsage rootUsage,
       Set<String> allRepos,
       Set<String> expectedImports,
-      Set<String> expectedDevImports,
-      EventHandler eventHandler) {
+      Set<String> expectedDevImports) {
     var actualDevImports =
         rootUsage.getProxies().stream()
             .filter(p -> p.isDevDependency())
@@ -329,8 +322,11 @@ public abstract class ModuleExtensionMetadata implements StarlarkValue {
       }
     }
 
-    eventHandler.handle(Event.warn(rootUsage.getProxies().getFirst().getLocation(), message));
-    return Optional.of(new RootModuleFileFixup(moduleFilePathToCommandsBuilder.build(), rootUsage));
+    return Optional.of(
+        new RootModuleFileFixup(
+            moduleFilePathToCommandsBuilder.build(),
+            rootUsage,
+            Event.warn(rootUsage.getProxies().getFirst().getLocation(), message)));
   }
 
   private static String makeUseRepoCommand(String cmd, String proxyName, Collection<String> repos) {

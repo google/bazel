@@ -190,7 +190,8 @@ public class StarlarkBuiltinsFunction implements SkyFunction {
       return null;
     }
 
-    if (autoloadSymbols.isEnabled()) {
+    if (autoloadSymbols.isEnabled()
+        && starlarkSemantics.getBool(BuildLanguageOptions.ENABLE_BZLMOD)) {
       // We can't do autoloads where the rules are implemented (disabling them when running in
       // main repository named rules_python)
       ModuleFileValue mainModule =

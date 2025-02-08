@@ -14,7 +14,8 @@
 
 package com.google.devtools.build.lib.rules.java;
 
-import com.google.auto.value.AutoValue;
+import static java.util.Objects.requireNonNull;
+
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import com.google.devtools.build.lib.actions.Artifact;
@@ -27,6 +28,7 @@ import com.google.devtools.build.lib.collect.nestedset.Order;
 import com.google.devtools.build.lib.concurrent.ThreadSafety.Immutable;
 import com.google.devtools.build.lib.packages.StructImpl;
 import com.google.devtools.build.lib.rules.java.JavaInfo.JavaInfoInternalProvider;
+import com.google.devtools.build.lib.skyframe.serialization.autocodec.AutoCodec;
 import com.google.devtools.build.lib.skyframe.serialization.autocodec.SerializationConstant;
 import com.google.errorprone.annotations.CanIgnoreReturnValue;
 import java.util.Collection;
@@ -34,10 +36,23 @@ import net.starlark.java.eval.EvalException;
 import net.starlark.java.eval.Sequence;
 import net.starlark.java.eval.StarlarkList;
 
-/** The collection of source jars from the transitive closure. */
-@AutoValue
+/**
+ * The collection of source jars from the transitive closure.
+ *
+ * @param transitiveSourceJars Returns all the source jars in the transitive closure, that can be
+ *     reached by a chain of JavaSourceJarsProvider instances.
+ * @param sourceJars Return the source jars that are to be built when the target is on the command
+ *     line.
+ */
 @Immutable
-public abstract class JavaSourceJarsProvider implements JavaInfoInternalProvider {
+@AutoCodec
+public record JavaSourceJarsProvider(
+    NestedSet<Artifact> transitiveSourceJars, ImmutableList<Artifact> sourceJars)
+    implements JavaInfoInternalProvider {
+  public JavaSourceJarsProvider {
+    requireNonNull(transitiveSourceJars, "transitiveSourceJars");
+    requireNonNull(sourceJars, "sourceJars");
+  }
 
   @SerializationConstant
   public static final JavaSourceJarsProvider EMPTY =
@@ -45,18 +60,8 @@ public abstract class JavaSourceJarsProvider implements JavaInfoInternalProvider
 
   public static JavaSourceJarsProvider create(
       NestedSet<Artifact> transitiveSourceJars, Iterable<Artifact> sourceJars) {
-    return new AutoValue_JavaSourceJarsProvider(
-        transitiveSourceJars, ImmutableList.copyOf(sourceJars));
+    return new JavaSourceJarsProvider(transitiveSourceJars, ImmutableList.copyOf(sourceJars));
   }
-
-  /**
-   * Returns all the source jars in the transitive closure, that can be reached by a chain of
-   * JavaSourceJarsProvider instances.
-   */
-  public abstract NestedSet<Artifact> getTransitiveSourceJars();
-
-  /** Return the source jars that are to be built when the target is on the command line. */
-  public abstract ImmutableList<Artifact> getSourceJars();
 
   /** Returns a builder for a {@link JavaSourceJarsProvider}. */
   public static Builder builder() {

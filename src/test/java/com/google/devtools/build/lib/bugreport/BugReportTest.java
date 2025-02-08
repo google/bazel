@@ -43,22 +43,20 @@ import com.google.devtools.build.lib.util.DetailedExitCode;
 import com.google.devtools.build.lib.util.ExitCode;
 import com.google.devtools.build.lib.util.LoggingUtil;
 import com.google.protobuf.ExtensionRegistry;
-import com.google.testing.junit.runner.util.GoogleTestSecurityManager;
 import com.google.testing.junit.testparameterinjector.TestParameter;
 import com.google.testing.junit.testparameterinjector.TestParameterInjector;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.security.Permission;
 import java.util.Arrays;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.logging.Level;
 import java.util.logging.LogRecord;
 import java.util.logging.Logger;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import org.junit.After;
-import org.junit.AfterClass;
 import org.junit.Before;
-import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.function.ThrowingRunnable;
@@ -69,9 +67,8 @@ import org.mockito.ArgumentCaptor;
 /**
  * Tests for {@link BugReport}.
  *
- * <p>Assuming that {@link GoogleTestSecurityManager} is not already installed, uses {@link
- * ExitProhibitingSecurityManager} to exercise attempting to halt the JVM without aborting the whole
- * test.
+ * <p>Uses {@link ExitProhibitingSecurityManager} to exercise attempting to halt the JVM without
+ * aborting the whole test.
  */
 // TODO(b/222158599): Remove handling for GoogleTestSecurityManager.
 @RunWith(TestParameterInjector.class)
@@ -82,26 +79,10 @@ public final class BugReportTest {
 
   @TestParameter private boolean oomDetectorOverride;
 
-  @BeforeClass
-  public static void installCustomSecurityManager() {
-    if (System.getSecurityManager() == null) {
-      System.setSecurityManager(new ExitProhibitingSecurityManager());
-    } else {
-      assertThat(System.getSecurityManager()).isInstanceOf(GoogleTestSecurityManager.class);
-    }
-  }
-
   @Before
   public void maybeSetOomDetector() {
     if (oomDetectorOverride) {
       CrashFailureDetails.setOomDetector(() -> true);
-    }
-  }
-
-  @AfterClass
-  public static void uninstallCustomSecurityManager() {
-    if (System.getSecurityManager() instanceof ExitProhibitingSecurityManager) {
-      System.setSecurityManager(null);
     }
   }
 
@@ -229,12 +210,12 @@ public final class BugReportTest {
     Throwable t = crashType.createThrowable();
     FailureDetail expectedFailureDetail =
         createExpectedFailureDetail(t, crashType, oomDetectorOverride);
-    // TODO(b/222158599): This should always be ExitException.
-    SecurityException e = assertThrows(SecurityException.class, () -> BugReport.handleCrash(t));
-    if (e instanceof ExitException exitException) {
-      int code = exitException.code;
-      assertThat(code).isEqualTo(crashType.expectedExitCode.getNumericExitCode());
-    }
+    SecurityException exitException =
+        assertThrows(
+            SecurityException.class,
+            () -> BugReport.handleCrash(Crash.from(t), CrashContext.halt()));
+    int code = haltCode(exitException);
+    assertThat(code).isEqualTo(expectedExitCode(crashType).getNumericExitCode());
     assertThat(BugReport.getAndResetLastCrashingThrowableIfInTest()).isSameInstanceAs(t);
 
     verify(mockRuntime)
@@ -255,17 +236,14 @@ public final class BugReportTest {
     FailureDetail expectedFailureDetail =
         createExpectedFailureDetail(t, crashType, oomDetectorOverride);
 
-    // TODO(b/222158599): This should always be ExitException.
-    SecurityException e =
+    SecurityException exitException =
         assertThrows(
             SecurityException.class,
             () -> BugReport.handleCrash(Crash.from(t), CrashContext.halt()));
-    if (e instanceof ExitException exitException) {
-      int code = exitException.code;
-      assertThat(code).isEqualTo(crashType.expectedExitCode.getNumericExitCode());
-    }
+    int code = haltCode(exitException);
+    ExitCode expectedExitCode = expectedExitCode(crashType);
+    assertThat(code).isEqualTo(expectedExitCode.getNumericExitCode());
     assertThat(BugReport.getAndResetLastCrashingThrowableIfInTest()).isSameInstanceAs(t);
-
     verify(mockRuntime)
         .cleanUpForCrash(
             DetailedExitCode.of(
@@ -338,18 +316,15 @@ public final class BugReportTest {
     cleanupMayFinishLatch.countDown();
     firstCrashThread.joinAndAssertState(TestUtils.WAIT_TIMEOUT_MILLISECONDS);
 
-    // TODO(b/222158599): These should always be ExitException.
     SecurityException firstException = firstCrashThrownRef.get();
-    if (firstException instanceof ExitException exitException) {
-      int code = exitException.code;
-      assertThat(code).isEqualTo(ExitCode.BLAZE_INTERNAL_ERROR.getNumericExitCode());
-    }
+    int firstCode = haltCode(firstException);
+    ExitCode expectedExitCode =
+        oomDetectorOverride ? EXIT_CODE_BLAZE_OOMING : ExitCode.BLAZE_INTERNAL_ERROR;
+    assertThat(firstCode).isEqualTo(expectedExitCode.getNumericExitCode());
 
     SecurityException secondException = assertThrows(SecurityException.class, doSecondCrash);
-    if (secondException instanceof ExitException exitException) {
-      int code = exitException.code;
-      assertThat(code).isEqualTo(crashType.expectedExitCode.getNumericExitCode());
-    }
+    int secondCode = haltCode(secondException);
+    assertThat(secondCode).isEqualTo(expectedExitCode(crashType).getNumericExitCode());
   }
 
   @Test
@@ -441,24 +416,18 @@ public final class BugReportTest {
         .build();
   }
 
-  private static final class ExitException extends SecurityException {
-    private final int code;
-
-    ExitException(int code) {
-      super("Tried to exit JVM with code " + code);
-      this.code = code;
-    }
+  private ExitCode expectedExitCode(CrashType crashType) {
+    return oomDetectorOverride ? EXIT_CODE_BLAZE_OOMING : crashType.expectedExitCode;
   }
 
-  /** Instead of exiting the JVM, throws {@link ExitException} to keep the test alive. */
-  private static final class ExitProhibitingSecurityManager extends SecurityManager {
+  private static final Pattern SECURITY_EXCEPTION_MESSAGE_PATTERN =
+      Pattern.compile("Intercepted call to Runtime\\.halt with status (\\d+)");
 
-    @Override
-    public void checkExit(int code) {
-      throw new ExitException(code);
-    }
-
-    @Override
-    public void checkPermission(Permission p) {} // Allow everything else.
+  private static int haltCode(SecurityException exitException) {
+    String message = exitException.getMessage();
+    assertThat(message).matches(SECURITY_EXCEPTION_MESSAGE_PATTERN);
+    Matcher matcher = SECURITY_EXCEPTION_MESSAGE_PATTERN.matcher(message);
+    assertThat(matcher.matches()).isTrue();
+    return Integer.parseInt(matcher.group(1));
   }
 }

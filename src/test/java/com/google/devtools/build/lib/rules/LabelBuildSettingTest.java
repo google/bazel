@@ -425,7 +425,7 @@ public class LabelBuildSettingTest extends BuildViewTestCase {
   public void transitionOutput_otherRepo() throws Exception {
     scratch.overwriteFile("MODULE.bazel", "bazel_dep(name='foo',version='1.0')");
     registry.addModule(createModuleKey("foo", "1.0"), "module(name='foo', version='1.0')");
-    scratch.file("modules/foo+1.0/WORKSPACE");
+    scratch.file("modules/foo+1.0/REPO.bazel");
     scratch.file("modules/foo+1.0/BUILD", "filegroup(name='other_rule')");
 
     scratch.overwriteFile(

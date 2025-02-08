@@ -55,6 +55,7 @@ java_library(
         "//src/main/java/com/google/devtools/build/lib/worker:worker_pool",
         "//src/main/java/com/google/devtools/build/lib/worker:worker_spawn_runner",
         "//src/test/java/com/google/devtools/build/lib/actions/util",
+        "//third_party:error_prone_annotations",
         "//third_party:guava",
     ],
 )
@@ -134,15 +135,13 @@ java_library(
         "//src/test/java/com/google/devtools/build/lib/testutil:TestThread",
         "//src/test/java/com/google/devtools/build/lib/testutil:TestUtils",
         "//src/test/java/com/google/devtools/build/lib/vfs/util",
-        "//third_party:apache_commons_pool2",
         "//third_party:guava",
-        "//third_party:guava-testlib",
         "//third_party:jsr305",
         "//third_party:junit4",
         "//third_party:mockito",
         "//third_party:truth",
+        "@com_google_protobuf//:protobuf_java",
         "@maven//:com_google_testparameterinjector_test_parameter_injector",
-        "@protobuf//:protobuf_java",
     ],
 )
 

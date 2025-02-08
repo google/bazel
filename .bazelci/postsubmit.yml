@@ -40,8 +40,6 @@ tasks:
       - "-//src/test/shell/bazel:bazel_coverage_cc_released_test_gcc"
       - "-//src/test/shell/bazel:bazel_coverage_cc_head_test_gcc"
       - "-//src/test/shell/bazel:bazel_coverage_sh_test"
-      # Disable some Android tests since we are moving Android rules out of the Bazel repo.
-      - "-//src/test/shell/bazel:bazel_android_tools_test"
     include_json_profile:
       - build
       - test
@@ -84,8 +82,6 @@ tasks:
       - "//tools/aquery_differ/..."
       - "//tools/python/..."
       - "//tools/bash/..."
-      # Disable some Android tests since we are moving Android rules out of the Bazel repo.
-      - "-//src/test/shell/bazel:bazel_android_tools_test"
     include_json_profile:
       - build
       - test
@@ -138,8 +134,6 @@ tasks:
       - "//tools/aquery_differ/..."
       - "//tools/python/..."
       - "//tools/bash/..."
-      # Disable some Android tests since we are moving Android rules out of the Bazel repo.
-      - "-//src/test/shell/bazel:bazel_android_tools_test"
     include_json_profile:
       - build
       - test
@@ -200,7 +194,10 @@ tasks:
       - "//src:test_repos"
     test_flags:
       - "--config=ci-macos"
-      - "--noremote_accept_cached"
+      # Fine tune the number of test jobs running in parallel to avoid timeout
+      - "--local_test_jobs=2"
+      # Increase the test timeout by 20% to avoid flaky test failures due to timeout
+      - "--test_timeout=72,360,1080,4320"
     test_targets:
       - "//scripts/..."
       - "//src/main/starlark/tests/builtins_bzl/..."
@@ -215,8 +212,6 @@ tasks:
       - "//tools/bash/..."
       # https://github.com/bazelbuild/bazel/issues/17410
       - "-//src/test/java/com/google/devtools/build/lib/platform:SystemMemoryPressureEventTest"
-      # Disable android tests since we are moving Android rules out of Bazel repo.
-      - "-//src/test/shell/bazel:bazel_android_tools_test"
     include_json_profile:
       - build
       - test
@@ -251,7 +246,6 @@ tasks:
       - "//tools/aquery_differ/..."
       - "//tools/bash/..."
       - "//tools/build_defs/..."
-      - "//tools/cpp/runfiles/..."
       - "//tools/java/..."
       - "//tools/jdk/..."
       - "//tools/python/..."
@@ -334,22 +328,10 @@ tasks:
       - "-//src/test/py/bazel:mod_command_test"
       - "-//src/test/shell/bazel:starlark_repository_test"
       - "-//src/test/shell/bazel:verify_workspace"
-      # Disable some Android tests since we are moving Android rules out of the Bazel repo.
-      - "-//src/test/shell/bazel:bazel_android_tools_test"
     include_json_profile:
       - build
       - test
-  kythe_ubuntu2204:
-    shell_commands:
-    # Replace @com_google_protobuf with @protobuf because Bazel has renamed @com_google_protobuf to @protobuf. See b/371908235.
-    # TODO(chiwang): Remove this once kythe is updated to use @protobuf.
-    - sed -i -e 's/@com_google_protobuf/@protobuf/' /usr/local/kythe/BUILD
-    # Disable custom proto_toolchain_for_cc from kythe because it doesn't work with protobuf 29. See b/371908235.
-    # TODO(chiwang): Remove this once kythe resolves the issue.
-    - sed -i -e 's/build --proto_toolchain_for_cc=@kythe_release\/\/:cc_native_proto_toolchain//' /usr/local/kythe/extractors.bazelrc
-    # Remove _nowkt suffix because it's only available in newer protobuf releases. See b/329055020.
-    # TODO(chiwang): Remove this once we have upgraded to protobuf 25+.
-    - sed -i -e 's/protobuf_nowkt/protobuf/' /usr/local/kythe/BUILD
+  kythe_ubuntu2404:
     index_flags:
     - "--define=kythe_corpus=github.com/bazelbuild/bazel"
     index_targets_query: "kind(\"cc_(binary|library|test|proto_library) rule\", ...) union kind(\"java_(binary|import|library|plugin|test|proto_library) rule\", ...) union kind(\"proto_library rule\", ...)"

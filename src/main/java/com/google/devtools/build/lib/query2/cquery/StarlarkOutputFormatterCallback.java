@@ -121,8 +121,6 @@ public class StarlarkOutputFormatterCallback extends CqueryThreadsafeCallback {
     }
   }
 
-  private static final Object[] NO_ARGS = new Object[0];
-
   // Starlark function with single required parameter "target", a CqueryNode query result.
   private final StarlarkFunction formatFn;
   private final StarlarkSemantics starlarkSemantics;
@@ -230,7 +228,7 @@ public class StarlarkOutputFormatterCallback extends CqueryThreadsafeCallback {
         thread.setMaxExecutionSteps(500_000L);
 
         // Invoke formatFn with `target` argument.
-        Object result = Starlark.fastcall(thread, this.formatFn, new Object[] {target}, NO_ARGS);
+        Object result = Starlark.positionalOnlyCall(thread, this.formatFn, target);
 
         addResult(Starlark.str(result, thread.getSemantics()));
       } catch (EvalException ex) {

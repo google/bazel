@@ -127,21 +127,14 @@ public class OutputDirectories {
     this.execRoot = directories.getExecRoot(workspaceName);
   }
 
-  private ArtifactRoot buildDerivedRoot(
-      String nameFragment, RepositoryName repository, boolean isMiddleman) {
-    // e.g., execroot/mainRepoName/bazel-out/[repoName/]config/bin
-    // TODO(jungjw): Ideally, we would like to do execroot_base/repoName/bazel-out/config/bin
-    // instead. However, it requires individually symlinking the top-level elements of external
-    // repositories, which is blocked by a Windows symlink issue #8704.
-    RootType rootType;
-    if (repository.isMain()) {
-      rootType = isMiddleman ? RootType.SiblingMainMiddleman : RootType.SiblingMainOutput;
-    } else {
-      rootType = isMiddleman ? RootType.SiblingExternalMiddleman : RootType.SiblingExternalOutput;
-    }
+  private ArtifactRoot buildDerivedRoot(String nameFragment, RepositoryName repository) {
     return ArtifactRoot.asDerivedRoot(
         execRoot,
-        rootType,
+        // e.g., execroot/mainRepoName/bazel-out/[repoName/]config/bin
+        // TODO(jungjw): Ideally, we would like to do execroot_base/repoName/bazel-out/config/bin
+        // instead. However, it requires individually symlinking the top-level elements of external
+        // repositories, which is blocked by a Windows symlink issue #8704.
+        repository.isMain() ? RootType.SiblingMainOutput : RootType.SiblingExternalOutput,
         directories.getRelativeOutputPath(),
         repository.getName(),
         mnemonic,
@@ -150,12 +143,12 @@ public class OutputDirectories {
 
   /** Returns the output directory for this build configuration. */
   ArtifactRoot getOutputDirectory(RepositoryName repositoryName) {
-    return siblingRepositoryLayout ? buildDerivedRoot("", repositoryName, false) : outputDirectory;
+    return siblingRepositoryLayout ? buildDerivedRoot("", repositoryName) : outputDirectory;
   }
 
   /** Returns the bin directory for this build configuration. */
   ArtifactRoot getBinDirectory(RepositoryName repositoryName) {
-    return siblingRepositoryLayout ? buildDerivedRoot("bin", repositoryName, false) : binDirectory;
+    return siblingRepositoryLayout ? buildDerivedRoot("bin", repositoryName) : binDirectory;
   }
 
   /** Returns the genfiles directory for this build configuration. */
@@ -163,7 +156,7 @@ public class OutputDirectories {
     return mergeGenfilesDirectory
         ? getBinDirectory(repositoryName)
         : siblingRepositoryLayout
-            ? buildDerivedRoot("genfiles", repositoryName, false)
+            ? buildDerivedRoot("genfiles", repositoryName)
             : genfilesDirectory;
   }
 
@@ -174,14 +167,14 @@ public class OutputDirectories {
    */
   ArtifactRoot getCoverageMetadataDirectory(RepositoryName repositoryName) {
     return siblingRepositoryLayout
-        ? buildDerivedRoot("coverage-metadata", repositoryName, false)
+        ? buildDerivedRoot("coverage-metadata", repositoryName)
         : coverageDirectory;
   }
 
   /** Returns the testlogs directory for this build configuration. */
   ArtifactRoot getTestLogsDirectory(RepositoryName repositoryName) {
     return siblingRepositoryLayout
-        ? buildDerivedRoot("testlogs", repositoryName, false)
+        ? buildDerivedRoot("testlogs", repositoryName)
         : testlogsDirectory;
   }
 

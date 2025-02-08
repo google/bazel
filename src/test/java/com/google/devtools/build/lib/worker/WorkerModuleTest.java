@@ -82,7 +82,7 @@ public class WorkerModuleTest {
     assertThat(module.workerPool).isNotNull();
 
     WorkerKey workerKey = WorkerTestUtils.createWorkerKey(JSON, fs);
-    Worker worker = module.workerPool.borrowObject(workerKey);
+    Worker worker = module.workerPool.borrowWorker(workerKey);
 
     assertThat(worker.workerKey).isEqualTo(workerKey);
     assertThat(fs.getPath("/outputRoot/outputBase/bazel-workers").exists()).isTrue();
@@ -260,7 +260,7 @@ public class WorkerModuleTest {
 
     // But an actual worker cannot be created.
     WorkerKey key = WorkerTestUtils.createWorkerKey(fs, "Work", /* proxied= */ false);
-    assertThrows(IOException.class, () -> module.workerPool.borrowObject(key));
+    assertThrows(IOException.class, () -> module.workerPool.borrowWorker(key));
   }
 
   @Test

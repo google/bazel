@@ -1560,9 +1560,8 @@ void HasAttrs::ReadAttrs(const u1 *&p) {
                attr_name == "RuntimeInvisibleParameterAnnotations") {
       attributes.push_back(
           ParameterAnnotationsAttribute::Read(p, attribute_name));
-    } else if (attr_name == "Scala" ||
-               attr_name == "ScalaSig" ||
-               attr_name == "ScalaInlineInfo" ||
+    } else if (attr_name == "Scala" || attr_name == "ScalaSig" ||
+               attr_name == "ScalaInlineInfo" || attr_name == "TASTY" ||
                attr_name == "TurbineTransitiveJar") {
       // These are opaque blobs, so can be handled with a general
       // attribute handler

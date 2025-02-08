@@ -13,7 +13,8 @@
 // limitations under the License.
 package com.google.devtools.build.lib.skyframe;
 
-import com.google.auto.value.AutoValue;
+import static java.util.Objects.requireNonNull;
+
 import com.google.devtools.build.lib.actions.Action;
 import com.google.devtools.build.lib.actions.ActionContext.ActionContextRegistry;
 import com.google.devtools.build.lib.actions.Artifact;
@@ -24,16 +25,18 @@ import com.google.devtools.build.lib.events.ExtendedEventHandler;
  * An event that is fired when all inputs of an action are collected but before the these inputs are
  * requested to skyframe.
  */
-@AutoValue
-public abstract class ActionInputCollectedEvent implements ExtendedEventHandler.Postable {
-  public static ActionInputCollectedEvent create(
-      Action action, NestedSet<Artifact> inputs, ActionContextRegistry actionContextRegistry) {
-    return new AutoValue_ActionInputCollectedEvent(action, inputs, actionContextRegistry);
+public record ActionInputCollectedEvent(
+    Action action, NestedSet<Artifact> inputs, ActionContextRegistry actionContextRegistry)
+    implements ExtendedEventHandler.Postable {
+  public ActionInputCollectedEvent {
+    requireNonNull(action, "action");
+    requireNonNull(inputs, "inputs");
+    requireNonNull(actionContextRegistry, "actionContextRegistry");
   }
 
-  public abstract Action action();
+  public static ActionInputCollectedEvent create(
+      Action action, NestedSet<Artifact> inputs, ActionContextRegistry actionContextRegistry) {
+    return new ActionInputCollectedEvent(action, inputs, actionContextRegistry);
+  }
 
-  public abstract NestedSet<Artifact> inputs();
-
-  public abstract ActionContextRegistry actionContextRegistry();
 }

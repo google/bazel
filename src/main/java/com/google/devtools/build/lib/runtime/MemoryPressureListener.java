@@ -141,6 +141,12 @@ final class MemoryPressureListener implements NotificationListener {
   private void broadcast(MemoryPressureEvent event) {
     GcThrashingDetector gcThrashingDetector = this.gcThrashingDetector.get();
     if (gcThrashingDetector != null) {
+      // Invoke the GcThrashingDetector directly instead of through the EventBus. This is because
+      // the point of GcThrashingDetector is to [conditionally] crash Blaze, but if we crash in a
+      // EventBus subscriber that means that CrashEvent and CommandCompleteEvent posted by
+      // BugReporter#handleCrash never get handled because EventBus defers recursive posts until
+      // after the posting subscriber has returned, but GcThrashingDetector halts the JVM and never
+      // returns.
       gcThrashingDetector.handle(event);
     }
 

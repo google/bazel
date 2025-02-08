@@ -21,7 +21,6 @@ import com.google.common.collect.ImmutableMap;
 import com.google.devtools.build.lib.analysis.BaseRuleClasses;
 import com.google.devtools.build.lib.analysis.RuleDefinition;
 import com.google.devtools.build.lib.analysis.RuleDefinitionEnvironment;
-import com.google.devtools.build.lib.analysis.config.transitions.NoConfigTransition;
 import com.google.devtools.build.lib.analysis.platform.ConstraintValueInfo;
 import com.google.devtools.build.lib.analysis.platform.PlatformInfo;
 import com.google.devtools.build.lib.packages.BuildType;
@@ -47,7 +46,6 @@ public class PlatformRule implements RuleDefinition {
     <!-- #END_BLAZE_RULE.NAME --> */
     return builder
         .advertiseStarlarkProvider(PlatformInfo.PROVIDER.id())
-        .cfg(NoConfigTransition.getFactory())
         .exemptFromConstraintChecking("this rule helps *define* a constraint")
         .toolchainResolutionMode(ToolchainResolutionMode.DISABLED)
         .removeAttribute(":action_listener")

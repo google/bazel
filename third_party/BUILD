@@ -1,7 +1,7 @@
 load("@rules_java//java:defs.bzl", "java_import", "java_library", "java_plugin")
 load("@rules_license//rules:license.bzl", "license")
+load("//src/tools/bzlmod:utils.bzl", "get_repo_root")
 load("//tools/distributions:distribution_rules.bzl", "distrib_jar_filegroup", "distrib_java_import")
-load(":compiler_config_setting.bzl", "create_compiler_config_setting")
 
 package(default_visibility = ["//visibility:public"])
 
@@ -57,11 +57,6 @@ alias(
 alias(
     name = "apache_commons_compress",
     actual = "@maven//:org_apache_commons_commons_compress",
-)
-
-alias(
-    name = "apache_commons_pool2",
-    actual = "@maven//:org_apache_commons_commons_pool2",
 )
 
 alias(
@@ -274,6 +269,28 @@ distrib_jar_filegroup(
         "@maven//:com_google_auto_value_auto_value_file",
     ],
     enable_distributions = ["debian"],
+)
+
+java_import(
+    name = "async_profiler",
+    jars = ["@async_profiler//file"],
+    runtime_deps = [":async_profiler_native"],
+)
+
+java_library(
+    name = "async_profiler_native",
+    resource_strip_prefix = select({
+        "//src/conditions:darwin": get_repo_root("async_profiler_macos"),
+        "//src/conditions:linux_arm": get_repo_root("async_profiler_linux_arm64"),
+        "//src/conditions:linux_x86_64": get_repo_root("async_profiler_linux_x64"),
+        "//conditions:default": None,
+    }),
+    resources = select({
+        "//src/conditions:darwin": ["@async_profiler_macos//:libasyncProfiler"],
+        "//src/conditions:linux_arm": ["@async_profiler_linux_arm64//:libasyncProfiler"],
+        "//src/conditions:linux_x86_64": ["@async_profiler_linux_x64//:libasyncProfiler"],
+        "//conditions:default": [],
+    }),
 )
 
 alias(
@@ -654,72 +671,4 @@ filegroup(
         "@maven//:junit_junit_file",
         "@maven//:org_hamcrest_hamcrest_core_file",
     ],
-)
-
-create_compiler_config_setting(
-    name = "windows_mingw",
-    value = "windows_mingw",
-)
-
-create_compiler_config_setting(
-    name = "windows_msys64",
-    value = "windows_msys64",
-)
-
-create_compiler_config_setting(
-    name = "windows_msys64_mingw64",
-    value = "windows_msys64_mingw64",
-)
-
-create_compiler_config_setting(
-    name = "windows_clang",
-    value = "windows_clang",
-)
-
-config_setting(
-    name = "k8",
-    values = {"host_cpu": "k8"},
-)
-
-config_setting(
-    name = "piii",
-    values = {"host_cpu": "piii"},
-)
-
-config_setting(
-    name = "arm",
-    values = {"host_cpu": "arm"},
-)
-
-config_setting(
-    name = "aarch64",
-    values = {"host_cpu": "aarch64"},
-)
-
-config_setting(
-    name = "freebsd",
-    values = {"host_cpu": "freebsd"},
-)
-
-config_setting(
-    name = "openbsd",
-    values = {"host_cpu": "openbsd"},
-)
-
-config_setting(
-    name = "s390x",
-    values = {"host_cpu": "s390x"},
-)
-
-config_setting(
-    name = "ppc",
-    values = {"host_cpu": "ppc"},
-)
-
-test_suite(
-    name = "all_windows_tests",
-    tests = [
-        "//third_party/def_parser:windows_tests",
-    ],
-    visibility = ["//src:__pkg__"],
 )

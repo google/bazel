@@ -37,16 +37,15 @@ TODO(gregce): link to proper documentation for full details.
 from typing import Callable
 from typing import Tuple
 
-# Do not edit this line. Copybara replaces it with PY2 migration helper.
 from absl import app
 from absl import flags
 from dataclasses import dataclass
 
-# Do not edit this line. Copybara replaces it with PY2 migration helper..third_party.bazel.tools.ctexplain.analyses.summary as summary
+import tools.ctexplain.analyses.summary as summary
 from tools.ctexplain.bazel_api import BazelApi
-# Do not edit this line. Copybara replaces it with PY2 migration helper..third_party.bazel.tools.ctexplain.lib as lib
+import tools.ctexplain.lib as lib
 from tools.ctexplain.types import ConfiguredTarget
-# Do not edit this line. Copybara replaces it with PY2 migration helper..third_party.bazel.tools.ctexplain.util as util
+import tools.ctexplain.util as util
 
 FLAGS = flags.FLAGS
 

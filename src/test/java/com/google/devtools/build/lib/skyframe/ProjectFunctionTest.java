@@ -23,8 +23,6 @@ import com.google.devtools.build.lib.collect.PathFragmentPrefixTrie;
 import com.google.devtools.build.lib.skyframe.util.SkyframeExecutorTestUtils;
 import com.google.devtools.build.lib.vfs.PathFragment;
 import com.google.devtools.build.skyframe.EvaluationResult;
-import java.util.Collection;
-import net.starlark.java.eval.StarlarkInt;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -40,7 +38,7 @@ public class ProjectFunctionTest extends BuildViewTestCase {
 
   @Test
   public void projectFunction_emptyFile_isValid() throws Exception {
-    scratch.file("test/PROJECT.scl", "");
+    scratch.file("test/PROJECT.scl", "project = {}");
     scratch.file("test/BUILD");
     ProjectValue.Key key = new ProjectValue.Key(Label.parseCanonical("//test:PROJECT.scl"));
 
@@ -55,7 +53,12 @@ public class ProjectFunctionTest extends BuildViewTestCase {
   @Test
   public void projectFunction_returnsActiveDirectories() throws Exception {
     scratch.file(
-        "test/PROJECT.scl", "active_directories = {'default': ['foo'], 'a': ['bar', '-bar/baz']}");
+        "test/PROJECT.scl",
+        """
+        project = {
+          "active_directories": {'default': ['foo'], 'a': ['bar', '-bar/baz']},
+        }
+        """);
     scratch.file("test/BUILD");
     ProjectValue.Key key = new ProjectValue.Key(Label.parseCanonical("//test:PROJECT.scl"));
 
@@ -76,7 +79,37 @@ public class ProjectFunctionTest extends BuildViewTestCase {
 
   @Test
   public void projectFunction_returnsDefaultActiveDirectories() throws Exception {
-    scratch.file("test/PROJECT.scl", "active_directories = { 'default': ['a', 'b/c'] }");
+    scratch.file(
+        "test/PROJECT.scl",
+        """
+        project = {
+          "active_directories": { 'default': ['a', 'b/c'] },
+        }
+        """);
+    scratch.file("test/BUILD");
+    ProjectValue.Key key = new ProjectValue.Key(Label.parseCanonical("//test:PROJECT.scl"));
+
+    EvaluationResult<ProjectValue> result =
+        SkyframeExecutorTestUtils.evaluate(skyframeExecutor, key, false, reporter);
+    assertThat(result.hasError()).isFalse();
+
+    ProjectValue value = result.get(key);
+    PathFragmentPrefixTrie trie = PathFragmentPrefixTrie.of(value.getDefaultActiveDirectory());
+    assertThat(trie.includes(PathFragment.create("a"))).isTrue();
+    assertThat(trie.includes(PathFragment.create("b/c"))).isTrue();
+    assertThat(trie.includes(PathFragment.create("d"))).isFalse();
+  }
+
+  @Test
+  public void projectFunction_returnsDefaultActiveDirectories_topLevelProjectSchema()
+      throws Exception {
+    scratch.file(
+        "test/PROJECT.scl",
+        """
+        project = {
+          "active_directories": { "default": ["a", "b/c"] }
+        }
+        """);
     scratch.file("test/BUILD");
     ProjectValue.Key key = new ProjectValue.Key(Label.parseCanonical("//test:PROJECT.scl"));
 
@@ -93,7 +126,13 @@ public class ProjectFunctionTest extends BuildViewTestCase {
 
   @Test
   public void projectFunction_nonEmptyActiveDirectoriesMustHaveADefault() throws Exception {
-    scratch.file("test/PROJECT.scl", "active_directories = { 'foo': ['a', 'b/c'] }");
+    scratch.file(
+        "test/PROJECT.scl",
+        """
+        project = {
+          "active_directories": { 'foo': ['a', 'b/c'] },
+        }
+        """);
     scratch.file("test/BUILD");
     ProjectValue.Key key = new ProjectValue.Key(Label.parseCanonical("//test:PROJECT.scl"));
 
@@ -107,7 +146,13 @@ public class ProjectFunctionTest extends BuildViewTestCase {
 
   @Test
   public void projectFunction_incorrectType() throws Exception {
-    scratch.file("test/PROJECT.scl", "active_directories = 42");
+    scratch.file(
+        "test/PROJECT.scl",
+        """
+        project = {
+          "active_directories": 42,
+        }
+        """);
     scratch.file("test/BUILD");
     ProjectValue.Key key = new ProjectValue.Key(Label.parseCanonical("//test:PROJECT.scl"));
 
@@ -121,7 +166,13 @@ public class ProjectFunctionTest extends BuildViewTestCase {
 
   @Test
   public void projectFunction_incorrectType_inList() throws Exception {
-    scratch.file("test/PROJECT.scl", "active_directories = { 'default': [42] }");
+    scratch.file(
+        "test/PROJECT.scl",
+        """
+        project = {
+          "active_directories": { 'default': [42] },
+        }
+        """);
     scratch.file("test/BUILD");
     ProjectValue.Key key = new ProjectValue.Key(Label.parseCanonical("//test:PROJECT.scl"));
 
@@ -134,31 +185,41 @@ public class ProjectFunctionTest extends BuildViewTestCase {
   }
 
   @Test
-  public void projectFunction_parsesResidualGlobals() throws Exception {
+  public void projectFunction_incorrectProjectType() throws Exception {
     scratch.file(
         "test/PROJECT.scl",
         """
-        active_directories = { "default": ["a", "b/c"] }
-        foo = [0, 1]
-        bar = 'str'
+        project = 1
         """);
+
     scratch.file("test/BUILD");
     ProjectValue.Key key = new ProjectValue.Key(Label.parseCanonical("//test:PROJECT.scl"));
 
     EvaluationResult<ProjectValue> result =
         SkyframeExecutorTestUtils.evaluate(skyframeExecutor, key, false, reporter);
-    assertThat(result.hasError()).isFalse();
+    assertThat(result.hasError()).isTrue();
+    assertThat(result.getError().getException())
+        .hasMessageThat()
+        .matches("project variable: expected a map of string to objects, got .+Int32");
+  }
 
-    ProjectValue value = result.get(key);
-    assertThat(value.getResidualGlobal("active_directories")).isNull();
-    assertThat(value.getResidualGlobal("nonexistent_global")).isNull();
+  @Test
+  public void projectFunction_incorrectProjectKeyType() throws Exception {
+    scratch.file(
+        "test/PROJECT.scl",
+        """
+        project = {1: [] }
+        """);
 
-    @SuppressWarnings("unchecked")
-    Collection<StarlarkInt> fooValue = (Collection<StarlarkInt>) value.getResidualGlobal("foo");
-    assertThat(fooValue).containsExactly(StarlarkInt.of(0), StarlarkInt.of(1));
+    scratch.file("test/BUILD");
+    ProjectValue.Key key = new ProjectValue.Key(Label.parseCanonical("//test:PROJECT.scl"));
 
-    String barValue = (String) value.getResidualGlobal("bar");
-    assertThat(barValue).isEqualTo("str");
+    EvaluationResult<ProjectValue> result =
+        SkyframeExecutorTestUtils.evaluate(skyframeExecutor, key, false, reporter);
+    assertThat(result.hasError()).isTrue();
+    assertThat(result.getError().getException())
+        .hasMessageThat()
+        .matches("project variable: expected string key, got element of .+Int32");
   }
 
   @Test

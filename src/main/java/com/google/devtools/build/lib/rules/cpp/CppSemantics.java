@@ -48,6 +48,15 @@ public interface CppSemantics extends StarlarkValue {
       throws EvalException;
 
   /**
+   * Called before a C++ link action is built.
+   *
+   * <p>Gives the semantics implementation the opportunity to change link actions at the last
+   * minute.
+   */
+  void finalizeLinkActionBuilder(CppConfiguration configuration, CppLinkActionBuilder actionBuilder)
+      throws EvalException;
+
+  /**
    * Returns if include scanning is allowed.
    *
    * <p>If false, {@link CppCompileActionBuilder#setShouldScanIncludes(boolean)} has no effect.

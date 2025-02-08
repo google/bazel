@@ -26,9 +26,7 @@ import java.nio.file.Files;
 import java.util.stream.Stream;
 import javax.annotation.Nullable;
 
-/**
- * Configuration for the mock client setup that we use for testing.
- */
+/** Configuration for the mock client setup that we use for testing. */
 public final class MockToolsConfig {
 
   private final Path rootDirectory;
@@ -106,6 +104,10 @@ public final class MockToolsConfig {
   }
 
   public Path append(String relativePath, String... lines) throws IOException {
+    if (relativePath.equals("WORKSPACE")) {
+      throw new IllegalArgumentException(
+          "DO NOT write into the WORKSPACE file in mocks. Use MODULE.bazel instead");
+    }
     Path path = getPath(relativePath);
     if (!path.exists()) {
       return create(relativePath, lines);

@@ -13,7 +13,8 @@
 // limitations under the License.
 package com.google.devtools.build.lib.exec;
 
-import com.google.auto.value.AutoValue;
+import static java.util.Objects.requireNonNull;
+
 import com.google.common.base.Joiner;
 import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.ImmutableClassToInstanceMap;
@@ -132,7 +133,7 @@ public final class ModuleActionContextRegistry
     public <T extends ActionContext> Builder register(
         Class<T> identifyingType, T context, String... commandLineIdentifiers) {
       actionContexts.add(
-          new AutoValue_ModuleActionContextRegistry_ActionContextInformation<>(
+          new ActionContextInformation<>(
               context, identifyingType, ImmutableList.copyOf(commandLineIdentifiers)));
       return this;
     }
@@ -198,14 +199,13 @@ public final class ModuleActionContextRegistry
     }
   }
 
-  @AutoValue
-  abstract static class ActionContextInformation<T extends ActionContext> {
-
-    abstract T context();
-
-    abstract Class<T> identifyingType();
-
-    abstract ImmutableList<String> commandLineIdentifiers();
+  record ActionContextInformation<T extends ActionContext>(
+      T context, Class<T> identifyingType, ImmutableList<String> commandLineIdentifiers) {
+    ActionContextInformation {
+      requireNonNull(context, "context");
+      requireNonNull(identifyingType, "identifyingType");
+      requireNonNull(commandLineIdentifiers, "commandLineIdentifiers");
+    }
 
     private void addToMap(MutableClassToInstanceMap<ActionContext> map) {
       map.putInstance(identifyingType(), context());

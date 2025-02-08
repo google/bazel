@@ -14,6 +14,7 @@
 
 package com.google.devtools.build.lib.buildeventservice;
 
+import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.google.common.truth.Truth.assertThat;
 import static com.google.common.truth.extensions.proto.ProtoTruth.assertThat;
 import static com.google.devtools.build.lib.buildeventservice.BuildEventServiceModule.RUNS_PER_TEST_LIMIT;
@@ -37,6 +38,7 @@ import com.google.devtools.build.lib.bugreport.BugReport;
 import com.google.devtools.build.lib.bugreport.Crash;
 import com.google.devtools.build.lib.bugreport.CrashContext;
 import com.google.devtools.build.lib.buildeventservice.BazelBuildEventServiceModule.BackendConfig;
+import com.google.devtools.build.lib.buildeventservice.BuildEventServiceModule.BuildEventFileType;
 import com.google.devtools.build.lib.buildeventservice.BuildEventServiceModule.BuildEventOutputStreamFactory;
 import com.google.devtools.build.lib.buildeventstream.AnnounceBuildEventTransportsEvent;
 import com.google.devtools.build.lib.buildeventstream.BuildEventArtifactUploader;
@@ -64,6 +66,8 @@ import com.google.devtools.build.lib.runtime.BlazeModule;
 import com.google.devtools.build.lib.runtime.BlazeRuntime;
 import com.google.devtools.build.lib.runtime.CommandEnvironment;
 import com.google.devtools.build.lib.runtime.NoSpawnCacheModule;
+import com.google.devtools.build.lib.runtime.proto.CommandLineOuterClass.CommandLineSection;
+import com.google.devtools.build.lib.runtime.proto.CommandLineOuterClass.Option;
 import com.google.devtools.build.lib.testutil.TestConstants;
 import com.google.devtools.build.lib.util.AbruptExitException;
 import com.google.devtools.build.lib.util.ExitCode;
@@ -95,7 +99,7 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.lang.Thread.UncaughtExceptionHandler;
 import java.nio.file.Files;
-import java.nio.file.Paths;
+import java.nio.file.Path;
 import java.time.Duration;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
@@ -169,6 +173,14 @@ public final class BazelBuildEventServiceModuleTest extends BuildIntegrationTest
               @Override
               protected Duration getMaxWaitForPreviousInvocation() {
                 return WAIT_FOR_LAST_INVOCATION_TIMEOUT;
+              }
+
+              @Override
+              BuildEventOutputStreamFactory createBuildEventOutputStreamFactory(
+                  CommandEnvironment env) {
+                return buildEventOutputStreamFactory == null
+                    ? super.createBuildEventOutputStreamFactory(env)
+                    : buildEventOutputStreamFactory;
               }
             });
   }
@@ -461,45 +473,41 @@ public final class BazelBuildEventServiceModuleTest extends BuildIntegrationTest
     events.assertNoWarningsOrErrors();
   }
 
-  enum BuildEventFile {
-    TEXT,
-    JSON,
-    BINARY;
-
-    String getBuildEventFileFlag(String file) {
-      switch (this) {
-        case TEXT:
-          return "--build_event_text_file=" + file;
-        case JSON:
-          return "--build_event_json_file=" + file;
-        case BINARY:
-          return "--build_event_binary_file=" + file;
-      }
-      throw new IllegalStateException();
+  private static String getBuildEventFileFlag(
+      BuildEventFileType buildEventFileType, String filePath) {
+    switch (buildEventFileType) {
+      case TEXT:
+        return "--build_event_text_file=" + filePath;
+      case JSON:
+        return "--build_event_json_file=" + filePath;
+      case BINARY:
+        return "--build_event_binary_file=" + filePath;
     }
+    throw new IllegalStateException();
+  }
 
-    String getBuildEventFileUploadModeFlag(String mode) {
-      switch (this) {
-        case TEXT:
-          return "--build_event_text_file_upload_mode=" + mode;
-        case JSON:
-          return "--build_event_json_file_upload_mode=" + mode;
-        case BINARY:
-          return "--build_event_binary_file_upload_mode=" + mode;
-      }
-      throw new IllegalStateException();
+  private static String getBuildEventFileUploadModeFlag(
+      BuildEventFileType buildEventFileType, String mode) {
+    switch (buildEventFileType) {
+      case TEXT:
+        return "--build_event_text_file_upload_mode=" + mode;
+      case JSON:
+        return "--build_event_json_file_upload_mode=" + mode;
+      case BINARY:
+        return "--build_event_binary_file_upload_mode=" + mode;
     }
+    throw new IllegalStateException();
   }
 
   @Test
   public void testAfterCommand_buildEventFile_waitForUploadComplete(
-      @TestParameter BuildEventFile buildEventFile) throws Exception {
+      @TestParameter BuildEventFileType buildEventFileType) throws Exception {
     AtomicReference<DelayingCloseBufferedOutputStream> outRef = new AtomicReference<>(null);
     buildEventOutputStreamFactory =
-        (file) -> {
+        (type, filePath) -> {
           var out =
               new DelayingCloseBufferedOutputStream(
-                  Files.newOutputStream(Paths.get(file)), Duration.ofSeconds(1));
+                  Files.newOutputStream(Path.of(filePath)), Duration.ofSeconds(1));
           outRef.set(out);
           return out;
         };
@@ -510,8 +518,8 @@ public final class BazelBuildEventServiceModuleTest extends BuildIntegrationTest
         "--bes_backend=inprocess",
         "--bes_upload_mode=FULLY_ASYNC",
         "--bes_timeout=1s",
-        buildEventFile.getBuildEventFileFlag(file.getAbsolutePath()),
-        buildEventFile.getBuildEventFileUploadModeFlag("wait_for_upload_complete"));
+        getBuildEventFileFlag(buildEventFileType, file.getAbsolutePath()),
+        getBuildEventFileUploadModeFlag(buildEventFileType, "wait_for_upload_complete"));
     afterBuildCommand();
 
     assertThat(outRef.get().isClosed()).isTrue();
@@ -915,6 +923,69 @@ public final class BazelBuildEventServiceModuleTest extends BuildIntegrationTest
         .containsExactly(
             TestConstants.PRODUCT_NAME + " is crashing: Crashed: (java.lang.OutOfMemoryError) ");
     assertAndClearBugReporterStoredCrash(OutOfMemoryError.class);
+  }
+
+  @Test
+  public void commandLineEvents_includesFlagsFromFlagsets() throws Exception {
+    write(
+        "hello/BUILD",
+        """
+        genrule(name = "hello", outs = ["hello.out"], cmd = "touch $@")
+        """);
+
+    write(
+        "flag/flag_def.bzl",
+        """
+string_flag = rule(
+  implementation = lambda ctx: [],
+  build_setting = config.string(flag = True),
+)
+""");
+    write(
+        "flag/BUILD",
+        """
+load(":flag_def.bzl", "string_flag")
+string_flag(
+  name = "my_flag",
+  build_setting_default = "default_value",
+)
+""");
+    write(
+        "hello/PROJECT.scl",
+        """
+project = {
+  "configs" : { "default_config": ["--define=foo=bar", "--bad_flag=bar", "--//flag:my_flag=my_value"]},
+  "default_config" : "default_config",
+  "enforcement_policy" : "warn"
+    }
+""");
+    File buildEventBinaryFile = tmpFolder.newFile();
+    addOptions(
+        "--enforce_project_configs",
+        "--build_event_binary_file=" + buildEventBinaryFile.getAbsolutePath());
+    buildTarget("//hello:hello");
+
+    BuildEvent canonicalCommandLineEvent = null;
+    try (InputStream in = new FileInputStream(buildEventBinaryFile)) {
+      BuildEvent ev;
+      while ((ev = BuildEvent.parseDelimitedFrom(in)) != null) {
+        if (ev.hasStructuredCommandLine()
+            && ev.getStructuredCommandLine().getCommandLineLabel().equals("canonical")) {
+          canonicalCommandLineEvent = ev;
+        }
+      }
+    }
+    ImmutableList<CommandLineSection> sections =
+        canonicalCommandLineEvent.getStructuredCommandLine().getSectionsList().stream()
+            .filter(s -> s.getSectionLabel().equals("command options"))
+            .collect(toImmutableList());
+
+    ImmutableList<String> options =
+        sections.getFirst().getOptionList().getOptionList().stream()
+            .map(Option::getCombinedForm)
+            .collect(toImmutableList());
+    assertThat(options).contains("--define=foo=bar");
+    assertThat(options).contains("--//flag:my_flag=my_value");
   }
 
   /**

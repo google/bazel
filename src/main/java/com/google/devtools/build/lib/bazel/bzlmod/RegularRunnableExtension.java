@@ -150,7 +150,7 @@ final class RegularRunnableExtension implements RunnableExtension {
     ModuleExtensionUsage sampleUsage = usagesValue.getExtensionUsages().values().iterator().next();
     Location sampleUsageLocation = sampleUsage.getProxies().getFirst().getLocation();
     BzlLoadValue bzlLoadValue =
-        loadBzlFile(extensionId.getBzlFileLabel(), sampleUsageLocation, starlarkSemantics, env);
+        loadBzlFile(extensionId.bzlFileLabel(), sampleUsageLocation, starlarkSemantics, env);
     if (bzlLoadValue == null) {
       return null;
     }
@@ -160,7 +160,7 @@ final class RegularRunnableExtension implements RunnableExtension {
     // that may be created by b/237658764.
 
     // Check that the .bzl file actually exports a module extension by our name.
-    Object exported = bzlLoadValue.getModule().getGlobal(extensionId.getExtensionName());
+    Object exported = bzlLoadValue.getModule().getGlobal(extensionId.extensionName());
     if (!(exported instanceof ModuleExtension extension)) {
       ImmutableSet<String> exportedExtensions =
           bzlLoadValue.getModule().getGlobals().entrySet().stream()
@@ -170,14 +170,14 @@ final class RegularRunnableExtension implements RunnableExtension {
       throw ExternalDepsException.withMessage(
           Code.BAD_MODULE,
           "%s does not export a module extension called %s, yet its use is requested at %s%s",
-          extensionId.getBzlFileLabel(),
-          extensionId.getExtensionName(),
+          extensionId.bzlFileLabel(),
+          extensionId.extensionName(),
           sampleUsageLocation,
-          SpellChecker.didYouMean(extensionId.getExtensionName(), exportedExtensions));
+          SpellChecker.didYouMean(extensionId.extensionName(), exportedExtensions));
     }
 
     ImmutableMap<String, Optional<String>> envVars =
-        RepositoryFunction.getEnvVarValues(env, ImmutableSet.copyOf(extension.getEnvVariables()));
+        RepositoryFunction.getEnvVarValues(env, ImmutableSet.copyOf(extension.envVariables()));
     if (envVars == null) {
       return null;
     }
@@ -196,8 +196,8 @@ final class RegularRunnableExtension implements RunnableExtension {
   @Override
   public ModuleExtensionEvalFactors getEvalFactors() {
     return ModuleExtensionEvalFactors.create(
-        extension.getOsDependent() ? OS.getCurrent().toString() : "",
-        extension.getArchDependent() ? OS_ARCH.value() : "");
+        extension.osDependent() ? OS.getCurrent().toString() : "",
+        extension.archDependent() ? OS_ARCH.value() : "");
   }
 
   @Override
@@ -225,12 +225,13 @@ final class RegularRunnableExtension implements RunnableExtension {
       try {
         return state.startOrContinueWork(
             env,
-            "module-extension-" + extensionId.asTargetString(),
+            "module-extension-" + extensionId,
             (workerEnv) ->
                 runInternal(
                     workerEnv, usagesValue, starlarkSemantics, extensionId, mainRepositoryMapping));
       } catch (ExecutionException e) {
         Throwables.throwIfInstanceOf(e.getCause(), ExternalDepsException.class);
+        Throwables.throwIfInstanceOf(e.getCause(), InterruptedException.class);
         Throwables.throwIfUnchecked(e.getCause());
         throw new IllegalStateException(
             "unexpected exception type: " + e.getCause().getClass(), e.getCause());
@@ -254,7 +255,7 @@ final class RegularRunnableExtension implements RunnableExtension {
         new ModuleExtensionEvalStarlarkThreadContext(
             extensionId,
             usagesValue.getExtensionUniqueName() + "+",
-            extensionId.getBzlFileLabel().getPackageIdentifier(),
+            extensionId.bzlFileLabel().getPackageIdentifier(),
             BazelModuleContext.of(bzlLoadValue.getModule()).repoMapping(),
             usagesValue.getRepoOverrides(),
             mainRepositoryMapping,
@@ -266,7 +267,7 @@ final class RegularRunnableExtension implements RunnableExtension {
     try (Mutability mu =
             Mutability.create("module extension", usagesValue.getExtensionUniqueName());
         ModuleExtensionContext moduleContext =
-            createContext(env, usagesValue, starlarkSemantics, extensionId)) {
+            createContext(env, usagesValue, starlarkSemantics, extensionId, repoMappingRecorder)) {
       StarlarkThread thread =
           StarlarkThread.create(
               mu,
@@ -280,19 +281,14 @@ final class RegularRunnableExtension implements RunnableExtension {
       thread.setThreadLocal(Label.RepoMappingRecorder.class, repoMappingRecorder);
       try (SilentCloseable c =
           Profiler.instance()
-              .profile(
-                  ProfilerTask.BZLMOD,
-                  () -> "evaluate module extension: " + extensionId.asTargetString())) {
+              .profile(ProfilerTask.BZLMOD, () -> "evaluate module extension: " + extensionId)) {
         Object returnValue =
-            Starlark.fastcall(
-                thread, extension.getImplementation(), new Object[] {moduleContext}, new Object[0]);
+            Starlark.positionalOnlyCall(thread, extension.implementation(), moduleContext);
         if (returnValue != Starlark.NONE && !(returnValue instanceof ModuleExtensionMetadata)) {
           throw ExternalDepsException.withMessage(
               ExternalDeps.Code.BAD_MODULE,
-              "expected module extension %s in %s to return None or extension_metadata, got"
-                  + " %s",
-              extensionId.getExtensionName(),
-              extensionId.getBzlFileLabel(),
+              "expected module extension %s to return None or extension_metadata, got %s",
+              extensionId,
               Starlark.type(returnValue));
         }
         if (returnValue instanceof ModuleExtensionMetadata retMetadata) {
@@ -316,10 +312,7 @@ final class RegularRunnableExtension implements RunnableExtension {
     } catch (EvalException e) {
       env.getListener().handle(Event.error(e.getInnermostLocation(), e.getMessageWithStack()));
       throw ExternalDepsException.withMessage(
-          ExternalDeps.Code.BAD_MODULE,
-          "error evaluating module extension %s in %s",
-          extensionId.getExtensionName(),
-          extensionId.getBzlFileLabel());
+          ExternalDeps.Code.BAD_MODULE, "error evaluating module extension %s", extensionId);
     } catch (IOException e) {
       throw ExternalDepsException.withCauseAndMessage(
           ExternalDeps.Code.EXTERNAL_DEPS_UNKNOWN,
@@ -332,7 +325,8 @@ final class RegularRunnableExtension implements RunnableExtension {
       Environment env,
       SingleExtensionUsagesValue usagesValue,
       StarlarkSemantics starlarkSemantics,
-      ModuleExtensionId extensionId)
+      ModuleExtensionId extensionId,
+      Label.RepoMappingRecorder repoMappingRecorder)
       throws ExternalDepsException {
     Path workingDirectory =
         directories
@@ -347,7 +341,8 @@ final class RegularRunnableExtension implements RunnableExtension {
               abridgedModule,
               extension,
               usagesValue.getRepoMappings().get(moduleKey),
-              usagesValue.getExtensionUsages().get(moduleKey)));
+              usagesValue.getExtensionUsages().get(moduleKey),
+              repoMappingRecorder));
     }
     ModuleExtensionUsage rootUsage = usagesValue.getExtensionUsages().get(ModuleKey.ROOT);
     boolean rootModuleHasNonDevDependency =

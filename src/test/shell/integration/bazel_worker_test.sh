@@ -46,6 +46,8 @@ function set_up() {
   BINS=$(bazel info $PRODUCT_NAME-bin)/${WORKSPACE_SUBDIR}
   OUTPUT_BASE="$(bazel info output_base)"
 
+  add_rules_java ${WORKSPACE_DIR}/MODULE.bazel
+
   # Tell Bazel to shut down all running workers. Faster than a full shutdown.
   bazel build --worker_quit_after_build &> $TEST_log \
     || fail "'bazel build --worker_quit_after_build' during test set_up failed"
@@ -59,6 +61,8 @@ function tear_down() {
 function write_hello_library_files() {
   mkdir -p java/main
   cat >java/main/BUILD <<EOF
+load("@rules_java//java:java_binary.bzl", "java_binary")
+load("@rules_java//java:java_library.bzl", "java_library")
 java_binary(name = 'main',
     deps = [':hello_library'],
     srcs = ['Main.java'],
@@ -174,6 +178,8 @@ work = rule(
 )
 EOF
   cat >BUILD <<EOF
+load("@rules_java//java:java_binary.bzl", "java_binary")
+load("@rules_java//java:java_import.bzl", "java_import")
 load(":work.bzl", "work")
 
 java_import(
@@ -320,6 +326,30 @@ EOF
   worker_uuid_1=$(cat $BINS/hello_world.out | grep UUID | cut -d' ' -f2)
   worker_uuid_2=$(cat $BINS/goodbye_world.out | grep UUID | cut -d' ' -f2)
   assert_equals "$worker_uuid_1" "$worker_uuid_2"
+}
+
+function test_worker_extra_flag() {
+  prepare_example_worker
+  cat >>BUILD <<EOF
+work(
+  name = "hello_world",
+  worker = ":worker",
+  worker_args = ["--worker_protocol=${WORKER_PROTOCOL}"],
+  action_mnemonic = "Hello",
+  worker_key_mnemonic = "World",
+)
+EOF
+
+  bazel build :hello_world --worker_extra_flag=World=--ignored_argument \
+      &> "$TEST_log" || fail "build failed"
+
+  local -r worker_log=$(egrep -o -- 'logging to .*/b(azel|laze)-workers/worker-[0-9]+-World.log' "$TEST_log" | sed 's/^logging to //')
+
+  if ! [[ -e "$worker_log" ]]; then
+    fail "Worker log was not found"
+  fi
+
+  assert_contains "Worker args: .* --ignored_argument" "$worker_log"
 }
 
 function test_multiple_flagfiles() {
@@ -592,10 +622,11 @@ EOF
 
   expect_log "Created new ${WORKER_TYPE} Work worker (id [0-9]\+, key hash -\?[0-9]\+)"
 
-  worker_log=$(egrep -o -- 'logging to .*/b(azel|laze)-workers/worker-[0-9]-Work.log' "$TEST_log" | sed 's/^logging to //')
+  local -r worker_log=$(egrep -o -- 'logging to .*/b(azel|laze)-workers/worker-[0-9]+-Work.log' "$TEST_log" | sed 's/^logging to //')
 
-  [ -e "$worker_log" ] \
-    || fail "Worker log was not found"
+  if ! [[ -e "$worker_log" ]]; then
+    fail "Worker log was not found"
+  fi
 
   # Running a build after a server shutdown should trigger the removal of old worker log files.
   bazel shutdown &> $TEST_log

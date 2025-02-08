@@ -38,11 +38,13 @@ import com.google.devtools.build.lib.query2.engine.QueryEnvironment;
 import com.google.devtools.build.lib.query2.engine.SynchronizedDelegatingOutputFormatterCallback;
 import com.google.devtools.build.lib.query2.engine.ThreadSafeOutputFormatterCallback;
 import com.google.devtools.build.lib.query2.query.aspectresolvers.AspectResolver;
+import com.google.devtools.build.lib.vfs.PathFragment;
 import java.io.OutputStream;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
+import javax.annotation.Nullable;
 import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.parsers.ParserConfigurationException;
 import javax.xml.transform.OutputKeys;
@@ -56,9 +58,7 @@ import org.w3c.dom.DOMException;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 
-/**
- * An output formatter that prints the result as XML.
- */
+/** An output formatter that prints the result as XML. */
 class XmlOutputFormatter extends AbstractUnorderedFormatter {
 
   private AspectResolver aspectResolver;
@@ -66,6 +66,7 @@ class XmlOutputFormatter extends AbstractUnorderedFormatter {
   private boolean packageGroupIncludesDoubleSlash;
   private boolean relativeLocations;
   private QueryOptions queryOptions;
+  @Nullable private PathFragment overrideSourceRoot;
 
   @Override
   public String getName() {
@@ -90,6 +91,11 @@ class XmlOutputFormatter extends AbstractUnorderedFormatter {
 
     Preconditions.checkArgument(options instanceof QueryOptions);
     this.queryOptions = (QueryOptions) options;
+  }
+
+  @Override
+  public void setOverrideSourceRoot(PathFragment overrideSourceRoot) {
+    this.overrideSourceRoot = overrideSourceRoot;
   }
 
   @Override
@@ -222,6 +228,8 @@ class XmlOutputFormatter extends AbstractUnorderedFormatter {
             String.valueOf(inputFile.getPackage().containsErrors()));
       }
 
+      // TODO(bazel-team): We're being inconsistent about whether we include the package's
+      // default_visibility in the target. For files we do, but for rules we don't.
       addPackageGroupsToElement(doc, elem, inputFile, labelPrinter);
     } else if (target instanceof EnvironmentGroup envGroup) {
       elem = doc.createElement("environment-group");
@@ -241,7 +249,7 @@ class XmlOutputFormatter extends AbstractUnorderedFormatter {
     }
 
     elem.setAttribute("name", labelPrinter.toString(target.getLabel()));
-    String location = FormatUtils.getLocation(target, relativeLocations);
+    String location = FormatUtils.getLocation(target, relativeLocations, overrideSourceRoot);
     if (!queryOptions.xmlLineNumbers) {
       int firstColon = location.indexOf(':');
       if (firstColon != -1) {

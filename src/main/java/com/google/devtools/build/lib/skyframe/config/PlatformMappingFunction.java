@@ -79,7 +79,7 @@ public final class PlatformMappingFunction implements SkyFunction {
       return null;
     }
     RepoContext mainRepoContext =
-        RepoContext.of(RepositoryName.MAIN, mainRepositoryMappingValue.getRepositoryMapping());
+        RepoContext.of(RepositoryName.MAIN, mainRepositoryMappingValue.repositoryMapping());
 
     PathPackageLocator pkgLocator = PrecomputedValue.PATH_PACKAGE_LOCATOR.get(env);
     if (pkgLocator == null) {

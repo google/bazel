@@ -157,10 +157,7 @@ class DirectoryTreeBuilder {
             boolean childAdded =
                 currDir.addChild(
                     FileNode.createExecutable(
-                        path.getBaseName(),
-                        virtualActionInput.getBytes(),
-                        d,
-                        toolInputs.contains(path)));
+                        path.getBaseName(), virtualActionInput, d, toolInputs.contains(path)));
             return childAdded ? 1 : 0;
           }
 

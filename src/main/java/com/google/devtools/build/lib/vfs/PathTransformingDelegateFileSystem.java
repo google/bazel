@@ -16,6 +16,7 @@ package com.google.devtools.build.lib.vfs;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
+import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -282,6 +283,16 @@ public abstract class PathTransformingDelegateFileSystem extends FileSystem {
   @Override
   protected void prefetchPackageAsync(PathFragment path, int maxDirs) {
     delegateFs.prefetchPackageAsync(toDelegatePath(path), maxDirs);
+  }
+
+  @Override
+  protected File getIoFile(PathFragment path) {
+    return delegateFs.getIoFile(toDelegatePath(path));
+  }
+
+  @Override
+  protected java.nio.file.Path getNioPath(PathFragment path) {
+    return delegateFs.getNioPath(toDelegatePath(path));
   }
 
   /** Transform original path to a different one to be used with the {@code delegateFs}. */

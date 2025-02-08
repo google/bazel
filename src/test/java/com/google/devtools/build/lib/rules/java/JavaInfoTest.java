@@ -26,26 +26,27 @@ public class JavaInfoTest {
 
   @Test
   public void getTransitiveRuntimeJars_noJavaCompilationArgsProvider() {
-    assertThat(JavaInfo.EMPTY.getTransitiveRuntimeJars().isEmpty()).isTrue();
+    assertThat(JavaInfo.EMPTY_JAVA_INFO_FOR_TESTING.getTransitiveRuntimeJars().isEmpty()).isTrue();
   }
 
   @Test
   public void getTransitiveCompileTimeJarsJars_noJavaCompilationArgsProvider() {
-    assertThat(JavaInfo.EMPTY.getTransitiveCompileTimeJars().isEmpty()).isTrue();
+    assertThat(JavaInfo.EMPTY_JAVA_INFO_FOR_TESTING.getTransitiveCompileTimeJars().isEmpty())
+        .isTrue();
   }
 
   @Test
   public void getCompileTimeJarsJars_noJavaCompilationArgsProvider() {
-    assertThat(JavaInfo.EMPTY.getCompileTimeJars().isEmpty()).isTrue();
+    assertThat(JavaInfo.EMPTY_JAVA_INFO_FOR_TESTING.getCompileTimeJars().isEmpty()).isTrue();
   }
 
   @Test
   public void getFullCompileTimeJarsJars_noJavaCompilationArgsProvider() {
-    assertThat(JavaInfo.EMPTY.getFullCompileTimeJars().isEmpty()).isTrue();
+    assertThat(JavaInfo.EMPTY_JAVA_INFO_FOR_TESTING.getFullCompileTimeJars().isEmpty()).isTrue();
   }
 
   @Test
   public void getSourceJars_noJavaSourceJarsProvider() {
-    assertThat(JavaInfo.EMPTY.getSourceJars()).isEmpty();
+    assertThat(JavaInfo.EMPTY_JAVA_INFO_FOR_TESTING.getSourceJars()).isEmpty();
   }
 }

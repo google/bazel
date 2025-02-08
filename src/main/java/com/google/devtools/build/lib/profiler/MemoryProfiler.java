@@ -14,7 +14,8 @@
 
 package com.google.devtools.build.lib.profiler;
 
-import com.google.auto.value.AutoValue;
+import static java.util.Objects.requireNonNull;
+
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.MoreObjects;
 import com.google.common.base.Splitter;
@@ -95,7 +96,7 @@ public final class MemoryProfiler {
           prepareBeanAndGetLocalMinUsage(
               nextPhase, bean, (duration) -> Thread.sleep(duration.toMillis()));
       String name = currentPhase.description;
-      MemoryUsage memoryUsage = memoryUsages.getHeap();
+      MemoryUsage memoryUsage = memoryUsages.heap();
       var usedMemory = memoryUsage.getUsed();
       // TODO(b/311665999) Remove the subtraction of FillerArray once we figure out an alternative.
       if (nextPhase == ProfilePhase.FINISH) {
@@ -109,7 +110,7 @@ public final class MemoryProfiler {
       memoryProfile.println(name + ":heap:commited:" + memoryUsage.getCommitted());
       memoryProfile.println(name + ":heap:max:" + memoryUsage.getMax());
 
-      memoryUsage = memoryUsages.getNonHeap();
+      memoryUsage = memoryUsages.nonHeap();
       memoryProfile.println(name + ":non-heap:init:" + memoryUsage.getInit());
       memoryProfile.println(name + ":non-heap:used:" + memoryUsage.getUsed());
       memoryProfile.println(name + ":non-heap:commited:" + memoryUsage.getCommitted());
@@ -224,14 +225,14 @@ public final class MemoryProfiler {
   }
 
   @VisibleForTesting
-  @AutoValue
-  abstract static class HeapAndNonHeap {
-    abstract MemoryUsage getHeap();
-
-    abstract MemoryUsage getNonHeap();
+  record HeapAndNonHeap(MemoryUsage heap, MemoryUsage nonHeap) {
+    HeapAndNonHeap {
+      requireNonNull(heap, "heap");
+      requireNonNull(nonHeap, "nonHeap");
+    }
 
     static HeapAndNonHeap create(MemoryUsage heap, MemoryUsage nonHeap) {
-      return new AutoValue_MemoryProfiler_HeapAndNonHeap(heap, nonHeap);
+      return new HeapAndNonHeap(heap, nonHeap);
     }
   }
 }

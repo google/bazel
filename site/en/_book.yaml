@@ -274,8 +274,10 @@ upper_tabs:
         path: /extending/concepts/
       - title: Rules
         path: /extending/rules
-      - title: Macros
+      - title: Symbolic macros
         path: /extending/macros
+      - title: Legacy macros
+        path: /extending/legacy-macros
       - title: Depsets
         path: /extending/depsets
       - title: Aspects
@@ -296,8 +298,10 @@ upper_tabs:
       contents:
       - title: Creating a rule
         path: /rules/rules-tutorial
-      - title: Creating a macro
+      - title: Creating a symbolic macro
         path: /rules/macro-tutorial
+      - title: Creating a legacy macro
+        path: /rules/legacy-macro-tutorial
       - title: Creating custom verbs
         path: /rules/verbs-tutorial
       - title: Starlark language

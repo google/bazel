@@ -162,4 +162,13 @@ public class ObjcCommandLineOptions extends FragmentOptions {
           "If true, strip action for executables will use flag -x, which does not break dynamic "
               + "symbol resolution.")
   public boolean incompatibleStripExecutableSafely;
+
+  @Option(
+      name = "incompatible_builtin_objc_strip_action",
+      defaultValue = "true",
+      documentationCategory = OptionDocumentationCategory.TOOLCHAIN,
+      effectTags = {OptionEffectTag.ACTION_COMMAND_LINES},
+      metadataTags = {OptionMetadataTag.INCOMPATIBLE_CHANGE},
+      help = "Whether to emit a strip action as part of objc linking.")
+  public boolean incompatibleBuiltinObjcStripAction;
 }

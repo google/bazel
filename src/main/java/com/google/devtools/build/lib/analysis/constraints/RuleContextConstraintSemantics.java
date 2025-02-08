@@ -14,8 +14,8 @@
 
 package com.google.devtools.build.lib.analysis.constraints;
 
+import static java.util.Objects.requireNonNull;
 
-import com.google.auto.value.AutoValue;
 import com.google.common.base.Joiner;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Verify;
@@ -592,13 +592,11 @@ public class RuleContextConstraintSemantics implements ConstraintSemantics<RuleC
       Label currentTarget, Label environment, RemovedEnvironmentCulprit reason) {
     LabelAndLocation culprit = reason.culprit();
     Label targetToExplore =
-        currentTarget.equals(culprit.getLabel())
-            ? reason.selectedDepForCulprit()
-            : culprit.getLabel();
+        currentTarget.equals(culprit.label()) ? reason.selectedDepForCulprit() : culprit.label();
 
     return new StringJoiner("\n")
         .add("  environment: " + environment)
-        .add("    removed by: " + culprit.getLabel() + " (" + culprit.getLocation() + ")")
+        .add("    removed by: " + culprit.label() + " (" + culprit.location() + ")")
         .add("    because of a select() that chooses dep: " + reason.selectedDepForCulprit())
         .add("    which lacks: " + environment)
         .add("")
@@ -834,17 +832,16 @@ public class RuleContextConstraintSemantics implements ConstraintSemantics<RuleC
    * instances like {@link OutputFileConfiguredTarget}, however, the {@code underlyingTarget} is the
    * rule that generated the file.
    */
-  @AutoValue
-  public abstract static class IncompatibleCheckResult {
-    private static IncompatibleCheckResult create(
-        boolean isIncompatible, ConfiguredTarget underlyingTarget) {
-      return new AutoValue_RuleContextConstraintSemantics_IncompatibleCheckResult(
-          isIncompatible, underlyingTarget);
+  public record IncompatibleCheckResult(boolean isIncompatible, ConfiguredTarget underlyingTarget) {
+    public IncompatibleCheckResult {
+      requireNonNull(underlyingTarget, "underlyingTarget");
     }
 
-    public abstract boolean isIncompatible();
+    private static IncompatibleCheckResult create(
+        boolean isIncompatible, ConfiguredTarget underlyingTarget) {
+      return new IncompatibleCheckResult(isIncompatible, underlyingTarget);
+    }
 
-    public abstract ConfiguredTarget underlyingTarget();
   }
 
   /**

@@ -14,14 +14,11 @@
 
 package com.google.devtools.build.lib.actions;
 
-import static java.nio.charset.StandardCharsets.ISO_8859_1;
-
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Interner;
 import com.google.devtools.build.lib.actions.ParameterFile.ParameterFileType;
 import com.google.devtools.build.lib.concurrent.BlazeInterners;
 import com.google.errorprone.annotations.CanIgnoreReturnValue;
-import java.nio.charset.Charset;
 import java.util.Objects;
 import javax.annotation.concurrent.Immutable;
 
@@ -32,7 +29,6 @@ import javax.annotation.concurrent.Immutable;
 @Immutable
 public final class ParamFileInfo {
   private final ParameterFileType fileType;
-  private final Charset charset;
   private final String flagFormatString;
   private final boolean always;
   private final boolean flagsOnly;
@@ -42,7 +38,6 @@ public final class ParamFileInfo {
 
   private ParamFileInfo(Builder builder) {
     this.fileType = Preconditions.checkNotNull(builder.fileType);
-    this.charset = Preconditions.checkNotNull(builder.charset);
     this.flagFormatString = Preconditions.checkNotNull(builder.flagFormatString);
     this.always = builder.always;
     this.flagsOnly = builder.flagsOnly;
@@ -51,11 +46,6 @@ public final class ParamFileInfo {
   /** Returns the file type. */
   public ParameterFileType getFileType() {
     return fileType;
-  }
-
-  /** Returns the charset. */
-  public Charset getCharset() {
-    return charset;
   }
 
   /** Returns the format string for the params filename on the command line (typically "@%s"). */
@@ -78,7 +68,7 @@ public final class ParamFileInfo {
 
   @Override
   public int hashCode() {
-    return Objects.hash(charset, flagFormatString, fileType, always);
+    return Objects.hash(flagFormatString, fileType, always);
   }
 
   @Override
@@ -90,7 +80,6 @@ public final class ParamFileInfo {
       return false;
     }
     return fileType.equals(other.fileType)
-        && charset.equals(other.charset)
         && flagFormatString.equals(other.flagFormatString)
         && always == other.always
         && flagsOnly == other.flagsOnly;
@@ -103,20 +92,12 @@ public final class ParamFileInfo {
   /** Builder for a ParamFileInfo. */
   public static class Builder {
     private final ParameterFileType fileType;
-    private Charset charset = ISO_8859_1;
     private String flagFormatString = "@%s";
     private boolean always;
     private boolean flagsOnly;
 
     private Builder(ParameterFileType fileType) {
       this.fileType = fileType;
-    }
-
-    /** Sets the encoding to write the parameter file with. */
-    @CanIgnoreReturnValue
-    public Builder setCharset(Charset charset) {
-      this.charset = charset;
-      return this;
     }
 
     /**

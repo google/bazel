@@ -68,9 +68,6 @@ public interface OutputMetadataStore {
    */
   FileArtifactValue getOutputMetadata(ActionInput output) throws IOException, InterruptedException;
 
-  /** Sets digest for virtual artifacts (e.g. middlemen). {@code digest} must not be null. */
-  void setDigestForVirtualArtifact(Artifact artifact, byte[] digest);
-
   /** Retrieves the metadata for this tree artifact. Data should already be available. */
   TreeArtifactValue getTreeArtifactValue(SpecialArtifact treeArtifact)
       throws IOException, InterruptedException;

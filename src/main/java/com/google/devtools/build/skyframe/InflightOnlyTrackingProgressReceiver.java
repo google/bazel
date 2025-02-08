@@ -92,6 +92,11 @@ public class InflightOnlyTrackingProgressReceiver implements InflightTrackingPro
     inflightKeys.remove(skyKey);
   }
 
+  @Override
+  public void changePruned(SkyKey skyKey) {
+    progressReceiver.changePruned(skyKey);
+  }
+
   /** Returns if the key is enqueued for evaluation. */
   @Override
   public final boolean isInflight(SkyKey skyKey) {

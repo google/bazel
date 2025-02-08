@@ -25,6 +25,7 @@ import com.google.devtools.build.lib.analysis.RunfilesSupport;
 import com.google.devtools.build.lib.analysis.TransitiveInfoCollection;
 import com.google.devtools.build.lib.analysis.config.BuildConfigurationValue;
 import com.google.devtools.build.lib.analysis.config.RunUnder;
+import com.google.devtools.build.lib.analysis.config.RunUnder.CommandRunUnder;
 import com.google.devtools.build.lib.analysis.constraints.ConstraintConstants;
 import com.google.devtools.build.lib.packages.TargetUtils;
 import com.google.devtools.build.lib.util.OS;
@@ -166,17 +167,15 @@ public final class TestTargetExecutionSettings {
   }
 
   public boolean needsShell() {
-    RunUnder r = getRunUnder();
-    if (r == null) {
+    if (getRunUnder() instanceof CommandRunUnder commandRunUnder) {
+      String command = commandRunUnder.command();
+      // --run_under commands that do not contain '/' are either shell built-ins or need to be
+      // located on the PATH env, so we wrap them in a shell invocation. Note that we
+      // shell-tokenize
+      // the --run_under parameter and getCommand only returns the first such token.
+      return !command.contains("/") && (!executionOs.equals(OS.WINDOWS) || !command.contains("\\"));
+    } else {
       return false;
     }
-    String command = r.getCommand();
-    if (command == null) {
-      return false;
-    }
-    // --run_under commands that do not contain '/' are either shell built-ins or need to be
-    // located on the PATH env, so we wrap them in a shell invocation. Note that we shell-tokenize
-    // the --run_under parameter and getCommand only returns the first such token.
-    return !command.contains("/") && (!executionOs.equals(OS.WINDOWS) || !command.contains("\\"));
   }
 }

@@ -20,7 +20,7 @@ Only use those within C++ implementation. The others need to go through cc_commo
 
 cc_common_internal = _builtins.internal.cc_common
 
-CREATE_COMPILE_ACTION_API_ALLOWLISTED_PACKAGES = [("", "devtools/rust/cc_interop"), ("", "third_party/crubit")]
+CREATE_COMPILE_ACTION_API_ALLOWLISTED_PACKAGES = [("", "devtools/rust/cc_interop"), ("", "third_party/crubit"), ("", "tools/build_defs/clif")]
 
 PRIVATE_STARLARKIFICATION_ALLOWLIST = [
     ("_builtins", ""),
@@ -44,6 +44,8 @@ PRIVATE_STARLARKIFICATION_ALLOWLIST = [
     # Java rules
     ("", "third_party/bazel_rules/rules_java"),
     ("rules_java", ""),
+    # Objc rules
+    ("", "tools/build_defs/objc"),
     # Protobuf rules
     ("", "third_party/protobuf"),
     ("protobuf", ""),

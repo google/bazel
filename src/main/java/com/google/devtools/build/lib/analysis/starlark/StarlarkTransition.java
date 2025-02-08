@@ -354,7 +354,9 @@ public abstract class StarlarkTransition implements ConfigurationTransition {
             maybeAliasSetting, details.buildSettingToDefault().get(setting));
       }
     }
-    return optionsWithDefaults == null ? fromOptions : optionsWithDefaults.build();
+    return optionsWithDefaults == null
+        ? fromOptions
+        : optionsWithDefaults.addScopeTypeMap(fromOptions.getScopeTypeMap()).build();
   }
 
   private static ImmutableSet<Label> getRelevantStarlarkSettingsFromTransition(

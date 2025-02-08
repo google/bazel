@@ -14,26 +14,31 @@
 
 package com.google.devtools.build.lib.skyframe;
 
-import com.google.auto.value.AutoValue;
+import static java.util.Objects.requireNonNull;
+
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.devtools.build.lib.cmdline.RepositoryName;
+import com.google.devtools.build.lib.skyframe.serialization.autocodec.AutoCodec;
 import com.google.devtools.build.skyframe.AbstractSkyKey;
 import com.google.devtools.build.skyframe.SkyFunctionName;
 import com.google.devtools.build.skyframe.SkyValue;
 
 /** Contains information about the REPO.bazel file at the root of a repo. */
-@AutoValue
-public abstract class RepoFileValue implements SkyValue {
+@AutoCodec
+public record RepoFileValue(
+    ImmutableMap<String, Object> packageArgsMap, ImmutableList<String> ignoredDirectories)
+    implements SkyValue {
+  public RepoFileValue {
+    requireNonNull(packageArgsMap, "packageArgsMap");
+    requireNonNull(ignoredDirectories, "ignoredDirectories");
+  }
+
   public static final RepoFileValue EMPTY = of(ImmutableMap.of(), ImmutableList.of());
-
-  public abstract ImmutableMap<String, Object> packageArgsMap();
-
-  public abstract ImmutableList<String> ignoredDirectories();
 
   public static RepoFileValue of(
       ImmutableMap<String, Object> packageArgsMap, ImmutableList<String> ignoredDirectories) {
-    return new AutoValue_RepoFileValue(packageArgsMap, ignoredDirectories);
+    return new RepoFileValue(packageArgsMap, ignoredDirectories);
   }
 
   public static Key key(RepositoryName repoName) {

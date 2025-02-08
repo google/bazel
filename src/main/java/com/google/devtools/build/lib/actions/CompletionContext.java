@@ -140,7 +140,7 @@ public final class CompletionContext implements ArtifactExpander {
   /** Visits the expansion of the given artifacts. */
   public void visitArtifacts(Iterable<Artifact> artifacts, ArtifactReceiver receiver) {
     for (Artifact artifact : artifacts) {
-      if (artifact.isMiddlemanArtifact()) {
+      if (artifact.isRunfilesTree()) {
         continue;
       }
       if (artifact.isFileset()) {

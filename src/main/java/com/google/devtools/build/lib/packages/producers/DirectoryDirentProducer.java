@@ -75,7 +75,7 @@ final class DirectoryDirentProducer implements StateMachine, Consumer<SkyValue> 
 
   @Override
   public StateMachine step(Tasks tasks) {
-    // Check whether the next directory path matches any `IgnoredPackagePrefix`.
+    // Check whether the next directory path should be ignored according to IgnoredSubdirectories.
     if (globDetail.ignoredSubdirectories().matchingEntry(direntPath) != null) {
       return DONE;
     }

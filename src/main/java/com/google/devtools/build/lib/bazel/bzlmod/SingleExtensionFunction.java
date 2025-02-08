@@ -48,24 +48,27 @@ public class SingleExtensionFunction implements SkyFunction {
       return null;
     }
 
+    // SingleExtensionEvalFunction doesn't handle the fixup warning so that bazel mod tidy doesn't
+    // show it.
+    evalOnlyValue.fixup().ifPresent(fixup -> env.getListener().handle(fixup.warning()));
+
     // Check that all imported repos have actually been generated.
     for (ModuleExtensionUsage usage : usagesValue.getExtensionUsages().values()) {
       for (ModuleExtensionUsage.Proxy proxy : usage.getProxies()) {
         for (Entry<String, String> repoImport : proxy.getImports().entrySet()) {
-          if (!evalOnlyValue.getGeneratedRepoSpecs().containsKey(repoImport.getValue())
+          if (!evalOnlyValue.generatedRepoSpecs().containsKey(repoImport.getValue())
               && !usagesValue.getRepoOverrides().containsKey(repoImport.getValue())) {
             throw new SingleExtensionFunctionException(
                 ExternalDepsException.withMessage(
                     Code.INVALID_EXTENSION_IMPORT,
-                    "module extension \"%s\" from \"%s\" does not generate repository \"%s\", yet"
+                    "module extension %s does not generate repository \"%s\", yet"
                         + " it is imported as \"%s\" in the usage at %s%s",
-                    extensionId.getExtensionName(),
-                    extensionId.getBzlFileLabel(),
+                    extensionId,
                     repoImport.getValue(),
                     repoImport.getKey(),
                     proxy.getLocation(),
                     SpellChecker.didYouMean(
-                        repoImport.getValue(), evalOnlyValue.getGeneratedRepoSpecs().keySet())),
+                        repoImport.getValue(), evalOnlyValue.generatedRepoSpecs().keySet())),
                 Transience.PERSISTENT);
           }
         }
@@ -75,16 +78,15 @@ public class SingleExtensionFunction implements SkyFunction {
     // Check that repo overrides apply as declared.
     for (ModuleExtensionUsage usage : usagesValue.getExtensionUsages().values()) {
       for (var override : usage.getRepoOverrides().entrySet()) {
-        boolean repoExists = evalOnlyValue.getGeneratedRepoSpecs().containsKey(override.getKey());
+        boolean repoExists = evalOnlyValue.generatedRepoSpecs().containsKey(override.getKey());
         if (repoExists && !override.getValue().mustExist()) {
           throw new SingleExtensionFunctionException(
               ExternalDepsException.withMessage(
                   Code.INVALID_EXTENSION_IMPORT,
-                  "module extension \"%s\" from \"%s\" generates repository \"%s\", yet"
+                  "module extension %s generates repository \"%s\", yet"
                       + " it is injected via inject_repo() at %s. Use override_repo() instead to"
                       + " override an existing repository.",
-                  extensionId.getExtensionName(),
-                  extensionId.getBzlFileLabel(),
+                  extensionId,
                   override.getKey(),
                   override.getValue().location()),
               Transience.PERSISTENT);
@@ -92,11 +94,10 @@ public class SingleExtensionFunction implements SkyFunction {
           throw new SingleExtensionFunctionException(
               ExternalDepsException.withMessage(
                   Code.INVALID_EXTENSION_IMPORT,
-                  "module extension \"%s\" from \"%s\" does not generate repository \"%s\", yet"
+                  "module extension %s does not generate repository \"%s\", yet"
                       + " it is overridden via override_repo() at %s. Use inject_repo() instead to"
                       + " inject a new repository.",
-                  extensionId.getExtensionName(),
-                  extensionId.getBzlFileLabel(),
+                  extensionId,
                   override.getKey(),
                   override.getValue().location()),
               Transience.PERSISTENT);

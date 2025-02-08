@@ -60,7 +60,7 @@ final class Discovery {
       throws InterruptedException, ExternalDepsException {
     String rootModuleName = root.getModule().getName();
     ImmutableMap<String, ModuleOverride> overrides = root.getOverrides();
-    Map<ModuleKey, InterimModule> depGraph = new HashMap<>();
+    Map<ModuleKey, InterimModule> depGraph = new LinkedHashMap<>();
     depGraph.put(
         ModuleKey.ROOT,
         root.getModule()
@@ -80,7 +80,7 @@ final class Discovery {
           }
           predecessors.putIfAbsent(depSpec.toModuleKey(), module.getKey());
           unexpandedSkyKeys.add(
-              ModuleFileValue.key(depSpec.toModuleKey(), overrides.get(depSpec.getName())));
+              ModuleFileValue.key(depSpec.toModuleKey(), overrides.get(depSpec.name())));
         }
       }
       SkyframeLookupResult result = env.getValuesAndExceptions(unexpandedSkyKeys);

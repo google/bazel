@@ -40,7 +40,7 @@ class CollectTargetsInPackageFunction implements SkyFunction {
       throws SkyFunctionException, InterruptedException {
     CollectTargetsInPackageValue.CollectTargetsInPackageKey argument =
         (CollectTargetsInPackageValue.CollectTargetsInPackageKey) skyKey.argument();
-    PackageIdentifier packageId = argument.getPackageId();
+    PackageIdentifier packageId = argument.packageId();
     PackageValue packageValue;
     try {
       packageValue = (PackageValue) env.getValueOrThrow(packageId, NoSuchPackageException.class);
@@ -62,7 +62,7 @@ class CollectTargetsInPackageFunction implements SkyFunction {
     return GraphTraversingHelper.declareDependenciesAndCheckIfValuesMissing(
             env,
             Iterables.transform(
-                TargetPatternResolverUtil.resolvePackageTargets(pkg, argument.getFilteringPolicy()),
+                TargetPatternResolverUtil.resolvePackageTargets(pkg, argument.filteringPolicy()),
                 TO_TRANSITIVE_TRAVERSAL_KEY))
         ? null
         : CollectTargetsInPackageValue.INSTANCE;

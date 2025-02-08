@@ -13,15 +13,18 @@
 // limitations under the License.
 package com.google.devtools.build.lib.analysis.config;
 
-import com.google.auto.value.AutoValue;
+import static java.util.Objects.requireNonNull;
+
 import com.google.devtools.build.lib.events.ExtendedEventHandler.Postable;
 
 /** Posted when a {@link BuildConfigurationValue} is created. */
-@AutoValue
-public abstract class ConfigurationValueEvent implements Postable {
-  public static ConfigurationValueEvent create(BuildConfigurationValue configuration) {
-    return new AutoValue_ConfigurationValueEvent(configuration);
+public record ConfigurationValueEvent(BuildConfigurationValue configuration) implements Postable {
+  public ConfigurationValueEvent {
+    requireNonNull(configuration, "configuration");
   }
 
-  public abstract BuildConfigurationValue configuration();
+  public static ConfigurationValueEvent create(BuildConfigurationValue configuration) {
+    return new ConfigurationValueEvent(configuration);
+  }
+
 }

@@ -133,6 +133,7 @@ public final class QuiescingExecutorsImpl implements QuiescingExecutors {
         SKYFRAME_EVALUATOR, analysisParallelism(), ParallelEvaluatorErrorClassifier.instance());
   }
 
+  @SuppressWarnings("AllowVirtualThreads")
   @Override
   public QuiescingExecutor getMergedAnalysisAndExecutionExecutor() {
     checkState(analysisParallelism > 0, "expected analysisParallelism > 0 : %s", this);

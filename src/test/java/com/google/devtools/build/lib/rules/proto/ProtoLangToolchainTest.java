@@ -15,21 +15,14 @@
 package com.google.devtools.build.lib.rules.proto;
 
 import static com.google.common.truth.Truth.assertThat;
-import static com.google.devtools.build.lib.skyframe.BzlLoadValue.keyForBuiltins;
 
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableMap;
 import com.google.common.eventbus.EventBus;
-import com.google.devtools.build.lib.analysis.FilesToRunProvider;
 import com.google.devtools.build.lib.analysis.TransitiveInfoCollection;
 import com.google.devtools.build.lib.analysis.util.BuildViewTestCase;
 import com.google.devtools.build.lib.cmdline.Label;
-import com.google.devtools.build.lib.packages.StarlarkInfo;
-import com.google.devtools.build.lib.packages.StarlarkProvider;
-import com.google.devtools.build.lib.packages.StructImpl;
 import com.google.devtools.build.lib.packages.util.MockProtoSupport;
 import com.google.devtools.build.lib.testutil.TestConstants;
-import net.starlark.java.syntax.Location;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -77,7 +70,7 @@ public class ProtoLangToolchainTest extends BuildViewTestCase {
     scratch.file(
         "third_party/x/BUILD",
         """
-        load('@protobuf//bazel:proto_library.bzl', 'proto_library')
+        load('@com_google_protobuf//bazel:proto_library.bzl', 'proto_library')
         licenses(["unencumbered"])
 
         cc_binary(
@@ -140,7 +133,7 @@ public class ProtoLangToolchainTest extends BuildViewTestCase {
     scratch.file(
         "third_party/x/BUILD",
         """
-        load('@protobuf//bazel:proto_library.bzl', 'proto_library')
+        load('@com_google_protobuf//bazel:proto_library.bzl', 'proto_library')
         licenses(["unencumbered"])
 
         cc_binary(
@@ -200,7 +193,7 @@ public class ProtoLangToolchainTest extends BuildViewTestCase {
   public void protoToolchainBlacklistProtoLibraries() throws Exception {
     scratch.file(
         "third_party/x/BUILD",
-        "load('@protobuf//bazel:proto_library.bzl', 'proto_library')",
+        "load('@com_google_protobuf//bazel:proto_library.bzl', 'proto_library')",
         "licenses(['unencumbered'])",
         "cc_binary(name = 'plugin', srcs = ['plugin.cc'])",
         "cc_library(name = 'runtime', srcs = ['runtime.cc'])",
@@ -232,7 +225,7 @@ public class ProtoLangToolchainTest extends BuildViewTestCase {
   public void protoToolchainBlacklistTransitiveProtos() throws Exception {
     scratch.file(
         "third_party/x/BUILD",
-        "load('@protobuf//bazel:proto_library.bzl', 'proto_library')",
+        "load('@com_google_protobuf//bazel:proto_library.bzl', 'proto_library')",
         "licenses(['unencumbered'])",
         "cc_binary(name = 'plugin', srcs = ['plugin.cc'])",
         "cc_library(name = 'runtime', srcs = ['runtime.cc'])",
@@ -277,68 +270,5 @@ public class ProtoLangToolchainTest extends BuildViewTestCase {
     assertThat(toolchain.pluginExecutable()).isNull();
     assertThat(toolchain.runtime()).isNull();
     assertThat(toolchain.mnemonic()).isEqualTo("GenProto");
-  }
-
-  @Test
-  public void protoLangToolchainProvider_deserialization() throws Exception {
-    scratch.file(
-        "foo/BUILD",
-        """
-        cc_binary(
-            name = "plugin",
-            srcs = ["plugin.cc"],
-        )
-
-        cc_binary(
-            name = "runtime",
-            srcs = ["runtime.cc"],
-        )
-        """);
-    FilesToRunProvider plugin =
-        getConfiguredTarget("//foo:plugin").getProvider(FilesToRunProvider.class);
-    TransitiveInfoCollection runtime = getConfiguredTarget("//foo:runtime");
-    FilesToRunProvider protoCompiler =
-        getConfiguredTarget("//net/proto2/compiler/public:protocol_compiler")
-            .getProvider(FilesToRunProvider.class);
-    StarlarkProvider provider =
-        StarlarkProvider.builder(Location.BUILTIN)
-            .buildExported(
-                new StarlarkProvider.Key(
-                    keyForBuiltins(
-                        Label.parseCanonicalUnchecked("@_builtins//:common/proto/protoinfo.bzl")),
-                    "ProtoSourceInfo"));
-    ImmutableList<StructImpl> providedProtoSources =
-        ImmutableList.of(
-            StarlarkInfo.create(
-                provider,
-                ImmutableMap.of(
-                    "original_source_file", getSourceArtifact("a.proto"),
-                    "source_file", getSourceArtifact("_virtual_imports/b/a.proto"),
-                    "proto_path", "b"),
-                Location.BUILTIN));
-    StarlarkInfo starlarkProvider =
-        ProtoLangToolchainProvider.create(
-            /* outReplacementFormatFlag= */ "outReplacementFormatFlag",
-            /* pluginFormatFlag= */ null,
-            /* pluginExecutable= */ plugin,
-            /* runtime= */ runtime,
-            /* providedProtoSources= */ providedProtoSources,
-            protoCompiler,
-            ImmutableList.of("--a", "--b"),
-            "Generating C++ proto_library %{label}",
-            "GenProto");
-
-    ProtoLangToolchainProvider nativeProvider =
-        ProtoLangToolchainProvider.wrapStarlarkProviderWithNativeProvider(starlarkProvider);
-
-    assertThat(nativeProvider.outReplacementFormatFlag()).isEqualTo("outReplacementFormatFlag");
-    assertThat(nativeProvider.pluginFormatFlag()).isNull();
-    assertThat(nativeProvider.pluginExecutable()).isEqualTo(plugin);
-    assertThat(nativeProvider.runtime()).isEqualTo(runtime);
-    assertThat(nativeProvider.providedProtoSources()).isEqualTo(providedProtoSources);
-    assertThat(nativeProvider.protoc()).isEqualTo(protoCompiler);
-    assertThat(nativeProvider.protocOpts()).containsExactly("--a", "--b");
-    assertThat(nativeProvider.progressMessage()).isEqualTo("Generating C++ proto_library %{label}");
-    assertThat(nativeProvider.mnemonic()).isEqualTo("GenProto");
   }
 }

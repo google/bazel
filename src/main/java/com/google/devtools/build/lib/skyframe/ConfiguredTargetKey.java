@@ -15,7 +15,6 @@
 package com.google.devtools.build.lib.skyframe;
 
 import static com.google.common.base.Preconditions.checkNotNull;
-import static com.google.devtools.build.lib.unsafe.UnsafeProvider.getFieldOffset;
 import static com.google.devtools.build.lib.util.HashCodes.hashObjects;
 
 import com.google.common.base.MoreObjects;
@@ -341,9 +340,13 @@ public class ConfiguredTargetKey implements ActionLookupKey {
     return ConfiguredTargetKeyValueSharingCodec.INSTANCE;
   }
 
-  // TODO: b/359437873 - generate with @AutoCodec.
   private static class ConfiguredTargetKeyValueSharingCodec
       extends DeferredObjectCodec<ConfiguredTargetKey> {
+
+    private static final byte LABEL_MASK = (byte) 0b1000;
+    private static final byte CONFIGURATION_KEY_MASK = (byte) 0b0100;
+    private static final byte EXECUTION_PLATFORM_MASK = (byte) 0b0010;
+    private static final byte SHOULD_APPLY_RULE_TRANSITION_MASK = (byte) 0b0001;
 
     private static final ConfiguredTargetKeyValueSharingCodec INSTANCE =
         new ConfiguredTargetKeyValueSharingCodec();
@@ -362,31 +365,69 @@ public class ConfiguredTargetKey implements ActionLookupKey {
     public void serialize(
         SerializationContext context, ConfiguredTargetKey key, CodedOutputStream codedOut)
         throws SerializationException, IOException {
-      context.putSharedValue(
-          key, /* distinguisher= */ null, ConfiguredTargetKeyCodec.INSTANCE, codedOut);
+      Label label = key.getLabel();
+      BuildConfigurationKey configurationKey = key.getConfigurationKey();
+      Label executionPlatformLabel = key.getExecutionPlatformLabel();
+      // This is an int because Java converts bytes to ints when performing binary bitwise
+      // operations, but it's really only a byte.
+      int presenceMask =
+          ((label != null ? LABEL_MASK : (byte) 0)
+              | (configurationKey != null ? CONFIGURATION_KEY_MASK : (byte) 0)
+              | (executionPlatformLabel != null ? EXECUTION_PLATFORM_MASK : (byte) 0)
+              | (key.shouldApplyRuleTransition() ? SHOULD_APPLY_RULE_TRANSITION_MASK : (byte) 0));
+      codedOut.writeRawByte((byte) presenceMask);
+
+      if (label != null) {
+        context.putSharedValue(label, /* distinguisher= */ null, Label.deferredCodec(), codedOut);
+      }
+      if (configurationKey != null) {
+        context.putSharedValue(
+            configurationKey, /* distinguisher= */ null, BuildConfigurationKey.codec(), codedOut);
+      }
+      if (executionPlatformLabel != null) {
+        context.putSharedValue(
+            executionPlatformLabel, /* distinguisher= */ null, Label.deferredCodec(), codedOut);
+      }
     }
 
     @Override
     public DeferredValue<ConfiguredTargetKey> deserializeDeferred(
         AsyncDeserializationContext context, CodedInputStream codedIn)
         throws SerializationException, IOException {
-      SimpleDeferredValue<ConfiguredTargetKey> value = SimpleDeferredValue.create();
-      context.getSharedValue(
-          codedIn,
-          /* distinguisher= */ null,
-          ConfiguredTargetKeyCodec.INSTANCE,
-          value,
-          SimpleDeferredValue::set);
-      return value;
+      byte presenceMask = codedIn.readRawByte();
+      var builder = builder();
+      if ((presenceMask & LABEL_MASK) != 0) {
+        context.getSharedValue(
+            codedIn,
+            /* distinguisher= */ null,
+            Label.deferredCodec(),
+            builder,
+            ConfiguredTargetKeyCodec::setLabel);
+      }
+      if ((presenceMask & CONFIGURATION_KEY_MASK) != 0) {
+        context.getSharedValue(
+            codedIn,
+            /* distinguisher= */ null,
+            BuildConfigurationKey.codec(),
+            builder,
+            ConfiguredTargetKeyCodec::setConfigurationKey);
+      }
+      if ((presenceMask & EXECUTION_PLATFORM_MASK) != 0) {
+        context.getSharedValue(
+            codedIn,
+            /* distinguisher= */ null,
+            Label.deferredCodec(),
+            builder,
+            ConfiguredTargetKeyCodec::setExecutionPlatformLabel);
+      }
+      return builder.setShouldApplyRuleTransition(
+          (presenceMask & SHOULD_APPLY_RULE_TRANSITION_MASK) != 0);
     }
   }
 
   /** Codec for all {@link ConfiguredTargetKey} subtypes. */
   @Keep
   private static class ConfiguredTargetKeyCodec extends DeferredObjectCodec<ConfiguredTargetKey> {
-
-    private static final ConfiguredTargetKeyCodec INSTANCE = new ConfiguredTargetKeyCodec();
-
     @Override
     public Class<ConfiguredTargetKey> getEncodedClass() {
       return ConfiguredTargetKey.class;
@@ -407,26 +448,22 @@ public class ConfiguredTargetKey implements ActionLookupKey {
         AsyncDeserializationContext context, CodedInputStream codedIn)
         throws SerializationException, IOException {
       Builder builder = builder();
-      context.deserialize(codedIn, builder, LABEL_OFFSET);
-      context.deserialize(codedIn, builder, CONFIGURATION_KEY_OFFSET);
-      context.deserialize(codedIn, builder, EXECUTION_PLATFORM_LABEL_OFFSET);
+      context.deserialize(codedIn, builder, ConfiguredTargetKeyCodec::setLabel);
+      context.deserialize(codedIn, builder, ConfiguredTargetKeyCodec::setConfigurationKey);
+      context.deserialize(codedIn, builder, ConfiguredTargetKeyCodec::setExecutionPlatformLabel);
       return builder.setShouldApplyRuleTransition(codedIn.readBool());
     }
-  }
 
-  // Below are Builder offsets, used for deserialization.
+    private static final void setLabel(Builder builder, Object value) {
+      builder.setLabel((Label) value);
+    }
 
-  private static final long LABEL_OFFSET;
-  private static final long CONFIGURATION_KEY_OFFSET;
-  private static final long EXECUTION_PLATFORM_LABEL_OFFSET;
+    private static final void setConfigurationKey(Builder builder, Object value) {
+      builder.setConfigurationKey((BuildConfigurationKey) value);
+    }
 
-  static {
-    try {
-      LABEL_OFFSET = getFieldOffset(Builder.class, "label");
-      CONFIGURATION_KEY_OFFSET = getFieldOffset(Builder.class, "configurationKey");
-      EXECUTION_PLATFORM_LABEL_OFFSET = getFieldOffset(Builder.class, "executionPlatformLabel");
-    } catch (NoSuchFieldException e) {
-      throw new ExceptionInInitializerError(e);
+    private static final void setExecutionPlatformLabel(Builder builder, Object value) {
+      builder.setExecutionPlatformLabel((Label) value);
     }
   }
 }

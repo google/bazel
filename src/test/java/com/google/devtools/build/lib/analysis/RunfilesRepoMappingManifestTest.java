@@ -28,7 +28,6 @@ import com.google.devtools.build.lib.util.Fingerprint;
 import com.google.devtools.build.lib.vfs.PathFragment;
 import java.util.Map.Entry;
 import net.starlark.java.eval.EvalException;
-import net.starlark.java.syntax.Location;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -54,7 +53,7 @@ public class RunfilesRepoMappingManifestTest extends BuildViewTestCase {
   public void setupBareBinaryRule() throws Exception {
     registry.addModule(
         createModuleKey("bare_rule", "1.0"), "module(name='bare_rule',version='1.0')");
-    scratch.overwriteFile(moduleRoot.getRelative("bare_rule+1.0/WORKSPACE").getPathString());
+    scratch.overwriteFile(moduleRoot.getRelative("bare_rule+1.0/REPO.bazel").getPathString());
     scratch.overwriteFile(
         moduleRoot.getRelative("bare_rule+1.0/defs.bzl").getPathString(),
         "def _bare_binary_impl(ctx):",
@@ -137,7 +136,7 @@ public class RunfilesRepoMappingManifestTest extends BuildViewTestCase {
             "ddd+2.0", "bare_binary(name='ddd')");
     for (Entry<String, String> entry : buildFiles.entrySet()) {
       scratch.overwriteFile(
-          moduleRoot.getRelative(entry.getKey()).getRelative("WORKSPACE").getPathString());
+          moduleRoot.getRelative(entry.getKey()).getRelative("REPO.bazel").getPathString());
       scratch.overwriteFile(
           moduleRoot.getRelative(entry.getKey()).getRelative("BUILD").getPathString(),
           "load('@bare_rule//:defs.bzl', 'bare_binary')",
@@ -172,7 +171,7 @@ public class RunfilesRepoMappingManifestTest extends BuildViewTestCase {
         "module(name='tooled_rule',version='1.0')",
         "bazel_dep(name='bare_rule',version='1.0')",
         "register_toolchains('//:all')");
-    scratch.overwriteFile(moduleRoot.getRelative("tooled_rule+1.0/WORKSPACE").getPathString());
+    scratch.overwriteFile(moduleRoot.getRelative("tooled_rule+1.0/REPO.bazel").getPathString());
     scratch.overwriteFile(
         moduleRoot.getRelative("tooled_rule+1.0/defs.bzl").getPathString(),
         "def _tooled_binary_impl(ctx):",
@@ -224,29 +223,7 @@ public class RunfilesRepoMappingManifestTest extends BuildViewTestCase {
   }
 
   @Test
-  public void actionRerunsOnRepoMappingChange_workspaceName() throws Exception {
-    setBuildLanguageOptions("--enable_workspace");
-    overwriteWorkspaceFile("workspace(name='aaa_ws')");
-    scratch.overwriteFile(
-        "MODULE.bazel",
-        "module(name='aaa',version='1.0')",
-        "bazel_dep(name='bare_rule',version='1.0')");
-    scratch.overwriteFile(
-        "BUILD", "load('@bare_rule//:defs.bzl', 'bare_binary')", "bare_binary(name='aaa')");
-    invalidatePackages();
-
-    RepoMappingManifestAction actionBeforeChange = getRepoMappingManifestActionForTarget("//:aaa");
-
-    overwriteWorkspaceFile("workspace(name='not_aaa_ws')");
-    invalidatePackages();
-
-    RepoMappingManifestAction actionAfterChange = getRepoMappingManifestActionForTarget("//:aaa");
-    assertThat(computeKey(actionBeforeChange)).isNotEqualTo(computeKey(actionAfterChange));
-  }
-
-  @Test
   public void actionRerunsOnRepoMappingChange_repoName() throws Exception {
-    overwriteWorkspaceFile("workspace(name='aaa_ws')");
     scratch.overwriteFile(
         "MODULE.bazel",
         "module(name='aaa',version='1.0')",
@@ -269,7 +246,6 @@ public class RunfilesRepoMappingManifestTest extends BuildViewTestCase {
 
   @Test
   public void actionRerunsOnRepoMappingChange_newEntry() throws Exception {
-    overwriteWorkspaceFile("workspace(name='aaa_ws')");
     scratch.overwriteFile(
         "MODULE.bazel",
         "module(name='aaa',version='1.0')",
@@ -282,7 +258,7 @@ public class RunfilesRepoMappingManifestTest extends BuildViewTestCase {
         "module(name='bbb',version='1.0')",
         "bazel_dep(name='bare_rule',version='1.0')");
     scratch.overwriteFile(
-        moduleRoot.getRelative("bbb+1.0").getRelative("WORKSPACE").getPathString());
+        moduleRoot.getRelative("bbb+1.0").getRelative("REPO.bazel").getPathString());
     scratch.overwriteFile(moduleRoot.getRelative("bbb+1.0").getRelative("BUILD").getPathString());
     scratch.overwriteFile(
         moduleRoot.getRelative("bbb+1.0").getRelative("def.bzl").getPathString(), "BBB = '1'");
@@ -308,7 +284,6 @@ public class RunfilesRepoMappingManifestTest extends BuildViewTestCase {
 
   @Test
   public void hasMappingForSymlinks() throws Exception {
-    overwriteWorkspaceFile("workspace(name='my_workspace')");
     scratch.overwriteFile(
         "MODULE.bazel",
         "module(name='my_module',version='1.0')",
@@ -320,7 +295,7 @@ public class RunfilesRepoMappingManifestTest extends BuildViewTestCase {
         "bazel_dep(name='my_module',version='1.0')",
         "bazel_dep(name='bare_rule',version='1.0')",
         "bazel_dep(name='symlinks',version='1.0')");
-    scratch.overwriteFile(moduleRoot.getRelative("aaa+1.0/WORKSPACE").getPathString());
+    scratch.overwriteFile(moduleRoot.getRelative("aaa+1.0/REPO.bazel").getPathString());
     scratch.overwriteFile(
         moduleRoot.getRelative("aaa+1.0/BUILD").getPathString(),
         "load('@bare_rule//:defs.bzl', 'bare_binary')",
@@ -330,7 +305,7 @@ public class RunfilesRepoMappingManifestTest extends BuildViewTestCase {
         createModuleKey("symlinks", "1.0"),
         "module(name='symlinks',version='1.0')",
         "bazel_dep(name='ddd',version='1.0')");
-    scratch.overwriteFile(moduleRoot.getRelative("symlinks+1.0/WORKSPACE").getPathString());
+    scratch.overwriteFile(moduleRoot.getRelative("symlinks+1.0/REPO.bazel").getPathString());
     scratch.overwriteFile(
         moduleRoot.getRelative("symlinks+1.0/defs.bzl").getPathString(),
         "def _symlinks_impl(ctx):",
@@ -353,7 +328,7 @@ public class RunfilesRepoMappingManifestTest extends BuildViewTestCase {
         createModuleKey("ddd", "1.0"),
         "module(name='ddd',version='1.0')",
         "bazel_dep(name='bare_rule',version='1.0')");
-    scratch.overwriteFile(moduleRoot.getRelative("ddd+1.0/WORKSPACE").getPathString());
+    scratch.overwriteFile(moduleRoot.getRelative("ddd+1.0/REPO.bazel").getPathString());
     scratch.overwriteFile(
         moduleRoot.getRelative("ddd+1.0/BUILD").getPathString(),
         "load('@bare_rule//:defs.bzl', 'bare_binary')",
@@ -364,7 +339,7 @@ public class RunfilesRepoMappingManifestTest extends BuildViewTestCase {
     ImmutableList<String> runfilesPaths =
         runfilesSupport
             .getRunfiles()
-            .getRunfilesInputs(reporter, Location.BUILTIN, runfilesSupport.getRepoMappingManifest())
+            .getRunfilesInputs(runfilesSupport.getRepoMappingManifest())
             .keySet()
             .stream()
             .map(PathFragment::getPathString)
@@ -416,18 +391,5 @@ public class RunfilesRepoMappingManifestTest extends BuildViewTestCase {
 
     assertThat(getFilesToBuild(getConfiguredTarget("//:get_repo_mapping")).toList())
         .containsExactly(getRunfilesSupport("//:aaa").getRepoMappingManifest());
-  }
-
-  /**
-   * Similar to {@link BuildViewTestCase#rewriteWorkspace(String...)}, but does not call {@link
-   * BuildViewTestCase#invalidatePackages()}.
-   */
-  public void overwriteWorkspaceFile(String... lines) throws Exception {
-    scratch.overwriteFile(
-        "WORKSPACE",
-        new ImmutableList.Builder<String>()
-            .addAll(analysisMock.getWorkspaceContents(mockToolsConfig))
-            .addAll(ImmutableList.copyOf(lines))
-            .build());
   }
 }

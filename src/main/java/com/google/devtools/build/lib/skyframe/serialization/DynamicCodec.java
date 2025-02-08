@@ -21,6 +21,7 @@ import static com.google.devtools.build.lib.unsafe.UnsafeProvider.unsafe;
 
 import com.google.common.flogger.GoogleLogger;
 import com.google.devtools.build.lib.skyframe.serialization.AsyncDeserializationContext.FieldSetter;
+
 import com.google.protobuf.CodedInputStream;
 import com.google.protobuf.CodedOutputStream;
 import java.io.IOException;
@@ -147,12 +148,14 @@ public final class DynamicCodec extends AsyncObjectCodec<Object> {
       this.offset = offset;
     }
 
+    // TODO: b/386384684 - remove Unsafe usage
     @Override
     public void serialize(SerializationContext context, CodedOutputStream codedOut, Object obj)
         throws IOException {
       codedOut.writeBoolNoTag(unsafe().getBoolean(obj, offset));
     }
 
+    // TODO: b/386384684 - remove Unsafe usage
     @Override
     public void deserialize(
         AsyncDeserializationContext context, CodedInputStream codedIn, Object obj)
@@ -168,12 +171,14 @@ public final class DynamicCodec extends AsyncObjectCodec<Object> {
       this.offset = offset;
     }
 
+    // TODO: b/386384684 - remove Unsafe usage
     @Override
     public void serialize(SerializationContext context, CodedOutputStream codedOut, Object obj)
         throws IOException {
       codedOut.writeRawByte(unsafe().getByte(obj, offset));
     }
 
+    // TODO: b/386384684 - remove Unsafe usage
     @Override
     public void deserialize(
         AsyncDeserializationContext context, CodedInputStream codedIn, Object obj)
@@ -189,12 +194,14 @@ public final class DynamicCodec extends AsyncObjectCodec<Object> {
       this.offset = offset;
     }
 
+    // TODO: b/386384684 - remove Unsafe usage
     @Override
     public void serialize(SerializationContext context, CodedOutputStream codedOut, Object obj)
         throws IOException {
       writeShort(codedOut, unsafe().getShort(obj, offset));
     }
 
+    // TODO: b/386384684 - remove Unsafe usage
     @Override
     public void deserialize(
         AsyncDeserializationContext context, CodedInputStream codedIn, Object obj)
@@ -210,12 +217,14 @@ public final class DynamicCodec extends AsyncObjectCodec<Object> {
       this.offset = offset;
     }
 
+    // TODO: b/386384684 - remove Unsafe usage
     @Override
     public void serialize(SerializationContext context, CodedOutputStream codedOut, Object obj)
         throws IOException {
       writeChar(codedOut, unsafe().getChar(obj, offset));
     }
 
+    // TODO: b/386384684 - remove Unsafe usage
     @Override
     public void deserialize(
         AsyncDeserializationContext context, CodedInputStream codedIn, Object obj)
@@ -231,12 +240,14 @@ public final class DynamicCodec extends AsyncObjectCodec<Object> {
       this.offset = offset;
     }
 
+    // TODO: b/386384684 - remove Unsafe usage
     @Override
     public void serialize(SerializationContext context, CodedOutputStream codedOut, Object obj)
         throws IOException {
       codedOut.writeInt32NoTag(unsafe().getInt(obj, offset));
     }
 
+    // TODO: b/386384684 - remove Unsafe usage
     @Override
     public void deserialize(
         AsyncDeserializationContext context, CodedInputStream codedIn, Object obj)
@@ -252,12 +263,14 @@ public final class DynamicCodec extends AsyncObjectCodec<Object> {
       this.offset = offset;
     }
 
+    // TODO: b/386384684 - remove Unsafe usage
     @Override
     public void serialize(SerializationContext context, CodedOutputStream codedOut, Object obj)
         throws IOException {
       codedOut.writeInt64NoTag(unsafe().getLong(obj, offset));
     }
 
+    // TODO: b/386384684 - remove Unsafe usage
     @Override
     public void deserialize(
         AsyncDeserializationContext context, CodedInputStream codedIn, Object obj)
@@ -273,12 +286,14 @@ public final class DynamicCodec extends AsyncObjectCodec<Object> {
       this.offset = offset;
     }
 
+    // TODO: b/386384684 - remove Unsafe usage
     @Override
     public void serialize(SerializationContext context, CodedOutputStream codedOut, Object obj)
         throws IOException {
       codedOut.writeFloatNoTag(unsafe().getFloat(obj, offset));
     }
 
+    // TODO: b/386384684 - remove Unsafe usage
     @Override
     public void deserialize(
         AsyncDeserializationContext context, CodedInputStream codedIn, Object obj)
@@ -294,12 +309,14 @@ public final class DynamicCodec extends AsyncObjectCodec<Object> {
       this.offset = offset;
     }
 
+    // TODO: b/386384684 - remove Unsafe usage
     @Override
     public void serialize(SerializationContext context, CodedOutputStream codedOut, Object obj)
         throws IOException {
       codedOut.writeDoubleNoTag(unsafe().getDouble(obj, offset));
     }
 
+    // TODO: b/386384684 - remove Unsafe usage
     @Override
     public void deserialize(
         AsyncDeserializationContext context, CodedInputStream codedIn, Object obj)
@@ -317,6 +334,7 @@ public final class DynamicCodec extends AsyncObjectCodec<Object> {
       this.offset = offset;
     }
 
+    // TODO: b/386384684 - remove Unsafe usage
     @Override
     public void serialize(SerializationContext context, CodedOutputStream codedOut, Object obj)
         throws IOException, SerializationException {
@@ -330,6 +348,7 @@ public final class DynamicCodec extends AsyncObjectCodec<Object> {
       context.deserialize(codedIn, obj, (FieldSetter<Object>) this);
     }
 
+    // TODO: b/386384684 - remove Unsafe usage
     @Override
     public void set(Object target, Object fieldValue) throws SerializationException {
       if (!type.isInstance(fieldValue)) {
@@ -357,12 +376,14 @@ public final class DynamicCodec extends AsyncObjectCodec<Object> {
       this.offset = offset;
     }
 
+    // TODO: b/386384684 - remove Unsafe usage
     @Override
     public void serialize(SerializationContext context, CodedOutputStream codedOut, Object obj)
         throws IOException, SerializationException {
       arrayProcessor.serialize(context, codedOut, type, unsafe().getObject(obj, offset));
     }
 
+    // TODO: b/386384684 - remove Unsafe usage
     @Override
     public void deserialize(
         AsyncDeserializationContext context, CodedInputStream codedIn, Object obj)
@@ -398,6 +419,7 @@ public final class DynamicCodec extends AsyncObjectCodec<Object> {
     return fields;
   }
 
+  // TODO: b/386384684 - remove Unsafe usage
   private static FieldHandler getHandlerForField(Field field) {
     long offset = unsafe().objectFieldOffset(field);
     Class<?> fieldType = field.getType();

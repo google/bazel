@@ -17,7 +17,6 @@ package com.google.devtools.build.lib.analysis;
 import static com.google.common.truth.Truth.assertThat;
 
 import com.google.devtools.build.lib.analysis.util.BuildViewTestCase;
-import com.google.devtools.build.lib.vfs.FileSystemUtils;
 import com.google.devtools.build.lib.vfs.ModifiedFileSet;
 import com.google.devtools.build.lib.vfs.Root;
 import org.junit.Before;
@@ -216,7 +215,7 @@ public class LocationExpanderIntegrationTest extends BuildViewTestCase {
         .invalidateFilesUnderPathForTesting(
             reporter, ModifiedFileSet.EVERYTHING_MODIFIED, Root.fromPath(rootDirectory));
 
-    FileSystemUtils.createDirectoryAndParents(scratch.resolve("/foo/bar"));
+    scratch.resolve("/foo/bar").createDirectoryAndParents();
     scratch.file("/r/MODULE.bazel", "module(name = 'r')");
     scratch.file("/r/p/BUILD", "genrule(name='foo', outs=['foo.txt'], cmd='never executed')");
 
@@ -249,7 +248,7 @@ public class LocationExpanderIntegrationTest extends BuildViewTestCase {
         .invalidateFilesUnderPathForTesting(
             reporter, ModifiedFileSet.EVERYTHING_MODIFIED, Root.fromPath(rootDirectory));
 
-    FileSystemUtils.createDirectoryAndParents(scratch.resolve("/foo/bar"));
+    scratch.resolve("/foo/bar").createDirectoryAndParents();
     scratch.file("/r/MODULE.bazel", "module(name = 'r')");
     scratch.file("/r/p/BUILD", "genrule(name='foo', outs=['foo.txt'], cmd='never executed')");
 
@@ -283,7 +282,7 @@ public class LocationExpanderIntegrationTest extends BuildViewTestCase {
         .invalidateFilesUnderPathForTesting(
             reporter, ModifiedFileSet.EVERYTHING_MODIFIED, Root.fromPath(rootDirectory));
 
-    FileSystemUtils.createDirectoryAndParents(scratch.resolve("/foo/bar"));
+    scratch.resolve("/foo/bar").createDirectoryAndParents();
     scratch.file("/r/MODULE.bazel", "module(name = 'r')");
     scratch.file("/r/p/BUILD", "genrule(name='foo', outs=['foo.txt'], cmd='never executed')");
 

@@ -14,8 +14,9 @@
 
 package com.google.devtools.build.lib.buildeventservice;
 
+import static java.util.Objects.requireNonNull;
+
 import com.google.auth.Credentials;
-import com.google.auto.value.AutoValue;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
@@ -48,20 +49,20 @@ import javax.annotation.Nullable;
 public class BazelBuildEventServiceModule
     extends BuildEventServiceModule<BuildEventServiceOptions> {
 
-  @AutoValue
-  abstract static class BackendConfig {
-    abstract String besBackend();
-
-    @Nullable
-    abstract String besProxy();
-
-    abstract ImmutableList<Map.Entry<String, String>> besHeaders();
-
-    abstract AuthAndTLSOptions authAndTLSOptions();
+  record BackendConfig(
+      String besBackend,
+      @Nullable String besProxy,
+      ImmutableList<Map.Entry<String, String>> besHeaders,
+      AuthAndTLSOptions authAndTLSOptions) {
+    BackendConfig {
+      requireNonNull(besBackend, "besBackend");
+      requireNonNull(besHeaders, "besHeaders");
+      requireNonNull(authAndTLSOptions, "authAndTLSOptions");
+    }
 
     static BackendConfig create(
         BuildEventServiceOptions besOptions, AuthAndTLSOptions authAndTLSOptions) {
-      return new AutoValue_BazelBuildEventServiceModule_BackendConfig(
+      return new BackendConfig(
           besOptions.besBackend,
           besOptions.besProxy,
           ImmutableMap.<String, String>builder()

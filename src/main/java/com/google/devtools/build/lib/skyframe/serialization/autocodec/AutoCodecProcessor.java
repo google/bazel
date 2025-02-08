@@ -19,9 +19,9 @@ import static com.google.devtools.build.lib.skyframe.serialization.autocodec.Aut
 import static com.google.devtools.build.lib.skyframe.serialization.autocodec.TypeOperations.findRelationWithGenerics;
 import static com.google.devtools.build.lib.skyframe.serialization.autocodec.TypeOperations.getErasureAsMirror;
 import static com.google.devtools.build.lib.skyframe.serialization.autocodec.TypeOperations.writeGeneratedClassToFile;
+import static java.util.Objects.requireNonNull;
 
 import com.google.auto.service.AutoService;
-import com.google.auto.value.AutoValue;
 import com.google.common.collect.ImmutableSet;
 import com.google.devtools.build.lib.skyframe.serialization.ObjectCodec;
 import com.google.devtools.build.lib.skyframe.serialization.autocodec.AutoCodec.Instantiator;
@@ -131,14 +131,14 @@ public class AutoCodecProcessor extends AbstractProcessor {
     INTERNER
   }
 
-  @AutoValue
-  abstract static class ResolvedInstantiator {
-    public abstract InstantiatorKind kind();
-
-    public abstract ExecutableElement method();
+  record ResolvedInstantiator(InstantiatorKind kind, ExecutableElement method) {
+    ResolvedInstantiator {
+      requireNonNull(kind, "kind");
+      requireNonNull(method, "method");
+    }
 
     private static ResolvedInstantiator create(InstantiatorKind kind, ExecutableElement method) {
-      return new AutoValue_AutoCodecProcessor_ResolvedInstantiator(kind, method);
+      return new ResolvedInstantiator(kind, method);
     }
   }
 

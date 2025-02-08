@@ -62,7 +62,7 @@ using std::string;
 
 // ${XDG_CACHE_HOME}/bazel, a.k.a. ~/.cache/bazel by default (which is the
 // fallback when XDG_CACHE_HOME is not set)
-string GetOutputRoot() {
+string GetCacheDir() {
   string xdg_cache_home = GetPathEnv("XDG_CACHE_HOME");
   if (xdg_cache_home.empty()) {
     char buf[2048];

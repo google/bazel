@@ -61,8 +61,9 @@ function hash_outputs() {
 }
 
 function test_determinism()  {
-    # Verify that Bazel can build itself under a path with spaces.
-    local workdir="${TEST_TMPDIR}/work dir"
+    # Verify that Bazel can build itself under a path with spaces and non-ASCII
+    # characters.
+    local workdir="${TEST_TMPDIR}/wo🌱rk dir"
     mkdir "${workdir}" || fail "Could not create work directory"
     cd "${workdir}" || fail "Could not change to work directory"
     unzip -q "${DISTFILE}"
@@ -74,7 +75,7 @@ function test_determinism()  {
     bazel \
       --output_base="${TEST_TMPDIR}/out 1" \
       build \
-      --extra_toolchains=@bazel_tools//tools/python:autodetecting_toolchain \
+      --extra_toolchains=@rules_python//python:autodetecting_toolchain \
       --enable_bzlmod \
       --check_direct_dependencies=error \
       --lockfile_mode=update \
@@ -89,7 +90,7 @@ function test_determinism()  {
       --install_base="${TEST_TMPDIR}/install_base2" \
       --output_base="${TEST_TMPDIR}/out 2" \
       build \
-      --extra_toolchains=@bazel_tools//tools/python:autodetecting_toolchain \
+      --extra_toolchains=@rules_python//python:autodetecting_toolchain \
       --enable_bzlmod \
       --check_direct_dependencies=error \
       --lockfile_mode=update \

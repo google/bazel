@@ -92,7 +92,6 @@ public final class BazelMockPythonSupport extends MockPythonSupport {
         "rules_python_workspace/python/BUILD",
         "alias(name = 'toolchain_type', actual = '@bazel_tools//tools/python:toolchain_type')",
         "toolchain_type(name = 'exec_tools_toolchain_type')");
-    config.overwrite("rules_python_workspace/WORKSPACE", "workspace(name = 'rules_python')");
     config.overwrite("rules_python_workspace/MODULE.bazel", "module(name = 'rules_python')");
     config.overwrite(
         "rules_python_workspace/python/private/BUILD",
@@ -103,10 +102,12 @@ public final class BazelMockPythonSupport extends MockPythonSupport {
         "bool_setting(name = 'visible_for_testing', build_setting_default = False)");
     config.overwrite("rules_python_workspace/python/private/common/BUILD");
     config.overwrite(
-        "rules_python_workspace/python/config_settings/BUILD",
+        "rules_python_workspace/python/config_settings/BUILD.bazel",
         "load('@bazel_skylib//rules:common_settings.bzl', 'string_flag')",
         "string_flag(name = 'python_version', build_setting_default = '3.11')",
         "string_flag(name = 'precompile', build_setting_default = 'auto')",
+        "string_flag(name = 'py_freethreaded', build_setting_default = 'no')",
+        "string_flag(name = 'add_srcs_to_runfiles', build_setting_default = 'auto')",
         "string_flag(name = 'pyc_collection', build_setting_default = 'disabled')",
         "string_flag(name = 'precompile_source_retention', build_setting_default = 'auto')",
         "string_flag(name = 'bootstrap_impl', build_setting_default = 'system_python')",
@@ -120,7 +121,7 @@ public final class BazelMockPythonSupport extends MockPythonSupport {
     config.create("rules_python_internal_workspace/BUILD");
     config.create(
         "rules_python_internal_workspace/rules_python_config.bzl",
-        "config = struct(enable_pystar = True)");
+        "config = struct(enable_pystar = True, BuiltinPyInfo = None, BuiltinPyRuntimeInfo = None)");
 
     config.create(
         "rules_python_internal_workspace/py_internal.bzl",

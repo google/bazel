@@ -163,7 +163,7 @@ public class TestCommand implements BlazeCommand {
     }
     BuildRequest request = builder.build();
 
-    BuildResult buildResult = new BuildTool(env).processRequest(request, null);
+    BuildResult buildResult = new BuildTool(env).processRequest(request, null, options);
 
     Collection<ConfiguredTarget> testTargets = buildResult.getTestTargets();
     // TODO(bazel-team): don't handle isEmpty here or fix up a bunch of tests

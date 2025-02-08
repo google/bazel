@@ -209,7 +209,7 @@ public final class CleanCommand implements BlazeCommand {
             .setWorkingDir(tempPath.getParentDirectory())
             .build()
             .execute();
-    logger.atInfo().log("Shell command status: %s", result.getTerminationStatus());
+    logger.atInfo().log("Shell command status: %s", result.terminationStatus());
   }
 
   private static BlazeCommandResult actuallyClean(

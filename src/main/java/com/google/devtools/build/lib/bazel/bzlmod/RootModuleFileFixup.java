@@ -16,6 +16,8 @@
 package com.google.devtools.build.lib.bazel.bzlmod;
 
 import com.google.common.collect.ImmutableListMultimap;
+import com.google.devtools.build.lib.events.Event;
+import com.google.devtools.build.lib.skyframe.serialization.autocodec.AutoCodec;
 import com.google.devtools.build.lib.vfs.PathFragment;
 
 /**
@@ -27,9 +29,11 @@ import com.google.devtools.build.lib.vfs.PathFragment;
  *     its includes); the values are the buildozer commands required to bring the keyed file into
  *     the expected state.
  */
+@AutoCodec
 public record RootModuleFileFixup(
     ImmutableListMultimap<PathFragment, String> moduleFilePathToBuildozerCommands,
-    ModuleExtensionUsage usage) {
+    ModuleExtensionUsage usage,
+    Event warning) {
 
   /** A human-readable message describing the fixup after it has been applied. */
   public String getSuccessMessage() {
@@ -40,7 +44,7 @@ public record RootModuleFileFixup(
             key ->
                 String.format(
                     "Updated use_repo calls for isolated usage '%s' of %s",
-                    key.getUsageExportedName(), extensionId))
+                    key.usageExportedName(), extensionId))
         .orElseGet(() -> String.format("Updated use_repo calls for %s", extensionId));
   }
 }

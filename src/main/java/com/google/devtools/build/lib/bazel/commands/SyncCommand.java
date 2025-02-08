@@ -95,9 +95,9 @@ public final class SyncCommand implements BlazeCommand {
 
   @Override
   public BlazeCommandResult exec(CommandEnvironment env, OptionsParsingResult options) {
-    if (!options.getOptions(BuildLanguageOptions.class).enableWorkspace) {
-      String errorMessage =
-          "WORKSPACE has to be enabled for sync command to work, run with --enable_workspace.";
+    if (BuildLanguageOptions.ENABLE_BZLMOD.startsWith("+")) {
+      // TODO: remove dead code.
+      String errorMessage = "The sync command has been removed; use `bazel fetch --all` instead.";
       env.getReporter().handle(Event.error(errorMessage));
       return blazeCommandResultWithNoBuildReport(
           env, ExitCode.ANALYSIS_FAILURE, Code.REPOSITORY_FETCH_ERRORS, errorMessage);

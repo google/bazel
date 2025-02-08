@@ -408,7 +408,7 @@ public class SandboxOptions extends OptionsBase {
 
   @Option(
       name = "incompatible_use_new_cgroup_implementation",
-      defaultValue = "false",
+      defaultValue = "true",
       documentationCategory = OptionDocumentationCategory.EXECUTION_STRATEGY,
       effectTags = {OptionEffectTag.EXECUTION},
       converter = BooleanConverter.class,
@@ -430,6 +430,17 @@ public class SandboxOptions extends OptionsBase {
               + " test that declares cpu:3 and resources:memory:10, will run with at most 3 cpus"
               + " and 10 megabytes of memory.")
   public RegexPatternOption enforceResources;
+
+  @Option(
+      name = "sandbox_enable_loopback_device",
+      defaultValue = "true",
+      documentationCategory = OptionDocumentationCategory.EXECUTION_STRATEGY,
+      effectTags = {OptionEffectTag.EXECUTION},
+      converter = BooleanConverter.class,
+      help =
+          "If true, a loopback device will be set up in the linux-sandbox network namespace for"
+              + " local actions.")
+  public boolean sandboxEnableLoopbackDevice;
 
   /** Converter for the number of threads used for asynchronous tree deletion. */
   public static final class AsyncTreeDeletesConverter extends ResourceConverter.IntegerConverter {

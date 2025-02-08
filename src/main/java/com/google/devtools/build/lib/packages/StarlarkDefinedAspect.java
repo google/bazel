@@ -430,6 +430,7 @@ public final class StarlarkDefinedAspect implements StarlarkExportable, Starlark
     StarlarkDefinedAspect that = (StarlarkDefinedAspect) o;
     return Objects.equals(implementation, that.implementation)
         && Objects.equals(attributeAspects, that.attributeAspects)
+        && Objects.equals(toolchainsAspects, that.toolchainsAspects)
         && Objects.equals(attributes, that.attributes)
         && Objects.equals(requiredProviders, that.requiredProviders)
         && Objects.equals(requiredAspectProviders, that.requiredAspectProviders)
@@ -446,6 +447,7 @@ public final class StarlarkDefinedAspect implements StarlarkExportable, Starlark
     return Objects.hash(
         implementation,
         attributeAspects,
+        toolchainsAspects,
         attributes,
         requiredProviders,
         requiredAspectProviders,

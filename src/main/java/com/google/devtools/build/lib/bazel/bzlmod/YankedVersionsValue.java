@@ -14,7 +14,8 @@
 
 package com.google.devtools.build.lib.bazel.bzlmod;
 
-import com.google.auto.value.AutoValue;
+import static java.util.Objects.requireNonNull;
+
 import com.google.common.collect.ImmutableMap;
 import com.google.devtools.build.lib.skyframe.SkyFunctions;
 import com.google.devtools.build.lib.skyframe.serialization.autocodec.AutoCodec;
@@ -24,31 +25,33 @@ import com.google.devtools.build.skyframe.SkyValue;
 import java.util.Optional;
 
 /** A class holding information about the versions of a particular module that have been yanked. */
-@AutoValue
-public abstract class YankedVersionsValue implements SkyValue {
+@AutoCodec
+public record YankedVersionsValue(Optional<ImmutableMap<Version, String>> yankedVersions)
+    implements SkyValue {
+  public YankedVersionsValue {
+    requireNonNull(yankedVersions, "yankedVersions");
+  }
 
   /** A value representing a module without yanked versions. */
   public static final YankedVersionsValue NONE_YANKED = create(Optional.of(ImmutableMap.of()));
 
-  public abstract Optional<ImmutableMap<Version, String>> yankedVersions();
-
   public static YankedVersionsValue create(Optional<ImmutableMap<Version, String>> yankedVersions) {
-    return new AutoValue_YankedVersionsValue(yankedVersions);
+    return new YankedVersionsValue(yankedVersions);
   }
 
   /** The key for {@link YankedVersionsFunction}. */
   @AutoCodec
-  @AutoValue
-  abstract static class Key implements SkyKey {
+  record Key(String moduleName, String registryUrl) implements SkyKey {
+    Key {
+      requireNonNull(moduleName, "moduleName");
+      requireNonNull(registryUrl, "registryUrl");
+    }
+
     private static final SkyKeyInterner<Key> interner = SkyKey.newInterner();
-
-    abstract String getModuleName();
-
-    abstract String getRegistryUrl();
 
     @AutoCodec.Instantiator
     static Key create(String moduleName, String registryUrl) {
-      return interner.intern(new AutoValue_YankedVersionsValue_Key(moduleName, registryUrl));
+      return interner.intern(new Key(moduleName, registryUrl));
     }
 
     @Override

@@ -100,9 +100,9 @@ public interface FileApi extends StarlarkValue {
       name = "is_symlink",
       structField = true,
       doc =
-          "Returns true if this is a directory. This reflects the type the file was declared as"
-              + " (i.e. ctx.actions.declare_symlink), not its type on the filesystem, which might"
-              + " differ.")
+          "Returns true if this was declared as a symlink. This reflects the type the file was"
+              + " declared as (i.e. ctx.actions.declare_symlink), not its type on the filesystem,"
+              + " which might differ.")
   boolean isSymlink();
 
   @StarlarkMethod(

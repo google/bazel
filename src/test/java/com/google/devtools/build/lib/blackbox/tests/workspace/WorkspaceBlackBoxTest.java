@@ -238,35 +238,6 @@ public class WorkspaceBlackBoxTest extends AbstractBlackBoxTest {
   }
 
   @Test
-  public void testWorkspaceFileIsSymlink() throws Exception {
-    if (isWindows()) {
-      // Do not test file symlinks on Windows.
-      return;
-    }
-    disableBzlmod();
-    Path repo = context().getTmpDir().resolve(testName.getMethodName());
-    new RepoWithRuleWritingTextGenerator(repo).withOutputText("hi").setupRepository();
-
-    Path workspaceFile = context().getWorkDir().resolve("WORKSPACE");
-    assertThat(workspaceFile.toFile().delete()).isTrue();
-
-    Path tempWorkspace = Files.createTempFile(context().getTmpDir(), "WORKSPACE", "");
-    PathUtils.writeFile(
-        tempWorkspace,
-        "workspace(name = 'abc')",
-        String.format(
-            "local_repository(name = 'ext', path = '%s',)", PathUtils.pathForStarlarkFile(repo)));
-    Files.createSymbolicLink(workspaceFile, tempWorkspace);
-
-    BuilderRunner bazel = WorkspaceTestUtils.bazel(context());
-    bazel.build("@ext//:all");
-    PathUtils.append(workspaceFile, "# comment");
-    // At this point, there is already some cache workspace file/file state value.
-    bazel.build("@ext//:all");
-  }
-  // TODO(ichern) move other tests from workspace_test.sh here.
-
-  @Test
   public void testBadRepoName() throws Exception {
     context()
         .write(

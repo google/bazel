@@ -14,11 +14,13 @@
 
 package com.google.devtools.build.lib.rules.config;
 
-import com.google.auto.value.AutoValue;
+import static java.util.Objects.requireNonNull;
+
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Sets;
 import com.google.devtools.build.lib.analysis.config.BuildOptions;
 import com.google.devtools.build.lib.cmdline.Label;
+import com.google.devtools.build.lib.skyframe.serialization.autocodec.AutoCodec;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.Map;
@@ -27,13 +29,15 @@ import java.util.Set;
 /** Marker interface for detecting feature flags in the Starlark setting map. */
 public interface FeatureFlagValue {
   /** A feature flag value for a flag known to be set to a particular value. */
-  @AutoValue
-  abstract class SetValue implements FeatureFlagValue {
-    static SetValue of(String value) {
-      return new AutoValue_FeatureFlagValue_SetValue(value);
+  @AutoCodec
+  public record SetValue(String value) implements FeatureFlagValue {
+    public SetValue {
+      requireNonNull(value, "value");
     }
 
-    public abstract String value();
+    static SetValue of(String value) {
+      return new SetValue(value);
+    }
 
     @Override
     public final String toString() {
@@ -114,7 +118,9 @@ public interface FeatureFlagValue {
 
     // Else construct a new one. This should not be the common case.
     BuildOptions.Builder result = original.toBuilder();
-    flagsToTrim.forEach(trimmedFlag -> result.removeStarlarkOption(trimmedFlag));
+    for (Label trimmedFlag : flagsToTrim) {
+      result.removeStarlarkOption(trimmedFlag);
+    }
     unknownFlagsToAdd.forEach((flag, value) -> result.addStarlarkOption(flag, value));
     BuildOptions builtResult = result.build();
     var builtConfigFeatureFlagOptions = builtResult.get(ConfigFeatureFlagOptions.class);

@@ -14,6 +14,8 @@
 
 package com.google.devtools.build.lib.skyframe;
 
+import static java.nio.charset.StandardCharsets.UTF_8;
+
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableSet;
 import com.google.devtools.build.lib.jni.JniLoader;
@@ -41,25 +43,24 @@ public final class MacOSXFsEventsDiffAwareness extends LocalDiffAwareness {
   private boolean opened;
 
   /**
-   * Watch changes on the file system under <code>watchRoot</code> with a granularity of
-   * <code>delay</code> seconds.
+   * Watch changes on the file system under <code>watchRoot</code> with a granularity of <code>delay
+   * </code> seconds.
    */
-  MacOSXFsEventsDiffAwareness(String watchRoot, double latency) {
+  MacOSXFsEventsDiffAwareness(Path watchRoot, double latency) {
     super(watchRoot);
     this.latency = latency;
   }
 
-  /**
-   * Watch changes on the file system under <code>watchRoot</code> with a granularity of 5ms.
-   */
-  MacOSXFsEventsDiffAwareness(String watchRoot) {
+  /** Watch changes on the file system under <code>watchRoot</code> with a granularity of 5ms. */
+  MacOSXFsEventsDiffAwareness(Path watchRoot) {
     this(watchRoot, 0.005);
   }
 
   /**
-   * Helper function to start the watch of <code>paths</code>, called by the constructor.
+   * Helper function to start the watch of <code>paths</code>, which is expected to be an array of
+   * byte arrays containing the UTF-8 bytes of the paths to watch, called by the constructor.
    */
-  private native void create(String[] paths, double latency);
+  private native void create(byte[][] paths, double latency);
 
   /**
    * Runs the main loop to listen for fsevents.
@@ -76,7 +77,7 @@ public final class MacOSXFsEventsDiffAwareness extends LocalDiffAwareness {
     // TODO(jmmv): This can break if the user interrupts as anywhere in this function.
     Preconditions.checkState(!opened);
     opened = true;
-    create(new String[] {watchRootPath.toAbsolutePath().toString()}, latency);
+    create(new byte[][] {watchRoot.toAbsolutePath().toString().getBytes(UTF_8)}, latency);
 
     // Start a thread that just contains the OS X run loop.
     CountDownLatch listening = new CountDownLatch(1);
@@ -110,10 +111,10 @@ public final class MacOSXFsEventsDiffAwareness extends LocalDiffAwareness {
   /**
    * JNI code returning the list of absolute path modified since last call.
    *
-   * @return the list of paths modified since the last call, or null if we can't precisely tell what
-   *     changed
+   * @return the array of paths (in the form of byte arrays containing the UTF-8 representation)
+   *     modified since the last call, or null if we can't precisely tell what changed
    */
-  private native String[] poll();
+  private native byte[][] poll();
 
   static {
     boolean loadJniWorked = false;
@@ -147,13 +148,13 @@ public final class MacOSXFsEventsDiffAwareness extends LocalDiffAwareness {
       return EVERYTHING_MODIFIED;
     }
     Preconditions.checkState(!closed);
-    String[] polledPaths = poll();
+    byte[][] polledPaths = poll();
     if (polledPaths == null) {
       return EVERYTHING_MODIFIED;
     } else {
       ImmutableSet.Builder<Path> paths = ImmutableSet.builder();
-      for (String path : polledPaths) {
-        paths.add(Paths.get(path));
+      for (byte[] pathBytes : polledPaths) {
+        paths.add(Paths.get(new String(pathBytes, UTF_8)));
       }
       return newView(paths.build());
     }

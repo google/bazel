@@ -283,7 +283,8 @@ public final class TargetAndConfigurationProducer
   }
 
   @Override
-  public void acceptErrorMessage(String message, Location location, DetailedExitCode exitCode) {
+  public void acceptErrorMessage(
+      String message, Location location, @Nullable DetailedExitCode exitCode) {
     emitError(message, location, exitCode);
   }
 

@@ -38,6 +38,7 @@ import com.google.devtools.build.lib.vfs.Path;
 import com.google.devtools.build.lib.vfs.PathFragment;
 import java.io.IOException;
 import java.io.InterruptedIOException;
+import java.net.SocketException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URL;
@@ -357,17 +358,21 @@ public class DownloadManager {
       return false;
     }
 
-    if (e instanceof ContentLengthMismatchException) {
+    if (isRetryableException(e)) {
       return true;
     }
 
     for (var suppressed : e.getSuppressed()) {
-      if (suppressed instanceof ContentLengthMismatchException) {
+      if (isRetryableException(suppressed)) {
         return true;
       }
     }
 
     return false;
+  }
+
+  private boolean isRetryableException(Throwable e) {
+    return e instanceof ContentLengthMismatchException || e instanceof SocketException;
   }
 
   /**

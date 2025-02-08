@@ -59,7 +59,7 @@ public class BazelProtoCommonTest extends BuildViewTestCase {
     scratch.file(
         "third_party/x/BUILD",
         """
-        load("@protobuf//bazel:proto_library.bzl", "proto_library")
+        load("@com_google_protobuf//bazel:proto_library.bzl", "proto_library")
         licenses(['unencumbered'])
         cc_binary(name = 'plugin', srcs = ['plugin.cc'])
         cc_library(name = 'runtime', srcs = ['runtime.cc'])
@@ -105,9 +105,9 @@ public class BazelProtoCommonTest extends BuildViewTestCase {
     scratch.file(
         "foo/generate.bzl",
         """
-load("@protobuf//bazel/common:proto_info.bzl", "ProtoInfo")
-load("@protobuf//bazel/common:proto_common.bzl", "proto_common")
-load("@protobuf//bazel/common:proto_lang_toolchain_info.bzl", "ProtoLangToolchainInfo")
+load("@com_google_protobuf//bazel/common:proto_info.bzl", "ProtoInfo")
+load("@com_google_protobuf//bazel/common:proto_common.bzl", "proto_common")
+load("@com_google_protobuf//bazel/common:proto_lang_toolchain_info.bzl", "ProtoLangToolchainInfo")
 def _resource_set_callback(os, inputs_size):
    return {'memory': 25 + 0.15 * inputs_size, 'cpu': 1}
 def _impl(ctx):
@@ -154,9 +154,9 @@ compile_rule = rule(_impl,
     scratch.file(
         "foo/should_generate.bzl",
         """
-load("@protobuf//bazel/common:proto_info.bzl", "ProtoInfo")
-load("@protobuf//bazel/common:proto_common.bzl", "proto_common")
-load("@protobuf//bazel/common:proto_lang_toolchain_info.bzl", "ProtoLangToolchainInfo")
+load("@com_google_protobuf//bazel/common:proto_info.bzl", "ProtoInfo")
+load("@com_google_protobuf//bazel/common:proto_common.bzl", "proto_common")
+load("@com_google_protobuf//bazel/common:proto_lang_toolchain_info.bzl", "ProtoLangToolchainInfo")
 BoolProvider = provider()
 def _impl(ctx):
   result = proto_common.experimental_should_generate_code(
@@ -175,8 +175,8 @@ should_compile_rule = rule(_impl,
     scratch.file(
         "foo/declare_generated_files.bzl",
         """
-        load("@protobuf//bazel/common:proto_info.bzl", "ProtoInfo")
-        load("@protobuf//bazel/common:proto_common.bzl", "proto_common")
+        load("@com_google_protobuf//bazel/common:proto_info.bzl", "ProtoInfo")
+        load("@com_google_protobuf//bazel/common:proto_common.bzl", "proto_common")
         def _impl(ctx):
           files = proto_common.declare_generated_files(
             ctx.actions,
@@ -197,9 +197,9 @@ should_compile_rule = rule(_impl,
     scratch.file(
         "foo/check_collocated.bzl",
         """
-load("@protobuf//bazel/common:proto_info.bzl", "ProtoInfo")
-load("@protobuf//bazel/common:proto_common.bzl", "proto_common")
-load("@protobuf//bazel/common:proto_lang_toolchain_info.bzl", "ProtoLangToolchainInfo")
+load("@com_google_protobuf//bazel/common:proto_info.bzl", "ProtoInfo")
+load("@com_google_protobuf//bazel/common:proto_common.bzl", "proto_common")
+load("@com_google_protobuf//bazel/common:proto_lang_toolchain_info.bzl", "ProtoLangToolchainInfo")
 def _impl(ctx):
   proto_common.check_collocated(
     ctx.label,
@@ -221,7 +221,7 @@ check_collocated = rule(_impl,
   public void protoCommonCompile_basic() throws Exception {
     scratch.file(
         "bar/BUILD",
-        "load('@protobuf//bazel:proto_library.bzl', 'proto_library')",
+        "load('@com_google_protobuf//bazel:proto_library.bzl', 'proto_library')",
         "load('//foo:generate.bzl', 'compile_rule')",
         "proto_library(name = 'proto', srcs = ['A.proto'])",
         "compile_rule(name = 'simple', proto_dep = ':proto')");
@@ -233,7 +233,7 @@ check_collocated = rule(_impl,
     assertThat(cmdLine)
         .comparingElementsUsing(MATCHES_REGEX)
         .containsExactly(
-            "--plugin=bl?azel?-out/[^/]*-exec-[^/]*/bin/third_party/x/plugin", "-I.", "bar/A.proto")
+            "--plugin=bl?azel?-out/[^/]*-exec[^/]*/bin/third_party/x/plugin", "-I.", "bar/A.proto")
         .inOrder();
     assertThat(spawnAction.getMnemonic()).isEqualTo("MyMnemonic");
     assertThat(spawnAction.getProgressMessage()).isEqualTo("Progress Message //bar:simple");
@@ -244,7 +244,7 @@ check_collocated = rule(_impl,
   public void protoCommonCompile_noPlugin() throws Exception {
     scratch.file(
         "bar/BUILD",
-        "load('@protobuf//bazel:proto_library.bzl', 'proto_library')",
+        "load('@com_google_protobuf//bazel:proto_library.bzl', 'proto_library')",
         "load('//foo:generate.bzl', 'compile_rule')",
         "proto_library(name = 'proto', srcs = ['A.proto'])",
         "compile_rule(name = 'simple', proto_dep = ':proto',",
@@ -268,7 +268,7 @@ check_collocated = rule(_impl,
   public void protoCommonCompile_withPluginOutput() throws Exception {
     scratch.file(
         "bar/BUILD",
-        "load('@protobuf//bazel:proto_library.bzl', 'proto_library')",
+        "load('@com_google_protobuf//bazel:proto_library.bzl', 'proto_library')",
         "load('//foo:generate.bzl', 'compile_rule')",
         "proto_library(name = 'proto', srcs = ['A.proto'])",
         "compile_rule(name = 'simple', proto_dep = ':proto', plugin_output = 'single')");
@@ -300,7 +300,7 @@ check_collocated = rule(_impl,
   public void protoCommonCompile_withDirectoryPluginOutput() throws Exception {
     scratch.file(
         "bar/BUILD",
-        "load('@protobuf//bazel:proto_library.bzl', 'proto_library')",
+        "load('@com_google_protobuf//bazel:proto_library.bzl', 'proto_library')",
         "load('//foo:generate.bzl', 'compile_rule')",
         "proto_library(name = 'proto', srcs = ['A.proto'])",
         "compile_rule(name = 'simple', proto_dep = ':proto', plugin_output = 'multiple')");
@@ -333,7 +333,7 @@ check_collocated = rule(_impl,
   public void protoCommonCompile_additionalArgs() throws Exception {
     scratch.file(
         "bar/BUILD",
-        "load('@protobuf//bazel:proto_library.bzl', 'proto_library')",
+        "load('@com_google_protobuf//bazel:proto_library.bzl', 'proto_library')",
         "load('//foo:generate.bzl', 'compile_rule')",
         "proto_library(name = 'proto', srcs = ['A.proto'])",
         "compile_rule(name = 'simple', proto_dep = ':proto', additional_args = ['--a', '--b'])");
@@ -345,7 +345,7 @@ check_collocated = rule(_impl,
     assertThat(cmdLine)
         .comparingElementsUsing(MATCHES_REGEX)
         .containsExactly(
-            "--plugin=bl?azel?-out/[^/]*-exec-[^/]*/bin/third_party/x/plugin",
+            "--plugin=bl?azel?-out/[^/]*-exec[^/]*/bin/third_party/x/plugin",
             "-I.",
             "bar/A.proto",
             "--a",
@@ -361,7 +361,7 @@ check_collocated = rule(_impl,
   public void protoCommonCompile_additionalTools() throws Exception {
     scratch.file(
         "bar/BUILD",
-        "load('@protobuf//bazel:proto_library.bzl', 'proto_library')",
+        "load('@com_google_protobuf//bazel:proto_library.bzl', 'proto_library')",
         "load('//foo:generate.bzl', 'compile_rule')",
         "proto_library(name = 'proto', srcs = ['A.proto'])",
         "cc_binary(name = 'tool1', srcs = ['tool1.cc'])",
@@ -384,7 +384,7 @@ check_collocated = rule(_impl,
   public void protoCommonCompile_additionalToolsNoPlugin() throws Exception {
     scratch.file(
         "bar/BUILD",
-        "load('@protobuf//bazel:proto_library.bzl', 'proto_library')",
+        "load('@com_google_protobuf//bazel:proto_library.bzl', 'proto_library')",
         "load('//foo:generate.bzl', 'compile_rule')",
         "proto_library(name = 'proto', srcs = ['A.proto'])",
         "cc_binary(name = 'tool1', srcs = ['tool1.cc'])",
@@ -410,7 +410,7 @@ check_collocated = rule(_impl,
   public void protoCommonCompile_additionalInputs() throws Exception {
     scratch.file(
         "bar/BUILD",
-        "load('@protobuf//bazel:proto_library.bzl', 'proto_library')",
+        "load('@com_google_protobuf//bazel:proto_library.bzl', 'proto_library')",
         "load('//foo:generate.bzl', 'compile_rule')",
         "proto_library(name = 'proto', srcs = ['A.proto'])",
         "compile_rule(name = 'simple', proto_dep = ':proto',",
@@ -430,7 +430,7 @@ check_collocated = rule(_impl,
   public void protoCommonCompile_resourceSet() throws Exception {
     scratch.file(
         "bar/BUILD",
-        "load('@protobuf//bazel:proto_library.bzl', 'proto_library')",
+        "load('@com_google_protobuf//bazel:proto_library.bzl', 'proto_library')",
         "load('//foo:generate.bzl', 'compile_rule')",
         "proto_library(name = 'proto', srcs = ['A.proto'])",
         "compile_rule(name = 'simple', proto_dep = ':proto', use_resource_set = True)");
@@ -450,7 +450,7 @@ check_collocated = rule(_impl,
     useConfiguration("--protocopt=--foo", "--protocopt=--bar");
     scratch.file(
         "bar/BUILD",
-        "load('@protobuf//bazel:proto_library.bzl', 'proto_library')",
+        "load('@com_google_protobuf//bazel:proto_library.bzl', 'proto_library')",
         "load('//foo:generate.bzl', 'compile_rule')",
         "proto_library(name = 'proto', srcs = ['A.proto'])",
         "compile_rule(name = 'simple', proto_dep = ':proto')");
@@ -462,7 +462,7 @@ check_collocated = rule(_impl,
     assertThat(cmdLine)
         .comparingElementsUsing(MATCHES_REGEX)
         .containsExactly(
-            "--plugin=bl?azel?-out/[^/]*-exec-[^/]*/bin/third_party/x/plugin",
+            "--plugin=bl?azel?-out/[^/]*-exec[^/]*/bin/third_party/x/plugin",
             "-I.",
             "--foo",
             "--bar",
@@ -478,7 +478,7 @@ check_collocated = rule(_impl,
   public void protoCommonCompile_directGeneratedProtos() throws Exception {
     scratch.file(
         "bar/BUILD",
-        "load('@protobuf//bazel:proto_library.bzl', 'proto_library')",
+        "load('@com_google_protobuf//bazel:proto_library.bzl', 'proto_library')",
         "load('//foo:generate.bzl', 'compile_rule')",
         "genrule(name = 'generate', srcs = ['A.txt'], cmd = '', outs = ['G.proto'])",
         "proto_library(name = 'proto', srcs = ['A.proto', 'G.proto'])",
@@ -513,7 +513,7 @@ check_collocated = rule(_impl,
   public void protoCommonCompile_inDirectGeneratedProtos() throws Exception {
     scratch.file(
         "bar/BUILD",
-        "load('@protobuf//bazel:proto_library.bzl', 'proto_library')",
+        "load('@com_google_protobuf//bazel:proto_library.bzl', 'proto_library')",
         "load('//foo:generate.bzl', 'compile_rule')",
         "genrule(name = 'generate', srcs = ['A.txt'], cmd = '', outs = ['G.proto'])",
         "proto_library(name = 'generated', srcs = ['G.proto'])",
@@ -541,7 +541,7 @@ check_collocated = rule(_impl,
         .inOrder();
   }
 
-  // LINT.ThenChange(@protobuf/bazel/tests/proto_common_compile_tests.bzl)
+  // LINT.ThenChange(@com_google_protobuf/bazel/tests/proto_common_compile_tests.bzl)
 
   /**
    * Verifies <code>proto_common.compile</code> correctly handles external <code>proto_library
@@ -571,14 +571,14 @@ check_collocated = rule(_impl,
     scratch.file("/foo/MODULE.bazel", "module(name = 'foo')");
     scratch.file(
         "/foo/e/BUILD",
-        "load('@protobuf//bazel:proto_library.bzl', 'proto_library')",
+        "load('@com_google_protobuf//bazel:proto_library.bzl', 'proto_library')",
         "proto_library(name='e', srcs=['E.proto'])",
         generated
             ? "genrule(name = 'generate', srcs = ['A.txt'], cmd = '', outs = ['E.proto'])"
             : "");
     scratch.file(
         "bar/BUILD",
-        "load('@protobuf//bazel:proto_library.bzl', 'proto_library')",
+        "load('@com_google_protobuf//bazel:proto_library.bzl', 'proto_library')",
         "load('//foo:generate.bzl', 'compile_rule')",
         "proto_library(name = 'proto', srcs = ['A.proto'], deps = ['@foo//e:e'])",
         "compile_rule(name = 'simple', proto_dep = ':proto')");
@@ -609,7 +609,7 @@ check_collocated = rule(_impl,
   public void protoCommonCompile_overrideProgressMessage() throws Exception {
     scratch.file(
         "bar/BUILD",
-        "load('@protobuf//bazel:proto_library.bzl', 'proto_library')",
+        "load('@com_google_protobuf//bazel:proto_library.bzl', 'proto_library')",
         "load('//foo:generate.bzl', 'compile_rule')",
         "proto_library(name = 'proto', srcs = ['A.proto'])",
         "compile_rule(name = 'simple', proto_dep = ':proto', progress_message = 'My %{label}')");
@@ -621,7 +621,7 @@ check_collocated = rule(_impl,
     assertThat(cmdLine)
         .comparingElementsUsing(MATCHES_REGEX)
         .containsExactly(
-            "--plugin=bl?azel?-out/[^/]*-exec-[^/]*/bin/third_party/x/plugin", "-I.", "bar/A.proto")
+            "--plugin=bl?azel?-out/[^/]*-exec[^/]*/bin/third_party/x/plugin", "-I.", "bar/A.proto")
         .inOrder();
     assertThat(spawnAction.getMnemonic()).isEqualTo("MyMnemonic");
     assertThat(spawnAction.getProgressMessage()).isEqualTo("My //bar:simple");
@@ -632,7 +632,7 @@ check_collocated = rule(_impl,
   public void shouldprotoCommonCompile_basic() throws Exception {
     scratch.file(
         "bar/BUILD",
-        "load('@protobuf//bazel:proto_library.bzl', 'proto_library')",
+        "load('@com_google_protobuf//bazel:proto_library.bzl', 'proto_library')",
         "load('//foo:should_generate.bzl', 'should_compile_rule')",
         "proto_library(name = 'proto', srcs = ['A.proto'])",
         "should_compile_rule(name = 'simple', proto_dep = ':proto')");
@@ -648,7 +648,7 @@ check_collocated = rule(_impl,
   public void shouldprotoCommonCompile_dontGenerate() throws Exception {
     scratch.file(
         "bar/BUILD",
-        "load('@protobuf//bazel:proto_library.bzl', 'proto_library')",
+        "load('@com_google_protobuf//bazel:proto_library.bzl', 'proto_library')",
         "load('//foo:should_generate.bzl', 'should_compile_rule')",
         "should_compile_rule(name = 'simple', proto_dep = '//third_party/x:denied')");
 
@@ -663,7 +663,7 @@ check_collocated = rule(_impl,
   public void shouldprotoCommonCompile_mixed() throws Exception {
     scratch.file(
         "bar/BUILD",
-        "load('@protobuf//bazel:proto_library.bzl', 'proto_library')",
+        "load('@com_google_protobuf//bazel:proto_library.bzl', 'proto_library')",
         "load('//foo:should_generate.bzl', 'should_compile_rule')",
         "should_compile_rule(name = 'simple', proto_dep = '//third_party/x:mixed')");
 
@@ -683,7 +683,7 @@ check_collocated = rule(_impl,
   public void declareGenerateFiles_basic() throws Exception {
     scratch.file(
         "bar/BUILD",
-        "load('@protobuf//bazel:proto_library.bzl', 'proto_library')",
+        "load('@com_google_protobuf//bazel:proto_library.bzl', 'proto_library')",
         "load('//foo:declare_generated_files.bzl', 'declare_generated_files')",
         "proto_library(name = 'proto', srcs = ['A.proto', 'b/B.proto'])",
         "declare_generated_files(name = 'simple', proto_dep = ':proto', extension = '.cc')");
@@ -699,7 +699,7 @@ check_collocated = rule(_impl,
   public void declareGenerateFiles_pythonc() throws Exception {
     scratch.file(
         "bar/BUILD",
-        "load('@protobuf//bazel:proto_library.bzl', 'proto_library')",
+        "load('@com_google_protobuf//bazel:proto_library.bzl', 'proto_library')",
         "load('//foo:declare_generated_files.bzl', 'declare_generated_files')",
         "proto_library(name = 'proto', srcs = ['my-proto.gen.proto'])",
         "declare_generated_files(name = 'simple', proto_dep = ':proto', extension = '_pb2.py',",
@@ -715,7 +715,7 @@ check_collocated = rule(_impl,
   public void langProtoLibrary_inDifferentPackage_allowed() throws Exception {
     scratch.file(
         "proto/BUILD",
-        "load('@protobuf//bazel:proto_library.bzl', 'proto_library')",
+        "load('@com_google_protobuf//bazel:proto_library.bzl', 'proto_library')",
         "proto_library(name = 'proto', srcs = ['A.proto'])");
     scratch.file(
         "bar/BUILD",
@@ -733,7 +733,7 @@ check_collocated = rule(_impl,
   public void langProtoLibrary_inDifferentPackage_fails() throws Exception {
     scratch.file(
         "proto/BUILD",
-        "load('@protobuf//bazel:proto_library.bzl', 'proto_library')",
+        "load('@com_google_protobuf//bazel:proto_library.bzl', 'proto_library')",
         "proto_library(name = 'proto', srcs = ['A.proto'])");
     scratch.file(
         "test/BUILD",
@@ -755,7 +755,7 @@ check_collocated = rule(_impl,
     scratch.file(
         "x/BUILD",
         """
-        load("@protobuf//bazel:proto_library.bzl", "proto_library")
+        load("@com_google_protobuf//bazel:proto_library.bzl", "proto_library")
         proto_library(name='foo', srcs=['foo.proto'], allow_exports = ':test')
         package_group(
             name='test',
@@ -765,7 +765,7 @@ check_collocated = rule(_impl,
     scratch.file(
         "notallowed/BUILD",
         """
-        load("@protobuf//bazel:proto_library.bzl", "proto_library")
+        load("@com_google_protobuf//bazel:proto_library.bzl", "proto_library")
         load('//foo:check_collocated.bzl', 'check_collocated')
         check_collocated(name = 'simple', proto_dep = '//x:foo')
         """);
@@ -783,7 +783,7 @@ check_collocated = rule(_impl,
     scratch.file(
         "x/BUILD",
         """
-        load("@protobuf//bazel:proto_library.bzl", "proto_library")
+        load("@com_google_protobuf//bazel:proto_library.bzl", "proto_library")
         proto_library(name='foo', srcs=['foo.proto'], allow_exports = ':test')
         package_group(
             name='test',
@@ -793,7 +793,7 @@ check_collocated = rule(_impl,
     scratch.file(
         "allowed/BUILD",
         """
-        load("@protobuf//bazel:proto_library.bzl", "proto_library")
+        load("@com_google_protobuf//bazel:proto_library.bzl", "proto_library")
         load('//foo:check_collocated.bzl', 'check_collocated')
         check_collocated(name = 'simple', proto_dep = '//x:foo')
         """);

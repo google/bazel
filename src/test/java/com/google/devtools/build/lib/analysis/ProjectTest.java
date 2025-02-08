@@ -18,7 +18,6 @@ import static com.google.devtools.build.lib.skyframe.ProjectFilesLookupFunction.
 import static org.junit.Assert.assertThrows;
 
 import com.google.common.collect.ImmutableList;
-import com.google.devtools.build.lib.analysis.Project.ProjectParseException;
 import com.google.devtools.build.lib.analysis.util.AnalysisTestCase;
 import com.google.devtools.build.lib.cmdline.Label;
 import org.junit.Before;
@@ -233,7 +232,7 @@ public class ProjectTest extends AnalysisTestCase {
     scratch.dir("foo/" + PROJECT_FILE_NAME);
 
     assertThrows(
-        ProjectParseException.class,
+        ProjectResolutionException.class,
         () ->
             Project.findProjectFiles(
                 ImmutableList.of(Label.parseCanonical("//foo:myrule")),

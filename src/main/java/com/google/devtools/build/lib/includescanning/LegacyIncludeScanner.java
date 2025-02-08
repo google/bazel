@@ -443,6 +443,7 @@ public class LegacyIncludeScanner implements IncludeScanner {
   private final PathExistenceCache pathCache;
 
   private final ExecutorService includePool;
+  private final boolean shouldShuffle;
 
   // We are using this Random just for shuffling, so keep the order deterministic by hardcoding
   // the seed.
@@ -460,6 +461,7 @@ public class LegacyIncludeScanner implements IncludeScanner {
   LegacyIncludeScanner(
       IncludeParser parser,
       ExecutorService includePool,
+      boolean shouldShuffle,
       ConcurrentMap<Artifact, ListenableFuture<Collection<Inclusion>>> cache,
       PathExistenceCache pathCache,
       List<PathFragment> quoteIncludePaths,
@@ -471,6 +473,7 @@ public class LegacyIncludeScanner implements IncludeScanner {
       Supplier<SpawnIncludeScanner> spawnIncludeScannerSupplier) {
     this.parser = parser;
     this.includePool = includePool;
+    this.shouldShuffle = shouldShuffle;
     this.fileParseCache = cache;
     this.pathCache = pathCache;
     this.artifactFactory = Preconditions.checkNotNull(artifactFactory);
@@ -800,15 +803,21 @@ public class LegacyIncludeScanner implements IncludeScanner {
         }
       }
 
-      // Shuffle the inclusions to get better parallelism. See b/62200470.
-      List<Inclusion> shuffledInclusions = new ArrayList<>(inclusions);
-      Collections.shuffle(shuffledInclusions, CONSTANT_SEED_RANDOM);
+      Collection<Inclusion> maybeShuffledInclusions;
+      if (shouldShuffle) {
+        // Shuffle the inclusions to get better parallelism. See b/62200470.
+        List<Inclusion> shuffledInclusions = new ArrayList<>(inclusions);
+        Collections.shuffle(shuffledInclusions, CONSTANT_SEED_RANDOM);
+        maybeShuffledInclusions = shuffledInclusions;
+      } else {
+        maybeShuffledInclusions = inclusions;
+      }
 
       // For each inclusion: get or locate its target file & recursively process
       IncludeScannerHelper helper =
           new IncludeScannerHelper(includePaths, quoteIncludePaths, source);
       PathFragment parent = source.getExecPath().getParentDirectory();
-      for (Inclusion inclusion : shuffledInclusions) {
+      for (Inclusion inclusion : maybeShuffledInclusions) {
         findAndProcess(
             helper.createInclusionWithContext(inclusion, contextPathPos, contextKind),
             source,
@@ -828,7 +837,7 @@ public class LegacyIncludeScanner implements IncludeScanner {
         final Artifact source, int contextPathPos, Kind contextKind, Set<Artifact> visited)
         throws IOException, ExecException, InterruptedException {
       ListenableFuture<Collection<Inclusion>> cacheResult = fileParseCache.get(source);
-      if (cacheResult != null) {
+      if (cacheResult != null && cacheResult.isDone()) {
         process(source, contextPathPos, contextKind, visited);
       } else {
         super.execute(

@@ -81,6 +81,7 @@ public class StarlarkRepositoryModule implements RepositoryModuleApi {
     builder.setCallStack(
         callstack.subList(0, callstack.size() - 1)); // pop 'repository_rule' itself
 
+    builder.addAttribute(attr("$original_name", STRING).defaultValue("").build());
     builder.addAttribute(attr("$local", BOOLEAN).defaultValue(local).build());
     builder.addAttribute(attr("$configure", BOOLEAN).defaultValue(configure).build());
     if (thread.getSemantics().getBool(BuildLanguageOptions.EXPERIMENTAL_REPO_REMOTE_EXEC)) {

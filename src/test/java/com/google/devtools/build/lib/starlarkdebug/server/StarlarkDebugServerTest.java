@@ -413,6 +413,119 @@ public class StarlarkDebugServerTest {
   }
 
   @Test
+  public void testListFramesWithUninitializedCellRequest() throws Exception {
+    sendStartDebuggingRequest();
+    ParserInput bzlFile =
+        createInput(
+            "/a/build/file/foo.bzl",
+            """
+            def outer():
+               x = [1,2,3] # <- breakpoint
+
+               def inner():
+                   x.append(4)
+
+               inner()
+
+            outer()
+            """);
+
+    Location breakpoint =
+        Location.newBuilder().setLineNumber(2).setPath("/a/build/file/foo.bzl").build();
+    setBreakpoints(ImmutableList.of(breakpoint));
+
+    Module module = Module.create();
+    Thread evaluationThread = execInWorkerThread(bzlFile, module);
+    long threadId = evaluationThread.getId();
+
+    // wait for breakpoint to be hit
+    client.waitForEvent(DebugEvent::hasThreadPaused, Duration.ofSeconds(5));
+
+    ListFramesResponse frames = listFrames(threadId);
+    assertThat(frames.getFrameCount()).isEqualTo(2);
+    // critically x is not present as a local
+    assertFramesEqualIgnoringValueIdentifiers(
+        frames.getFrame(0),
+        Frame.newBuilder()
+            .setFunctionName("outer")
+            .setLocation(breakpoint.toBuilder().setColumnNumber(4))
+            .addScope(
+                Scope.newBuilder()
+                    .setName("global")
+                    .addBinding(getValueProto("outer", module.getGlobal("outer"))))
+            .build());
+    assertFramesEqualIgnoringValueIdentifiers(
+        frames.getFrame(1),
+        Frame.newBuilder()
+            .setFunctionName(StarlarkThread.TOP_LEVEL)
+            .setLocation(breakpoint.toBuilder().setLineNumber(9).setColumnNumber(6))
+            .addScope(
+                Scope.newBuilder()
+                    .setName("global")
+                    .addBinding(getValueProto("outer", module.getGlobal("outer"))))
+            .build());
+  }
+
+  @Test
+  public void testListFramesWithInitializedCellRequest() throws Exception {
+    sendStartDebuggingRequest();
+    ParserInput bzlFile =
+        createInput(
+            "/a/build/file/foo.bzl",
+            """
+            def outer():
+               x = [1]
+               pass          # <- breakpoint
+
+               def inner():
+                   x.append(4)
+
+               inner()
+
+            outer()
+            """);
+
+    Location breakpoint =
+        Location.newBuilder().setLineNumber(3).setPath("/a/build/file/foo.bzl").build();
+    setBreakpoints(ImmutableList.of(breakpoint));
+
+    Module module = Module.create();
+    Thread evaluationThread = execInWorkerThread(bzlFile, module);
+    long threadId = evaluationThread.getId();
+
+    // wait for breakpoint to be hit
+    client.waitForEvent(DebugEvent::hasThreadPaused, Duration.ofSeconds(5));
+
+    ListFramesResponse frames = listFrames(threadId);
+    assertThat(frames.getFrameCount()).isEqualTo(2);
+    // critically x is present as a local
+    assertFramesEqualIgnoringValueIdentifiers(
+        frames.getFrame(0),
+        Frame.newBuilder()
+            .setFunctionName("outer")
+            .setLocation(breakpoint.toBuilder().setColumnNumber(4))
+            .addScope(
+                Scope.newBuilder()
+                    .setName("local")
+                    .addBinding(getValueProto("x", StarlarkList.immutableOf(StarlarkInt.of(1)))))
+            .addScope(
+                Scope.newBuilder()
+                    .setName("global")
+                    .addBinding(getValueProto("outer", module.getGlobal("outer"))))
+            .build());
+    assertFramesEqualIgnoringValueIdentifiers(
+        frames.getFrame(1),
+        Frame.newBuilder()
+            .setFunctionName(StarlarkThread.TOP_LEVEL)
+            .setLocation(breakpoint.toBuilder().setLineNumber(10).setColumnNumber(6))
+            .addScope(
+                Scope.newBuilder()
+                    .setName("global")
+                    .addBinding(getValueProto("outer", module.getGlobal("outer"))))
+            .build());
+  }
+
+  @Test
   public void testGetChildrenRequest() throws Exception {
     sendStartDebuggingRequest();
     ParserInput buildFile =

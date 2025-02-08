@@ -13,7 +13,8 @@
 // limitations under the License.
 package com.google.devtools.build.skyframe;
 
-import com.google.auto.value.AutoValue;
+import static java.util.Objects.requireNonNull;
+
 import com.google.common.base.Joiner;
 import com.google.common.base.MoreObjects;
 import com.google.common.collect.ImmutableSet;
@@ -163,6 +164,7 @@ public class NotifyingHelper {
     ADD_TEMPORARY_DIRECT_DEPS,
     GET_ALL_DIRECT_DEPS_FOR_INCOMPLETE_NODE,
     RESET_FOR_RESTART_FROM_SCRATCH,
+    REMOVE,
   }
 
   /**
@@ -371,14 +373,13 @@ public class NotifyingHelper {
    * the graph listener as the context {@link Order#AFTER} a call to {@link EventType#MARK_DIRTY} a
    * node.
    */
-  @AutoValue
-  public abstract static class MarkDirtyAfterContext {
-    public abstract DirtyType dirtyType();
-
-    public abstract boolean actuallyDirtied();
+  public record MarkDirtyAfterContext(DirtyType dirtyType, boolean actuallyDirtied) {
+    public MarkDirtyAfterContext {
+      requireNonNull(dirtyType, "dirtyType");
+    }
 
     static MarkDirtyAfterContext create(DirtyType dirtyType, boolean actuallyDirtied) {
-      return new AutoValue_NotifyingHelper_MarkDirtyAfterContext(dirtyType, actuallyDirtied);
+      return new MarkDirtyAfterContext(dirtyType, actuallyDirtied);
     }
   }
 }

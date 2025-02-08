@@ -187,7 +187,7 @@ public class LostImportantOutputHandlerModule extends BlazeModule {
           throw new IllegalStateException(e);
         }
         return links.stream()
-            .filter(FilesetOutputSymlink::isRelativeToExecRoot)
+            .filter(FilesetOutputSymlink::relativeToExecRoot)
             .map(
                 link ->
                     new OutputAndOwner(

@@ -31,5 +31,4 @@ test_rules = struct(
     sh_test = sh_test,
 )
 
-other_rules = struct(
-)
+other_rules = struct()

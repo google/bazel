@@ -21,7 +21,6 @@ import subprocess
 from typing import Callable
 from typing import List
 from typing import Tuple
-# Do not edit this line. Copybara replaces it with PY2 migration helper.
 from frozendict import frozendict
 from tools.ctexplain.types import Configuration
 from tools.ctexplain.types import ConfiguredTarget

@@ -20,6 +20,7 @@ import com.google.devtools.build.lib.starlarkbuildapi.platform.ExecGroupCollecti
 import com.google.devtools.build.lib.starlarkbuildapi.platform.ToolchainContextApi;
 import net.starlark.java.annot.StarlarkBuiltin;
 import net.starlark.java.annot.StarlarkMethod;
+import net.starlark.java.eval.Dict;
 import net.starlark.java.eval.EvalException;
 import net.starlark.java.eval.StarlarkValue;
 
@@ -64,4 +65,10 @@ public interface StarlarkAttributesCollectionApi extends StarlarkValue {
           "A collection of the execution groups available for the rule the aspect is applied to,"
               + " indexed by their names.")
   ExecGroupCollectionApi execGroups() throws EvalException;
+
+  @StarlarkMethod(
+      name = "var",
+      structField = true,
+      doc = "Dictionary (String to String) of configuration variables.")
+  Dict<String, String> var() throws EvalException, InterruptedException;
 }

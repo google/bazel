@@ -22,7 +22,6 @@ import os
 import sys
 import xml.etree.ElementTree as ET
 
-# Do not edit this line. Copybara replaces it with PY2 migration helper.
 from absl import app
 from absl import flags
 

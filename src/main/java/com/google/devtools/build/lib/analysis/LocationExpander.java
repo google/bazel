@@ -340,7 +340,7 @@ public final class LocationExpander {
       TreeSet<String> paths = Sets.newTreeSet();
       for (Artifact artifact : artifacts) {
         PathFragment path = getPath(artifact, workspaceRunfilesDirectory);
-        if (path != null) { // omit middlemen etc
+        if (path != null) {
           paths.add(path.getCallablePathString());
         }
       }

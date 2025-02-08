@@ -18,6 +18,7 @@ import static com.google.common.base.Preconditions.checkNotNull;
 import com.google.common.collect.ImmutableClassToInstanceMap;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.devtools.build.lib.skyframe.serialization.ObjectCodecRegistry.CodecDescriptor;
+import com.google.devtools.build.lib.skyframe.serialization.WriteStatuses.WriteStatus;
 import com.google.errorprone.annotations.ForOverride;
 import com.google.protobuf.CodedOutputStream;
 import java.io.IOException;
@@ -120,7 +121,7 @@ public abstract class SerializationContext implements LeafSerializationContext {
    *
    * <p>NOTE: This is only supported by {@link SharedValueSerializationContext}.
    */
-  public void addFutureToBlockWritingOn(ListenableFuture<Void> future) {
+  public void addFutureToBlockWritingOn(WriteStatus future) {
     throw new UnsupportedOperationException();
   }
 
@@ -132,7 +133,7 @@ public abstract class SerializationContext implements LeafSerializationContext {
    * {@link com.google.devtools.build.lib.collect.nestedset.NestedSetStore}.
    */
   @Nullable
-  public ListenableFuture<Void> createFutureToBlockWritingOn() {
+  public WriteStatus createFutureToBlockWritingOn() {
     throw new UnsupportedOperationException();
   }
 

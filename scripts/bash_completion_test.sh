@@ -452,7 +452,7 @@ test_build_options() {
 
 test_query_options() {
     assert_expansion 'query --out' \
-                     'query --output='
+                     'query --output'
 
     # Basic label expansion works for query, too.
     make_packages

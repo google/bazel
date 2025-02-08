@@ -710,10 +710,10 @@ public abstract class CcModule
       Sequence<?> directTextualHdrs,
       Sequence<?> directPublicHdrs,
       Sequence<?> directPrivateHdrs,
-      Object purposeNoneable,
+      Object unused3,
       Object moduleMap,
-      Object actionFactoryForMiddlemanOwnerAndConfiguration,
-      Object labelForMiddlemanNameObject,
+      Object unused1,
+      Object unused2,
       Object externalIncludes,
       Object virtualToOriginalHeaders,
       Sequence<?> dependentCcCompilationContexts,
@@ -768,13 +768,6 @@ public abstract class CcModule
     ccCompilationContext.addTextualHdrs(textualHdrsList);
     ccCompilationContext.addModularPublicHdrs(modularPublicHdrsList);
     ccCompilationContext.addModularPrivateHdrs(modularPrivateHdrsList);
-
-    // Private parameters.
-    if (purposeNoneable != null
-        && purposeNoneable != Starlark.UNBOUND
-        && purposeNoneable != Starlark.NONE) {
-      ccCompilationContext.setPurpose((String) purposeNoneable);
-    }
 
     if (moduleMap != null && moduleMap != Starlark.UNBOUND && moduleMap != Starlark.NONE) {
       ccCompilationContext.setCppModuleMap((CppModuleMap) moduleMap);

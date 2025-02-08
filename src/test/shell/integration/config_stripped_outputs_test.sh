@@ -63,6 +63,10 @@ add_to_bazelrc "build --package_path=%workspace%"
 # This is what triggers config path stripping.
 add_to_bazelrc "build --experimental_output_paths=strip"
 
+function set_up() {
+  add_rules_java MODULE.bazel
+}
+
 function is_bazel() {
   output_path=$(bazel info | grep '^output_path:')
   bazel_out="${output_path##*/}"
@@ -90,6 +94,8 @@ function test_builtin_java_support() {
   local -r pkg="${FUNCNAME[0]}"
   mkdir -p "$pkg"
   cat > "$pkg/BUILD" <<EOF
+load("@rules_java//java:java_binary.bzl", "java_binary")
+load("@rules_java//java:java_library.bzl", "java_library")
 java_library(
   name = "mylib",
   srcs = ["MyLib.java"],
@@ -161,6 +167,7 @@ package hello;
 public class D {}
 EOF
   cat > "$pkg/java/hello/BUILD" <<'EOF'
+load("@rules_java//java:java_library.bzl", "java_library")
 java_library(name='a', srcs=['A.java'], deps = [':b'])
 java_library(name='b', srcs=['B.java'], deps = [':c'])
 java_library(name='c', srcs=['C.java'], deps = [':d'])
@@ -258,6 +265,8 @@ EOF
   mkdir -p $pkg/java
   cat > $pkg/java/BUILD <<EOF
 load("//$pkg/rules:defs.bzl", "bazelcon_greeting")
+load("@rules_java//java:java_binary.bzl", "java_binary")
+load("@rules_java//java:java_library.bzl", "java_library")
 java_binary(
     name = "Main",
     srcs = ["Main.java"],
@@ -353,6 +362,7 @@ package hello;
 public class D {}
 EOF
   cat > "$pkg/java/hello/BUILD" <<'EOF'
+load("@rules_java//java:java_library.bzl", "java_library")
 java_library(name='a', srcs=['A.java'], deps = [':b'])
 java_library(name='b', srcs=['B.java'], deps = [':c'])
 java_library(name='c', srcs=['C.java'], deps = [':d'])

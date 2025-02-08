@@ -243,8 +243,8 @@ public final class CppConfiguration extends Fragment
       if (!cppOptions.enablePropellerOptimizeAbsolutePath) {
         throw new InvalidConfigurationException(
             "Please use --propeller_optimize instead of an absolute path set with"
-                + " --propeller_optimize_absolute_cc_profile.Using absolute paths may be temporary"
-                + " reenabled with --enable_fdo_profile_absolute_path");
+                + " --propeller_optimize_absolute_cc_profile. Using absolute paths may be temporary"
+                + " reenabled with --enable_propeller_optimize_absolute_paths");
       }
       propellerOptimizeAbsoluteCCProfile =
           PathFragment.create(cppOptions.propellerOptimizeAbsoluteCCProfile);
@@ -393,16 +393,6 @@ public final class CppConfiguration extends Fragment
     return cppOptions.useArgsParamsFile;
   }
 
-  public boolean useCcTestFeature() {
-    return cppOptions.enableCcTestFeature;
-  }
-
-  @Override
-  public boolean useCcTestFeatureStarlark(StarlarkThread thread) throws EvalException {
-    CcModule.checkPrivateStarlarkificationAllowlist(thread);
-    return useCcTestFeature();
-  }
-
   /** Returns whether or not to strip the binaries. */
   public boolean shouldStripBinaries() {
     return stripBinaries;
@@ -501,7 +491,7 @@ public final class CppConfiguration extends Fragment
     return cppOptions.useStartEndLib;
   }
 
-  /** @return value from --compiler option, null if the option was not passed. */
+  /** Returns value from --compiler option, null if the option was not passed. */
   @Nullable
   public String getCompilerFromOptions() {
     return cppOptions.cppCompiler;
@@ -1020,5 +1010,14 @@ public final class CppConfiguration extends Fragment
   public boolean getProtoProfile(StarlarkThread thread) throws EvalException {
     CcModule.checkPrivateStarlarkificationAllowlist(thread);
     return cppOptions.protoProfile;
+  }
+
+  @StarlarkMethod(
+      name = "experimental_starlark_linking",
+      documented = false,
+      useStarlarkThread = true)
+  public boolean experimentalStarlarkLinking(StarlarkThread thread) throws EvalException {
+    CcModule.checkPrivateStarlarkificationAllowlist(thread);
+    return cppOptions.experimentalStarlarkLinking;
   }
 }

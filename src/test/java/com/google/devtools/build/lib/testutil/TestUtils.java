@@ -14,6 +14,7 @@
 
 package com.google.devtools.build.lib.testutil;
 
+import com.google.devtools.build.lib.util.StringEncoding;
 import com.google.devtools.build.lib.vfs.DigestHashFunction;
 import com.google.devtools.build.lib.vfs.Dirent;
 import com.google.devtools.build.lib.vfs.FileStatus;
@@ -79,7 +80,10 @@ public final class TestUtils {
       fileSystem = new JavaIoFileSystem(DigestHashFunction.SHA256);
     }
     File tmpDirRoot = tmpDirRoot();
-    Path path = fileSystem.getPath(tmpDirRoot.getPath()).getRelative(UUID.randomUUID().toString());
+    Path path =
+        fileSystem
+            .getPath(StringEncoding.platformToInternal(tmpDirRoot.getPath()))
+            .getRelative(UUID.randomUUID().toString());
     path.createDirectoryAndParents();
     return path;
   }

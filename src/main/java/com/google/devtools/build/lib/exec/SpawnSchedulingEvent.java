@@ -13,7 +13,8 @@
 // limitations under the License.
 package com.google.devtools.build.lib.exec;
 
-import com.google.auto.value.AutoValue;
+import static java.util.Objects.requireNonNull;
+
 import com.google.devtools.build.lib.actions.ActionExecutionMetadata;
 import com.google.devtools.build.lib.actions.SchedulingActionEvent;
 import com.google.devtools.build.lib.events.ExtendedEventHandler;
@@ -22,13 +23,14 @@ import com.google.devtools.build.lib.exec.SpawnRunner.ProgressStatus;
 /**
  * Notifies that {@link SpawnRunner} is waiting for local or remote resources to become available.
  */
-@AutoValue
-public abstract class SpawnSchedulingEvent implements ProgressStatus {
-  public static SpawnSchedulingEvent create(String name) {
-    return new AutoValue_SpawnSchedulingEvent(name);
+public record SpawnSchedulingEvent(String name) implements ProgressStatus {
+  public SpawnSchedulingEvent {
+    requireNonNull(name, "name");
   }
 
-  public abstract String name();
+  public static SpawnSchedulingEvent create(String name) {
+    return new SpawnSchedulingEvent(name);
+  }
 
   @Override
   public void postTo(ExtendedEventHandler eventHandler, ActionExecutionMetadata action) {

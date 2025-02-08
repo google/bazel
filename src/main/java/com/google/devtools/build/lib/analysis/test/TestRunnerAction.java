@@ -17,8 +17,8 @@ package com.google.devtools.build.lib.analysis.test;
 import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.base.Preconditions.checkState;
 import static com.google.devtools.build.lib.actions.ActionAnalysisMetadata.mergeMaps;
+import static java.util.Objects.requireNonNull;
 
-import com.google.auto.value.AutoValue;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
@@ -111,7 +111,7 @@ public class TestRunnerAction extends AbstractAction
 
   private static final GoogleLogger logger = GoogleLogger.forEnclosingClass();
 
-  private final Artifact runfilesMiddleman;
+  private final Artifact runfilesTree;
   private final Artifact testSetupScript;
   private final Artifact testXmlGeneratorScript;
   private final Artifact collectCoverageScript;
@@ -167,7 +167,7 @@ public class TestRunnerAction extends AbstractAction
 
   private final boolean splitCoveragePostProcessing;
   private final NestedSetBuilder<Artifact> lcovMergerFilesToRun;
-  @Nullable private final Artifact lcovMergerRunfilesMiddleman;
+  @Nullable private final Artifact lcovMergerRunfilesTree;
 
   // TODO(b/192694287): Remove once we migrate all tests from the allowlist.
   private final PackageSpecificationProvider networkAllowlist;
@@ -193,7 +193,7 @@ public class TestRunnerAction extends AbstractAction
   TestRunnerAction(
       ActionOwner owner,
       NestedSet<Artifact> inputs,
-      Artifact runfilesMiddleman,
+      Artifact runfilesTree,
       Artifact testSetupScript, // Must be in inputs
       Artifact testXmlGeneratorScript, // Must be in inputs
       @Nullable Artifact collectCoverageScript, // Must be in inputs, if not null
@@ -213,7 +213,7 @@ public class TestRunnerAction extends AbstractAction
       boolean cancelConcurrentTestsOnSuccess,
       boolean splitCoveragePostProcessing,
       NestedSetBuilder<Artifact> lcovMergerFilesToRun,
-      @Nullable Artifact lcovMergerRunfilesMiddleman,
+      @Nullable Artifact lcovMergerRunfilesTree,
       PackageSpecificationProvider networkAllowlist) {
     super(
         owner,
@@ -221,7 +221,7 @@ public class TestRunnerAction extends AbstractAction
         nonNullAsSet(
             testLog, cacheStatus, coverageArtifact, coverageDirectory, undeclaredOutputsDir));
     Preconditions.checkState((collectCoverageScript == null) == (coverageArtifact == null));
-    this.runfilesMiddleman = runfilesMiddleman;
+    this.runfilesTree = runfilesTree;
     this.testSetupScript = testSetupScript;
     this.testXmlGeneratorScript = testXmlGeneratorScript;
     this.collectCoverageScript = collectCoverageScript;
@@ -271,7 +271,7 @@ public class TestRunnerAction extends AbstractAction
     this.cancelConcurrentTestsOnSuccess = cancelConcurrentTestsOnSuccess;
     this.splitCoveragePostProcessing = splitCoveragePostProcessing;
     this.lcovMergerFilesToRun = lcovMergerFilesToRun;
-    this.lcovMergerRunfilesMiddleman = lcovMergerRunfilesMiddleman;
+    this.lcovMergerRunfilesTree = lcovMergerRunfilesTree;
     this.networkAllowlist = networkAllowlist;
 
     // Mark all possible test outputs for deletion before test execution.
@@ -302,7 +302,7 @@ public class TestRunnerAction extends AbstractAction
             // Note that splitLogsPath points to a file inside the splitLogsDir so it's not
             // necessary to delete it explicitly.
             splitLogsDir,
-            getUndeclaredOutputsDir(),
+            undeclaredOutputsDir.getExecPath(),
             undeclaredOutputsAnnotationsDir,
             baseDir.getRelative("test_attempts"));
   }
@@ -321,8 +321,8 @@ public class TestRunnerAction extends AbstractAction
     return true;
   }
 
-  public Artifact getRunfilesMiddleman() {
-    return runfilesMiddleman;
+  public Artifact getRunfilesTree() {
+    return runfilesTree;
   }
 
   @Override
@@ -331,8 +331,8 @@ public class TestRunnerAction extends AbstractAction
   }
 
   @Nullable
-  public Artifact getLcovMergerRunfilesMiddleman() {
-    return lcovMergerRunfilesMiddleman;
+  public Artifact getLcovMergerRunfilesTree() {
+    return lcovMergerRunfilesTree;
   }
 
   public BuildConfigurationValue getConfiguration() {
@@ -507,7 +507,7 @@ public class TestRunnerAction extends AbstractAction
     fp.addString(Strings.nullToEmpty(executionSettings.getTestFilter()));
     fp.addBoolean(executionSettings.getTestRunnerFailFast());
     RunUnder runUnder = executionSettings.getRunUnder();
-    fp.addString(runUnder == null ? "" : runUnder.getValue());
+    fp.addString(runUnder == null ? "" : runUnder.value());
     extraTestEnv.addTo(fp);
     // TODO(ulfjack): It might be better for performance to hash the action and test envs in config,
     // and only add a hash here.
@@ -712,10 +712,10 @@ public class TestRunnerAction extends AbstractAction
     }
   }
 
-  public void setupEnvVariables(Map<String, String> env, Duration timeout) {
+  public void setupEnvVariables(Map<String, String> env) {
     env.put("TEST_TARGET", Label.print(getOwner().getLabel()));
     env.put("TEST_SIZE", getTestProperties().getSize().toString());
-    env.put("TEST_TIMEOUT", Long.toString(timeout.getSeconds()));
+    env.put("TEST_TIMEOUT", Long.toString(getTimeout().toSeconds()));
     env.put("TEST_WORKSPACE", getRunfilesPrefix());
     env.put(
         "TEST_BINARY",
@@ -756,7 +756,7 @@ public class TestRunnerAction extends AbstractAction
       env.put("TEST_UNDECLARED_OUTPUTS_ZIP", getUndeclaredOutputsZipPath().getPathString());
     }
 
-    env.put("TEST_UNDECLARED_OUTPUTS_DIR", getUndeclaredOutputsDir().getPathString());
+    env.put("TEST_UNDECLARED_OUTPUTS_DIR", undeclaredOutputsDir.getExecPathString());
     env.put("TEST_UNDECLARED_OUTPUTS_MANIFEST", getUndeclaredOutputsManifestPath().getPathString());
     env.put(
         "TEST_UNDECLARED_OUTPUTS_ANNOTATIONS",
@@ -823,6 +823,11 @@ public class TestRunnerAction extends AbstractAction
     }
   }
 
+  /** Returns the timeout for this test action, respecting the value of {@code --test_timeout}. */
+  public Duration getTimeout() {
+    return testConfiguration.getTestTimeout().get(testProperties.getTimeout());
+  }
+
   public Artifact getTestLog() {
     return testLog;
   }
@@ -845,6 +850,10 @@ public class TestRunnerAction extends AbstractAction
     return cacheStatus;
   }
 
+  public PathFragment getTestStderrPath() {
+    return testStderr;
+  }
+
   public PathFragment getTestWarningsPath() {
     return testWarningsPath;
   }
@@ -857,13 +866,13 @@ public class TestRunnerAction extends AbstractAction
     return splitLogsPath;
   }
 
-  public PathFragment getUndeclaredOutputsDir() {
-    return undeclaredOutputsDir.getExecPath();
+  public Artifact getUndeclaredOutputsDir() {
+    return undeclaredOutputsDir;
   }
 
   /** Returns path to the optional zip file of undeclared test outputs. */
   public PathFragment getUndeclaredOutputsZipPath() {
-    return getUndeclaredOutputsDir().getChild(UNDECLARED_OUTPUTS_ZIP_NAME);
+    return undeclaredOutputsDir.getExecPath().getChild(UNDECLARED_OUTPUTS_ZIP_NAME);
   }
 
   /** Returns path to the undeclared output manifest file. */
@@ -1223,8 +1232,8 @@ public class TestRunnerAction extends AbstractAction
               .getEventHandler()
               .post(new SpawnExecutedEvent.ChangePhase(this));
 
-          testRunnerSpawn = nextRunnerAndAttempts.getSpawn();
-          maxAttempts = nextRunnerAndAttempts.getMaxAttempts();
+          testRunnerSpawn = nextRunnerAndAttempts.spawn();
+          maxAttempts = nextRunnerAndAttempts.maxAttempts();
           continue;
         }
       }
@@ -1282,15 +1291,14 @@ public class TestRunnerAction extends AbstractAction
   }
 
   /** Value type used to store computed next runner and max attempts. */
-  @AutoValue
   @VisibleForTesting
-  abstract static class TestRunnerSpawnAndMaxAttempts {
-    public abstract TestRunnerSpawn getSpawn();
-
-    public abstract int getMaxAttempts();
+  record TestRunnerSpawnAndMaxAttempts(TestRunnerSpawn spawn, int maxAttempts) {
+    TestRunnerSpawnAndMaxAttempts {
+      requireNonNull(spawn, "spawn");
+    }
 
     public static TestRunnerSpawnAndMaxAttempts create(TestRunnerSpawn spawn, int maxAttempts) {
-      return new AutoValue_TestRunnerAction_TestRunnerSpawnAndMaxAttempts(spawn, maxAttempts);
+      return new TestRunnerSpawnAndMaxAttempts(spawn, maxAttempts);
     }
   }
 

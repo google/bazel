@@ -13,16 +13,19 @@
 // limitations under the License.
 package com.google.devtools.build.lib.analysis.test;
 
-import com.google.auto.value.AutoValue;
+import static java.util.Objects.requireNonNull;
+
 import com.google.common.collect.ImmutableSet;
 import com.google.devtools.build.lib.actions.Artifact;
 import com.google.devtools.build.lib.events.ExtendedEventHandler.Postable;
 
-@AutoValue
-public abstract class CoverageArtifactsKnownEvent implements Postable {
-  public abstract ImmutableSet<Artifact> coverageArtifacts();
+public record CoverageArtifactsKnownEvent(ImmutableSet<Artifact> coverageArtifacts)
+    implements Postable {
+  public CoverageArtifactsKnownEvent {
+    requireNonNull(coverageArtifacts, "coverageArtifacts");
+  }
 
   public static CoverageArtifactsKnownEvent create(ImmutableSet<Artifact> coverageArtifacts) {
-    return new AutoValue_CoverageArtifactsKnownEvent(coverageArtifacts);
+    return new CoverageArtifactsKnownEvent(coverageArtifacts);
   }
 }

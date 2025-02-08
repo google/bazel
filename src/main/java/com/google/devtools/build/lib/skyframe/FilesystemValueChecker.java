@@ -13,6 +13,7 @@
 // limitations under the License.
 package com.google.devtools.build.lib.skyframe;
 
+import static com.google.common.collect.ImmutableSet.toImmutableSet;
 import static java.util.concurrent.TimeUnit.MINUTES;
 import static java.util.stream.Collectors.groupingByConcurrent;
 
@@ -31,9 +32,8 @@ import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.google.devtools.build.lib.actions.Artifact;
 import com.google.devtools.build.lib.actions.Artifact.TreeFileArtifact;
 import com.google.devtools.build.lib.actions.FileArtifactValue;
-import com.google.devtools.build.lib.actions.FileArtifactValue.RemoteFileArtifactValue;
 import com.google.devtools.build.lib.actions.FileStateType;
-import com.google.devtools.build.lib.actions.RemoteArtifactChecker;
+import com.google.devtools.build.lib.actions.OutputChecker;
 import com.google.devtools.build.lib.concurrent.ExecutorUtil;
 import com.google.devtools.build.lib.concurrent.ThreadSafety.ThreadSafe;
 import com.google.devtools.build.lib.profiler.AutoProfiler;
@@ -214,7 +214,7 @@ public class FilesystemValueChecker {
       Map<SkyKey, SkyValue> valuesMap,
       @Nullable final BatchStat batchStatter,
       ModifiedFileSet modifiedOutputFiles,
-      RemoteArtifactChecker remoteArtifactChecker,
+      OutputChecker outputChecker,
       ModifiedOutputsReceiver modifiedOutputsReceiver)
       throws InterruptedException {
     if (modifiedOutputFiles == ModifiedFileSet.NOTHING_MODIFIED) {
@@ -270,7 +270,7 @@ public class FilesystemValueChecker {
                     shard,
                     knownModifiedOutputFiles,
                     sortedKnownModifiedOutputFiles,
-                    remoteArtifactChecker,
+                    outputChecker,
                     modifiedOutputsReceiver)
                 : batchStatJob(
                     dirtyKeys,
@@ -278,7 +278,7 @@ public class FilesystemValueChecker {
                     batchStatter,
                     knownModifiedOutputFiles,
                     sortedKnownModifiedOutputFiles,
-                    remoteArtifactChecker,
+                    outputChecker,
                     modifiedOutputsReceiver);
         executor.execute(job);
       }
@@ -316,7 +316,7 @@ public class FilesystemValueChecker {
       BatchStat batchStatter,
       ImmutableSet<PathFragment> knownModifiedOutputFiles,
       Supplier<NavigableSet<PathFragment>> sortedKnownModifiedOutputFiles,
-      RemoteArtifactChecker remoteArtifactChecker,
+      OutputChecker outputChecker,
       ModifiedOutputsReceiver modifiedOutputsReceiver) {
     return () -> {
       Map<Artifact, Map.Entry<SkyKey, ActionExecutionValue>> fileToKeyAndValue = new HashMap<>();
@@ -328,8 +328,7 @@ public class FilesystemValueChecker {
           dirtyKeys.add(keyAndValue.getKey());
         } else {
           for (Artifact artifact : actionValue.getAllFileValues().keySet()) {
-            if (!artifact.isMiddlemanArtifact()
-                && shouldCheckFile(knownModifiedOutputFiles, artifact)) {
+            if (!artifact.isRunfilesTree() && shouldCheckFile(knownModifiedOutputFiles, artifact)) {
               fileToKeyAndValue.put(artifact, keyAndValue);
             }
           }
@@ -370,7 +369,7 @@ public class FilesystemValueChecker {
                 shard,
                 knownModifiedOutputFiles,
                 sortedKnownModifiedOutputFiles,
-                remoteArtifactChecker,
+                outputChecker,
                 modifiedOutputsReceiver)
             .run();
         return;
@@ -440,7 +439,7 @@ public class FilesystemValueChecker {
       List<Map.Entry<SkyKey, ActionExecutionValue>> shard,
       ImmutableSet<PathFragment> knownModifiedOutputFiles,
       Supplier<NavigableSet<PathFragment>> sortedKnownModifiedOutputFiles,
-      RemoteArtifactChecker remoteArtifactChecker,
+      OutputChecker outputChecker,
       ModifiedOutputsReceiver modifiedOutputsReceiver) {
     return new Runnable() {
       @Override
@@ -453,7 +452,7 @@ public class FilesystemValueChecker {
                     value,
                     knownModifiedOutputFiles,
                     sortedKnownModifiedOutputFiles,
-                    remoteArtifactChecker,
+                    outputChecker,
                     modifiedOutputsReceiver)) {
               dirtyKeys.add(keyAndValue.getKey());
             }
@@ -478,43 +477,58 @@ public class FilesystemValueChecker {
 
     // This could be improved by short-circuiting as soon as we see a child that is not present in
     // the TreeArtifactValue, but it doesn't seem to be a major source of overhead.
-    // visitTree() is called from multiple threads in parallel so this need to be a hash set
-    Set<PathFragment> currentChildren = Sets.newConcurrentHashSet();
+    // visitTree() is called from multiple threads in parallel so this need to be a concurrent set
+    Set<PathFragment> currentLocalChildren = Sets.newConcurrentHashSet();
     try {
       TreeArtifactValue.visitTree(
           path,
           (child, type, traversedSymlink) -> {
             if (type != Dirent.Type.DIRECTORY) {
-              currentChildren.add(child);
+              currentLocalChildren.add(child);
             }
           });
     } catch (IOException e) {
       return true;
     }
-    return !(currentChildren.isEmpty() && value.isEntirelyRemote())
-        && !currentChildren.equals(value.getChildPaths());
+
+    if (currentLocalChildren.isEmpty() && value.isEntirelyRemote()) {
+      return false;
+    }
+
+    var lastKnownLocalChildren =
+        value.getChildValues().entrySet().stream()
+            .filter(
+                entry -> {
+                  var metadata = entry.getValue();
+                  // For remote metadata, a non-null contents proxy indicates that the file has
+                  // been materialized in the local filesystem.
+                  return !metadata.isRemote() || metadata.getContentsProxy() != null;
+                })
+            .map(entry -> entry.getKey().getParentRelativePath())
+            .collect(toImmutableSet());
+
+    return !currentLocalChildren.equals(lastKnownLocalChildren);
   }
 
   private boolean artifactIsDirtyWithDirectSystemCalls(
       ImmutableSet<PathFragment> knownModifiedOutputFiles,
-      RemoteArtifactChecker remoteArtifactChecker,
+      OutputChecker outputChecker,
       Map.Entry<? extends Artifact, FileArtifactValue> entry,
       ModifiedOutputsReceiver modifiedOutputsReceiver) {
     Artifact file = entry.getKey();
     FileArtifactValue lastKnownData = entry.getValue();
-    if (file.isMiddlemanArtifact() || !shouldCheckFile(knownModifiedOutputFiles, file)) {
+    if (file.isRunfilesTree() || !shouldCheckFile(knownModifiedOutputFiles, file)) {
       return false;
     }
     try {
       FileArtifactValue fileMetadata =
           ActionOutputMetadataStore.fileArtifactValueFromArtifact(
               file, null, xattrProviderOverrider.getXattrProvider(syscallCache), tsgm);
-      boolean trustRemoteValue =
+      boolean isTrustedRemoteValue =
           fileMetadata.getType() == FileStateType.NONEXISTENT
               && lastKnownData.isRemote()
-              && remoteArtifactChecker.shouldTrustRemoteArtifact(
-                  file, (RemoteFileArtifactValue) lastKnownData);
-      if (!trustRemoteValue && fileMetadata.couldBeModifiedSince(lastKnownData)) {
+              && outputChecker.shouldTrustArtifact(file, lastKnownData);
+      if (!isTrustedRemoteValue && fileMetadata.couldBeModifiedSince(lastKnownData)) {
         modifiedOutputsReceiver.reportModifiedOutputFile(
             fileMetadata.getType() != FileStateType.NONEXISTENT
                 ? file.getPath().getLastModifiedTime(Symlinks.FOLLOW)
@@ -534,13 +548,13 @@ public class FilesystemValueChecker {
       ActionExecutionValue actionValue,
       ImmutableSet<PathFragment> knownModifiedOutputFiles,
       Supplier<NavigableSet<PathFragment>> sortedKnownModifiedOutputFiles,
-      RemoteArtifactChecker remoteArtifactChecker,
+      OutputChecker outputChecker,
       ModifiedOutputsReceiver modifiedOutputsReceiver)
       throws InterruptedException {
     boolean isDirty = false;
     for (Map.Entry<Artifact, FileArtifactValue> entry : actionValue.getAllFileValues().entrySet()) {
       if (artifactIsDirtyWithDirectSystemCalls(
-          knownModifiedOutputFiles, remoteArtifactChecker, entry, modifiedOutputsReceiver)) {
+          knownModifiedOutputFiles, outputChecker, entry, modifiedOutputsReceiver)) {
         isDirty = true;
       }
     }
@@ -552,7 +566,7 @@ public class FilesystemValueChecker {
       for (Map.Entry<TreeFileArtifact, FileArtifactValue> childEntry :
           tree.getChildValues().entrySet()) {
         if (artifactIsDirtyWithDirectSystemCalls(
-            knownModifiedOutputFiles, remoteArtifactChecker, childEntry, modifiedOutputsReceiver)) {
+            knownModifiedOutputFiles, outputChecker, childEntry, modifiedOutputsReceiver)) {
           isDirty = true;
         }
       }
@@ -563,7 +577,7 @@ public class FilesystemValueChecker {
                       archivedRepresentation ->
                           artifactIsDirtyWithDirectSystemCalls(
                               knownModifiedOutputFiles,
-                              remoteArtifactChecker,
+                              outputChecker,
                               Maps.immutableEntry(
                                   archivedRepresentation.archivedTreeFileArtifact(),
                                   archivedRepresentation.archivedFileValue()),

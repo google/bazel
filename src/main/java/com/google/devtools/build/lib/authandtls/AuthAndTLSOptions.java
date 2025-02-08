@@ -14,7 +14,8 @@
 
 package com.google.devtools.build.lib.authandtls;
 
-import com.google.auto.value.AutoValue;
+import static java.util.Objects.requireNonNull;
+
 import com.google.common.base.Preconditions;
 import com.google.devtools.common.options.Converter;
 import com.google.devtools.common.options.Converters.CommaSeparatedOptionListConverter;
@@ -182,22 +183,23 @@ public class AuthAndTLSOptions extends OptionsBase {
       documentationCategory = OptionDocumentationCategory.UNCATEGORIZED,
       effectTags = {OptionEffectTag.UNKNOWN},
       help =
-          "The default duration for which credentials supplied by a credential helper are cached if"
-              + " the helper does not provide when the credentials expire.")
+          "How long to cache credentials for if the credential helper doesn't return an expiration"
+              + " time. Changing the value of this flag clears the cache.")
   public Duration credentialHelperCacheTimeout;
 
-  /** One of the values of the `--credential_helper` flag. */
-  @AutoValue
-  public abstract static class CredentialHelperOption {
-    /**
-     * Returns the scope of the credential helper (if any).
-     *
-     * <p>The scope is a valid ASCII domain name with an optional leading '.*' wildcard.
-     */
-    public abstract Optional<String> getScope();
+  /**
+   * One of the values of the `--credential_helper` flag.
+   *
+   * @param scope Returns the scope of the credential helper (if any).
+   *     <p>The scope is a valid ASCII domain name with an optional leading '.*' wildcard.
+   * @param path Returns the (unparsed) path of the credential helper.
+   */
+  public record CredentialHelperOption(Optional<String> scope, String path) {
+    public CredentialHelperOption {
+      requireNonNull(scope, "scope");
+      requireNonNull(path, "path");
+    }
 
-    /** Returns the (unparsed) path of the credential helper. */
-    public abstract String getPath();
   }
 
   /** A {@link Converter} for the `--credential_helper` flag. */
@@ -223,12 +225,11 @@ public class AuthAndTLSOptions extends OptionsBase {
       if (pos >= 0) {
         String scope = parseScope(input.substring(0, pos));
         String path = parsePath(input.substring(pos + 1));
-        return new AutoValue_AuthAndTLSOptions_CredentialHelperOption(Optional.of(scope), path);
+        return new CredentialHelperOption(Optional.of(scope), path);
       }
 
       // `input` does not specify a scope.
-      return new AutoValue_AuthAndTLSOptions_CredentialHelperOption(
-          Optional.empty(), parsePath(input));
+      return new CredentialHelperOption(Optional.empty(), parsePath(input));
     }
 
     private String parseScope(String scope) throws OptionsParsingException {

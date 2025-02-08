@@ -67,6 +67,10 @@ final class FieldInfoCache {
         throw new IllegalStateException(e);
       }
     }
+
+    String name() {
+      return name;
+    }
   }
 
   static final class PrimitiveInfo extends AbstractFieldInfo implements FieldInfo {
@@ -74,18 +78,14 @@ final class FieldInfoCache {
       super(field, lookup);
     }
 
-    void output(Object parent, StringBuilder out) {
-      out.append(name).append('=').append(handle.get(parent));
+    String getText(Object parent) {
+      return handle.get(parent).toString();
     }
   }
 
   static final class ObjectInfo extends AbstractFieldInfo implements FieldInfo {
     private ObjectInfo(Field field, MethodHandles.Lookup privateLookup) {
       super(field, privateLookup);
-    }
-
-    String name() {
-      return name;
     }
 
     Object getFieldValue(Object parent) {

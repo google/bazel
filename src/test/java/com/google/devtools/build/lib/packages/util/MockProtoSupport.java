@@ -44,11 +44,10 @@ public final class MockProtoSupport {
   }
 
   private static void registerProtoToolchain(MockToolsConfig config) throws IOException {
-    config.append("WORKSPACE", "register_toolchains('//tools/proto/toolchains:all')");
     config.append("MODULE.bazel", "register_toolchains('//tools/proto/toolchains:all')");
     config.create(
         "tools/proto/toolchains/BUILD",
-        "load('@protobuf//bazel/toolchains:proto_toolchain.bzl', 'proto_toolchain')",
+        "load('@com_google_protobuf//bazel/toolchains:proto_toolchain.bzl', 'proto_toolchain')",
         TestConstants.LOAD_PROTO_LANG_TOOLCHAIN,
         "proto_toolchain(name = 'protoc_sources',"
             + "proto_compiler = '"
@@ -75,7 +74,7 @@ public final class MockProtoSupport {
 
     // TODO: b/305068148 - Remove this after blaze is released with protoc_minimal.
     config.create(
-        "third_party/protobuf/compiler/BUILD",
+        "third_party/protobuf/compiler/release/BUILD",
         """
         load('//test_defs:foo_binary.bzl', 'foo_binary')
         package(default_visibility = ["//visibility:public"])
@@ -291,7 +290,7 @@ public final class MockProtoSupport {
         """);
     config.create(
         "net/proto2/proto/BUILD",
-        "load('@protobuf//bazel:proto_library.bzl', 'proto_library')",
+        "load('@com_google_protobuf//bazel:proto_library.bzl', 'proto_library')",
         "package(default_visibility=['//visibility:public'])",
         "genrule(name = 'go_internal_bootstrap_hack',",
         "        srcs = [ 'descriptor.pb.go-prebuilt' ],",
@@ -386,7 +385,8 @@ public final class MockProtoSupport {
         """);
     if (TestConstants.PRODUCT_NAME.equals("bazel")) {
       Runfiles runfiles = Runfiles.preload().withSourceRepository("");
-      PathFragment path = PathFragment.create(runfiles.rlocation("protobuf/bazel/BUILD.bazel"));
+      PathFragment path =
+          PathFragment.create(runfiles.rlocation("com_google_protobuf/bazel/BUILD.bazel"));
       config.copyDirectory(
           path.getParentDirectory(), "third_party/protobuf/bazel", MAX_VALUE, false);
       config.overwrite(
@@ -398,14 +398,13 @@ public final class MockProtoSupport {
       // Overwritten to remove bazel7 toolchains from protobuf
       config.overwrite(
           "third_party/protobuf/bazel/private/toolchains/BUILD.bazel",
-          "load('@protobuf//bazel/toolchains:proto_toolchain.bzl', 'proto_toolchain')",
+          "load('//bazel/toolchains:proto_toolchain.bzl', 'proto_toolchain')",
           TestConstants.LOAD_PROTO_LANG_TOOLCHAIN,
           "proto_toolchain(name = 'protoc_sources',"
               + "proto_compiler = '"
               + ProtoConstants.DEFAULT_PROTOC_LABEL
               + "')");
       config.overwrite("proto_bazel_features_workspace/BUILD");
-      config.overwrite("proto_bazel_features_workspace/WORKSPACE");
       config.overwrite(
           "proto_bazel_features_workspace/features.bzl",
           "bazel_features = struct(",

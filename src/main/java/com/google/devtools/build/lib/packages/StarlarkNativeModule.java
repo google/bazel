@@ -730,8 +730,7 @@ public class StarlarkNativeModule implements StarlarkNativeModuleApi {
       };
     }
 
-    if (val instanceof Label) {
-      Label l = (Label) val;
+    if (val instanceof Label l) {
       if (l.getPackageName().equals(pkg.getName())) {
         // TODO(https://github.com/bazelbuild/bazel/issues/13828): do not ignore the repo component
         // of the label.

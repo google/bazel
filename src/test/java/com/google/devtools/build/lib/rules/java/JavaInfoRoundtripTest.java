@@ -17,7 +17,6 @@ package com.google.devtools.build.lib.rules.java;
 import static com.google.common.truth.Truth.assertThat;
 
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableSet;
 import com.google.devtools.build.lib.analysis.ConfiguredTarget;
 import com.google.devtools.build.lib.analysis.util.BuildViewTestCase;
 import com.google.devtools.build.lib.packages.StarlarkInfo;
@@ -53,6 +52,7 @@ public class JavaInfoRoundtripTest extends BuildViewTestCase {
     scratch.file(
         "javainfo/javainfo_to_dict.bzl",
         """
+        load("@rules_java//java/common:java_info.bzl", "JavaInfo")
         load("//tools/build_defs/inspect:struct_to_dict.bzl", "struct_to_dict")
         Info = provider()
         def _impl(ctx):
@@ -140,9 +140,7 @@ public class JavaInfoRoundtripTest extends BuildViewTestCase {
     StarlarkInfo dictInfo = getStarlarkProvider(dictTarget, "Info");
     @SuppressWarnings("unchecked") // deserialization
     Dict<Object, Object> javaInfo = (Dict<Object, Object>) dictInfo.getValue("result");
-    return deepStripAttributes(
-        javaInfo,
-        attr -> attr.startsWith("_") || ImmutableSet.of("to_proto", "to_json").contains(attr));
+    return deepStripAttributes(javaInfo, attr -> attr.startsWith("_"));
   }
 
   @SuppressWarnings("unchecked")

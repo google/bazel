@@ -13,8 +13,7 @@
 // limitations under the License.
 package com.google.devtools.build.lib.authandtls;
 
-import com.google.common.base.Strings;
-import java.nio.charset.Charset;
+import com.google.devtools.build.lib.unsafe.StringUnsafe;
 import java.util.Base64;
 
 /**
@@ -26,16 +25,18 @@ public final class BasicHttpAuthenticationEncoder {
 
   private BasicHttpAuthenticationEncoder() {}
 
-  /** Encode username and password into a token with given {@link Charset}. */
-  public static String encode(String username, String password, Charset charset) {
-    StringBuilder sb = new StringBuilder();
-    if (!Strings.isNullOrEmpty(username)) {
-      sb.append(username);
-    }
-    sb.append(":");
-    if (!Strings.isNullOrEmpty(password)) {
-      sb.append(password);
-    }
-    return "Basic " + Base64.getEncoder().encodeToString(sb.toString().getBytes(charset));
+  /**
+   * Encode username and password into a token.
+   *
+   * <p>username and password are expected to use Bazel's internal string encoding. The returned
+   * string is a regular Unicode string.
+   */
+  public static String encode(String username, String password) {
+    // The raw bytes in the internal string are assumed to be UTF-8, which is the encoding used for
+    // basic authentication.
+    return "Basic "
+        + Base64.getEncoder()
+            .encodeToString(
+                StringUnsafe.getInstance().getInternalStringBytes(username + ":" + password));
   }
 }

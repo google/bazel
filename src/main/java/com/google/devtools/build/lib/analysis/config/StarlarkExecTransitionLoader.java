@@ -13,7 +13,8 @@
 // limitations under the License.
 package com.google.devtools.build.lib.analysis.config;
 
-import com.google.auto.value.AutoValue;
+import static java.util.Objects.requireNonNull;
+
 import com.google.common.base.Splitter;
 import com.google.common.base.Verify;
 import com.google.devtools.build.lib.analysis.starlark.StarlarkAttributeTransitionProvider;
@@ -36,9 +37,17 @@ public final class StarlarkExecTransitionLoader {
   /** Thrown when the Starlark transition failed to load. */
   public static class StarlarkExecTransitionLoadingException extends Exception {
     public StarlarkExecTransitionLoadingException(String context, String ref, String message) {
-      super(
+      this(
           String.format(
               "Bad Starlark transition reference from %s: %s. %s.", context, ref, message));
+    }
+
+    public StarlarkExecTransitionLoadingException(String message) {
+      super(message);
+    }
+
+    public StarlarkExecTransitionLoadingException(Throwable cause) {
+      super(cause);
     }
   }
 
@@ -48,7 +57,8 @@ public final class StarlarkExecTransitionLoader {
      * Loads the given {@link BzlLoadValue.Key}. Returns null if not all Skyframe deps are ready.
      */
     @Nullable
-    BzlLoadValue getValue(BzlLoadValue.Key key) throws BzlLoadFailedException, InterruptedException;
+    BzlLoadValue getValue(BzlLoadValue.Key key)
+        throws BzlLoadFailedException, InterruptedException, StarlarkExecTransitionLoadingException;
   }
 
   /**
@@ -122,15 +132,15 @@ public final class StarlarkExecTransitionLoader {
    * Structured form of a Starlark transition reference.
    *
    * <p>In other words, structured form of <code>//pkg:def.bzl%transition_name</code>
+   *
+   * @param bzlFile The .bzl file where this transition is defined.
+   * @param starlarkSymbolName The transition's Starlark symbol name.
    */
-  @AutoValue
-  abstract static class TransitionReference {
-
-    /** The .bzl file where this transition is defined. */
-    abstract Label bzlFile();
-
-    /** The transition's Starlark symbol name. */
-    abstract String starlarkSymbolName();
+  record TransitionReference(Label bzlFile, String starlarkSymbolName) {
+    TransitionReference {
+      requireNonNull(bzlFile, "bzlFile");
+      requireNonNull(starlarkSymbolName, "starlarkSymbolName");
+    }
 
     /**
      * Returns a structured form of a user-specified Starlark transition reference.
@@ -145,8 +155,7 @@ public final class StarlarkExecTransitionLoader {
             context, userRef, "Doesn't match expected form //pkg:file.bzl%%symbol");
       }
       try {
-        return new AutoValue_StarlarkExecTransitionLoader_TransitionReference(
-            Label.parseCanonical(splitval.get(0)), splitval.get(1));
+        return new TransitionReference(Label.parseCanonical(splitval.get(0)), splitval.get(1));
       } catch (LabelSyntaxException e) {
         throw new StarlarkExecTransitionLoadingException(
             context, userRef, String.format("Bad label %s: %s", splitval.get(0), e.getMessage()));

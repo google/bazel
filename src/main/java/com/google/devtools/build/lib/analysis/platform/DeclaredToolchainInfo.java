@@ -14,11 +14,13 @@
 
 package com.google.devtools.build.lib.analysis.platform;
 
-import com.google.auto.value.AutoValue;
+import static java.util.Objects.requireNonNull;
+
 import com.google.common.collect.ImmutableList;
 import com.google.devtools.build.lib.analysis.TransitiveInfoProvider;
 import com.google.devtools.build.lib.analysis.config.ConfigMatchingProvider;
 import com.google.devtools.build.lib.cmdline.Label;
+import com.google.devtools.build.lib.skyframe.serialization.autocodec.AutoCodec;
 import com.google.errorprone.annotations.CanIgnoreReturnValue;
 import javax.annotation.Nullable;
 
@@ -27,34 +29,43 @@ import javax.annotation.Nullable;
  * constraints, and the actual toolchain label. The toolchain is then available for use but will be
  * lazily resolved only when it is actually needed for toolchain-aware rules. Toolchain definitions
  * are exposed to Starlark and Bazel via {@link ToolchainInfo} providers.
+ *
+ * @param toolchainType The type of the toolchain being declared. This will be a label of a
+ *     toolchain_type() target.
+ * @param execConstraints The constraints describing the execution environment.
+ * @param targetConstraints The constraints describing the target environment.
+ * @param targetSettings The setting, that target build configuration needs to satisfy.
+ * @param targetLabel The label of the {@code toolchain} target itself.
+ * @param resolvedToolchainLabel The label of the toolchain to resolve for use in toolchain-aware
+ *     rules.
  */
-@AutoValue
-public abstract class DeclaredToolchainInfo implements TransitiveInfoProvider {
-  /**
-   * The type of the toolchain being declared. This will be a label of a toolchain_type() target.
-   */
-  public abstract ToolchainTypeInfo toolchainType();
-
-  /** The constraints describing the execution environment. */
-  public abstract ConstraintCollection execConstraints();
-
-  /** The constraints describing the target environment. */
-  public abstract ConstraintCollection targetConstraints();
-
-  /** The setting, that target build configuration needs to satisfy. */
-  public abstract ImmutableList<ConfigMatchingProvider> targetSettings();
-
-  /** The label of the toolchain to resolve for use in toolchain-aware rules. */
-  public abstract Label toolchainLabel();
+@AutoCodec
+public record DeclaredToolchainInfo(
+    ToolchainTypeInfo toolchainType,
+    ConstraintCollection execConstraints,
+    ConstraintCollection targetConstraints,
+    ImmutableList<ConfigMatchingProvider> targetSettings,
+    Label targetLabel,
+    Label resolvedToolchainLabel)
+    implements TransitiveInfoProvider {
+  public DeclaredToolchainInfo {
+    requireNonNull(toolchainType, "toolchainType");
+    requireNonNull(execConstraints, "execConstraints");
+    requireNonNull(targetConstraints, "targetConstraints");
+    requireNonNull(targetSettings, "targetSettings");
+    requireNonNull(targetLabel, "targetLabel");
+    requireNonNull(resolvedToolchainLabel, "resolvedToolchainLabel");
+  }
 
   /** Builder class to assist in creating {@link DeclaredToolchainInfo} instances. */
   public static class Builder {
     private ToolchainTypeInfo toolchainType;
-    private ConstraintCollection.Builder execConstraints = ConstraintCollection.builder();
-    private ConstraintCollection.Builder targetConstraints = ConstraintCollection.builder();
-    private ImmutableList.Builder<ConfigMatchingProvider> targetSettings =
+    private final ConstraintCollection.Builder execConstraints = ConstraintCollection.builder();
+    private final ConstraintCollection.Builder targetConstraints = ConstraintCollection.builder();
+    private final ImmutableList.Builder<ConfigMatchingProvider> targetSettings =
         new ImmutableList.Builder<>();
-    private Label toolchainLabel;
+    private Label targetLabel;
+    private Label resolvedToolchainLabel;
 
     /** Sets the type of the toolchain being declared. */
     @CanIgnoreReturnValue
@@ -71,6 +82,7 @@ public abstract class DeclaredToolchainInfo implements TransitiveInfoProvider {
     }
 
     /** Adds constraints describing the execution environment. */
+    @CanIgnoreReturnValue
     public Builder addExecConstraints(ConstraintValueInfo... constraints) {
       return addExecConstraints(ImmutableList.copyOf(constraints));
     }
@@ -83,6 +95,7 @@ public abstract class DeclaredToolchainInfo implements TransitiveInfoProvider {
     }
 
     /** Adds constraints describing the target environment. */
+    @CanIgnoreReturnValue
     public Builder addTargetConstraints(ConstraintValueInfo... constraints) {
       return addTargetConstraints(ImmutableList.copyOf(constraints));
     }
@@ -93,10 +106,17 @@ public abstract class DeclaredToolchainInfo implements TransitiveInfoProvider {
       return this;
     }
 
+    /** Sets the label of the {@code toolchain} target itself. */
+    @CanIgnoreReturnValue
+    public Builder targetLabel(Label targetLabel) {
+      this.targetLabel = targetLabel;
+      return this;
+    }
+
     /** Sets the label of the toolchain to resolve for use in toolchain-aware rules. */
     @CanIgnoreReturnValue
-    public Builder toolchainLabel(Label toolchainLabel) {
-      this.toolchainLabel = toolchainLabel;
+    public Builder resolvedToolchainLabel(Label resolvedToolchainLabel) {
+      this.resolvedToolchainLabel = resolvedToolchainLabel;
       return this;
     }
 
@@ -123,12 +143,13 @@ public abstract class DeclaredToolchainInfo implements TransitiveInfoProvider {
         throw new DuplicateConstraintException(
             execConstraintsException, targetConstraintsException);
       }
-      return new AutoValue_DeclaredToolchainInfo(
+      return new DeclaredToolchainInfo(
           toolchainType,
           execConstraints,
           targetConstraints,
           targetSettings.build(),
-          toolchainLabel);
+          targetLabel,
+          resolvedToolchainLabel);
     }
   }
 

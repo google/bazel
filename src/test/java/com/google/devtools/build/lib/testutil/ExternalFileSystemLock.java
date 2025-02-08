@@ -43,12 +43,12 @@ public class ExternalFileSystemLock implements AutoCloseable {
 
   private ExternalFileSystemLock(Path lockPath, boolean shared) throws IOException {
       String binaryPath = Runfiles.preload().withSourceRepository("").rlocation(HELPER_PATH);
-      this.subprocess =
-          new SubprocessBuilder()
-              .setArgv(
-                  ImmutableList.of(
-                      binaryPath, lockPath.getPathString(), shared ? "shared" : "exclusive"))
-              .start();
+    this.subprocess =
+        new SubprocessBuilder()
+            .setArgv(
+                ImmutableList.of(
+                    binaryPath, lockPath.getPathString(), shared ? "shared" : "exclusive", "sleep"))
+            .start();
       // Wait for child to report that the lock has been acquired.
       // We could read the entire stdout/stderr here to obtain additional debugging information,
       // but for some reason that hangs forever on Windows, even if we close them on the child side.

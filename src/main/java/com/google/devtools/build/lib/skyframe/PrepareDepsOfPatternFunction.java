@@ -86,9 +86,9 @@ public class PrepareDepsOfPatternFunction implements SkyFunction {
 
     TargetPattern parsedPattern = patternKey.getParsedPattern();
 
-    IgnoredPackagePrefixesValue repositoryIgnoredPrefixes =
-        (IgnoredPackagePrefixesValue)
-            env.getValue(IgnoredPackagePrefixesValue.key(parsedPattern.getRepository()));
+    IgnoredSubdirectoriesValue repositoryIgnoredPrefixes =
+        (IgnoredSubdirectoriesValue)
+            env.getValue(IgnoredSubdirectoriesValue.key(parsedPattern.getRepository()));
     if (repositoryIgnoredPrefixes == null) {
       return null;
     }

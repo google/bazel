@@ -14,17 +14,6 @@ filegroup(
 )
 
 java_test(
-    name = "AndroidStarlarkCommonTest",
-    srcs = ["AndroidStarlarkCommonTest.java"],
-    deps = [
-        "//src/main/java/com/google/devtools/build/lib/rules/java:java-compilation",
-        "//src/test/java/com/google/devtools/build/lib/analysis/util",
-        "//third_party:junit4",
-        "//third_party:truth",
-    ],
-)
-
-java_test(
     name = "AndroidConfigurationTest",
     srcs = ["AndroidConfigurationTest.java"],
     deps = [

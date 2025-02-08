@@ -14,53 +14,49 @@
 package com.google.devtools.build.lib.actions;
 
 import static com.google.common.base.Preconditions.checkArgument;
+import static java.util.Objects.requireNonNull;
 
-import com.google.auto.value.AutoValue;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.devtools.build.lib.actions.Artifact.SpecialArtifact;
+import com.google.devtools.build.lib.skyframe.serialization.autocodec.AutoCodec;
 import com.google.devtools.build.lib.vfs.PathFragment;
 import javax.annotation.Nullable;
 
-/** Definition of a symlink in the output tree of a Fileset rule. */
-@AutoValue
-public abstract class FilesetOutputSymlink {
-
-  /** Final name of the symlink relative to the Fileset's output directory. */
-  public abstract PathFragment getName();
-
-  /**
-   * Target of the symlink.
-   *
-   * <p>This path is one of the following:
-   *
-   * <ol>
-   *   <li>Relative to the execution root, in which case {@link #isRelativeToExecRoot} will return
-   *       {@code true}.
-   *   <li>An absolute path to the source tree.
-   *   <li>A relative path that should be considered relative to the link.
-   * </ol>
-   */
-  public abstract PathFragment getTargetPath();
-
-  /**
-   * Return the best effort metadata about the target. Currently this will be a FileStateValue for
-   * source targets. For generated targets we try to return a FileArtifactValue when possible, or
-   * else this will be a synthetic digest of the target.
-   */
-  public abstract HasDigest getMetadata();
-
-  /** Returns {@code true} if this symlink is relative to the execution root. */
-  public abstract boolean isRelativeToExecRoot();
-
-  /**
-   * If this symlink points to a file inside a tree artifact, returns the exec path of that file's
-   * {@linkplain Artifact#getParent parent} tree artifact. Otherwise, returns {@code null}.
-   *
-   * <p>To simplify serialization, only the exec path is stored, not the whole {@link
-   * SpecialArtifact}.
-   */
-  @Nullable
-  public abstract PathFragment getEnclosingTreeArtifactExecPath();
+/**
+ * Definition of a symlink in the output tree of a Fileset rule.
+ *
+ * @param name Final name of the symlink relative to the Fileset's output directory.
+ * @param targetPath Target of the symlink.
+ *     <p>This path is one of the following:
+ *     <ol>
+ *       <li>Relative to the execution root, in which case {@link #isRelativeToExecRoot} will return
+ *           {@code true}.
+ *       <li>An absolute path to the source tree.
+ *       <li>A relative path that should be considered relative to the link.
+ *     </ol>
+ *
+ * @param metadata Return the best effort metadata about the target. Currently this will be a
+ *     FileStateValue for source targets. For generated targets we try to return a FileArtifactValue
+ *     when possible, or else this will be a synthetic digest of the target.
+ * @param relativeToExecRoot Returns {@code true} if this symlink is relative to the execution root.
+ * @param enclosingTreeArtifactExecPath If this symlink points to a file inside a tree artifact,
+ *     returns the exec path of that file's {@linkplain Artifact#getParent parent} tree artifact.
+ *     Otherwise, returns {@code null} .
+ *     <p>To simplify serialization, only the exec path is stored, not the whole {@link
+ *     SpecialArtifact} .
+ */
+@AutoCodec
+public record FilesetOutputSymlink(
+    PathFragment name,
+    PathFragment targetPath,
+    HasDigest metadata,
+    boolean relativeToExecRoot,
+    @Nullable PathFragment enclosingTreeArtifactExecPath) {
+  public FilesetOutputSymlink {
+    requireNonNull(name, "name");
+    requireNonNull(targetPath, "targetPath");
+    requireNonNull(metadata, "metadata");
+  }
 
   /**
    * Reconstitutes the original target path of this symlink.
@@ -69,19 +65,18 @@ public abstract class FilesetOutputSymlink {
    * execution root was stripped originally, it is re-prepended.
    */
   public final PathFragment reconstituteTargetPath(PathFragment execRoot) {
-    return isRelativeToExecRoot() ? execRoot.getRelative(getTargetPath()) : getTargetPath();
+    return relativeToExecRoot() ? execRoot.getRelative(targetPath()) : targetPath();
   }
 
   @Override
   public final String toString() {
-    if (getMetadata() == HasDigest.EMPTY) {
+    if (metadata() == HasDigest.EMPTY) {
       return String.format(
-          "FilesetOutputSymlink(%s -> %s)",
-          getName().getPathString(), getTargetPath().getPathString());
+          "FilesetOutputSymlink(%s -> %s)", name().getPathString(), targetPath().getPathString());
     } else {
       return String.format(
           "FilesetOutputSymlink(%s -> %s | metadataHash=%s)",
-          getName().getPathString(), getTargetPath().getPathString(), getMetadata());
+          name().getPathString(), targetPath().getPathString(), metadata());
     }
   }
 
@@ -153,7 +148,7 @@ public abstract class FilesetOutputSymlink {
       boolean isRelativeToExecRoot,
       @Nullable PathFragment enclosingTreeArtifactExecPath) {
     checkArgument(!target.isEmpty(), "Empty symlink target for %s", name);
-    return new AutoValue_FilesetOutputSymlink(
+    return new FilesetOutputSymlink(
         name, target, metadata, isRelativeToExecRoot, enclosingTreeArtifactExecPath);
   }
 }

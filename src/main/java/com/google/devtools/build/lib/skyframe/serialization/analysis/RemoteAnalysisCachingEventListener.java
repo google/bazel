@@ -16,6 +16,7 @@ package com.google.devtools.build.lib.skyframe.serialization.analysis;
 import static com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.common.collect.HashMultiset;
+import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Multiset;
 import com.google.common.eventbus.AllowConcurrentEvents;
 import com.google.common.eventbus.Subscribe;
@@ -49,7 +50,8 @@ public class RemoteAnalysisCachingEventListener {
   }
 
   private final Set<SkyKey> serializedKeys = ConcurrentHashMap.newKeySet();
-  private final Set<SkyKey> deserializedKeys = ConcurrentHashMap.newKeySet();
+  private final Set<SkyKey> cacheHits = ConcurrentHashMap.newKeySet();
+  private final Set<SkyKey> cacheMisses = ConcurrentHashMap.newKeySet();
   private final AtomicInteger analysisCacheHits = new AtomicInteger();
   private final AtomicInteger analysisCacheMisses = new AtomicInteger();
   private final AtomicInteger executionCacheHits = new AtomicInteger();
@@ -77,18 +79,25 @@ public class RemoteAnalysisCachingEventListener {
     return serializedKeys.size();
   }
 
+  public Set<SkyKey> getSerializedKeys() {
+    return ImmutableSet.copyOf(serializedKeys);
+  }
+
+  public Set<SkyKey> getCacheHits() {
+    return ImmutableSet.copyOf(cacheHits);
+  }
+
   @ThreadSafe
   public void recordRetrievalResult(RetrievalResult result, SkyKey key) {
     if (result instanceof Restart) {
       return;
     }
 
-    if (!deserializedKeys.add(key)) {
-      return;
-    }
-
     switch (result) {
       case RetrievedValue unusedValue -> {
+        if (!cacheHits.add(key)) {
+          return;
+        }
         if (isExecutionNode(key)) {
           executionCacheHits.incrementAndGet();
         } else {
@@ -96,13 +105,18 @@ public class RemoteAnalysisCachingEventListener {
         }
       }
       case NoCachedData unusedNoCachedData -> {
+        if (!cacheMisses.add(key)) {
+          return;
+        }
         if (isExecutionNode(key)) {
           executionCacheMisses.incrementAndGet();
         } else {
           analysisCacheMisses.incrementAndGet();
         }
       }
-      case Restart unusedRestart -> {} // restart counts are not useful (yet).
+      case Restart unusedRestart ->
+          throw new IllegalStateException(
+              "should have returned earlier"); // restart counts are not useful (yet).
     }
   }
 

@@ -103,6 +103,7 @@ EOF
 }
 
 function test_incompatible_system_classpath() {
+  add_rules_java MODULE.bazel
   mkdir -p pkg
   # This test defines a custom Java toolchain as it relies on the availability of a runtime that is
   # strictly newer than the one specified as the toolchain's java_runtime.
@@ -117,7 +118,7 @@ default_java_toolchain(
     name = "java_toolchain",
     source_version = "17",
     target_version = "17",
-    java_runtime = "@bazel_tools//tools/jdk:remotejdk_17",
+    java_runtime = "@rules_java//toolchains:remotejdk_17",
 )
 EOF
 

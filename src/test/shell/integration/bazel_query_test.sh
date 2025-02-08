@@ -42,7 +42,7 @@ fi
 source "$(rlocation "io_bazel/src/test/shell/integration_test_setup.sh")" \
   || { echo "integration_test_setup.sh not found!" >&2; exit 1; }
 
-# `uname` returns the current platform, e.g "MSYS_NT-10.0" or "Linux".
+# `uname` returns the current platform, e.g. "MSYS_NT-10.0" or "Linux".
 # `tr` converts all upper case letters to lower case.
 # `case` matches the result if the `uname | tr` expression to string prefixes
 # that use the same wildcards as names do in Bash, i.e. "msys*" matches strings
@@ -80,6 +80,22 @@ EOF
 
   expect_log "//peach:brighton"
   expect_log "//peach:harken"
+}
+
+function test_output_to_file() {
+  rm -rf peach
+  mkdir -p peach
+  cat > peach/BUILD <<EOF
+sh_library(name='brighton', deps=[':harken'])
+sh_library(name='harken')
+EOF
+
+  bazel query 'deps(//peach:brighton)' --output_file=$TEST_log > $TEST_TMPDIR/query_stdout
+
+  expect_log "//peach:brighton"
+  expect_log "//peach:harken"
+
+  assert_equals "" "$(<$TEST_TMPDIR/query_stdout)"
 }
 
 function test_invalid_query_fails_parsing() {
@@ -1251,6 +1267,71 @@ EOF
   expect_log "\"//foo:c1\" -> \"//foo:c.sh\"$"
   expect_log "\"//foo:c2\" -> \"//foo:c.sh\"$"
   expect_log "\"//foo:c.sh\"$"
+}
+
+function test_proto_non_ascii_attributes() {
+  rm -rf foo
+  mkdir -p foo
+  cat > foo/defs.bzl <<'EOF'
+def _impl(ctx): pass
+r = rule(
+  implementation = _impl,
+  attrs = {
+    "label": attr.label(),
+    "label_keyed_string_dict": attr.label_keyed_string_dict(),
+    "label_list": attr.label_list(),
+    "output": attr.output(),
+    "output_list": attr.output_list(),
+    "string": attr.string(),
+    "string_dict": attr.string_dict(),
+    "string_keyed_label_dict": attr.string_keyed_label_dict(),
+    "string_list": attr.string_list(),
+    "string_list_dict": attr.string_list_dict(),
+  },
+)
+
+def test_case(name, with_select):
+  def maybe_select(x):
+    if with_select:
+      return select({"//conditions:default": x})
+    return x
+
+  r(
+    name = name,
+    label = maybe_select("leaf🌱"),
+    label_keyed_string_dict = maybe_select({"fire🔥": "ice❄️"}),
+    label_list = maybe_select(["star⭐"]),
+    output = name + "flower🌸",
+    output_list = [name + "party🎉"],
+    string = maybe_select("ball⚽"),
+    string_dict = maybe_select({"sun☀️": "moon🌙"}),
+    string_keyed_label_dict = maybe_select({"heart❤️": "skull💀"}),
+    string_list = maybe_select(["rocket🚀"]),
+    string_list_dict = maybe_select({"dog🐶": ["cat🐱"]}),
+  )
+EOF
+  cat > foo/BUILD <<'EOF'
+load(":defs.bzl", "test_case")
+test_case(name = "without_select", with_select = False)
+test_case(name = "with_select", with_select = True)
+EOF
+
+  declare -a items=("leaf🌱" "fire🔥" "ice❄️" "star⭐" "flower🌸" "party🎉"
+    "ball⚽" "sun☀️" "moon🌙" "heart❤️" "skull💀" "rocket🚀" "dog🐶" "cat🐱")
+
+  bazel query --output=proto //foo:without_select >& $TEST_log \
+      || fail "Expected success"
+
+  for x in "${items[@]}"; do
+    grep -q "$x" $TEST_log || fail "Expected $x in query output for //foo:without_select"
+  done
+
+  bazel query --output=proto //foo:with_select >& $TEST_log \
+      || fail "Expected success"
+
+  for x in "${items[@]}"; do
+    grep -q "$x" $TEST_log || fail "Expected $x in query output for //foo:with_select"
+  done
 }
 
 run_suite "${PRODUCT_NAME} query tests"

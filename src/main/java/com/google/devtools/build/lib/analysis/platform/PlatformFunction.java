@@ -112,7 +112,7 @@ public final class PlatformFunction implements SkyFunction {
     var parsedFlagsKey =
         ParsedFlagsValue.Key.create(
             platformInfo.flags(),
-            PackageContext.of(pkgId, repoMappingValue.getRepositoryMapping()),
+            PackageContext.of(pkgId, repoMappingValue.repositoryMapping()),
             // Include default values so that any flags explicitly reset to the default are kept.
             /* includeDefaultValues= */ true);
     var parsedFlagsValue = (ParsedFlagsValue) env.getValue(parsedFlagsKey);

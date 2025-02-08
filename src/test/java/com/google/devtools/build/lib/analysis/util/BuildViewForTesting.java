@@ -385,7 +385,7 @@ public class BuildViewForTesting {
     ToolchainCollection.Builder<ResolvedToolchainContext> resolvedToolchainContext =
         ToolchainCollection.builder();
     for (Map.Entry<String, UnloadedToolchainContext> unloadedToolchainContext :
-        unloadedToolchainCollection.getContextMap().entrySet()) {
+        unloadedToolchainCollection.contextMap().entrySet()) {
       ResolvedToolchainContext toolchainContext =
           ResolvedToolchainContext.load(
               unloadedToolchainContext.getValue(),

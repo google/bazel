@@ -73,9 +73,8 @@ public interface Spawn extends DescribableExecutionUnit {
    *
    * <p>The returned set of files is a subset of what getInputFiles() returns.
    *
-   * <p>This method explicitly does not expand middleman artifacts. Pass the result to an
-   * appropriate utility method on {@link com.google.devtools.build.lib.actions.Artifact} to expand
-   * the middlemen.
+   * <p>This method explicitly does not expand runfiles trees. Pass the result to an appropriate
+   * utility method on {@link com.google.devtools.build.lib.actions.Artifact} to expand them.
    *
    * <p>This is for use with persistent workers, so we can restart workers when their binaries have
    * changed.
@@ -85,9 +84,8 @@ public interface Spawn extends DescribableExecutionUnit {
   /**
    * Returns the list of files that this command may read.
    *
-   * <p>This method explicitly does not expand middleman artifacts. Pass the result to an
-   * appropriate utility method on {@link com.google.devtools.build.lib.actions.Artifact} to expand
-   * the middlemen.
+   * <p>This method explicitly does not expand runfiles trees. Pass the result to an appropriate
+   * utility method on {@link com.google.devtools.build.lib.actions.Artifact} to expand them.
    *
    * <p>This is for use with remote execution, so we can ship inputs before starting the command.
    * Order stability across multiple calls should be upheld for performance reasons.
@@ -160,7 +158,9 @@ public interface Spawn extends DescribableExecutionUnit {
    * #getExecutionInfo()} can be set by multiple sources while this data is set via the {@code
    * exec_properties} attribute on targets and platforms.
    */
-  ImmutableMap<String, String> getCombinedExecProperties();
+  default ImmutableMap<String, String> getCombinedExecProperties() {
+    return getResourceOwner().getOwner().getExecProperties();
+  }
 
   @Nullable
   PlatformInfo getExecutionPlatform();

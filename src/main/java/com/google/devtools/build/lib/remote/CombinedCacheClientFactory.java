@@ -98,7 +98,7 @@ public final class CombinedCacheClientFactory {
           return HttpCacheClient.create(
               new DomainSocketAddress(options.remoteProxy.replaceFirst("^unix:", "")),
               uri,
-              Math.toIntExact(options.remoteTimeout.getSeconds()),
+              Math.toIntExact(options.remoteTimeout.toSeconds()),
               options.remoteMaxConnections,
               options.remoteVerifyDownloads,
               ImmutableList.copyOf(options.remoteHeaders),
@@ -112,7 +112,7 @@ public final class CombinedCacheClientFactory {
       } else {
         return HttpCacheClient.create(
             uri,
-            Math.toIntExact(options.remoteTimeout.getSeconds()),
+            Math.toIntExact(options.remoteTimeout.toSeconds()),
             options.remoteMaxConnections,
             options.remoteVerifyDownloads,
             ImmutableList.copyOf(options.remoteHeaders),

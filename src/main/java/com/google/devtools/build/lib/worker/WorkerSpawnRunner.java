@@ -15,7 +15,6 @@
 package com.google.devtools.build.lib.worker;
 
 import static com.google.common.base.Preconditions.checkNotNull;
-import static com.google.devtools.build.lib.util.StringUtil.reencodeInternalToExternal;
 import static java.nio.charset.StandardCharsets.UTF_8;
 
 import com.google.common.base.Stopwatch;
@@ -58,6 +57,7 @@ import com.google.devtools.build.lib.sandbox.SandboxHelpers.SandboxOutputs;
 import com.google.devtools.build.lib.server.FailureDetails;
 import com.google.devtools.build.lib.server.FailureDetails.FailureDetail;
 import com.google.devtools.build.lib.server.FailureDetails.Worker.Code;
+import com.google.devtools.build.lib.util.StringEncoding;
 import com.google.devtools.build.lib.util.io.FileOutErr;
 import com.google.devtools.build.lib.vfs.FileSystemUtils;
 import com.google.devtools.build.lib.vfs.Path;
@@ -178,7 +178,7 @@ final class WorkerSpawnRunner implements SpawnRunner {
       try (var s = Profiler.instance().profile("updateRunfiles")) {
         List<RunfilesTree> runfilesTrees = new ArrayList<>();
         for (ActionInput toolFile : spawn.getToolFiles().toList()) {
-          if ((toolFile instanceof Artifact) && ((Artifact) toolFile).isMiddlemanArtifact()) {
+          if ((toolFile instanceof Artifact) && ((Artifact) toolFile).isRunfilesTree()) {
             runfilesTrees.add(
                 context.getInputMetadataProvider().getRunfilesMetadata(toolFile).getRunfilesTree());
           }
@@ -256,7 +256,7 @@ final class WorkerSpawnRunner implements SpawnRunner {
             spawn.getInputFiles(),
             context.getArtifactExpander(),
             /* keepEmptyTreeArtifacts= */ false,
-            /* keepMiddlemanArtifacts= */ false);
+            /* keepRunfilesTreeArtifacts= */ false);
 
     for (ActionInput input : inputs) {
       byte[] digestBytes;
@@ -277,7 +277,7 @@ final class WorkerSpawnRunner implements SpawnRunner {
 
       requestBuilder
           .addInputsBuilder()
-          .setPath(reencodeInternalToExternal(input.getExecPathString()))
+          .setPath(StringEncoding.internalToUnicode(input.getExecPathString()))
           .setDigest(digest);
     }
     if (workerOptions.workerVerbose) {

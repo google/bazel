@@ -1203,11 +1203,11 @@ public class AnalysisCachingTest extends AnalysisCachingTestBase {
         ImmutableMap.<String, Integer>builder()
             .put("//test:top", 1)
             .put("//test:shared", 1)
-            .build());
+            .buildOrThrow());
   }
 
   @Test
-  public void cacheClearedWhenNonAllowedHostOptionsChange() throws Exception {
+  public void cacheNotClearedForExecWhenNonExecOptionsChange() throws Exception {
     setupDiffResetTesting();
     scratch.file(
         "test/BUILD",
@@ -1225,7 +1225,46 @@ public class AnalysisCachingTest extends AnalysisCachingTestBase {
     update("//test:top");
     useConfiguration("--host_relevant=Test 2");
     update("//test:top");
-    useConfiguration("--host_relevant=Test 1");
+    // //test:shared is in the exec configuration, and --host_relevant is not part of the exec
+    // configuration. Therefore, //test:shared is not reanalyzed, even though //test:top is.
+    assertNumberOfAnalyzedConfigurationsOfTargets(
+        ImmutableMap.<String, Integer>builder()
+            .put("//test:top", 1)
+            .put("//test:shared", 0)
+            .buildOrThrow());
+  }
+
+  @Test
+  public void cacheClearedForExecWhenExecOptionsChange() throws Exception {
+    setupDiffResetTesting();
+    scratch.file(
+        "test/BUILD",
+        """
+        load(":lib.bzl", "normal_lib", "uses_irrelevant")
+
+        uses_irrelevant(
+            name = "top",
+            host_deps = [":shared"],
+        )
+
+        normal_lib(name = "shared")
+        """);
+    // --host_compilation_mode is part of the exec configuration.
+    useConfiguration("--host_compilation_mode=opt");
+    update("//test:top");
+    useConfiguration("--host_compilation_mode=dbg");
+    update("//test:top");
+
+    // Now, //test:shared is reanalyzed, because --host_compilation_mode is part of the exec
+    // configuration.
+    assertNumberOfAnalyzedConfigurationsOfTargets(
+        ImmutableMap.<String, Integer>builder()
+            .put("//test:top", 1)
+            .put("//test:shared", 1)
+            .buildOrThrow());
+
+    // Return to the original configuration and check that the cache is not cleared.
+    useConfiguration("--host_compilation_mode=opt");
     update("//test:top");
     // these targets needed to be reanalyzed even though we built them in this configuration
     // just a moment ago
@@ -1233,7 +1272,7 @@ public class AnalysisCachingTest extends AnalysisCachingTestBase {
         ImmutableMap.<String, Integer>builder()
             .put("//test:top", 1)
             .put("//test:shared", 1)
-            .build());
+            .buildOrThrow());
   }
 
   @Test
@@ -1261,7 +1300,7 @@ public class AnalysisCachingTest extends AnalysisCachingTestBase {
         ImmutableMap.<String, Integer>builder()
             .put("//test:top", 1)
             .put("//test:shared", 0)
-            .build());
+            .buildOrThrow());
     useConfiguration("--definitely_relevant=Testing", "--probably_irrelevant=Test 1");
     update("//test:top");
     // now we're back to the old configuration with no cache clears, so no work needed to be done
@@ -1269,7 +1308,7 @@ public class AnalysisCachingTest extends AnalysisCachingTestBase {
         ImmutableMap.<String, Integer>builder()
             .put("//test:top", 0)
             .put("//test:shared", 0)
-            .build());
+            .buildOrThrow());
   }
 
   @Test

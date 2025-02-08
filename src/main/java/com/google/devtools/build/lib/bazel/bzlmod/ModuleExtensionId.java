@@ -17,44 +17,55 @@ package com.google.devtools.build.lib.bazel.bzlmod;
 
 import static com.google.common.collect.Comparators.emptiesFirst;
 import static java.util.Comparator.comparing;
+import static java.util.Objects.requireNonNull;
 
-import com.google.auto.value.AutoValue;
 import com.google.common.base.Splitter;
 import com.google.devtools.build.lib.cmdline.Label;
+import com.google.devtools.build.lib.skyframe.serialization.autocodec.AutoCodec;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
 
 /** A unique identifier for a {@link ModuleExtension}. */
-@AutoValue
-public abstract class ModuleExtensionId {
+@AutoCodec
+public record ModuleExtensionId(
+    Label bzlFileLabel, String extensionName, Optional<IsolationKey> isolationKey) {
+  public ModuleExtensionId {
+    requireNonNull(bzlFileLabel, "bzlFileLabel");
+    requireNonNull(extensionName, "extensionName");
+    requireNonNull(isolationKey, "isolationKey");
+  }
+
   public static final Comparator<ModuleExtensionId> LEXICOGRAPHIC_COMPARATOR =
-      comparing(ModuleExtensionId::getBzlFileLabel)
-          .thenComparing(ModuleExtensionId::getExtensionName)
+      comparing(ModuleExtensionId::bzlFileLabel)
+          .thenComparing(ModuleExtensionId::extensionName)
           .thenComparing(
-              ModuleExtensionId::getIsolationKey,
-              emptiesFirst(IsolationKey.LEXICOGRAPHIC_COMPARATOR));
+              ModuleExtensionId::isolationKey, emptiesFirst(IsolationKey.LEXICOGRAPHIC_COMPARATOR));
 
-  /** A unique identifier for a single isolated usage of a fixed module extension. */
-  @AutoValue
-  abstract static class IsolationKey {
+  /**
+   * A unique identifier for a single isolated usage of a fixed module extension.
+   *
+   * @param module The module which contains this isolated usage of a module extension.
+   * @param usageExportedName The exported name of the first extension proxy for this usage.
+   */
+  @AutoCodec
+  record IsolationKey(ModuleKey module, String usageExportedName) {
+    IsolationKey {
+      requireNonNull(module, "module");
+      requireNonNull(usageExportedName, "usageExportedName");
+    }
+
     static final Comparator<IsolationKey> LEXICOGRAPHIC_COMPARATOR =
-        comparing(IsolationKey::getModule, ModuleKey.LEXICOGRAPHIC_COMPARATOR)
-            .thenComparing(IsolationKey::getUsageExportedName);
-
-    /** The module which contains this isolated usage of a module extension. */
-    public abstract ModuleKey getModule();
-
-    /** The exported name of the first extension proxy for this usage. */
-    public abstract String getUsageExportedName();
+        comparing(IsolationKey::module, ModuleKey.LEXICOGRAPHIC_COMPARATOR)
+            .thenComparing(IsolationKey::usageExportedName);
 
     public static IsolationKey create(ModuleKey module, String usageExportedName) {
-      return new AutoValue_ModuleExtensionId_IsolationKey(module, usageExportedName);
+      return new IsolationKey(module, usageExportedName);
     }
 
     @Override
-    public final String toString() {
-      return getModule() + "+" + getUsageExportedName();
+    public String toString() {
+      return module() + "+" + usageExportedName();
     }
 
     public static IsolationKey fromString(String s) throws Version.ParseException {
@@ -64,25 +75,20 @@ public abstract class ModuleExtensionId {
     }
   }
 
-  public abstract Label getBzlFileLabel();
-
-  public abstract String getExtensionName();
-
-  public abstract Optional<IsolationKey> getIsolationKey();
-
   public static ModuleExtensionId create(
       Label bzlFileLabel, String extensionName, Optional<IsolationKey> isolationKey) {
-    return new AutoValue_ModuleExtensionId(bzlFileLabel, extensionName, isolationKey);
+    return new ModuleExtensionId(bzlFileLabel, extensionName, isolationKey);
   }
 
-  public final boolean isInnate() {
-    return getExtensionName().contains("%");
+  public boolean isInnate() {
+    return extensionName().contains(" ");
   }
 
-  public String asTargetString() {
-    String isolationKeyPart = getIsolationKey().map(key -> "%" + key).orElse("");
+  @Override
+  public String toString() {
+    String isolationKeyPart = isolationKey().map(key -> "%" + key).orElse("");
     return String.format(
         "%s%%%s%s",
-        getBzlFileLabel().getUnambiguousCanonicalForm(), getExtensionName(), isolationKeyPart);
+        bzlFileLabel().getUnambiguousCanonicalForm(), extensionName(), isolationKeyPart);
   }
 }

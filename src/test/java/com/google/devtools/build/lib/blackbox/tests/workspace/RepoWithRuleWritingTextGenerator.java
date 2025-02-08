@@ -25,7 +25,7 @@ import java.nio.file.Path;
  * <p>helper.bzl file, that contains a write_to_file rule, which writes some text to the output
  * file.
  *
- * <p>empty WORKSPACE file,
+ * <p>empty MODULE.bazel file,
  *
  * <p>BUILD file, with write_to_file target and pkg_tar target for packing the contents of the
  * generated repository.
@@ -118,13 +118,13 @@ public class RepoWithRuleWritingTextGenerator {
   }
 
   /**
-   * Generates the repository: WORKSPACE, BUILD, and helper.bzl files.
+   * Generates the repository: MODULE.bazel, BUILD, and helper.bzl files.
    *
    * @return repository directory
    * @throws IOException if was not able to create or write to files
    */
   Path setupRepository() throws IOException {
-    Path workspace = PathUtils.writeFileInDir(root, "WORKSPACE");
+    Path workspace = PathUtils.writeFileInDir(root, "MODULE.bazel");
     PathUtils.writeFileInDir(root, HELPER_FILE, WRITE_TEXT_TO_FILE);
     if (generateBuildFile) {
       PathUtils.writeFileInDir(

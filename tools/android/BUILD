@@ -24,9 +24,7 @@ filegroup(
             "*~",
             ".*",
         ],
-    ) + [
-        "//tools/android/runtime_deps:srcs",
-    ],
+    ),
 )
 
 filegroup(

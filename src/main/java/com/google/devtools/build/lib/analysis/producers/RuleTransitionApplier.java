@@ -17,6 +17,7 @@ import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.base.Preconditions.checkState;
 
 import com.google.common.collect.ImmutableMap;
+import com.google.devtools.build.lib.analysis.ExecGroupCollection;
 import com.google.devtools.build.lib.analysis.PlatformConfiguration;
 import com.google.devtools.build.lib.analysis.PlatformOptions;
 import com.google.devtools.build.lib.analysis.config.BuildOptions;
@@ -35,6 +36,7 @@ import com.google.devtools.build.lib.events.ExtendedEventHandler;
 import com.google.devtools.build.lib.packages.RuleTransitionData;
 import com.google.devtools.build.lib.packages.Target;
 import com.google.devtools.build.lib.packages.TargetUtils;
+import com.google.devtools.build.lib.skyframe.BuildOptionsScopeFunction.BuildOptionsScopeFunctionException;
 import com.google.devtools.build.lib.skyframe.ConfiguredTargetKey;
 import com.google.devtools.build.lib.skyframe.ConfiguredValueCreationException;
 import com.google.devtools.build.lib.skyframe.config.BuildConfigurationKey;
@@ -54,11 +56,13 @@ public class RuleTransitionApplier
         TransitionApplier.ResultSink,
         ConfigConditionsProducer.ResultSink,
         PlatformProducer.ResultSink {
-  interface ResultSink {
+  /** Interface for accepting values produced by this class. */
+  public interface ResultSink {
     void acceptConfiguration(
         BuildConfigurationKey configurationKey, IdempotencyState idempotencyState);
 
-    void acceptErrorMessage(String message, Location location, DetailedExitCode exitCode);
+    void acceptErrorMessage(
+        String message, @Nullable Location location, @Nullable DetailedExitCode exitCode);
   }
 
   /**
@@ -145,15 +149,20 @@ public class RuleTransitionApplier
       unloadedToolchainContextsInputs = UnloadedToolchainContextsInputs.empty();
     } else {
       platformConfiguration = new PlatformConfiguration(platformOptions);
-      unloadedToolchainContextsInputs =
-          ToolchainContextUtil.getUnloadedToolchainContextsInputs(
-              target,
-              preRuleTransitionKey.getConfigurationKey().getOptions().get(CoreOptions.class),
-              platformConfiguration,
-              preRuleTransitionKey.getExecutionPlatformLabel(),
-              computeToolchainConfigurationKey(
-                  preRuleTransitionKey.getConfigurationKey().getOptions(),
-                  targetAndConfigurationData.getToolchainTaggedTrimmingTransition()));
+      try {
+        unloadedToolchainContextsInputs =
+            ToolchainContextUtil.getUnloadedToolchainContextsInputs(
+                target,
+                preRuleTransitionKey.getConfigurationKey().getOptions().get(CoreOptions.class),
+                platformConfiguration,
+                preRuleTransitionKey.getExecutionPlatformLabel(),
+                computeToolchainConfigurationKey(
+                    preRuleTransitionKey.getConfigurationKey().getOptions(),
+                    targetAndConfigurationData.getToolchainTaggedTrimmingTransition()));
+      } catch (ExecGroupCollection.InvalidExecGroupException e) {
+        emitErrorMessage(e.getMessage());
+        return runAfter;
+      }
     }
 
     if (unloadedToolchainContextsInputs.targetToolchainContextKey() != null) {
@@ -251,12 +260,18 @@ public class RuleTransitionApplier
     ConfigurationTransition transition = transitionFactory.create(transitionData);
     this.ruleTransition = transition;
     return new TransitionApplier(
+        target.getLabel(),
         preRuleTransitionKey.getConfigurationKey(),
         ruleTransition,
         targetAndConfigurationData.getTransitionCache(),
         (TransitionApplier.ResultSink) this,
         eventHandler,
         /* runAfter= */ this::processTransitionedKey);
+  }
+
+  @Override
+  public void acceptBuildOptionsScopeFunctionError(BuildOptionsScopeFunctionException e) {
+    emitErrorMessage(e.getMessage());
   }
 
   @Override
@@ -325,12 +340,18 @@ public class RuleTransitionApplier
     @Override
     public StateMachine step(Tasks tasks) {
       return new TransitionApplier(
+          target.getLabel(),
           configurationKey,
           ruleTransition,
           targetAndConfigurationData.getTransitionCache(),
           (TransitionApplier.ResultSink) this,
           eventHandler,
           /* runAfter= */ DONE);
+    }
+
+    @Override
+    public void acceptBuildOptionsScopeFunctionError(BuildOptionsScopeFunctionException e) {
+      emitErrorMessage(e.getMessage());
     }
 
     @Override

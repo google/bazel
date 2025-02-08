@@ -1534,7 +1534,7 @@ public final class StarlarkRuleTransitionProviderTest extends BuildViewTestCase 
 
     scratch.overwriteFile("MODULE.bazel", "bazel_dep(name='rules_x',version='1.0')");
     registry.addModule(createModuleKey("rules_x", "1.0"), "module(name='rules_x', version='1.0')");
-    scratch.file("modules/rules_x+1.0/WORKSPACE");
+    scratch.file("modules/rules_x+1.0/REPO.bazel");
     scratch.file("modules/rules_x+1.0/BUILD");
     scratch.file(
         "modules/rules_x+1.0/defs.bzl",
@@ -1790,7 +1790,7 @@ public final class StarlarkRuleTransitionProviderTest extends BuildViewTestCase 
         RequiredConfigFragmentsProvider.builder();
     ruleTransition.addRequiredFragments(
         requiredFragments, ct.getConfiguration().getBuildOptionDetails());
-    assertThat(requiredFragments.build().getOptionsClasses()).containsExactly(CppOptions.class);
+    assertThat(requiredFragments.build().optionsClasses()).containsExactly(CppOptions.class);
   }
 
   /**
@@ -2047,7 +2047,7 @@ public final class StarlarkRuleTransitionProviderTest extends BuildViewTestCase 
                 .getOptions()
                 .get(PlatformOptions.class)
                 .platforms)
-        .containsExactly(Label.parseCanonicalUnchecked(TestConstants.PLATFORM_LABEL_ALIAS));
+        .containsExactly(Label.parseCanonicalUnchecked(TestConstants.PLATFORM_LABEL));
   }
 
   @Test

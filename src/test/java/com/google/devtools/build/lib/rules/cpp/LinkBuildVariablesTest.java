@@ -15,7 +15,6 @@
 package com.google.devtools.build.lib.rules.cpp;
 
 import static com.google.common.truth.Truth.assertThat;
-import static org.junit.Assert.assertThrows;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
@@ -27,7 +26,6 @@ import com.google.devtools.build.lib.analysis.RuleContext;
 import com.google.devtools.build.lib.analysis.actions.SpawnAction;
 import com.google.devtools.build.lib.analysis.util.AnalysisMock;
 import com.google.devtools.build.lib.packages.util.Crosstool.CcToolchainConfig;
-import com.google.devtools.build.lib.rules.cpp.CcToolchainFeatures.ExpansionException;
 import com.google.devtools.build.lib.rules.cpp.CcToolchainVariables.LibraryToLinkValue;
 import com.google.devtools.build.lib.rules.cpp.CcToolchainVariables.VariableValue;
 import com.google.devtools.build.lib.rules.cpp.Link.LinkTargetType;
@@ -92,7 +90,8 @@ public class LinkBuildVariablesTest extends LinkBuildVariablesTestCase {
     CcToolchainVariables variables =
         getLinkBuildVariables(target, LinkTargetType.NODEPS_DYNAMIC_LIBRARY);
     VariableValue librariesToLinkSequence =
-        variables.getVariable(LinkBuildVariables.LIBRARIES_TO_LINK.getVariableName());
+        variables.getVariable(
+            LinkBuildVariables.LIBRARIES_TO_LINK.getVariableName(), PathMapper.NOOP);
     assertThat(librariesToLinkSequence).isNotNull();
     Iterable<? extends VariableValue> librariesToLink =
         librariesToLinkSequence.getSequenceValue(
@@ -138,7 +137,8 @@ public class LinkBuildVariablesTest extends LinkBuildVariablesTestCase {
 
     CcToolchainVariables variables = getLinkBuildVariables(target, LinkTargetType.EXECUTABLE);
     VariableValue librariesToLinkSequence =
-        variables.getVariable(LinkBuildVariables.LIBRARIES_TO_LINK.getVariableName());
+        variables.getVariable(
+            LinkBuildVariables.LIBRARIES_TO_LINK.getVariableName(), PathMapper.NOOP);
     Iterable<? extends VariableValue> librariestoLink =
         librariesToLinkSequence.getSequenceValue(
             LinkBuildVariables.LIBRARIES_TO_LINK.getVariableName(), PathMapper.NOOP);
@@ -165,7 +165,8 @@ public class LinkBuildVariablesTest extends LinkBuildVariablesTestCase {
 
     CcToolchainVariables variables = getLinkBuildVariables(target, LinkTargetType.EXECUTABLE);
     VariableValue librariesToLinkSequence =
-        variables.getVariable(LinkBuildVariables.LIBRARIES_TO_LINK.getVariableName());
+        variables.getVariable(
+            LinkBuildVariables.LIBRARIES_TO_LINK.getVariableName(), PathMapper.NOOP);
     Iterable<? extends VariableValue> librariestoLink =
         librariesToLinkSequence.getSequenceValue(
             LinkBuildVariables.LIBRARIES_TO_LINK.getVariableName(), PathMapper.NOOP);
@@ -192,7 +193,8 @@ public class LinkBuildVariablesTest extends LinkBuildVariablesTestCase {
 
     CcToolchainVariables variables = getLinkBuildVariables(target, LinkTargetType.EXECUTABLE);
     VariableValue librariesToLinkSequence =
-        variables.getVariable(LinkBuildVariables.LIBRARIES_TO_LINK.getVariableName());
+        variables.getVariable(
+            LinkBuildVariables.LIBRARIES_TO_LINK.getVariableName(), PathMapper.NOOP);
     Iterable<? extends VariableValue> librariestoLink =
         librariesToLinkSequence.getSequenceValue(
             LinkBuildVariables.LIBRARIES_TO_LINK.getVariableName(), PathMapper.NOOP);
@@ -466,7 +468,9 @@ public class LinkBuildVariablesTest extends LinkBuildVariablesTestCase {
         getLinkBuildVariables(testTarget, LinkTargetType.EXECUTABLE);
 
     assertThat(
-            testVariables.getVariable(LinkBuildVariables.IS_CC_TEST.getVariableName()).isTruthy())
+            testVariables
+                .getVariable(LinkBuildVariables.IS_CC_TEST.getVariableName(), PathMapper.NOOP)
+                .isTruthy())
         .isTrue();
 
     ConfiguredTarget binaryTarget = getConfiguredTarget("//x:foo");
@@ -474,46 +478,10 @@ public class LinkBuildVariablesTest extends LinkBuildVariablesTestCase {
         getLinkBuildVariables(binaryTarget, LinkTargetType.EXECUTABLE);
 
     assertThat(
-            binaryVariables.getVariable(LinkBuildVariables.IS_CC_TEST.getVariableName()).isTruthy())
+            binaryVariables
+                .getVariable(LinkBuildVariables.IS_CC_TEST.getVariableName(), PathMapper.NOOP)
+                .isTruthy())
         .isFalse();
-  }
-
-  @Test
-  public void testDisableIsCcTestLinkActionBuildVariable() throws Exception {
-    // The use of this feature (implied by the flag) replaces the use of the build variable.
-    // This test ensures the build variable is never *set*.
-    useConfiguration("--incompatible_enable_cc_test_feature");
-
-    scratch.file(
-        "x/BUILD",
-        """
-        cc_test(
-            name = "foo_test",
-            srcs = ["a.cc"],
-        )
-
-        cc_binary(
-            name = "foo",
-            srcs = ["a.cc"],
-        )
-        """);
-    scratch.file("x/a.cc");
-
-    ConfiguredTarget testTarget = getConfiguredTarget("//x:foo_test");
-    CcToolchainVariables testVariables =
-        getLinkBuildVariables(testTarget, LinkTargetType.EXECUTABLE);
-
-    assertThrows(
-        ExpansionException.class,
-        () -> testVariables.getVariable(LinkBuildVariables.IS_CC_TEST.getVariableName()));
-
-    ConfiguredTarget binaryTarget = getConfiguredTarget("//x:foo");
-    CcToolchainVariables binaryVariables =
-        getLinkBuildVariables(binaryTarget, LinkTargetType.EXECUTABLE);
-
-    assertThrows(
-        ExpansionException.class,
-        () -> binaryVariables.getVariable(LinkBuildVariables.IS_CC_TEST.getVariableName()));
   }
 
   @Test
@@ -657,7 +625,8 @@ public class LinkBuildVariablesTest extends LinkBuildVariablesTestCase {
         getLinkBuildVariables(testTarget, LinkTargetType.DYNAMIC_LIBRARY);
 
     VariableValue librariesToLinkSequence =
-        testVariables.getVariable(LinkBuildVariables.LIBRARIES_TO_LINK.getVariableName());
+        testVariables.getVariable(
+            LinkBuildVariables.LIBRARIES_TO_LINK.getVariableName(), PathMapper.NOOP);
     assertThat(librariesToLinkSequence).isNotNull();
     Iterable<? extends VariableValue> librariesToLink =
         librariesToLinkSequence.getSequenceValue(

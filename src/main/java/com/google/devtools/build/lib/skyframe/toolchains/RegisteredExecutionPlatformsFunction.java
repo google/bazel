@@ -18,11 +18,13 @@ import static com.google.common.collect.ImmutableList.toImmutableList;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
 import com.google.devtools.build.lib.analysis.ConfiguredTarget;
 import com.google.devtools.build.lib.analysis.ConfiguredTargetValue;
 import com.google.devtools.build.lib.analysis.PlatformConfiguration;
 import com.google.devtools.build.lib.analysis.config.BuildConfigurationValue;
 import com.google.devtools.build.lib.analysis.config.CommonOptions;
+import com.google.devtools.build.lib.analysis.config.InvalidConfigurationException;
 import com.google.devtools.build.lib.analysis.platform.PlatformInfo;
 import com.google.devtools.build.lib.analysis.platform.PlatformProviderUtils;
 import com.google.devtools.build.lib.bazel.bzlmod.BazelDepGraphValue;
@@ -62,6 +64,8 @@ import com.google.devtools.build.skyframe.SkyKey;
 import com.google.devtools.build.skyframe.SkyValue;
 import com.google.devtools.build.skyframe.SkyframeLookupResult;
 import java.util.List;
+import java.util.Map;
+import java.util.function.Consumer;
 import javax.annotation.Nullable;
 import net.starlark.java.eval.StarlarkSemantics;
 
@@ -77,9 +81,9 @@ public class RegisteredExecutionPlatformsFunction implements SkyFunction {
   public SkyValue compute(SkyKey skyKey, Environment env)
       throws RegisteredExecutionPlatformsFunctionException, InterruptedException {
     StarlarkSemantics starlarkSemantics = PrecomputedValue.STARLARK_SEMANTICS.get(env);
+    RegisteredExecutionPlatformsValue.Key key = (RegisteredExecutionPlatformsValue.Key) skyKey;
     BuildConfigurationValue configuration =
-        (BuildConfigurationValue)
-            env.getValue(((RegisteredExecutionPlatformsValue.Key) skyKey).getConfigurationKey());
+        (BuildConfigurationValue) env.getValue(key.configurationKey());
     RepositoryMappingValue mainRepoMapping =
         (RepositoryMappingValue) env.getValue(RepositoryMappingValue.key(RepositoryName.MAIN));
     if (env.valuesMissing()) {
@@ -88,9 +92,7 @@ public class RegisteredExecutionPlatformsFunction implements SkyFunction {
 
     TargetPattern.Parser mainRepoParser =
         new TargetPattern.Parser(
-            PathFragment.EMPTY_FRAGMENT,
-            RepositoryName.MAIN,
-            mainRepoMapping.getRepositoryMapping());
+            PathFragment.EMPTY_FRAGMENT, RepositoryName.MAIN, mainRepoMapping.repositoryMapping());
     ImmutableList.Builder<SignedTargetPattern> targetPatternBuilder = new ImmutableList.Builder<>();
 
     // Get the execution platforms from the configuration.
@@ -148,13 +150,38 @@ public class RegisteredExecutionPlatformsFunction implements SkyFunction {
     }
 
     // Load the configured target for each, and get the declared execution platforms providers.
-    ImmutableList<ConfiguredTargetKey> registeredExecutionPlatformKeys =
-        configureRegisteredExecutionPlatforms(env, platformLabels);
+    ImmutableMap<ConfiguredTargetKey, PlatformInfo> registeredExecutionPlatforms =
+        configureRegisteredExecutionPlatforms(env, configuration, platformLabels);
     if (env.valuesMissing()) {
       return null;
     }
 
-    return RegisteredExecutionPlatformsValue.create(registeredExecutionPlatformKeys);
+    // Check which platforms are valid according to their configuration.
+    ImmutableList.Builder<ConfiguredTargetKey> platformKeys = new ImmutableList.Builder<>();
+    ImmutableMap.Builder<Label, String> rejectedPlatforms =
+        key.debug() ? new ImmutableMap.Builder<>() : null;
+    for (Map.Entry<ConfiguredTargetKey, PlatformInfo> entry :
+        registeredExecutionPlatforms.entrySet()) {
+      ConfiguredTargetKey configuredTargetKey = entry.getKey();
+      PlatformInfo platformInfo = entry.getValue();
+
+      try {
+        Consumer<String> errorHandler =
+            key.debug() ? message -> rejectedPlatforms.put(platformInfo.label(), message) : null;
+        if (ConfigMatchingUtil.validate(
+            platformInfo.label(), platformInfo.requiredSettings(), errorHandler)) {
+          platformKeys.add(configuredTargetKey);
+        }
+      } catch (InvalidConfigurationException e) {
+        throw new RegisteredExecutionPlatformsFunctionException(
+            new InvalidExecutionPlatformLabelException(platformInfo.label(), e),
+            Transience.PERSISTENT);
+      }
+    }
+
+    return RegisteredExecutionPlatformsValue.create(
+        platformKeys.build(),
+        rejectedPlatforms != null ? rejectedPlatforms.buildKeepingLast() : null);
   }
 
   /**
@@ -214,22 +241,23 @@ public class RegisteredExecutionPlatformsFunction implements SkyFunction {
   }
 
   @Nullable
-  private static ImmutableList<ConfiguredTargetKey> configureRegisteredExecutionPlatforms(
-      Environment env, List<Label> labels)
-      throws InterruptedException, RegisteredExecutionPlatformsFunctionException {
+  private static ImmutableMap<ConfiguredTargetKey, PlatformInfo>
+      configureRegisteredExecutionPlatforms(
+          Environment env, BuildConfigurationValue configuration, List<Label> labels)
+          throws InterruptedException, RegisteredExecutionPlatformsFunctionException {
     ImmutableList<ConfiguredTargetKey> keys =
         labels.stream()
             .map(
                 label ->
                     ConfiguredTargetKey.builder()
                         .setLabel(label)
-                        .setConfigurationKey(
-                            BuildConfigurationKey.create(CommonOptions.EMPTY_OPTIONS))
+                        .setConfiguration(configuration)
                         .build())
             .collect(toImmutableList());
 
     SkyframeLookupResult values = env.getValuesAndExceptions(keys);
-    ImmutableList.Builder<ConfiguredTargetKey> validPlatformKeys = new ImmutableList.Builder<>();
+    ImmutableMap.Builder<ConfiguredTargetKey, PlatformInfo> platforms =
+        new ImmutableMap.Builder<>();
     boolean valuesMissing = false;
     for (ConfiguredTargetKey platformKey : keys) {
       Label platformLabel = platformKey.getLabel();
@@ -254,7 +282,7 @@ public class RegisteredExecutionPlatformsFunction implements SkyFunction {
                 .setConfigurationKey(BuildConfigurationKey.create(CommonOptions.EMPTY_OPTIONS))
                 .build();
 
-        validPlatformKeys.add(platformKey);
+        platforms.put(platformKey, platformInfo);
       } catch (ConfiguredValueCreationException e) {
         throw new RegisteredExecutionPlatformsFunctionException(
             new InvalidPlatformException(platformLabel, e), Transience.PERSISTENT);
@@ -264,7 +292,7 @@ public class RegisteredExecutionPlatformsFunction implements SkyFunction {
     if (valuesMissing) {
       return null;
     }
-    return validPlatformKeys.build();
+    return platforms.buildOrThrow();
   }
 
   /**
@@ -282,6 +310,12 @@ public class RegisteredExecutionPlatformsFunction implements SkyFunction {
       super(
           String.format(
               "invalid registered execution platform '%s': %s", invalidPattern, e.getMessage()),
+          e);
+    }
+
+    public InvalidExecutionPlatformLabelException(Label platform, InvalidConfigurationException e) {
+      super(
+          String.format("invalid registered execution platform '%s': %s", platform, e.getMessage()),
           e);
     }
 

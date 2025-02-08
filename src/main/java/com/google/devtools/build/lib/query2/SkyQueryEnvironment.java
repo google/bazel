@@ -31,6 +31,8 @@ import com.google.common.collect.ImmutableSetMultimap;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Multimap;
+import com.google.common.collect.Sets;
+import com.google.common.collect.Sets.SetView;
 import com.google.common.flogger.GoogleLogger;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
@@ -81,6 +83,7 @@ import com.google.devtools.build.lib.query2.engine.QueryException;
 import com.google.devtools.build.lib.query2.engine.QueryExpression;
 import com.google.devtools.build.lib.query2.engine.QueryExpressionContext;
 import com.google.devtools.build.lib.query2.engine.QueryExpressionMapper;
+import com.google.devtools.build.lib.query2.engine.QueryUtil;
 import com.google.devtools.build.lib.query2.engine.QueryUtil.MinDepthUniquifierImpl;
 import com.google.devtools.build.lib.query2.engine.QueryUtil.NonExceptionalUniquifier;
 import com.google.devtools.build.lib.query2.engine.QueryUtil.ThreadSafeMutableKeyExtractorBackedSetImpl;
@@ -97,7 +100,7 @@ import com.google.devtools.build.lib.server.FailureDetails.Query.Code;
 import com.google.devtools.build.lib.skyframe.DetailedException;
 import com.google.devtools.build.lib.skyframe.GraphBackedRecursivePackageProvider;
 import com.google.devtools.build.lib.skyframe.GraphBackedRecursivePackageProvider.UniverseTargetPattern;
-import com.google.devtools.build.lib.skyframe.IgnoredPackagePrefixesValue;
+import com.google.devtools.build.lib.skyframe.IgnoredSubdirectoriesValue;
 import com.google.devtools.build.lib.skyframe.PackageLookupValue;
 import com.google.devtools.build.lib.skyframe.PackageValue;
 import com.google.devtools.build.lib.skyframe.PrepareDepsOfPatternsFunction;
@@ -509,14 +512,26 @@ public class SkyQueryEnvironment extends AbstractBlazeQueryEnvironment<Target>
   }
 
   private Map<SkyKey, Collection<Target>> getRawReverseDeps(
-      Iterable<SkyKey> transitiveTraversalKeys) throws InterruptedException {
+      Iterable<SkyKey> transitiveTraversalKeys,
+      ImmutableSetMultimap<SkyKey, SkyKey> extraGlobalDeps)
+      throws InterruptedException {
     return targetifyValues(
-        getReverseDepLabelsOfLabels(transitiveTraversalKeys), ImmutableSet.builder());
+        getReverseDepLabelsOfLabels(transitiveTraversalKeys, extraGlobalDeps),
+        ImmutableSet.builder());
   }
 
   protected Map<SkyKey, Iterable<SkyKey>> getReverseDepLabelsOfLabels(
-      Iterable<? extends SkyKey> labels) throws InterruptedException {
-    return graph.getReverseDeps(labels);
+      Iterable<? extends SkyKey> labels, ImmutableSetMultimap<SkyKey, SkyKey> extraGlobalDeps)
+      throws InterruptedException {
+    ImmutableSetMultimap<SkyKey, SkyKey> globalLabelToRdeps = extraGlobalDeps.inverse();
+    Map<SkyKey, Iterable<SkyKey>> reverseDeps = graph.getReverseDeps(labels);
+    ImmutableMap.Builder<SkyKey, Iterable<SkyKey>> resultsBuilder = ImmutableMap.builder();
+
+    for (Map.Entry<SkyKey, Iterable<SkyKey>> entry : reverseDeps.entrySet()) {
+      ImmutableSet<SkyKey> rdepsFromGlobals = globalLabelToRdeps.get(entry.getKey());
+      resultsBuilder.put(entry.getKey(), Iterables.concat(entry.getValue(), rdepsFromGlobals));
+    }
+    return resultsBuilder.buildOrThrow();
   }
 
   private Set<Label> getAllowedDeps(Rule rule) {
@@ -589,7 +604,7 @@ public class SkyQueryEnvironment extends AbstractBlazeQueryEnvironment<Target>
     ImmutableMap.Builder<SkyKey, Iterable<SkyKey>> resultsBuilder = ImmutableMap.builder();
     for (Map.Entry<SkyKey, Iterable<SkyKey>> entry : deps.entrySet()) {
       Iterable<SkyKey> depsLabels = Iterables.filter(entry.getValue(), IS_LABEL);
-      Iterable<SkyKey> globals = Iterables.concat(extraGlobalDeps.get(entry.getKey()));
+      ImmutableSet<SkyKey> globals = extraGlobalDeps.get(entry.getKey());
       depsLabels = Iterables.concat(depsLabels, globals);
       resultsBuilder.put(entry.getKey(), depsLabels);
     }
@@ -640,6 +655,117 @@ public class SkyQueryEnvironment extends AbstractBlazeQueryEnvironment<Target>
   }
 
   @Override
+  public QueryTaskFuture<Void> somePath(
+      QueryExpression fromExpression,
+      QueryExpression toExpression,
+      QueryExpressionContext<Target> context,
+      Callback<Target> callback,
+      QueryExpression caller) {
+    // Note that the body of this method is entirely copied from SomePathFunction, which allows
+    // subclasses of SkyQueryEnvironment to override it.
+    // TODO: b/382066616 - Refactor this and avoid the duplication.
+    final QueryTaskFuture<ThreadSafeMutableSet<Target>> fromValueFuture =
+        QueryUtil.evalAll(this, context, fromExpression);
+    final QueryTaskFuture<ThreadSafeMutableSet<Target>> toValueFuture =
+        QueryUtil.evalAll(this, context, toExpression);
+
+    return whenAllSucceedCall(
+        ImmutableList.of(fromValueFuture, toValueFuture),
+        new QueryTaskCallable<Void>() {
+          @Override
+          public Void call() throws QueryException, InterruptedException {
+            // Implementation strategy: for each x in "from", compute its forward
+            // transitive closure.  If it intersects "to", then do a path search from x
+            // to an arbitrary node in the intersection, and return the path.  This
+            // avoids computing the full transitive closure of "from" in some cases.
+
+            ThreadSafeMutableSet<Target> fromValue = fromValueFuture.getIfSuccessful();
+            ThreadSafeMutableSet<Target> toValue = toValueFuture.getIfSuccessful();
+
+            buildTransitiveClosure(caller, fromValue, OptionalInt.empty());
+
+            for (Target x : fromValue) {
+              // TODO(b/122548314): if x was already seen as part of a previous node's tc, we should
+              // skip it here. That's subsumed by the TODO below.
+              ThreadSafeMutableSet<Target> xSet = createThreadSafeMutableSet();
+              xSet.add(x);
+              // TODO(b/122548314): this transitive closure building should stop at any nodes that
+              // have already been visited.
+              ThreadSafeMutableSet<Target> xtc = getTransitiveClosure(xSet, context);
+              SetView<Target> result;
+              if (xtc.size() > toValue.size()) {
+                result = Sets.intersection(toValue, xtc);
+              } else {
+                result = Sets.intersection(xtc, toValue);
+              }
+              if (!result.isEmpty()) {
+                callback.process(getNodesOnPath(x, result.iterator().next(), context));
+                return null;
+              }
+            }
+            callback.process(ImmutableSet.of());
+            return null;
+          }
+        });
+  }
+
+  @Override
+  public QueryTaskFuture<Void> allPaths(
+      QueryExpression fromExpression,
+      QueryExpression toExpression,
+      QueryExpressionContext<Target> context,
+      Callback<Target> callback,
+      QueryExpression caller) {
+    // Note that the body of this method is entirely copied from AllPathsFunction, which allows
+    // subclasses of SkyQueryEnvironment to override it.
+    // TODO: b/382066616 - Refactor this and avoid the duplication.
+    QueryTaskFuture<ThreadSafeMutableSet<Target>> fromValueFuture =
+        QueryUtil.evalAll(this, context, fromExpression);
+    QueryTaskFuture<ThreadSafeMutableSet<Target>> toValueFuture =
+        QueryUtil.evalAll(this, context, toExpression);
+
+    return whenAllSucceedCall(
+        ImmutableList.of(fromValueFuture, toValueFuture),
+        () -> {
+          // Algorithm: compute "reachableFromX", the forward transitive closure of the "from" set,
+          // then find the intersection of "reachableFromX" with the reverse transitive closure of
+          // the "to" set.  The reverse transitive closure and intersection operations are
+          // interleaved for efficiency. "result" holds the intersection.
+
+          ThreadSafeMutableSet<Target> fromValue = fromValueFuture.getIfSuccessful();
+          ThreadSafeMutableSet<Target> toValue = toValueFuture.getIfSuccessful();
+
+          buildTransitiveClosure(caller, fromValue, OptionalInt.empty());
+
+          Set<Target> reachableFromX = getTransitiveClosure(fromValue, context);
+          Predicate<Target> reachable = Predicates.in(reachableFromX);
+          Uniquifier<Target> uniquifier = createUniquifier();
+          ImmutableList<Target> result = uniquifier.unique(intersection(reachableFromX, toValue));
+          callback.process(result);
+          ImmutableList<Target> worklist = result;
+          while (!worklist.isEmpty()) {
+            Iterable<Target> reverseDeps = getReverseDeps(worklist, context);
+            worklist = uniquifier.unique(Iterables.filter(reverseDeps, reachable));
+            callback.process(worklist);
+          }
+          return null;
+        });
+  }
+
+  /**
+   * Returns a (new, mutable, unordered) set containing the intersection of the two specified sets.
+   */
+  private static <T> Set<T> intersection(Set<T> x, Set<T> y) {
+    Set<T> result = new HashSet<>();
+    if (x.size() > y.size()) {
+      Sets.intersection(y, x).copyInto(result);
+    } else {
+      Sets.intersection(x, y).copyInto(result);
+    }
+    return result;
+  }
+
+  @Override
   public Collection<Target> getReverseDeps(
       Iterable<Target> targets, QueryExpressionContext<Target> context)
       throws InterruptedException {
@@ -650,7 +776,8 @@ public class SkyQueryEnvironment extends AbstractBlazeQueryEnvironment<Target>
   protected Map<SkyKey, Collection<Target>> getReverseDepsOfLabels(
       Iterable<Label> targetLabels, QueryExpressionContext<Target> context)
       throws InterruptedException {
-    return getRawReverseDeps(Iterables.transform(targetLabels, label -> label));
+    return getRawReverseDeps(
+        Iterables.transform(targetLabels, label -> label), context.extraGlobalDeps());
   }
 
   /** Targetify SkyKeys of reverse deps and filter out targets whose deps are not allowed. */
@@ -902,9 +1029,9 @@ public class SkyQueryEnvironment extends AbstractBlazeQueryEnvironment<Target>
         patternToEval.evalAsync(
             resolver,
             () ->
-                ((IgnoredPackagePrefixesValue)
+                ((IgnoredSubdirectoriesValue)
                         graph.getValue(
-                            IgnoredPackagePrefixesValue.key(patternToEval.getRepository())))
+                            IgnoredSubdirectoriesValue.key(patternToEval.getRepository())))
                     .asIgnoredSubdirectories(),
             targetPatternKey.getExcludedSubdirectories(),
             filteredCallback,

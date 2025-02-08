@@ -123,8 +123,7 @@ public final class Expander {
 
   /** Expands make variables and $(location) tags in value, and optionally tokenizes the result. */
   private void expandValue(
-      List<String> tokens, String attributeName, String value, boolean shouldTokenize)
-      throws InterruptedException {
+      List<String> tokens, String attributeName, String value, boolean shouldTokenize) {
     value = expand(attributeName, value);
     if (shouldTokenize) {
       try {
@@ -157,8 +156,7 @@ public final class Expander {
    * @param expression the string to expand.
    * @return the expansion of "expression".
    */
-  public String expand(@Nullable String attributeName, String expression)
-      throws InterruptedException {
+  public String expand(@Nullable String attributeName, String expression) {
     try {
       Expansion expansion = TemplateExpander.expand(expression, templateContext);
       lookedUpVariables.addAll(expansion.lookedUpVariables());
@@ -178,7 +176,7 @@ public final class Expander {
    * attribute name is only used for error reporting.
    */
   private ImmutableList<String> expandAndTokenizeList(
-      String attrName, List<String> values, boolean shouldTokenize) throws InterruptedException {
+      String attrName, List<String> values, boolean shouldTokenize) {
     List<String> variables = new ArrayList<>();
     for (String variable : values) {
       expandValue(variables, attrName, variable, shouldTokenize);
@@ -191,15 +189,14 @@ public final class Expander {
    * attribute does not exist or is not of type {@link Types.STRING_LIST}, then this method throws
    * an error.
    */
-  public ImmutableList<String> list(String attrName) throws InterruptedException {
+  public ImmutableList<String> list(String attrName) {
     return list(attrName, ruleContext.attributes().get(attrName, Types.STRING_LIST));
   }
 
   /**
    * Expands all the strings in the given list. The attribute name is only used for error reporting.
    */
-  public ImmutableList<String> list(String attrName, List<String> values)
-      throws InterruptedException {
+  public ImmutableList<String> list(String attrName, List<String> values) {
     return expandAndTokenizeList(attrName, values, /* shouldTokenize */ false);
   }
 

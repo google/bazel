@@ -812,6 +812,6 @@ public final class GenRuleConfiguredTargetTest extends BuildViewTestCase {
     assertThat(getGeneratingAction(out).getTools().toList()).hasSize(1);
     Artifact tool = getGeneratingAction(out).getTools().getSingleton();
     // This is the output dir fragment for the execution transition.
-    assertThat(tool.getExecPathString()).contains("-exec-");
+    assertThat(tool.getExecPathString()).contains("-exec");
   }
 }

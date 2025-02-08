@@ -55,8 +55,8 @@ public class MemoryProfilerTest {
     RecordingSleeper sleeper = new RecordingSleeper();
     MemoryProfiler.HeapAndNonHeap result =
         profiler.prepareBeanAndGetLocalMinUsage(ProfilePhase.ANALYZE, bean, sleeper);
-    assertThat(result.getHeap()).isSameInstanceAs(heapUsage);
-    assertThat(result.getNonHeap()).isSameInstanceAs(nonHeapUsage);
+    assertThat(result.heap()).isSameInstanceAs(heapUsage);
+    assertThat(result.nonHeap()).isSameInstanceAs(nonHeapUsage);
     assertThat(sleeper.sleeps).isEmpty();
     verify(bean, times(1)).gc();
     profiler.prepareBeanAndGetLocalMinUsage(ProfilePhase.FINISH, bean, sleeper);
@@ -78,8 +78,8 @@ public class MemoryProfilerTest {
     RecordingSleeper sleeper = new RecordingSleeper();
     MemoryProfiler.HeapAndNonHeap result =
         profiler.prepareBeanAndGetLocalMinUsage(ProfilePhase.ANALYZE, bean, sleeper);
-    assertThat(result.getHeap()).isSameInstanceAs(emptyHeap);
-    assertThat(result.getNonHeap()).isSameInstanceAs(emptyNonHeap);
+    assertThat(result.heap()).isSameInstanceAs(emptyHeap);
+    assertThat(result.nonHeap()).isSameInstanceAs(emptyNonHeap);
     assertThat(sleeper.sleeps).isEmpty();
     verify(bean, times(1)).gc();
     verify(bean, times(1)).getHeapMemoryUsage();
@@ -91,8 +91,8 @@ public class MemoryProfilerTest {
     when(bean.getNonHeapMemoryUsage())
         .thenReturn(new MemoryUsage(1, 1, 1, 1), nonHeapUsage, new MemoryUsage(2, 2, 2, 2));
     result = profiler.prepareBeanAndGetLocalMinUsage(ProfilePhase.FINISH, bean, sleeper);
-    assertThat(result.getHeap()).isSameInstanceAs(heapUsage);
-    assertThat(result.getNonHeap()).isSameInstanceAs(nonHeapUsage);
+    assertThat(result.heap()).isSameInstanceAs(heapUsage);
+    assertThat(result.nonHeap()).isSameInstanceAs(nonHeapUsage);
     assertThat(sleeper.sleeps)
         .containsExactly(Duration.ofSeconds(10), Duration.ofSeconds(10))
         .inOrder();
@@ -118,8 +118,8 @@ public class MemoryProfilerTest {
     RecordingSleeper sleeper = new RecordingSleeper();
     MemoryProfiler.HeapAndNonHeap result =
         profiler.prepareBeanAndGetLocalMinUsage(ProfilePhase.ANALYZE, bean, sleeper);
-    assertThat(result.getHeap()).isSameInstanceAs(heapUsage);
-    assertThat(result.getNonHeap()).isSameInstanceAs(nonHeapUsage);
+    assertThat(result.heap()).isSameInstanceAs(heapUsage);
+    assertThat(result.nonHeap()).isSameInstanceAs(nonHeapUsage);
     assertThat(sleeper.sleeps).isEmpty();
 
     verify(bean, times(1)).gc();

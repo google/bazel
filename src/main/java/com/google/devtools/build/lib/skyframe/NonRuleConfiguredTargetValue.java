@@ -29,10 +29,10 @@ import javax.annotation.Nullable;
 /** A non-rule configured target in the context of a Skyframe graph. */
 @Immutable
 @ThreadSafe
-// Reached via OutputFileConfiguredTarget.
+// Reached via all ConfiguredTarget implementations except RuleConfiguredTarget.
 @AutoCodec(explicitlyAllowClass = RuleConfiguredTarget.class)
 public final class NonRuleConfiguredTargetValue
-    extends BaseRuleConfiguredTargetValue<ConfiguredTarget> implements ConfiguredTargetValue {
+    extends AbstractConfiguredTargetValue<ConfiguredTarget> implements ConfiguredTargetValue {
 
   @AutoCodec.Instantiator
   @VisibleForSerialization

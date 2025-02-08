@@ -13,12 +13,16 @@
 # limitations under the License.
 """Testing for helper functions."""
 
-import imp
+import importlib.machinery
+import importlib.util
 import unittest
 
-pkg_bzl = imp.load_source(
-    'pkg_bzl',
-    'tools/build_defs/pkg/path.bzl')
+
+loader = importlib.machinery.SourceFileLoader(
+    'pkg_bzl', 'tools/build_defs/pkg/path.bzl')
+spec = importlib.util.spec_from_loader(loader.name, loader)
+pkg_bzl = importlib.util.module_from_spec(spec)
+loader.exec_module(pkg_bzl)
 
 
 class File(object):

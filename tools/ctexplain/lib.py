@@ -14,7 +14,7 @@
 """General-purpose business logic."""
 from typing import Tuple
 
-# Do not edit this line. Copybara replaces it with PY2 migration helper..third_party.bazel.tools.ctexplain.bazel_api as bazel_api
+import tools.ctexplain.bazel_api as bazel_api
 from tools.ctexplain.types import ConfiguredTarget
 
 

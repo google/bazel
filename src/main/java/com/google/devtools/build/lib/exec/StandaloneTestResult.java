@@ -14,7 +14,9 @@
 
 package com.google.devtools.build.lib.exec;
 
-import com.google.auto.value.AutoValue;
+import static java.util.Objects.requireNonNull;
+
+import com.google.auto.value.AutoBuilder;
 import com.google.common.collect.ImmutableList;
 import com.google.devtools.build.lib.actions.SpawnResult;
 import com.google.devtools.build.lib.analysis.test.TestActionContext;
@@ -22,9 +24,23 @@ import com.google.devtools.build.lib.buildeventstream.BuildEventStreamProtos;
 import com.google.devtools.build.lib.view.test.TestStatus.BlazeTestStatus;
 import com.google.devtools.build.lib.view.test.TestStatus.TestResultData;
 
-/** Contains information about the results of test execution. */
-@AutoValue
-public abstract class StandaloneTestResult implements TestActionContext.TestAttemptResult {
+/**
+ * Contains information about the results of test execution.
+ *
+ * @param spawnResults Returns the SpawnResults created by the test, if any.
+ * @param testResultDataBuilder Returns the TestResultData for the test.
+ */
+public record StandaloneTestResult(
+    @Override ImmutableList<SpawnResult> spawnResults,
+    TestResultData.Builder testResultDataBuilder,
+    BuildEventStreamProtos.TestResult.ExecutionInfo executionInfo)
+    implements TestActionContext.TestAttemptResult {
+  public StandaloneTestResult {
+    requireNonNull(spawnResults, "spawnResults");
+    requireNonNull(testResultDataBuilder, "testResultDataBuilder");
+    requireNonNull(executionInfo, "executionInfo");
+  }
+
   @Override
   public TestActionContext.TestAttemptResult.Result result() {
     // TODO(b/148785690): Establish proper retry policy for flaky tests in StandaloneTestStrategy.
@@ -33,22 +49,13 @@ public abstract class StandaloneTestResult implements TestActionContext.TestAtte
         : Result.FAILED_CAN_RETRY;
   }
 
-  /** Returns the SpawnResults created by the test, if any. */
-  @Override
-  public abstract ImmutableList<SpawnResult> spawnResults();
-
-  /** Returns the TestResultData for the test. */
-  public abstract TestResultData.Builder testResultDataBuilder();
-
-  public abstract BuildEventStreamProtos.TestResult.ExecutionInfo executionInfo();
-
   /** Returns a builder that can be used to construct a {@link StandaloneTestResult} object. */
   public static Builder builder() {
-    return new AutoValue_StandaloneTestResult.Builder();
+    return new AutoBuilder_StandaloneTestResult_Builder();
   }
 
   /** Builder for a {@link StandaloneTestResult} instance, which is immutable once built. */
-  @AutoValue.Builder
+  @AutoBuilder
   public abstract static class Builder {
 
     /** Returns the SpawnResults for the test, if any. */

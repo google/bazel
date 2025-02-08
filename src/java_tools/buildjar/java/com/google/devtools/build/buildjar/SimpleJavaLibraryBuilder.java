@@ -148,7 +148,7 @@ public class SimpleJavaLibraryBuilder implements Closeable {
       jar.setJarOwner(build.getTargetLabel(), build.getInjectingRuleKind());
       processor = build.getJacocoInstrumentationProcessor();
       if (processor != null) {
-        processor.processRequest(build, processor.isNewCoverageImplementation() ? jar : null);
+        processor.processRequest(build, jar);
       }
     } finally {
       jar.execute();

@@ -22,6 +22,15 @@ import javax.annotation.Nullable;
  */
 public interface ExtendedEventHandler extends EventHandler {
 
+  public static final ExtendedEventHandler NOOP =
+      new ExtendedEventHandler() {
+        @Override
+        public void handle(Event event) {}
+
+        @Override
+        public void post(Postable obj) {}
+      };
+
   /** An event that can be posted via the extended event handler. */
   interface Postable extends Reportable {
 

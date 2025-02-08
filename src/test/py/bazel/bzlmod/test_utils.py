@@ -30,8 +30,8 @@ import zipfile
 
 def download(url):
   """Download a file and return its content in bytes."""
-  response = urllib.request.urlopen(url)
-  return response.read()
+  with urllib.request.urlopen(url) as response:
+    return response.read()
 
 
 def read(path):

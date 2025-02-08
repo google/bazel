@@ -13,20 +13,22 @@
 // limitations under the License.
 package com.google.devtools.build.lib.exec;
 
-import com.google.auto.value.AutoValue;
+import static java.util.Objects.requireNonNull;
+
 import com.google.devtools.build.lib.actions.ActionExecutionMetadata;
 import com.google.devtools.build.lib.actions.CachingActionEvent;
 import com.google.devtools.build.lib.events.ExtendedEventHandler;
 import com.google.devtools.build.lib.exec.SpawnRunner.ProgressStatus;
 
 /** Notifies that {@link SpawnRunner} is looking for a cache hit. */
-@AutoValue
-public abstract class SpawnCheckingCacheEvent implements ProgressStatus {
-  public static SpawnCheckingCacheEvent create(String name) {
-    return new AutoValue_SpawnCheckingCacheEvent(name);
+public record SpawnCheckingCacheEvent(String name) implements ProgressStatus {
+  public SpawnCheckingCacheEvent {
+    requireNonNull(name, "name");
   }
 
-  public abstract String name();
+  public static SpawnCheckingCacheEvent create(String name) {
+    return new SpawnCheckingCacheEvent(name);
+  }
 
   @Override
   public void postTo(ExtendedEventHandler eventHandler, ActionExecutionMetadata action) {

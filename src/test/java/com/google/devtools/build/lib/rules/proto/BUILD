@@ -37,7 +37,10 @@ java_test(
 
 java_test(
     name = "ProtoLangToolchainTest",
-    srcs = ["ProtoLangToolchainTest.java"],
+    srcs = [
+        "ProtoLangToolchainProvider.java",
+        "ProtoLangToolchainTest.java",
+    ],
     deps = [
         "//src/main/java/com/google/devtools/build/lib/analysis:analysis_cluster",
         "//src/main/java/com/google/devtools/build/lib/analysis:transitive_info_collection",
@@ -45,11 +48,13 @@ java_test(
         "//src/main/java/com/google/devtools/build/lib/packages",
         "//src/main/java/com/google/devtools/build/lib/rules/proto",
         "//src/main/java/com/google/devtools/build/lib/skyframe:bzl_load_value",
-        "//src/main/java/net/starlark/java/syntax",
+        "//src/main/java/net/starlark/java/eval",
         "//src/test/java/com/google/devtools/build/lib/analysis/util",
         "//src/test/java/com/google/devtools/build/lib/packages:testutil",
         "//src/test/java/com/google/devtools/build/lib/testutil:TestConstants",
+        "//third_party:auto_value",
         "//third_party:guava",
+        "//third_party:jsr305",
         "//third_party:junit4",
         "//third_party:truth",
     ],

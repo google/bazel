@@ -49,6 +49,11 @@
 
 set -euo pipefail
 
+function fail() {
+  echo $@ > /dev/stderr
+  exit 1
+}
+
 # Parsing the flags.
 while [[ -n "$@" ]]; do
   arg="$1"; shift
@@ -58,7 +63,7 @@ while [[ -n "$@" ]]; do
     "--commit_hash") commit_hash="$val" ;;
     "--rc") rc="$val" ;;
     "--release") release="$val" ;;
-    *) echo "Flag $arg is not recognized." && exit 1 ;;
+    *) fail "Flag $arg is not recognized." ;;
   esac
 done
 
@@ -71,6 +76,17 @@ gcs_bucket="gs://bazel-mirror/bazel_java_tools"
 mirror_prefix="https://mirror.bazel.build/bazel_java_tools"
 github_prefix="https://github.com/bazelbuild/java_tools/releases/download"
 
+function copy_or_fail_if_target_exists() {
+  src_path=$1
+  target_path=$2
+  already_exists=$(gsutil -q stat ${target_path} || echo "no")
+  if [[ "${already_exists}" != "no" ]]; then
+    fail "${target_path} already exists, did you mean to create a fresh RC / release?"
+  else
+    gsutil -q cp -n ${src_path} ${target_path}
+  fi
+}
+
 for platform in "linux" "windows" "darwin_x86_64" "darwin_arm64"; do
   rc_url="release_candidates/java/v${java_tools_version}/java_tools_${platform}-v${java_tools_version}-rc${rc}.zip"
 
@@ -78,7 +94,7 @@ for platform in "linux" "windows" "darwin_x86_64" "darwin_arm64"; do
     release_artifact="releases/java/v${java_tools_version}/java_tools_${platform}-v${java_tools_version}.zip"
     # Make release candidate the release artifact for the current platform.
     # Don't overwrite existing file.
-    gsutil -q cp -n "${gcs_bucket}/${rc_url}" "${gcs_bucket}/${release_artifact}"
+    copy_or_fail_if_target_exists "${gcs_bucket}/${rc_url}" "${gcs_bucket}/${release_artifact}"
 
     github_url="${github_prefix}/java_v${java_tools_version}/java_tools_${platform}-v${java_tools_version}.zip"
     mirror_url=${mirror_prefix}/${release_artifact}
@@ -88,7 +104,7 @@ for platform in "linux" "windows" "darwin_x86_64" "darwin_arm64"; do
 
     # Make the generated artifact a release candidate for the current platform.
     # Don't overwrite existing file.
-    gsutil -q cp -n ${tmp_url} "${gcs_bucket}/${rc_url}"
+    copy_or_fail_if_target_exists "${tmp_url}" "${gcs_bucket}/${rc_url}"
 
     mirror_url=${mirror_prefix}/${rc_url}
     urls='"mirror_url" : "'${mirror_url}'"'
@@ -112,11 +128,11 @@ if [[ $release == "true" ]]; then
   release_sources_artifact="releases/java/v${java_tools_version}/sources/java_tools-v${java_tools_version}.zip"
   # Make release candidate the release artifact for the current platform.
   # Don't overwrite existing file.
-  gsutil -q cp -n "${gcs_bucket}/${rc_url}" "${gcs_bucket}/${release_artifact}"
+  copy_or_fail_if_target_exists "${gcs_bucket}/${rc_url}" "${gcs_bucket}/${release_artifact}"
 
   # Copy the associated zip file that contains the sources of the release zip.
   # Don't overwrite existing file.
-  gsutil -q cp -n "${gcs_bucket}/${rc_sources_url}" "${gcs_bucket}/${release_sources_artifact}"
+  copy_or_fail_if_target_exists "${gcs_bucket}/${rc_sources_url}" "${gcs_bucket}/${release_sources_artifact}"
 
   github_url="${github_prefix}/java_v${java_tools_version}/java_tools-v${java_tools_version}.zip"
   mirror_url=${mirror_prefix}/${release_artifact}
@@ -124,12 +140,12 @@ if [[ $release == "true" ]]; then
 else
   tmp_url=$(gsutil ls -lh ${gcs_bucket}/tmp/build/${commit_hash}/java/java_tools-* | sort -k 2 | grep gs -m 1 | awk '{print $4}')
 
-  gsutil -q cp -n ${tmp_url} "${gcs_bucket}/${rc_url}"
+  copy_or_fail_if_target_exists "${tmp_url}" "${gcs_bucket}/${rc_url}"
 
   # Copy the associated zip file that contains the sources of the release zip.
   # Don't overwrite existing file.
   tmp_sources_url=$(gsutil ls -lh ${gcs_bucket}/tmp/sources/${commit_hash}/java/java_tools-* | sort -k 2 | grep gs -m 1 | awk '{print $4}')
-  gsutil -q cp -n ${tmp_sources_url} ${gcs_bucket}/${rc_sources_url}
+  copy_or_fail_if_target_exists "${tmp_sources_url}" "${gcs_bucket}/${rc_sources_url}"
 
   mirror_url=${mirror_prefix}/${rc_url}
   urls='"mirror_url" : "'${mirror_url}'"'

@@ -23,6 +23,7 @@ import com.google.common.collect.Lists;
 import com.google.common.io.ByteSource;
 import com.google.common.io.CharStreams;
 import com.google.devtools.build.lib.concurrent.ThreadSafety.ThreadSafe;
+import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
@@ -824,4 +825,26 @@ public abstract class FileSystem {
    */
   protected void prefetchPackageAsync(PathFragment path, int maxDirs) {}
 
+  /**
+   * Returns a {@link File} object for the given path. This method is only supported by file system
+   * implementations that are backed by the local file system.
+   */
+  protected File getIoFile(PathFragment path) {
+    throw new UnsupportedOperationException(
+        "getIoFile() not supported for " + getClass().getName());
+  }
+
+  /**
+   * Returns a {@link java.nio.file.Path} object for the given path. This method is only supported
+   * by file system implementations that are backed by the local file system.
+   */
+  protected java.nio.file.Path getNioPath(PathFragment path) {
+    throw new UnsupportedOperationException(
+        "getNioPath() not supported for " + getClass().getName());
+  }
+
+  /** Represents an arbitrary transform on a Path. */
+  public interface PathTransformer {
+    Path transformPath(Path original);
+  }
 }

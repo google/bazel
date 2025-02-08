@@ -27,7 +27,6 @@ import java.io.OutputStream;
 import java.nio.file.FileVisitResult;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.nio.file.SimpleFileVisitor;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.util.List;
@@ -53,18 +52,9 @@ public final class JacocoInstrumentationProcessor {
 
   private Path instrumentedClassesDirectory;
   private final String coverageInformation;
-  private final boolean isNewCoverageImplementation;
 
   private JacocoInstrumentationProcessor(String coverageInfo) {
     this.coverageInformation = coverageInfo;
-    // This is part of the new Java coverage implementation where JacocoInstrumentationProcessor
-    // receives a file that includes the relative paths of the uninstrumented Java files, instead
-    // of the metadata jar.
-    this.isNewCoverageImplementation = coverageInfo.endsWith(".txt");
-  }
-
-  public boolean isNewCoverageImplementation() {
-    return isNewCoverageImplementation;
   }
 
   /**
@@ -76,20 +66,12 @@ public final class JacocoInstrumentationProcessor {
     // multiple threads performing read/write/delete actions on the instrumented classes directory.
     instrumentedClassesDirectory = getMetadataDirRelativeToJar(build.getOutputJar());
     Files.createDirectories(instrumentedClassesDirectory);
-    if (jar == null) {
-      jar = new JarCreator(coverageInformation);
-    }
     jar.setNormalize(true);
     jar.setCompression(build.compressJar());
     Instrumenter instr = new Instrumenter(new OfflineInstrumentationAccessGenerator());
     instrumentRecursively(instr, build.getClassDir());
     jar.addDirectory(instrumentedClassesDirectory);
-    if (isNewCoverageImplementation) {
-      jar.addEntry(coverageInformation, coverageInformation);
-    } else {
-      jar.execute();
-      cleanup();
-    }
+    jar.addEntry(coverageInformation, coverageInformation);
   }
 
   public void cleanup() throws IOException {
@@ -124,14 +106,9 @@ public final class JacocoInstrumentationProcessor {
             // We first move the original .class file to our metadata directory, then instrument it
             // and output the instrumented version in the regular classes output directory.
             Path instrumentedCopy = file;
-            Path uninstrumentedCopy;
-            if (isNewCoverageImplementation) {
-              Path absoluteUninstrumentedCopy = Paths.get(file + ".uninstrumented");
-              uninstrumentedCopy =
-                  instrumentedClassesDirectory.resolve(root.relativize(absoluteUninstrumentedCopy));
-            } else {
-              uninstrumentedCopy = instrumentedClassesDirectory.resolve(root.relativize(file));
-            }
+            Path absoluteUninstrumentedCopy = Path.of(file + ".uninstrumented");
+            Path uninstrumentedCopy =
+                instrumentedClassesDirectory.resolve(root.relativize(absoluteUninstrumentedCopy));
             Files.createDirectories(uninstrumentedCopy.getParent());
             Files.move(file, uninstrumentedCopy);
             try (InputStream input =

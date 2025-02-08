@@ -115,6 +115,14 @@ message OsEvent {
   // Takes no inputs
 }
 
+// Information on "rename" event in repository_ctx.
+message RenameEvent {
+  // The path of the existing file or directory to rename.
+  string src = 1;
+  // The new name of the file or directory.
+  string dst = 2;
+}
+
 // Information on "symlink" event in repository_ctx.
 message SymlinkEvent {
   // path to which the symlink will point to
@@ -162,5 +170,6 @@ message WorkspaceEvent {
     ReadEvent read_event = 12;
     DeleteEvent delete_event = 13;
     PatchEvent patch_event = 14;
+    RenameEvent rename_event = 15;
   }
 }

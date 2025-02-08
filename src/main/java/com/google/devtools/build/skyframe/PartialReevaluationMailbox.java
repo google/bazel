@@ -13,8 +13,9 @@
 // limitations under the License.
 package com.google.devtools.build.skyframe;
 
+import static java.util.Objects.requireNonNull;
+
 import com.google.auto.value.AutoOneOf;
-import com.google.auto.value.AutoValue;
 import com.google.common.collect.ImmutableList;
 import com.google.devtools.build.skyframe.SkyFunction.Environment.ClassToInstanceMapSkyKeyComputeState;
 import com.google.devtools.build.skyframe.SkyFunction.Environment.SkyKeyComputeState;
@@ -137,24 +138,21 @@ public class PartialReevaluationMailbox implements SkyKeyComputeState {
    * try its best to make progress, by, e.g., checking whether its external dep futures have
    * completed, checking whether its previously requested deps are done, or reevaluating from
    * scratch. ({@link Causes#other}) returns the value of that flag.
+   *
+   * @param signaledDeps {@link SkyKey} s of previously requested deps which have completed since
+   *     the last time the mailbox was read.
+   * @param other Whether Skyframe enqueued a reevaluation for any other reason besides a dep
+   *     completing normally, in such a way that the dep's key would be added to {@link
+   *     #signaledDeps}.
    */
-  @AutoValue
-  public abstract static class Causes {
-    static Causes create(ImmutableList<SkyKey> signaledDeps, boolean other) {
-      return new AutoValue_PartialReevaluationMailbox_Causes(signaledDeps, other);
+  public record Causes(ImmutableList<SkyKey> signaledDeps, boolean other) {
+    public Causes {
+      requireNonNull(signaledDeps, "signaledDeps");
     }
 
-    /**
-     * {@link SkyKey}s of previously requested deps which have completed since the last time the
-     * mailbox was read.
-     */
-    public abstract ImmutableList<SkyKey> signaledDeps();
-
-    /**
-     * Whether Skyframe enqueued a reevaluation for any other reason besides a dep completing
-     * normally, in such a way that the dep's key would be added to {@link #signaledDeps}.
-     */
-    public abstract boolean other();
+    static Causes create(ImmutableList<SkyKey> signaledDeps, boolean other) {
+      return new Causes(signaledDeps, other);
+    }
   }
 
   private PartialReevaluationMailbox() {}

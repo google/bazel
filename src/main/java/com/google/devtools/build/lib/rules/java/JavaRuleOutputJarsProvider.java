@@ -16,8 +16,9 @@ package com.google.devtools.build.lib.rules.java;
 
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.google.devtools.build.lib.rules.java.JavaInfo.nullIfNone;
+import static java.util.Objects.requireNonNull;
 
-import com.google.auto.value.AutoValue;
+import com.google.auto.value.AutoBuilder;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
@@ -32,6 +33,7 @@ import com.google.devtools.build.lib.packages.RuleClass.ConfiguredTargetFactory.
 import com.google.devtools.build.lib.packages.StructImpl;
 import com.google.devtools.build.lib.rules.java.JavaInfo.JavaInfoInternalProvider;
 import com.google.devtools.build.lib.rules.java.JavaRuleOutputJarsProvider.JavaOutput;
+import com.google.devtools.build.lib.skyframe.serialization.autocodec.AutoCodec;
 import com.google.devtools.build.lib.skyframe.serialization.autocodec.SerializationConstant;
 import com.google.devtools.build.lib.starlarkbuildapi.java.JavaOutputApi;
 import com.google.devtools.build.lib.starlarkbuildapi.java.JavaRuleOutputJarsProviderApi;
@@ -47,18 +49,91 @@ import net.starlark.java.eval.StarlarkSemantics;
 
 /** Provides information about jar files produced by a Java rule. */
 @Immutable
-@AutoValue
-public abstract class JavaRuleOutputJarsProvider
+@AutoCodec
+public record JavaRuleOutputJarsProvider(@Override ImmutableList<JavaOutput> javaOutputs)
     implements JavaInfoInternalProvider, JavaRuleOutputJarsProviderApi<JavaOutput> {
+  public JavaRuleOutputJarsProvider {
+    requireNonNull(javaOutputs, "javaOutputs");
+  }
+
+  @Override
+  public ImmutableList<JavaOutput> getJavaOutputs() {
+    return javaOutputs();
+  }
 
   @SerializationConstant
   public static final JavaRuleOutputJarsProvider EMPTY =
-      new AutoValue_JavaRuleOutputJarsProvider(ImmutableList.<JavaOutput>of());
+      new JavaRuleOutputJarsProvider(ImmutableList.<JavaOutput>of());
 
-  /** A collection of artifacts associated with a jar output. */
-  @AutoValue
+  /**
+   * A collection of artifacts associated with a jar output.
+   *
+   * @param sourceJars A {@link NestedSet} of sources archive files.
+   */
   @Immutable
-  public abstract static class JavaOutput implements JavaOutputApi<Artifact> {
+  @AutoCodec
+  public record JavaOutput(
+      @Override Artifact classJar,
+      @Nullable @Override Artifact compileJar,
+      @Nullable @Override Artifact compileJdeps,
+      @Nullable @Override Artifact generatedClassJar,
+      @Nullable @Override Artifact generatedSourceJar,
+      @Nullable @Override Artifact nativeHeadersJar,
+      @Nullable @Override Artifact manifestProto,
+      @Nullable @Override Artifact jdeps,
+      NestedSet<Artifact> sourceJars)
+      implements JavaOutputApi<Artifact> {
+    public JavaOutput {
+      requireNonNull(classJar, "classJar");
+      requireNonNull(sourceJars, "sourceJars");
+    }
+
+    @Override
+    public Artifact getClassJar() {
+      return classJar();
+    }
+
+    @Nullable
+    @Override
+    public Artifact getCompileJar() {
+      return compileJar();
+    }
+
+    @Nullable
+    @Override
+    public Artifact getCompileJdeps() {
+      return compileJdeps();
+    }
+
+    @Nullable
+    @Override
+    public Artifact getGeneratedClassJar() {
+      return generatedClassJar();
+    }
+
+    @Nullable
+    @Override
+    public Artifact getGeneratedSourceJar() {
+      return generatedSourceJar();
+    }
+
+    @Nullable
+    @Override
+    public Artifact getNativeHeadersJar() {
+      return nativeHeadersJar();
+    }
+
+    @Nullable
+    @Override
+    public Artifact getManifestProto() {
+      return manifestProto();
+    }
+
+    @Nullable
+    @Override
+    public Artifact getJdeps() {
+      return jdeps();
+    }
 
     /**
      * Translates a collection of {@link JavaOutput} for use in native code.
@@ -90,46 +165,12 @@ public abstract class JavaRuleOutputJarsProvider
       return true; // immutable and Starlark-hashable
     }
 
-    @Override
-    public abstract Artifact getClassJar();
-
-    @Nullable
-    @Override
-    public abstract Artifact getCompileJar();
-
     @Nullable
     @Deprecated
     @Override
     public Artifact getIJar() {
-      return getCompileJar();
+      return compileJar();
     }
-
-    @Nullable
-    @Override
-    public abstract Artifact getCompileJdeps();
-
-    @Nullable
-    @Override
-    public abstract Artifact getGeneratedClassJar();
-
-    @Nullable
-    @Override
-    public abstract Artifact getGeneratedSourceJar();
-
-    @Nullable
-    @Override
-    public abstract Artifact getNativeHeadersJar();
-
-    @Nullable
-    @Override
-    public abstract Artifact getManifestProto();
-
-    @Nullable
-    @Override
-    public abstract Artifact getJdeps();
-
-    /** A {@link NestedSet} of sources archive files. */
-    public abstract NestedSet<Artifact> getSourceJars();
 
     @Nullable
     @Deprecated
@@ -139,13 +180,13 @@ public abstract class JavaRuleOutputJarsProvider
     }
 
     public ImmutableList<Artifact> getSourceJarsAsList() {
-      return getSourceJars().toList();
+      return sourceJars().toList();
     }
 
     @Nullable
     @Override
     public Depset getSrcJarsStarlark(StarlarkSemantics semantics) {
-      return Depset.of(Artifact.class, getSourceJars());
+      return Depset.of(Artifact.class, sourceJars());
     }
 
     public static JavaOutput fromStarlarkJavaOutput(StructImpl struct) throws EvalException {
@@ -174,7 +215,7 @@ public abstract class JavaRuleOutputJarsProvider
     }
 
     /** Builder for OutputJar. */
-    @AutoValue.Builder
+    @AutoBuilder
     public abstract static class Builder {
       private final NestedSetBuilder<Artifact> sourceJarsBuilder = NestedSetBuilder.stableOrder();
 
@@ -237,7 +278,7 @@ public abstract class JavaRuleOutputJarsProvider
     }
 
     public static Builder builder() {
-      return new AutoValue_JavaRuleOutputJarsProvider_JavaOutput.Builder();
+      return new AutoBuilder_JavaRuleOutputJarsProvider_JavaOutput_Builder();
     }
   }
 
@@ -246,17 +287,14 @@ public abstract class JavaRuleOutputJarsProvider
     return true; // immutable and Starlark-hashable
   }
 
-  @Override
-  public abstract ImmutableList<JavaOutput> getJavaOutputs();
-
   /** Collects all class output jars from {@link #getJavaOutputs} */
   public Iterable<Artifact> getAllClassOutputJars() {
-    return getJavaOutputs().stream().map(JavaOutput::getClassJar).collect(Collectors.toList());
+    return javaOutputs().stream().map(JavaOutput::classJar).collect(Collectors.toList());
   }
 
   /** Collects all source output jars from {@link #getJavaOutputs} */
   public ImmutableList<Artifact> getAllSrcOutputJars() {
-    return getJavaOutputs().stream()
+    return javaOutputs().stream()
         .map(JavaOutput::getSourceJarsAsList)
         .flatMap(ImmutableList::stream)
         .collect(toImmutableList());
@@ -267,8 +305,8 @@ public abstract class JavaRuleOutputJarsProvider
   @Deprecated
   public Artifact getJdeps() {
     ImmutableList<Artifact> jdeps =
-        getJavaOutputs().stream()
-            .map(JavaOutput::getJdeps)
+        javaOutputs().stream()
+            .map(JavaOutput::jdeps)
             .filter(Objects::nonNull)
             .collect(toImmutableList());
     return jdeps.size() == 1 ? jdeps.get(0) : null;
@@ -279,8 +317,8 @@ public abstract class JavaRuleOutputJarsProvider
   @Deprecated
   public Artifact getNativeHeaders() {
     ImmutableList<Artifact> nativeHeaders =
-        getJavaOutputs().stream()
-            .map(JavaOutput::getNativeHeadersJar)
+        javaOutputs().stream()
+            .map(JavaOutput::nativeHeadersJar)
             .filter(Objects::nonNull)
             .collect(toImmutableList());
     return nativeHeaders.size() == 1 ? nativeHeaders.get(0) : null;
@@ -308,7 +346,7 @@ public abstract class JavaRuleOutputJarsProvider
     }
 
     public JavaRuleOutputJarsProvider build() {
-      return new AutoValue_JavaRuleOutputJarsProvider(ImmutableList.copyOf(javaOutputs));
+      return new JavaRuleOutputJarsProvider(ImmutableList.copyOf(javaOutputs));
     }
   }
 

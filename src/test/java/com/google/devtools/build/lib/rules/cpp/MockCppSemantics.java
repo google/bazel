@@ -55,6 +55,10 @@ public final class MockCppSemantics implements CppSemantics {
       CppCompileActionBuilder actionBuilder) {}
 
   @Override
+  public void finalizeLinkActionBuilder(
+      CppConfiguration configuration, CppLinkActionBuilder actionBuilder) {}
+
+  @Override
   public boolean allowIncludeScanning() {
     return false;
   }

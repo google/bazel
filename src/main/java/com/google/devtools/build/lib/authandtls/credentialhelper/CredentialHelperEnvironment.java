@@ -14,45 +14,46 @@
 
 package com.google.devtools.build.lib.authandtls.credentialhelper;
 
-import com.google.auto.value.AutoValue;
+import static java.util.Objects.requireNonNull;
+
+import com.google.auto.value.AutoBuilder;
 import com.google.common.collect.ImmutableMap;
 import com.google.devtools.build.lib.events.Reporter;
 import com.google.devtools.build.lib.vfs.Path;
 import java.time.Duration;
 import javax.annotation.Nullable;
 
-/** Environment for running {@link CredentialHelper}s in. */
-@AutoValue
-public abstract class CredentialHelperEnvironment {
-  /** Returns the reporter for reporting events related to {@link CredentialHelper}s. */
-  public abstract Reporter getEventReporter();
-
-  /**
-   * Returns the absolute path to the workspace, or null if Bazel was invoked outside a workspace.
-   *
-   * <p>If available, it will be used as the working directory when invoking the helper subprocess.
-   * Otherwise, the working directory is inherited from the Bazel server process.
-   */
-  @Nullable
-  public abstract Path getWorkspacePath();
-
-  /**
-   * Returns the environment from the Bazel client.
-   *
-   * <p>Passed as environment variables to the subprocess.
-   */
-  public abstract ImmutableMap<String, String> getClientEnvironment();
-
-  /** Returns the execution timeout for the helper subprocess. */
-  public abstract Duration getHelperExecutionTimeout();
+/**
+ * Environment for running {@link CredentialHelper}s in.
+ *
+ * @param eventReporter Returns the reporter for reporting events related to {@link
+ *     CredentialHelper}s.
+ * @param workspacePath Returns the absolute path to the workspace, or null if Bazel was invoked
+ *     outside a workspace.
+ *     <p>If available, it will be used as the working directory when invoking the helper
+ *     subprocess. Otherwise, the working directory is inherited from the Bazel server process.
+ * @param clientEnvironment Returns the environment from the Bazel client.
+ *     <p>Passed as environment variables to the subprocess.
+ * @param helperExecutionTimeout Returns the execution timeout for the helper subprocess.
+ */
+public record CredentialHelperEnvironment(
+    Reporter eventReporter,
+    @Nullable Path workspacePath,
+    ImmutableMap<String, String> clientEnvironment,
+    Duration helperExecutionTimeout) {
+  public CredentialHelperEnvironment {
+    requireNonNull(eventReporter, "eventReporter");
+    requireNonNull(clientEnvironment, "clientEnvironment");
+    requireNonNull(helperExecutionTimeout, "helperExecutionTimeout");
+  }
 
   /** Returns a new builder for {@link CredentialHelperEnvironment}. */
   public static CredentialHelperEnvironment.Builder newBuilder() {
-    return new AutoValue_CredentialHelperEnvironment.Builder();
+    return new AutoBuilder_CredentialHelperEnvironment_Builder();
   }
 
   /** Builder for {@link CredentialHelperEnvironment}. */
-  @AutoValue.Builder
+  @AutoBuilder
   public abstract static class Builder {
     /** Sets the reporter for reporting events related to {@link CredentialHelper}s. */
     public abstract Builder setEventReporter(Reporter reporter);

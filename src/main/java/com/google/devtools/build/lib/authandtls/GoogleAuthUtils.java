@@ -90,8 +90,8 @@ public final class GoogleAuthUtils {
               .negotiationType(
                   isTlsEnabled(target) ? NegotiationType.TLS : NegotiationType.PLAINTEXT);
       if (options.grpcKeepaliveTime != null) {
-        builder.keepAliveTime(options.grpcKeepaliveTime.getSeconds(), TimeUnit.SECONDS);
-        builder.keepAliveTimeout(options.grpcKeepaliveTimeout.getSeconds(), TimeUnit.SECONDS);
+        builder.keepAliveTime(options.grpcKeepaliveTime.toSeconds(), TimeUnit.SECONDS);
+        builder.keepAliveTimeout(options.grpcKeepaliveTimeout.toSeconds(), TimeUnit.SECONDS);
       }
       if (interceptors != null) {
         builder.intercept(interceptors);
@@ -267,10 +267,10 @@ public final class GoogleAuthUtils {
       // Fallback to .netrc if it exists.
       try {
         fallbackCredentials =
-            newCredentialsFromNetrc(credentialHelperEnvironment.getClientEnvironment(), fileSystem);
+            newCredentialsFromNetrc(credentialHelperEnvironment.clientEnvironment(), fileSystem);
       } catch (IOException e) {
         // TODO(yannic): Make this fail the build.
-        credentialHelperEnvironment.getEventReporter().handle(Event.warn(e.getMessage()));
+        credentialHelperEnvironment.eventReporter().handle(Event.warn(e.getMessage()));
       }
     }
 
@@ -382,8 +382,8 @@ public final class GoogleAuthUtils {
 
     CredentialHelperProvider.Builder builder = CredentialHelperProvider.builder();
     for (AuthAndTLSOptions.CredentialHelperOption helper : helpers) {
-      Optional<String> scope = helper.getScope();
-      Path path = pathFactory.create(environment.getClientEnvironment(), helper.getPath());
+      Optional<String> scope = helper.scope();
+      Path path = pathFactory.create(environment.clientEnvironment(), helper.path());
       if (scope.isPresent()) {
         builder.add(scope.get(), path);
       } else {

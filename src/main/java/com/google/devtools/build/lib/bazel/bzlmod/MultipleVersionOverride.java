@@ -15,23 +15,31 @@
 
 package com.google.devtools.build.lib.bazel.bzlmod;
 
-import com.google.auto.value.AutoValue;
+import static java.util.Objects.requireNonNull;
+
 import com.google.common.collect.ImmutableList;
+import com.google.devtools.build.lib.skyframe.serialization.autocodec.AutoCodec;
 
 /**
  * Specifies that the module should still come from a registry, but multiple versions of it should
  * be allowed to coexist.
+ *
+ * @param versions The versions of this module that should coexist.
  */
-@AutoValue
-public abstract class MultipleVersionOverride implements RegistryOverride {
-
-  public static MultipleVersionOverride create(ImmutableList<Version> versions, String registry) {
-    return new AutoValue_MultipleVersionOverride(versions, registry);
+@AutoCodec
+public record MultipleVersionOverride(ImmutableList<Version> versions, @Override String registry)
+    implements RegistryOverride {
+  public MultipleVersionOverride {
+    requireNonNull(versions, "versions");
+    requireNonNull(registry, "registry");
   }
 
-  /** The versions of this module that should coexist. */
-  public abstract ImmutableList<Version> getVersions();
-
   @Override
-  public abstract String getRegistry();
+  public String getRegistry() {
+    return registry();
+  }
+
+  public static MultipleVersionOverride create(ImmutableList<Version> versions, String registry) {
+    return new MultipleVersionOverride(versions, registry);
+  }
 }

@@ -131,8 +131,8 @@ public class PackageLookupFunction implements SkyFunction {
     }
 
     // Check .bazelignore file under main repository.
-    IgnoredPackagePrefixesValue ignoredPatternsValue =
-        (IgnoredPackagePrefixesValue) env.getValue(IgnoredPackagePrefixesValue.key());
+    IgnoredSubdirectoriesValue ignoredPatternsValue =
+        (IgnoredSubdirectoriesValue) env.getValue(IgnoredSubdirectoriesValue.key());
     if (ignoredPatternsValue == null) {
       return null;
     }
@@ -415,9 +415,9 @@ public class PackageLookupFunction implements SkyFunction {
     }
 
     // Check .bazelignore file after fetching the external repository.
-    IgnoredPackagePrefixesValue ignoredPatternsValue =
-        (IgnoredPackagePrefixesValue)
-            env.getValue(IgnoredPackagePrefixesValue.key(id.getRepository()));
+    IgnoredSubdirectoriesValue ignoredPatternsValue =
+        (IgnoredSubdirectoriesValue)
+            env.getValue(IgnoredSubdirectoriesValue.key(id.getRepository()));
     if (ignoredPatternsValue == null) {
       return null;
     }

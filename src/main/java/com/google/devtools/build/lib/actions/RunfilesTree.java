@@ -17,6 +17,7 @@ package com.google.devtools.build.lib.actions;
 import com.google.devtools.build.lib.analysis.SymlinkEntry;
 import com.google.devtools.build.lib.analysis.config.BuildConfigurationValue.RunfileSymlinksMode;
 import com.google.devtools.build.lib.collect.nestedset.NestedSet;
+import com.google.devtools.build.lib.util.Fingerprint;
 import com.google.devtools.build.lib.vfs.PathFragment;
 import java.util.Map;
 import javax.annotation.Nullable;
@@ -78,4 +79,7 @@ public interface RunfilesTree {
 
   /** Whether {@link #getMapping()} is cached due to potential reuse within a single build. */
   boolean isMappingCached();
+
+  /** Fingerprints this runfiles tree. */
+  void fingerprint(ActionKeyContext actionKeyContext, Fingerprint fp, boolean digestAbsolutePaths);
 }

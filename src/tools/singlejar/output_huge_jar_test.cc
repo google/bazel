@@ -26,7 +26,7 @@
 
 namespace {
 
-using bazel::tools::cpp::runfiles::Runfiles;
+using rules_cc::cc::runfiles::Runfiles;
 using singlejar_test_util::AllocateFile;
 using singlejar_test_util::OutputFilePath;
 using singlejar_test_util::VerifyZip;

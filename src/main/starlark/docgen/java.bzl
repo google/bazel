@@ -13,11 +13,15 @@
 # limitations under the License.
 """Java"""
 
+load("@rules_java//java:java_single_jar.bzl", _java_single_jar = "java_single_jar")
 load("@rules_java//java/bazel/rules:bazel_java_binary.bzl", _java_binary = "java_binary")
 load("@rules_java//java/bazel/rules:bazel_java_import.bzl", _java_import = "java_import")
 load("@rules_java//java/bazel/rules:bazel_java_library.bzl", _java_library = "java_library")
 load("@rules_java//java/bazel/rules:bazel_java_plugin.bzl", _java_plugin = "java_plugin")
 load("@rules_java//java/bazel/rules:bazel_java_test.bzl", _java_test = "java_test")
+load("@rules_java//java/common/rules:java_package_configuration.bzl", _java_package_configuration = "java_package_configuration")
+load("@rules_java//java/common/rules:java_runtime.bzl", _java_runtime = "java_runtime")
+load("@rules_java//java/common/rules:java_toolchain.bzl", _java_toolchain = "java_toolchain")
 
 # Build Encyclopedia entry point for Java rules implemented in Starlark
 
@@ -35,8 +39,9 @@ test_rules = struct(
 )
 
 other_rules = struct(
-    java_package_configuration = native.java_package_configuration,
+    java_package_configuration = _java_package_configuration,
     java_plugin = _java_plugin,
-    java_runtime = native.java_runtime,
-    java_toolchain = native.java_toolchain,
+    java_runtime = _java_runtime,
+    java_toolchain = _java_toolchain,
+    java_single_jar = _java_single_jar,
 )

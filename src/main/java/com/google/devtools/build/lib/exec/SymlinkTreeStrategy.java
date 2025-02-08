@@ -15,8 +15,8 @@ package com.google.devtools.build.lib.exec;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Function;
-import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
 import com.google.devtools.build.lib.actions.ActionExecutionContext;
 import com.google.devtools.build.lib.actions.ActionExecutionException;
@@ -54,11 +54,14 @@ public final class SymlinkTreeStrategy implements SymlinkTreeActionContext {
       (artifact) -> artifact == null ? null : artifact.getPath().asFragment();
 
   private final OutputService outputService;
+  private final Path execRoot;
   private final BinTools binTools;
   private final String workspaceName;
 
-  public SymlinkTreeStrategy(OutputService outputService, BinTools binTools, String workspaceName) {
+  public SymlinkTreeStrategy(
+      OutputService outputService, Path execRoot, BinTools binTools, String workspaceName) {
     this.outputService = outputService;
+    this.execRoot = execRoot;
     this.binTools = binTools;
     this.workspaceName = workspaceName;
   }
@@ -74,28 +77,14 @@ public final class SymlinkTreeStrategy implements SymlinkTreeActionContext {
       try {
         if (outputService.canCreateSymlinkTree()) {
           Path inputManifest = actionExecutionContext.getInputPath(action.getInputManifest());
+
           Map<PathFragment, PathFragment> symlinks;
-          if (action.getRunfiles() != null) {
-            symlinks = Maps.transformValues(runfilesToMap(action), TO_PATH);
+          if (action.isFilesetTree()) {
+            symlinks = getFilesetMap(action, actionExecutionContext);
           } else {
-            Preconditions.checkState(action.isFilesetTree());
-
-            ImmutableList<FilesetOutputSymlink> filesetLinks;
-            try {
-              filesetLinks =
-                  actionExecutionContext
-                      .getArtifactExpander()
-                      .expandFileset(action.getInputManifest())
-                      .symlinks();
-            } catch (MissingExpansionException e) {
-              throw new IllegalStateException(e);
-            }
-
-            symlinks =
-                SymlinkTreeHelper.processFilesetLinks(
-                    filesetLinks,
-                    action.getWorkspaceNameForFileset(),
-                    actionExecutionContext.getExecRoot().asFragment());
+            // TODO(tjgq): This produces an incorrect path for unresolved symlinks, which should be
+            // created textually.
+            symlinks = Maps.transformValues(getRunfilesMap(action), TO_PATH);
           }
 
           outputService.createSymlinkTree(
@@ -106,12 +95,15 @@ public final class SymlinkTreeStrategy implements SymlinkTreeActionContext {
           // Delete symlinks possibly left over by a previous invocation with a different mode.
           // This is required because only the output manifest is considered an action output, so
           // Skyframe does not clear the directory for us.
-          createSymlinkTreeHelper(action, actionExecutionContext).clearRunfilesDirectory();
-        } else if (action.getRunfileSymlinksMode() == RunfileSymlinksMode.INTERNAL
-            && !action.isFilesetTree()) {
+          createSymlinkTreeHelper(action).clearRunfilesDirectory();
+        } else if (action.getRunfileSymlinksMode() == RunfileSymlinksMode.INTERNAL) {
           try {
-            createSymlinkTreeHelper(action, actionExecutionContext)
-                .createSymlinksDirectly(runfilesToMap(action));
+            SymlinkTreeHelper helper = createSymlinkTreeHelper(action);
+            if (action.isFilesetTree()) {
+              helper.createFilesetSymlinksDirectly(getFilesetMap(action, actionExecutionContext));
+            } else {
+              helper.createRunfilesSymlinksDirectly(getRunfilesMap(action));
+            }
           } catch (IOException e) {
             throw ActionExecutionException.fromExecException(
                 new EnvironmentalExecException(e, Code.SYMLINK_TREE_CREATION_IO_EXCEPTION), action);
@@ -122,7 +114,7 @@ public final class SymlinkTreeStrategy implements SymlinkTreeActionContext {
         } else {
           Map<String, String> resolvedEnv = new LinkedHashMap<>();
           action.getEnvironment().resolve(resolvedEnv, actionExecutionContext.getClientEnv());
-          createSymlinkTreeHelper(action, actionExecutionContext)
+          createSymlinkTreeHelper(action)
               .createSymlinksUsingCommand(
                   binTools, resolvedEnv, actionExecutionContext.getFileOutErr());
         }
@@ -132,15 +124,27 @@ public final class SymlinkTreeStrategy implements SymlinkTreeActionContext {
     }
   }
 
-  private static Map<PathFragment, Artifact> runfilesToMap(SymlinkTreeAction action) {
+  private ImmutableMap<PathFragment, PathFragment> getFilesetMap(
+      SymlinkTreeAction action, ActionExecutionContext actionExecutionContext) {
+    ImmutableList<FilesetOutputSymlink> filesetLinks;
+    try {
+      filesetLinks =
+          actionExecutionContext
+              .getArtifactExpander()
+              .expandFileset(action.getInputManifest())
+              .symlinks();
+    } catch (MissingExpansionException e) {
+      throw new IllegalStateException(e);
+    }
+
+    return SymlinkTreeHelper.processFilesetLinks(
+        filesetLinks, action.getWorkspaceNameForFileset(), execRoot.asFragment());
+  }
+
+  private static Map<PathFragment, Artifact> getRunfilesMap(SymlinkTreeAction action) {
     // This call outputs warnings about overlapping symlinks. However, since this has already been
     // called by the SourceManifestAction, we silence the warnings here.
-    return action
-        .getRunfiles()
-        .getRunfilesInputs(
-            /* eventHandler= */ null,
-            action.getOwner().getLocation(),
-            action.getRepoMappingManifest());
+    return action.getRunfiles().getRunfilesInputs(action.getRepoMappingManifest());
   }
 
   private static void createOutput(
@@ -157,12 +161,19 @@ public final class SymlinkTreeStrategy implements SymlinkTreeActionContext {
     }
   }
 
-  private SymlinkTreeHelper createSymlinkTreeHelper(
-      SymlinkTreeAction action, ActionExecutionContext actionExecutionContext) {
+  private SymlinkTreeHelper createSymlinkTreeHelper(SymlinkTreeAction action) {
+    // Do not indirect paths through the action filesystem, for two reasons:
+    // (1) we always want to create the symlinks on disk, even if the action filesystem creates them
+    //     in memory (at the time of writing, no action filesystem implementations do so, but this
+    //     may change in the future).
+    // (2) current action filesystem implementations are not a true overlay filesystem, so errors
+    //     might occur in an incremental build when the parent directory of a symlink exists on disk
+    //     but not in memory (see https://github.com/bazelbuild/bazel/issues/24867).
     return new SymlinkTreeHelper(
-        actionExecutionContext.getExecRoot(),
-        actionExecutionContext.getInputPath(action.getInputManifest()),
-        actionExecutionContext.getInputPath(action.getOutputManifest()).getParentDirectory(),
+        execRoot,
+        action.getInputManifest().getPath(),
+        action.getOutputManifest().getPath(),
+        action.getOutputManifest().getPath().getParentDirectory(),
         action.isFilesetTree(),
         workspaceName);
   }

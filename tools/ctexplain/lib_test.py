@@ -14,8 +14,8 @@
 """Tests for lib.py."""
 import unittest
 from src.test.py.bazel import test_base
-# Do not edit this line. Copybara replaces it with PY2 migration helper..third_party.bazel.tools.ctexplain.bazel_api as bazel_api
-# Do not edit this line. Copybara replaces it with PY2 migration helper..third_party.bazel.tools.ctexplain.lib as lib
+import tools.ctexplain.bazel_api as bazel_api
+import tools.ctexplain.lib as lib
 from tools.ctexplain.types import Configuration
 from tools.ctexplain.types import HostConfiguration
 from tools.ctexplain.types import NullConfiguration

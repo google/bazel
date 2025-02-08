@@ -18,6 +18,7 @@ import static com.google.common.base.MoreObjects.firstNonNull;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 
+import com.google.devtools.build.lib.actions.ActionLookupKey;
 import com.google.devtools.build.lib.actions.Artifact;
 import com.google.devtools.build.lib.analysis.LicensesProvider;
 import com.google.devtools.build.lib.analysis.LicensesProviderImpl;
@@ -31,22 +32,40 @@ import com.google.devtools.build.lib.concurrent.ThreadSafety.Immutable;
 import com.google.devtools.build.lib.packages.BuiltinProvider;
 import com.google.devtools.build.lib.packages.Info;
 import com.google.devtools.build.lib.packages.OutputFile;
+import com.google.devtools.build.lib.packages.PackageSpecification.PackageGroupContents;
 import com.google.devtools.build.lib.packages.Provider;
+import com.google.devtools.build.lib.skyframe.serialization.VisibleForSerialization;
+import com.google.devtools.build.lib.skyframe.serialization.autocodec.AutoCodec;
 import javax.annotation.Nullable;
 import net.starlark.java.eval.Dict;
 import net.starlark.java.eval.Printer;
 
 /** A ConfiguredTarget for an OutputFile. */
 @Immutable
+@AutoCodec
 public final class OutputFileConfiguredTarget extends FileConfiguredTarget {
 
   private final RuleConfiguredTarget generatingRule;
 
   public OutputFileConfiguredTarget(
       TargetContext targetContext, Artifact outputArtifact, RuleConfiguredTarget generatingRule) {
-    super(targetContext, outputArtifact);
-    this.generatingRule = checkNotNull(generatingRule);
+    this(
+        targetContext.getAnalysisEnvironment().getOwner(),
+        targetContext.getVisibility(),
+        outputArtifact,
+        checkNotNull(generatingRule));
     checkArgument(targetContext.getTarget() instanceof OutputFile, targetContext.getTarget());
+  }
+
+  @AutoCodec.Instantiator
+  @VisibleForSerialization
+  OutputFileConfiguredTarget(
+      ActionLookupKey lookupKey,
+      NestedSet<PackageGroupContents> visibility,
+      Artifact artifact,
+      RuleConfiguredTarget generatingRule) {
+    super(lookupKey, visibility, artifact);
+    this.generatingRule = checkNotNull(generatingRule);
   }
 
   public RuleConfiguredTarget getGeneratingRule() {

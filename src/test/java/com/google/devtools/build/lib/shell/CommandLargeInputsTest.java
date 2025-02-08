@@ -64,7 +64,7 @@ public class CommandLargeInputsTest {
 
     CommandResult result =
         command.executeAsync(in, Command.KILL_SUBPROCESS_ON_INTERRUPT).get();
-    assertThat(result.getTerminationStatus().getRawExitCode()).isEqualTo(0);
+    assertThat(result.terminationStatus().getRawExitCode()).isEqualTo(0);
     TestUtil.assertArrayEquals(randomBytes, result.getStdout());
     assertThat(result.getStderr()).isEmpty();
    }
@@ -77,7 +77,7 @@ public class CommandLargeInputsTest {
 
     CommandResult result =
         command.executeAsync(in, Command.KILL_SUBPROCESS_ON_INTERRUPT).get();
-    assertThat(result.getTerminationStatus().getRawExitCode()).isEqualTo(0);
+    assertThat(result.terminationStatus().getRawExitCode()).isEqualTo(0);
     TestUtil.assertArrayEquals(randomBytes, result.getStderr());
     assertThat(result.getStdout()).isEmpty();
    }
@@ -92,7 +92,7 @@ public class CommandLargeInputsTest {
 
     CommandResult result =
         command.executeAsync(in, out, err, Command.KILL_SUBPROCESS_ON_INTERRUPT).get();
-    assertThat(result.getTerminationStatus().getRawExitCode()).isEqualTo(0);
+    assertThat(result.terminationStatus().getRawExitCode()).isEqualTo(0);
     assertThat(err.toByteArray()).isEmpty();
     TestUtil.assertArrayEquals(randomBytes, out.toByteArray());
     assertOutAndErrNotAvailable(result);
@@ -108,7 +108,7 @@ public class CommandLargeInputsTest {
 
     CommandResult result =
         command.executeAsync(in, out, err, Command.KILL_SUBPROCESS_ON_INTERRUPT).get();
-    assertThat(result.getTerminationStatus().getRawExitCode()).isEqualTo(0);
+    assertThat(result.terminationStatus().getRawExitCode()).isEqualTo(0);
     assertThat(out.toByteArray()).isEmpty();
     TestUtil.assertArrayEquals(randomBytes, err.toByteArray());
     assertOutAndErrNotAvailable(result);
@@ -145,7 +145,7 @@ public class CommandLargeInputsTest {
 
     CommandResult result =
         command.executeAsync(in, Command.KILL_SUBPROCESS_ON_INTERRUPT).get();
-    assertThat(result.getTerminationStatus().getRawExitCode()).isEqualTo(0);
+    assertThat(result.terminationStatus().getRawExitCode()).isEqualTo(0);
     assertThat(result.getStderr()).isEmpty();
     TestUtil.assertArrayEquals(allByteValues, result.getStdout());
   }

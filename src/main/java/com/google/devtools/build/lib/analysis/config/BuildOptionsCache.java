@@ -15,10 +15,10 @@
 package com.google.devtools.build.lib.analysis.config;
 
 import static com.google.common.base.Preconditions.checkNotNull;
+import static java.util.Objects.requireNonNull;
 
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
-import com.google.auto.value.AutoValue;
 import com.google.devtools.build.lib.events.EventHandler;
 import java.util.concurrent.atomic.AtomicReference;
 import javax.annotation.Nullable;
@@ -91,14 +91,14 @@ public final class BuildOptionsCache<T> {
    *
    * @param <T> the type of the context object
    */
-  @AutoValue
-  abstract static class CacheKey<T> {
-    abstract String checksum();
-
-    abstract T context();
+  record CacheKey<T>(String checksum, T context) {
+    CacheKey {
+      requireNonNull(checksum, "checksum");
+      requireNonNull(context, "context");
+    }
 
     static <T> CacheKey<T> create(String checksum, T context) {
-      return new AutoValue_BuildOptionsCache_CacheKey<>(checksum, context);
+      return new CacheKey<>(checksum, context);
     }
   }
 }

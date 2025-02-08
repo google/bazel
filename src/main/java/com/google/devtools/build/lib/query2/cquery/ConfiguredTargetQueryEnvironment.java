@@ -275,7 +275,7 @@ public class ConfiguredTargetQueryEnvironment extends PostAnalysisQueryEnvironme
         Futures.catchingAsync(
             patternToEval.evalAdaptedForAsync(
                 resolver,
-                getIgnoredPackagePrefixesPathFragments(patternToEval.getRepository()),
+                getIgnoredSubdirectories(patternToEval.getRepository()),
                 /* excludedSubdirectories= */ ImmutableSet.of(),
                 (Callback<Target>)
                     partialResult -> {

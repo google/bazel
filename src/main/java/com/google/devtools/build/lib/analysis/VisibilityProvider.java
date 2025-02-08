@@ -24,28 +24,14 @@ import com.google.devtools.build.lib.packages.PackageSpecification.PackageGroupC
 /**
  * Provider class for configured targets that have a visibility.
  *
- * <p>The visibility provider is computed in {@link ConfiguredTargetFactory#convertVisibility}.
- * Essentially, it starts with the target's {@link RuleVisibility} from the loading phase, resolves
- * the references to {@code package_group}s (which may be aggregated through multiple {@code
- * includes}), and merges all the visibility grants into a {@code NestedSet} of {@link
- * PackageGroupContents}. Thus, the visibility provider contains transitive information, which gets
- * flattened at the time of visibility checking.
+ * <p>This is the analysis-time equivalent of the visibility attribute, with package groups
+ * recursively expanded. This provider also tracks a bit indicating whether the target was created
+ * in a symbolic macro, which is not necessarily otherwise available in the prerequisite object at
+ * analysis time.
  *
- * <p>This provider also needs to track a bit indicating whether the target was declared within one
- * or more symbolic macros. This is used by {@link CommonPrerequisiteValidator} to help implement
- * the visibility check in two ways:
- *
- * <ul>
- *   <li>First, for targets not in symbolic macros, the declaration location (i.e. package) of the
- *       target is not concatenated into its visibility attribute (see {@link
- *       Rule#getRuleVisibility}), and {@code CommonPrerequisiteValidator} needs to know to account
- *       for this when doing the visibility check.
- *   <li>Second, there's the {@link CommonPrerequisiteValidator#isSameLogicalPackage} hook, which
- *       powers the hack that targets in {@code //javatests/foo} are allowed to see targets in
- *       {@code //java/foo}. (This feature is only active within Google and disabled for OSS Bazel.)
- *       The semantics are that targets created in symbolic macros are never automatically visible
- *       to {@code //javatests/foo} packages, regardless of the package or declaration location.
- * </ul>
+ * <p>The contents of this provider are determined in {@link
+ * ConfiguredTargetFactory#convertVisibility}. It is consumed by the visibility check in {@link
+ * CommonPrerequisiteValidator#isVisibleToLocation}.
  */
 public interface VisibilityProvider extends TransitiveInfoProvider {
 
@@ -58,20 +44,33 @@ public interface VisibilityProvider extends TransitiveInfoProvider {
       NestedSetBuilder.emptySet(Order.STABLE_ORDER);
 
   /**
-   * Returns the visibility specification, as determined by resolving the entries in the {@code
-   * visibility} attribute.
+   * Returns the target's visibility, as determined from recursively resolving and expanding the
+   * package groups it references.
    *
-   * <p>For targets in symbolic macros, this will include the target's declaration location. For
-   * targets created directly by the package (including in legacy macros that are not in symbolic
-   * macros), it may not include the target's package, even though it is technically visible to it.
+   * <p>Morally, this should represent the expansion of the target's {@link
+   * Target#getActualVisibility "actual" visibility}. However, as an optimization, for targets that
+   * are *not* declared within a symbolic macro, we substitute the {@link Target#getVisibility "raw"
+   * or "default" visibility} for the actual visibility. The optimized version omits the package
+   * where the target was instantiated, avoiding extra allocations in the common case of a target
+   * that has public or private visibility. The caller must compensate for this optimization by
+   * allowing visibility to the target's own package if the target was not created in a macro.
    */
   NestedSet<PackageGroupContents> getVisibility();
 
   /**
    * Returns whether this target was instantiated in one or more symbolic macros.
    *
-   * <p>(This information can be determined from the {@link Rule} object, but that's not necessarily
-   * available from a prerequisite object during analysis.)
+   * <p>This information can be determined from the {@link Rule} object, but that's not necessarily
+   * available from a prerequisite object at analysis time.
+   *
+   * <p>This bit is used by the {@link CommonPrerequisiteValidator#isSameLogicalPackage} hook, which
+   * powers the hack that targets in {@code //javatests/foo} are allowed to see targets in {@code
+   * //java/foo}. (This feature is only active within Google and disabled for OSS Bazel.) The
+   * semantics are that targets created in symbolic macros are never automatically visible to {@code
+   * //javatests/foo} packages, regardless of the package or declaration location.
+   *
+   * <p>This bit is also used to work around the optimization mentioned above for {@link
+   * #getVisibility}.
    */
   boolean isCreatedInSymbolicMacro();
 }

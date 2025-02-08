@@ -39,19 +39,14 @@ public abstract class MockCcSupport {
 
   /** Filter to remove implicit crosstool artifact and module map inputs of C/C++ rules. */
   public static final Predicate<Artifact> CC_ARTIFACT_FILTER =
-      new Predicate<Artifact>() {
-        @Override
-        public boolean apply(Artifact artifact) {
-          String basename = artifact.getExecPath().getBaseName();
-          String pathString = artifact.getExecPathString();
-          return !pathString.startsWith("third_party/crosstool/")
-              && !pathString.startsWith("tools/cpp/link_dynamic_library")
-              && !pathString.startsWith("tools/cpp/build_interface_so")
-              && !(pathString.contains("/internal/_middlemen") && basename.contains("crosstool"))
-              && !pathString.startsWith("_bin/build_interface_so")
-              && !pathString.endsWith(".cppmap")
-              && !pathString.startsWith("tools/cpp/grep-includes");
-        }
+      artifact -> {
+        String pathString = artifact.getExecPathString();
+        return !pathString.startsWith("third_party/crosstool/")
+            && !pathString.startsWith("tools/cpp/link_dynamic_library")
+            && !pathString.startsWith("tools/cpp/build_interface_so")
+            && !pathString.startsWith("_bin/build_interface_so")
+            && !pathString.endsWith(".cppmap")
+            && !pathString.startsWith("tools/cpp/grep-includes");
       };
 
   /** This feature will prevent bazel from patching the crosstool. */
@@ -246,7 +241,6 @@ public abstract class MockCcSupport {
         "        '" + TestConstants.CONSTRAINTS_PACKAGE_ROOT + "os:android',",
         "    ],",
         ")");
-    config.append("WORKSPACE", "register_toolchains('//toolchains:all')");
     config.append("MODULE.bazel", "register_toolchains('//toolchains:all')");
   }
 

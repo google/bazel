@@ -100,7 +100,7 @@ public class PrepareDepsOfPatternsFunction implements SkyFunction {
     if (repositoryMappingValue == null) {
       return null;
     }
-    RepositoryMapping mainRepoMapping = repositoryMappingValue.getRepositoryMapping();
+    RepositoryMapping mainRepoMapping = repositoryMappingValue.repositoryMapping();
     ImmutableList<SkyKey> skyKeys = getSkyKeys(skyKey, eventHandler, mainRepoMapping);
 
     SkyframeLookupResult tokensByKey = env.getValuesAndExceptions(skyKeys);

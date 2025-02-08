@@ -176,7 +176,7 @@ public final class CommandHelper {
           // Also send the runfiles if needed.
           RunfilesSupport runfilesSupport = tool.getRunfilesSupport();
           if (runfilesSupport != null) {
-            resolvedToolsBuilder.add(runfilesSupport.getRunfilesMiddleman());
+            resolvedToolsBuilder.add(runfilesSupport.getRunfilesTreeArtifact());
             // It's possible that getExecutable() returns an artifact that is not in
             // getFilesToBuild(). It is not nice, but it happens
             // (see test_executable_without_default_files)

@@ -17,9 +17,11 @@ import static com.google.common.truth.Truth.assertThat;
 import static org.junit.Assert.assertThrows;
 
 import com.google.devtools.build.lib.util.OS;
+import com.google.devtools.build.lib.util.StringEncoding;
 import com.google.devtools.build.lib.vfs.FileSystem.NotASymlinkException;
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.nio.file.Files;
 import java.util.Collection;
 import org.junit.Before;
 import org.junit.Test;
@@ -664,5 +666,19 @@ public abstract class SymlinkAwareFileSystemTest extends FileSystemTest {
 
     byte[] inputData = FileSystemUtils.readContent(child);
     assertThat(inputData).isEqualTo(outputData);
+  }
+
+  @Test
+  public void testUtf8Symlink() throws Exception {
+    assumeUtf8CompatibleEncoding();
+
+    String target = StringEncoding.unicodeToInternal("入力_A_🌱.target");
+    Path link = absolutize(StringEncoding.unicodeToInternal("入力_A_🌱.txt"));
+    createSymbolicLink(link, PathFragment.create(target));
+    assertThat(link.readSymbolicLink().toString()).isEqualTo(target);
+
+    java.nio.file.Path javaPath = getJavaPathOrSkipIfUnsupported(link);
+    assertThat(platformToUnicode(Files.readSymbolicLink(javaPath).toString()))
+        .isEqualTo("入力_A_🌱.target");
   }
 }

@@ -165,11 +165,9 @@ public final class CredentialHelper {
     return new SubprocessBuilder()
         .setArgv(ImmutableList.<String>builder().add(path.getPathString()).add(args).build())
         .setWorkingDirectory(
-            environment.getWorkspacePath() != null
-                ? environment.getWorkspacePath().getPathFile()
-                : null)
-        .setEnv(environment.getClientEnvironment())
-        .setTimeoutMillis(environment.getHelperExecutionTimeout().toMillis())
+            environment.workspacePath() != null ? environment.workspacePath().getPathFile() : null)
+        .setEnv(environment.clientEnvironment())
+        .setTimeoutMillis(environment.helperExecutionTimeout().toMillis())
         .start();
   }
 

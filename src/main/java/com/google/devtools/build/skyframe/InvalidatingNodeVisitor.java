@@ -480,11 +480,12 @@ public abstract class InvalidatingNodeVisitor<GraphT extends QueryableGraph> {
       ArrayList<SkyKey> keysToGet = new ArrayList<>(keys.size());
       for (SkyKey key : keys) {
         if (setToCheck.add(key)) {
-          Preconditions.checkState(
-              !isChanged || key.functionName().getHermeticity() != FunctionHermeticity.HERMETIC,
-              "Nodes with hermetic functions cannot be marked 'changed': "
-                  + "%s function:%s hermeticity:%s"
-                      .formatted(key, key.functionName(), key.functionName().getHermeticity()));
+          if (isChanged && key.functionName().getHermeticity() == FunctionHermeticity.HERMETIC) {
+            throw new IllegalStateException(
+                "Nodes with hermetic functions cannot be marked 'changed': "
+                    + "%s function:%s hermeticity:%s"
+                        .formatted(key, key.functionName(), key.functionName().getHermeticity()));
+          }
           keysToGet.add(key);
         }
       }

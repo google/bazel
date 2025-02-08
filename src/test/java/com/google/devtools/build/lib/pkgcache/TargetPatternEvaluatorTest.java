@@ -669,12 +669,6 @@ public class TargetPatternEvaluatorTest extends AbstractTargetPatternEvaluatorTe
   }
 
   @Test
-  public void testExternalPackage() throws Exception {
-    setBuildLanguageOptions("--enable_workspace");
-    parseList("external:all");
-  }
-
-  @Test
   public void testTopLevelPackage_relative_buildFile() throws Exception {
     Set<Label> result = parseList("BUILD");
     assertThat(result).containsExactly(Label.parseCanonical("//:BUILD"));

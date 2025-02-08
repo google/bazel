@@ -88,9 +88,9 @@ class JarStripperProcessor : public JarExtractorProcessor {
   JarStripperProcessor() {}
   virtual ~JarStripperProcessor() {}
 
-  virtual void Process(const char *filename, const u4 attr, const u1 *data,
-                       const size_t size);
-  virtual bool Accept(const char *filename, const u4 attr);
+  virtual void Process(const char *filename, u4 attr, const u1 *data,
+                       size_t size);
+  virtual bool Accept(const char *filename, u4 attr);
 
   virtual void WriteManifest(const char *target_label,
                              const char *injecting_rule_kind);
@@ -219,9 +219,9 @@ class JarCopierProcessor : public JarExtractorProcessor {
   JarCopierProcessor(const char *jar) : jar_(jar) {}
   virtual ~JarCopierProcessor() {}
 
-  virtual void Process(const char *filename, const u4 /*attr*/, const u1 *data,
-                       const size_t size);
-  virtual bool Accept(const char *filename, const u4 /*attr*/);
+  virtual void Process(const char *filename, u4 /*attr*/, const u1 *data,
+                       size_t size);
+  virtual bool Accept(const char *filename, u4 /*attr*/);
 
   virtual void WriteManifest(const char *target_label,
                              const char *injecting_rule_kind);
@@ -249,8 +249,8 @@ class JarCopierProcessor : public JarExtractorProcessor {
 
   const char *jar_;
 
-  u1 *AppendTargetLabelToManifest(u1 *buf, const u1 *manifest_data,
-                                  const size_t size, const char *target_label,
+  u1 *AppendTargetLabelToManifest(u1 *buf, const u1 *manifest_data, size_t size,
+                                  const char *target_label,
                                   const char *injecting_rule_kind);
 };
 

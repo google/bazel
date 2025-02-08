@@ -189,9 +189,7 @@ public class BuiltinsInjectionTest extends BuildViewTestCase {
 
   @Override
   protected void initializeMockClient() throws IOException {
-    // Don't let the AnalysisMock sneak in any WORKSPACE file content, which may depend on
-    // repository rules that our minimal rule class provider doesn't have.
-    analysisMock.setupMockClient(mockToolsConfig, ImmutableList.of());
+    analysisMock.setupMockClient(mockToolsConfig);
     // Provide a trivial platform definition.
     mockToolsConfig.create(
         "minimal_buildenv/platforms/BUILD", //
@@ -556,36 +554,6 @@ public class BuiltinsInjectionTest extends BuildViewTestCase {
     assertContainsEvent("In bzl: overridable_symbol :: original_value");
     assertContainsEvent("In bzl: overridable_rule :: <built-in rule overridable_rule>");
     assertContainsEvent("In BUILD: overridable_rule :: <built-in rule overridable_rule>");
-  }
-
-  @Test
-  public void workspaceLoadedBzlUsesInjectionButNotWORKSPACE() throws Exception {
-    writeExportsBzl(
-        "exported_toplevels = {'overridable_symbol': 'new_value'}",
-        "exported_rules = {'overridable_rule': 'new_rule'}",
-        "exported_to_java = {}");
-    writePkgBuild();
-    writePkgBzl();
-    scratch.appendFile(
-        "WORKSPACE", //
-        "load(':foo.bzl', 'dummy_symbol')",
-        "print('In WORKSPACE: overridable_rule :: %s' % overridable_rule)",
-        "print(dummy_symbol)");
-    scratch.file("BUILD");
-    scratch.file(
-        "foo.bzl",
-        """
-        dummy_symbol = None
-        print("In bzl: overridable_symbol :: %s" % overridable_symbol)
-        """);
-    setBuildLanguageOptionsWithBuiltinsStaging("--enable_workspace");
-
-    buildAndAssertSuccess();
-    // Builtins for WORKSPACE bzls are populated the same as for BUILD bzls.
-    assertContainsEvent("In bzl: overridable_symbol :: new_value");
-    // We don't assert that the rule isn't injected because the workspace native object doesn't
-    // contain our original mock rule. We can test this for WORKSPACE files at the top-level though.
-    assertContainsEvent("In WORKSPACE: overridable_rule :: <built-in function overridable_rule>");
   }
 
   @Test

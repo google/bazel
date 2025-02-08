@@ -18,7 +18,6 @@ import static com.google.common.collect.ImmutableMultiset.toImmutableMultiset;
 import static com.google.common.truth.Truth.assertThat;
 import static com.google.devtools.build.lib.packages.Attribute.attr;
 import static com.google.devtools.build.lib.packages.BuildType.LABEL_LIST;
-import static org.junit.Assert.assertThrows;
 
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableMultiset;
@@ -37,7 +36,6 @@ import com.google.devtools.build.lib.analysis.RuleDefinition;
 import com.google.devtools.build.lib.analysis.Runfiles;
 import com.google.devtools.build.lib.analysis.RunfilesProvider;
 import com.google.devtools.build.lib.analysis.RunfilesSupport;
-import com.google.devtools.build.lib.analysis.ViewCreationFailedException;
 import com.google.devtools.build.lib.analysis.actions.FileWriteAction;
 import com.google.devtools.build.lib.analysis.config.ExecutionTransitionFactory;
 import com.google.devtools.build.lib.analysis.util.AnalysisTestCase;
@@ -926,8 +924,7 @@ public final class TrimTestConfigurationTest extends AnalysisTestCase {
   }
 
   @Test
-  public void flagOnConfigSetting_FailsTryingToInspectTestOptions() throws Exception {
-    reporter.removeHandler(failFastHandler);
+  public void flagOnConfigSetting_skipsTryingToInspectTestOptions() throws Exception {
     scratch.file(
         "test/BUILD",
         """
@@ -960,8 +957,8 @@ public final class TrimTestConfigurationTest extends AnalysisTestCase {
         )
         """);
     useConfiguration("--trim_test_configuration", "--noexpand_test_suites", "--test_arg=TypeA");
-    assertThrows(ViewCreationFailedException.class, () -> update("//test:starlark_dep"));
-    assertContainsEvent("unknown option: 'test_arg'");
+    update("//test:starlark_dep");
+    assertThat(getAnalysisResult().getTargetsToBuild()).hasSize(1);
 
     update("//test:test_mode", "//test:starlark_test");
     // When reached through only test targets (top level, under a test) analysis should succeed

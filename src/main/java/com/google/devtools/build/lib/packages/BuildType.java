@@ -70,6 +70,12 @@ public final class BuildType {
       LabelKeyedDictType.create(Type.STRING);
   /** The type of a list of {@linkplain #LABEL labels}. */
   @SerializationConstant public static final ListType<Label> LABEL_LIST = ListType.create(LABEL);
+
+  /** The type of a dictionary of {@linkplain #LABEL_LIST label lists}. */
+  @SerializationConstant
+  public static final DictType<String, List<Label>> LABEL_LIST_DICT =
+      DictType.create(Type.STRING, LABEL_LIST);
+
   /**
    * This is a label type that does not cause dependencies. It is needed because certain rules want
    * to verify the type of a target referenced by one of their attributes, but if there was a

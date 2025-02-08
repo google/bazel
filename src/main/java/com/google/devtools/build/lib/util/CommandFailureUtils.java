@@ -49,7 +49,8 @@ public class CommandFailureUtils {
       @Nullable List<String> environmentVariablesToClear,
       @Nullable String cwd,
       @Nullable String configurationChecksum,
-      @Nullable Label executionPlatformLabel) {
+      @Nullable Label executionPlatformLabel,
+      @Nullable String spawnRunner) {
 
     Preconditions.checkNotNull(form);
     StringBuilder message = new StringBuilder();
@@ -134,6 +135,11 @@ public class CommandFailureUtils {
         message.append("\n");
         message.append("# Execution platform: ").append(executionPlatformLabel);
       }
+
+      if (spawnRunner != null) {
+        message.append("\n");
+        message.append("# Runner: ").append(spawnRunner);
+      }
     }
 
     return message.toString();
@@ -152,7 +158,8 @@ public class CommandFailureUtils {
       @Nullable String cwd,
       @Nullable String configurationChecksum,
       @Nullable String targetDescription,
-      @Nullable Label executionPlatformLabel) {
+      @Nullable Label executionPlatformLabel,
+      @Nullable String spawnRunner) {
 
     String commandName = commandLineElements.iterator().next();
     // Extract the part of the command name after the last "/", if any.
@@ -181,7 +188,8 @@ public class CommandFailureUtils {
             null,
             cwd,
             configurationChecksum,
-            executionPlatformLabel));
+            executionPlatformLabel,
+            spawnRunner));
     return shortCommandName + " failed: " + output;
   }
 
@@ -195,6 +203,7 @@ public class CommandFailureUtils {
         cwd,
         command.getConfigurationChecksum(),
         command.getTargetDescription(),
-        command.getExecutionPlatformLabel());
+        command.getExecutionPlatformLabel(),
+        /* spawnRunner= */ null);
   }
 }

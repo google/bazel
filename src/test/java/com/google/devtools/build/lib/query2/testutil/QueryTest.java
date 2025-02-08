@@ -389,9 +389,9 @@ public abstract class QueryTest extends AbstractQueryTest<Target> {
   }
 
   @Test
-  public void testIgnoredPackagePrefixes() throws Exception {
+  public void testIgnoredSubdirectories() throws Exception {
     useReducedSetOfRules();
-    writeFile(helper.getIgnoredPackagePrefixesFile().getPathString(), "a/b", "a/c");
+    writeFile(helper.getIgnoredSubdirectoriesFile().getPathString(), "a/b", "a/c");
     writeFile("a/BUILD", "filegroup(name = 'a')");
     writeFile("b/BUILD", "filegroup(name = 'b')");
     writeFile("a/b/BUILD", "filegroup(name = 'a_b')");

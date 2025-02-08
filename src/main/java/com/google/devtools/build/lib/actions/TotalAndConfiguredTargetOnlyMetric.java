@@ -14,21 +14,15 @@
 
 package com.google.devtools.build.lib.actions;
 
-import com.google.auto.value.AutoValue;
-
 /**
  * Class representing a metric for which we have both an overall number (including aspects) and
  * specific-to-configured-target number. Usually aspects and configured targets should be considered
  * together, but some historical metrics only counted configured targets, so we provide this
  * granularity for consumers who care.
  */
-@AutoValue
-public abstract class TotalAndConfiguredTargetOnlyMetric {
-  public abstract int total();
-
-  public abstract int configuredTargetsOnly();
+public record TotalAndConfiguredTargetOnlyMetric(int total, int configuredTargetsOnly) {
 
   public static TotalAndConfiguredTargetOnlyMetric create(int total, int configuredTargetsOnly) {
-    return new AutoValue_TotalAndConfiguredTargetOnlyMetric(total, configuredTargetsOnly);
+    return new TotalAndConfiguredTargetOnlyMetric(total, configuredTargetsOnly);
   }
 }

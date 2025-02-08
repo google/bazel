@@ -101,11 +101,7 @@ public final class PyInfo {
   /** The PyInfo provider type object for the rules_python provider. */
   public static class RulesPythonPyInfoProvider extends BaseProvider {
     private RulesPythonPyInfoProvider() {
-      super(
-          keyForBuild(
-              Label.parseCanonicalUnchecked(
-                  TestConstants.RULES_PYTHON_PACKAGE_ROOT
-                      + "/python/private/common:providers.bzl")));
+      super(keyForBuild(Label.parseCanonicalUnchecked(TestConstants.PYINFO_BZL)));
     }
   }
 }

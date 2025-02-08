@@ -179,8 +179,7 @@ public class Proto implements StarlarkValue {
         indent--;
         emitLine("}");
 
-      } else if (v instanceof String) {
-        String s = (String) v;
+      } else if (v instanceof String s) {
         emitLine(
             name, ": \"", s.replace("\\", "\\\\").replace("\"", "\\\"").replace("\n", "\\n"), "\"");
 

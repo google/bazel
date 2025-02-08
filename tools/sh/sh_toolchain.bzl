@@ -11,16 +11,8 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""Define a toolchain rule for the shell."""
+"""Deprecated forwarders to rules_shell."""
 
-def _sh_toolchain_impl(ctx):
-    """sh_toolchain rule implementation."""
-    return [platform_common.ToolchainInfo(path = ctx.attr.path)]
+load("@rules_shell//shell/toolchains:sh_toolchain.bzl", _sh_toolchain = "sh_toolchain")
 
-sh_toolchain = rule(
-    attrs = {
-        # Absolute path to the shell interpreter.
-        "path": attr.string(),
-    },
-    implementation = _sh_toolchain_impl,
-)
+sh_toolchain = _sh_toolchain

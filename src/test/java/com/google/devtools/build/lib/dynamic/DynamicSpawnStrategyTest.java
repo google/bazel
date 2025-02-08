@@ -16,10 +16,10 @@ package com.google.devtools.build.lib.dynamic;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
 import static com.google.common.truth.Truth.assertThat;
+import static java.util.Objects.requireNonNull;
 import static junit.framework.TestCase.fail;
 import static org.junit.Assert.assertThrows;
 
-import com.google.auto.value.AutoValue;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
@@ -366,8 +366,7 @@ public class DynamicSpawnStrategyTest {
         dynamicStrategies.stream().filter(c -> c instanceof DynamicSpawnStrategy).findAny();
     checkState(optionalContext.isPresent(), "Expected module to register a dynamic strategy");
 
-    return new AutoValue_DynamicSpawnStrategyTest_StrategyAndContext(
-        optionalContext.get(), actionExecutionContext);
+    return new StrategyAndContext(optionalContext.get(), actionExecutionContext);
   }
 
   private static class NullActionWithMnemonic extends NullAction {
@@ -1099,11 +1098,11 @@ public class DynamicSpawnStrategyTest {
         .build();
   }
 
-  @AutoValue
-  abstract static class StrategyAndContext {
-    abstract SpawnStrategy strategy();
-
-    abstract ActionExecutionContext context();
+  record StrategyAndContext(SpawnStrategy strategy, ActionExecutionContext context) {
+    StrategyAndContext {
+      requireNonNull(strategy, "strategy");
+      requireNonNull(context, "context");
+    }
 
     void exec(Spawn spawn) throws ExecException, InterruptedException {
       strategy().exec(spawn, context());

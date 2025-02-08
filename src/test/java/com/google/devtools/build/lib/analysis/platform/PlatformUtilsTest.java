@@ -86,7 +86,7 @@ public final class PlatformUtilsTest {
   public void testParsePlatformSortsProperties_execProperties() throws Exception {
     // execProperties are chosen even if there are remoteOptions
     ImmutableMap<String, String> map = ImmutableMap.of("aa", "99", "zz", "66", "dd", "11");
-    Spawn s = new SpawnBuilder("dummy").withExecProperties(map).build();
+    Spawn s = new SpawnBuilder("dummy").withCombinedExecProperties(map).build();
 
     Platform expected =
         Platform.newBuilder()
@@ -100,7 +100,8 @@ public final class PlatformUtilsTest {
 
   @Test
   public void getPlatformProto_mergeTargetExecPropertiesWithPlatform() throws Exception {
-    Spawn spawn = new SpawnBuilder("dummy").withExecProperties(ImmutableMap.of("c", "3")).build();
+    Spawn spawn =
+        new SpawnBuilder("dummy").withCombinedExecProperties(ImmutableMap.of("c", "3")).build();
     Platform expected =
         Platform.newBuilder()
             .addProperties(Platform.Property.newBuilder().setName("a").setValue("1"))
@@ -113,7 +114,8 @@ public final class PlatformUtilsTest {
   @Test
   public void getPlatformProto_targetExecPropertiesConflictWithPlatform_override()
       throws Exception {
-    Spawn spawn = new SpawnBuilder("dummy").withExecProperties(ImmutableMap.of("b", "3")).build();
+    Spawn spawn =
+        new SpawnBuilder("dummy").withCombinedExecProperties(ImmutableMap.of("b", "3")).build();
     Platform expected =
         Platform.newBuilder()
             .addProperties(Platform.Property.newBuilder().setName("a").setValue("1"))

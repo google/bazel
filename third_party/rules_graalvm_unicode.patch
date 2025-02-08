@@ -1,0 +1,51 @@
+From 5c67c84a014a1b0c165b8f1ff47243973fb58b6e Mon Sep 17 00:00:00 2001
+From: Fabian Meumertzheim <fabian@meumertzhe.im>
+Date: Wed, 4 Dec 2024 21:05:49 +0100
+Subject: [PATCH] fix: Force `sun.jnu.encoding` to be UTF-8 in images (#514)
+
+Images pick up `sun.jnu.encoding` from the host build environment, which thus needs to be UTF-8 to be able to access paths with non-ASCII characters in them on Linux. Since Bazel does not inherit `LC_CTYPE` from the host, the JVM would otherwise default to an ASCII locale.
+
+Signed-off-by: Fabian Meumertzheim <fabian@meumertzhe.im>
+---
+ internal/native_image/rules.bzl | 15 ++++++++++++++-
+ 1 file changed, 14 insertions(+), 1 deletion(-)
+
+diff --git a/internal/native_image/rules.bzl b/internal/native_image/rules.bzl
+index f21566e..1d07278 100644
+--- a/internal/native_image/rules.bzl
++++ b/internal/native_image/rules.bzl
+@@ -64,6 +64,9 @@ def _graal_binary_implementation(ctx):
+             or install a GraalVM `native-image` toolchain.
+         """)
+ 
++    is_linux = ctx.target_platform_has_constraint(
++        ctx.attr._linux_constraint[platform_common.ConstraintValueInfo],
++    )
+     is_macos = ctx.target_platform_has_constraint(
+         ctx.attr._macos_constraint[platform_common.ConstraintValueInfo],
+     )
+@@ -100,6 +103,15 @@ def _graal_binary_implementation(ctx):
+         bin_postfix = bin_postfix,
+     )
+ 
++    env = native_toolchain.env
++    # The native image will use the same native encoding (as determined by "sun.jnu.encoding")
++    # as the build environment, so we need to force a UTF-8 locale. On other platforms, the
++    # encoding is always UTF-8 (on macOS since JEP 400) or determined by the active code page
++    # on Windows.
++    # TODO: Match on the exec platform instead once Graal supports cross-compilation.
++    if is_linux:
++        env["LC_CTYPE"] = "C.UTF-8"
++
+     # assemble final inputs
+     inputs = depset(
+         direct_inputs,
+@@ -110,7 +122,7 @@ def _graal_binary_implementation(ctx):
+         "executable": graal,
+         "inputs": inputs,
+         "mnemonic": "NativeImage",
+-        "env": native_toolchain.env,
++        "env": env,
+         "execution_requirements": {k: "" for k in native_toolchain.execution_requirements},
+         "progress_message": "Native Image __target__ (__mode__) %{label}"
+             .replace("__mode__", _build_action_message(ctx))

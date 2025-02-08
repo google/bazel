@@ -16,8 +16,8 @@ package com.google.devtools.build.lib.runtime;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.collect.ImmutableList.toImmutableList;
+import static java.util.Objects.requireNonNull;
 
-import com.google.auto.value.AutoValue;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableList;
 import com.google.common.flogger.GoogleLogger;
@@ -49,17 +49,16 @@ final class GcThrashingDetector {
 
   private static final GoogleLogger logger = GoogleLogger.forEnclosingClass();
 
-  @AutoValue
-  abstract static class Limit {
-    abstract Duration period();
-
-    abstract int count();
-
-    static Limit of(Duration period, int count) {
+  record Limit(Duration period, int count) {
+    Limit {
+      requireNonNull(period, "period");
       checkArgument(
           !period.isNegative() && !period.isZero(), "period must be positive: %s", period);
       checkArgument(count > 0, "count must be positive: %s", count);
-      return new AutoValue_GcThrashingDetector_Limit(period, count);
+    }
+
+    static Limit of(Duration period, int count) {
+      return new Limit(period, count);
     }
   }
 

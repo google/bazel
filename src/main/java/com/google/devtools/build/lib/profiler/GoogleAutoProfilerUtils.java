@@ -29,11 +29,7 @@ public class GoogleAutoProfilerUtils {
 
   private GoogleAutoProfilerUtils() {}
 
-  /**
-   * Use {@link #logged(String, Duration)} instead. This should only be called when caller has a
-   * specially configured {@code logger} and cannot use this class's one.
-   */
-  public static AutoProfiler logged(
+  private static AutoProfiler logged(
       String description, GoogleLogger logger, Duration minTimeForLogging) {
     return AutoProfiler.create(makeReceiver(description, logger, minTimeForLogging));
   }

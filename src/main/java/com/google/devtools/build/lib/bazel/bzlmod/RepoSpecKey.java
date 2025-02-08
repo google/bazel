@@ -15,7 +15,8 @@
 
 package com.google.devtools.build.lib.bazel.bzlmod;
 
-import com.google.auto.value.AutoValue;
+import static java.util.Objects.requireNonNull;
+
 import com.google.common.base.Preconditions;
 import com.google.devtools.build.lib.skyframe.SkyFunctions;
 import com.google.devtools.build.lib.skyframe.serialization.autocodec.AutoCodec;
@@ -24,8 +25,12 @@ import com.google.devtools.build.skyframe.SkyKey;
 
 /** The key for {@link RepoSpecFunction}. */
 @AutoCodec
-@AutoValue
-abstract class RepoSpecKey implements SkyKey {
+record RepoSpecKey(ModuleKey moduleKey, String registryUrl) implements SkyKey {
+  RepoSpecKey {
+    requireNonNull(moduleKey, "moduleKey");
+    requireNonNull(registryUrl, "registryUrl");
+  }
+
   private static final SkyKeyInterner<RepoSpecKey> interner = SkyKey.newInterner();
 
   static RepoSpecKey of(InterimModule module) {
@@ -34,13 +39,9 @@ abstract class RepoSpecKey implements SkyKey {
     return create(module.getKey(), module.getRegistry().getUrl());
   }
 
-  abstract ModuleKey getModuleKey();
-
-  abstract String getRegistryUrl();
-
   @AutoCodec.Instantiator
   static RepoSpecKey create(ModuleKey moduleKey, String registryUrl) {
-    return interner.intern(new AutoValue_RepoSpecKey(moduleKey, registryUrl));
+    return interner.intern(new RepoSpecKey(moduleKey, registryUrl));
   }
 
   @Override

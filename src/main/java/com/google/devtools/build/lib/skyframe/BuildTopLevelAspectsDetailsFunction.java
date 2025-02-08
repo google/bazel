@@ -171,17 +171,16 @@ final class BuildTopLevelAspectsDetailsFunction implements SkyFunction {
 
   private static AspectDetails buildAspectDetails(
       AspectCollection.AspectDeps aspectDeps, Map<AspectDescriptor, AspectDetails> result) {
-    if (result.containsKey(aspectDeps.getAspect())) {
-      return result.get(aspectDeps.getAspect());
+    if (result.containsKey(aspectDeps.aspect())) {
+      return result.get(aspectDeps.aspect());
     }
 
     ImmutableList.Builder<AspectDetails> dependentAspects = ImmutableList.builder();
-    for (AspectCollection.AspectDeps path : aspectDeps.getUsedAspects()) {
+    for (AspectCollection.AspectDeps path : aspectDeps.usedAspects()) {
       dependentAspects.add(buildAspectDetails(path, result));
     }
 
-    AspectDetails aspectDetails =
-        new AspectDetails(dependentAspects.build(), aspectDeps.getAspect());
+    AspectDetails aspectDetails = new AspectDetails(dependentAspects.build(), aspectDeps.aspect());
     result.put(aspectDetails.getAspectDescriptor(), aspectDetails);
     return aspectDetails;
   }

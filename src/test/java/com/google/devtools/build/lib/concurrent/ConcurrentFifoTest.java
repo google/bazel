@@ -25,6 +25,7 @@ import com.google.common.collect.Sets;
 import com.google.common.flogger.GoogleLogger;
 import com.google.devtools.build.lib.concurrent.ConcurrentFifo.ElementWithSkippedAppends;
 import com.google.devtools.build.lib.unsafe.UnsafeProvider;
+
 import com.google.testing.junit.testparameterinjector.TestParameter;
 import com.google.testing.junit.testparameterinjector.TestParameterInjector;
 import java.util.concurrent.CountDownLatch;
@@ -61,11 +62,13 @@ public final class ConcurrentFifoTest {
     queue = new ConcurrentFifo<>(Runnable.class, sizeAddress, appendIndexAddress, takeIndexAddress);
   }
 
+  // TODO: b/386384684 - remove Unsafe usage
   @After
   public void freeMemory() {
     UNSAFE.freeMemory(baseAddress);
   }
 
+  // TODO: b/386384684 - remove Unsafe usage
   @Test
   public void queue_initializesAddresss() {
     assertThat(UNSAFE.getInt(sizeAddress)).isEqualTo(0);
@@ -98,6 +101,7 @@ public final class ConcurrentFifoTest {
     }
   }
 
+  // TODO: b/386384684 - remove Unsafe usage
   @Test
   public void queue_handlesConcurrentTasks(@TestParameter StartingAddressParameter startingAddress)
       throws InterruptedException {
@@ -190,6 +194,7 @@ public final class ConcurrentFifoTest {
     }
   }
 
+  // TODO: b/386384684 - remove Unsafe usage
   @Test
   public void slowAppends_areSkippedByTake_thenUnmarkedByAppends() {
     // This test covers the state machine transitions that handle slow appenders observed by takers.
@@ -243,11 +248,13 @@ public final class ConcurrentFifoTest {
 
   // Fakes a slow append by incrementing the size and append indices. These are the only visible
   // side effects of slow appends.
+  // TODO: b/386384684 - remove Unsafe usage
   private void fakeSlowAppend() {
     UNSAFE.getAndAddInt(null, sizeAddress, 1);
     UNSAFE.getAndAddInt(null, appendIndexAddress, 1);
   }
 
+  // TODO: b/386384684 - remove Unsafe usage
   @Test
   public void slowTakes_areSkippedByAppend_thenUnmarkedByTakes() {
     // This test covers the state machine transitions that handle slow takers observed by

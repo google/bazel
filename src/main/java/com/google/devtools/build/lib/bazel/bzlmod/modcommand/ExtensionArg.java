@@ -13,7 +13,8 @@
 // limitations under the License.
 package com.google.devtools.build.lib.bazel.bzlmod.modcommand;
 
-import com.google.auto.value.AutoValue;
+import static java.util.Objects.requireNonNull;
+
 import com.google.common.collect.ImmutableBiMap;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
@@ -40,18 +41,17 @@ import java.util.Optional;
  * {@link ModuleArg}. Valid examples include {@code @rules_java//java:extensions.bzl%toolchains},
  * {@code rules_java@6.1.1//java:extensions.bzl%toolchains}, etc.
  */
-@AutoValue
-public abstract class ExtensionArg {
-  public static ExtensionArg create(
-      ModuleArg moduleArg, String repoRelativeBzlLabel, String extensionName) {
-    return new AutoValue_ExtensionArg(moduleArg, repoRelativeBzlLabel, extensionName);
+public record ExtensionArg(ModuleArg moduleArg, String repoRelativeBzlLabel, String extensionName) {
+  public ExtensionArg {
+    requireNonNull(moduleArg, "moduleArg");
+    requireNonNull(repoRelativeBzlLabel, "repoRelativeBzlLabel");
+    requireNonNull(extensionName, "extensionName");
   }
 
-  public abstract ModuleArg moduleArg();
-
-  public abstract String repoRelativeBzlLabel();
-
-  public abstract String extensionName();
+  public static ExtensionArg create(
+      ModuleArg moduleArg, String repoRelativeBzlLabel, String extensionName) {
+    return new ExtensionArg(moduleArg, repoRelativeBzlLabel, extensionName);
+  }
 
   /** Resolves this {@link ExtensionArg} to a {@link ModuleExtensionId}. */
   public final ModuleExtensionId resolveToExtensionId(

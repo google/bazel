@@ -13,20 +13,21 @@
 // limitations under the License.
 package com.google.devtools.build.lib.analysis.config;
 
-import com.google.auto.value.AutoValue;
+import static java.util.Objects.requireNonNull;
+
 import com.google.devtools.build.lib.events.ExtendedEventHandler.Postable;
 
 /** Posted when there is a configuration transition. */
-@AutoValue
-public abstract class ConfigurationTransitionEvent
+public record ConfigurationTransitionEvent(String parentChecksum, String childChecksum)
     implements Comparable<ConfigurationTransitionEvent>, Postable {
-  public static ConfigurationTransitionEvent create(String parentChecksum, String childChecksum) {
-    return new AutoValue_ConfigurationTransitionEvent(parentChecksum, childChecksum);
+  public ConfigurationTransitionEvent {
+    requireNonNull(parentChecksum, "parentChecksum");
+    requireNonNull(childChecksum, "childChecksum");
   }
 
-  public abstract String parentChecksum();
-
-  public abstract String childChecksum();
+  public static ConfigurationTransitionEvent create(String parentChecksum, String childChecksum) {
+    return new ConfigurationTransitionEvent(parentChecksum, childChecksum);
+  }
 
   @Override
   public final int compareTo(ConfigurationTransitionEvent that) {

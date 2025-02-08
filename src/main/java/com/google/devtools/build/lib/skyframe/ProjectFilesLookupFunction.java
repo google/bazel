@@ -119,7 +119,8 @@ public class ProjectFilesLookupFunction implements SkyFunction {
     }
   }
 
-  private static final class ProjectFilesLookupException extends SkyFunctionException {
+  /** Exception thrown by {@link ProjectFilesLookupFunction}. */
+  public static final class ProjectFilesLookupException extends SkyFunctionException {
     ProjectFilesLookupException(IOException e) {
       super(e, Transience.PERSISTENT);
     }

@@ -381,7 +381,7 @@ final class ExecutionServer extends ExecutionImplBase {
               ? Durations.toMillis(action.getTimeout())
               : TimeUnit.MINUTES.toMillis(15);
       boolean wasTimeout =
-          (cmdResult != null && cmdResult.getTerminationStatus().timedOut())
+          (cmdResult != null && cmdResult.terminationStatus().timedOut())
               || wasTimeout(timeoutMillis, wallTime.toMillis());
       final int exitCode;
       Status errStatus = null;
@@ -401,7 +401,7 @@ final class ExecutionServer extends ExecutionImplBase {
       } else if (cmdResult == null) {
         exitCode = LOCAL_EXEC_ERROR;
       } else {
-        exitCode = cmdResult.getTerminationStatus().getRawExitCode();
+        exitCode = cmdResult.terminationStatus().getRawExitCode();
       }
 
       ActionResult result = null;

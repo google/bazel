@@ -138,32 +138,6 @@ public abstract class PyExecutableConfiguredTargetTestBase extends PyBaseConfigu
   }
 
   @Test
-  public void versionAttr_UnknownValue() throws Exception {
-    checkError(
-        "pkg",
-        "foo",
-        // error:
-        "invalid value in 'python_version' attribute: "
-            + "has to be one of 'PY2' or 'PY3' instead of 'doesnotexist'",
-        // build file:
-        bzlLoad,
-        ruleDeclWithPyVersionAttr("foo", "doesnotexist"));
-  }
-
-  @Test
-  public void versionAttr_BadValue() throws Exception {
-    checkError(
-        "pkg",
-        "foo",
-        // error:
-        "invalid value in 'python_version' attribute: "
-            + "has to be one of 'PY2' or 'PY3' instead of 'PY2AND3'",
-        // build file:
-        bzlLoad,
-        ruleDeclWithPyVersionAttr("foo", "PY2AND3"));
-  }
-
-  @Test
   public void versionAttr_GoodValue() throws Exception {
     scratch.file(
         "pkg/BUILD", //

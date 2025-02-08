@@ -24,6 +24,7 @@ import com.google.devtools.build.lib.analysis.config.BuildOptions;
 import com.google.devtools.build.lib.analysis.config.Fragment;
 import com.google.devtools.build.lib.analysis.config.FragmentOptions;
 import com.google.devtools.build.lib.analysis.config.RequiresOptions;
+import com.google.devtools.build.lib.skyframe.BuildOptionsScopeFunction.BuildOptionsScopeFunctionException;
 import com.google.devtools.build.lib.skyframe.config.BuildConfigurationKey;
 import com.google.devtools.build.lib.skyframe.config.PlatformMappingException;
 import com.google.devtools.build.lib.skyframe.toolchains.PlatformLookupUtil.InvalidPlatformException;
@@ -290,6 +291,7 @@ public class BuildConfigurationKeyMapProducerTest extends ProducerTestCase {
         """);
     invalidatePackages(false);
 
+    useConfiguration("--platforms=//platforms:sample");
     BuildOptions baseOptions = createBuildOptions("--platforms=//platforms:sample");
     assertThrows(OptionsParsingException.class, () -> fetch(baseOptions));
   }
@@ -327,7 +329,8 @@ public class BuildConfigurationKeyMapProducerTest extends ProducerTestCase {
       throws InterruptedException,
           OptionsParsingException,
           PlatformMappingException,
-          InvalidPlatformException {
+          InvalidPlatformException,
+          BuildOptionsScopeFunctionException {
     ImmutableMap<String, BuildConfigurationKey> result = fetch(ImmutableMap.of("only", options));
     return result.get("only");
   }
@@ -336,10 +339,11 @@ public class BuildConfigurationKeyMapProducerTest extends ProducerTestCase {
       throws InterruptedException,
           OptionsParsingException,
           PlatformMappingException,
-          InvalidPlatformException {
+          InvalidPlatformException,
+          BuildOptionsScopeFunctionException {
     Sink sink = new Sink();
     BuildConfigurationKeyMapProducer producer =
-        new BuildConfigurationKeyMapProducer(sink, StateMachine.DONE, options);
+        new BuildConfigurationKeyMapProducer(sink, StateMachine.DONE, options, null);
     // Ignore the return value: sink will either return a result or re-throw whatever exception it
     // received from the producer.
     var unused = executeProducer(producer);
@@ -351,6 +355,7 @@ public class BuildConfigurationKeyMapProducerTest extends ProducerTestCase {
     @Nullable private OptionsParsingException optionsParsingException;
     @Nullable private PlatformMappingException platformMappingException;
     @Nullable private InvalidPlatformException invalidPlatformException;
+    @Nullable private BuildOptionsScopeFunctionException buildOptionsScopeFunctionException;
     @Nullable private ImmutableMap<String, BuildConfigurationKey> keys;
 
     @Override
@@ -373,8 +378,16 @@ public class BuildConfigurationKeyMapProducerTest extends ProducerTestCase {
       this.keys = keys;
     }
 
+    @Override
+    public void acceptBuildOptionsScopeFunctionError(BuildOptionsScopeFunctionException e) {
+      this.buildOptionsScopeFunctionException = e;
+    }
+
     ImmutableMap<String, BuildConfigurationKey> options()
-        throws OptionsParsingException, PlatformMappingException, InvalidPlatformException {
+        throws OptionsParsingException,
+            PlatformMappingException,
+            InvalidPlatformException,
+            BuildOptionsScopeFunctionException {
       if (this.optionsParsingException != null) {
         throw this.optionsParsingException;
       }
@@ -383,6 +396,9 @@ public class BuildConfigurationKeyMapProducerTest extends ProducerTestCase {
       }
       if (this.invalidPlatformException != null) {
         throw this.invalidPlatformException;
+      }
+      if (this.buildOptionsScopeFunctionException != null) {
+        throw this.buildOptionsScopeFunctionException;
       }
       if (this.keys != null) {
         return this.keys;

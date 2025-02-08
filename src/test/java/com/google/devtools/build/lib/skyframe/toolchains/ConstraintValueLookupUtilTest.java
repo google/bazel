@@ -16,8 +16,8 @@ package com.google.devtools.build.lib.skyframe.toolchains;
 
 import static com.google.common.truth.Truth.assertThat;
 import static com.google.devtools.build.skyframe.EvaluationResultSubjectFactory.assertThatEvaluationResult;
+import static java.util.Objects.requireNonNull;
 
-import com.google.auto.value.AutoValue;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.devtools.build.lib.analysis.BlazeDirectories;
@@ -27,6 +27,7 @@ import com.google.devtools.build.lib.cmdline.Label;
 import com.google.devtools.build.lib.packages.NoSuchPackageException;
 import com.google.devtools.build.lib.rules.platform.ToolchainTestCase;
 import com.google.devtools.build.lib.skyframe.ConfiguredTargetKey;
+import com.google.devtools.build.lib.skyframe.serialization.autocodec.AutoCodec;
 import com.google.devtools.build.lib.skyframe.toolchains.ConstraintValueLookupUtil.InvalidConstraintValueException;
 import com.google.devtools.build.lib.skyframe.util.SkyframeExecutorTestUtils;
 import com.google.devtools.build.skyframe.EvaluationResult;
@@ -150,19 +151,21 @@ public class ConstraintValueLookupUtilTest extends ToolchainTestCase {
   private static final SkyFunctionName GET_CONSTRAINT_VALUE_INFO_FUNCTION =
       SkyFunctionName.createHermetic("GET_CONSTRAINT_VALUE_INFO_FUNCTION");
 
-  @AutoValue
-  abstract static class GetConstraintValueInfoKey implements SkyKey {
+  @AutoCodec
+  record GetConstraintValueInfoKey(Iterable<ConfiguredTargetKey> constraintValueKeys)
+      implements SkyKey {
+    GetConstraintValueInfoKey {
+      requireNonNull(constraintValueKeys, "constraintValueKeys");
+    }
+
     @Override
     public SkyFunctionName functionName() {
       return GET_CONSTRAINT_VALUE_INFO_FUNCTION;
     }
 
-    abstract Iterable<ConfiguredTargetKey> constraintValueKeys();
-
     public static GetConstraintValueInfoKey create(
         Iterable<ConfiguredTargetKey> constraintValueKeys) {
-      return new AutoValue_ConstraintValueLookupUtilTest_GetConstraintValueInfoKey(
-          constraintValueKeys);
+      return new GetConstraintValueInfoKey(constraintValueKeys);
     }
   }
 
@@ -178,13 +181,15 @@ public class ConstraintValueLookupUtilTest extends ToolchainTestCase {
     }
   }
 
-  @AutoValue
-  abstract static class GetConstraintValueInfoValue implements SkyValue {
-    abstract List<ConstraintValueInfo> constraintValues();
+  @AutoCodec
+  record GetConstraintValueInfoValue(List<ConstraintValueInfo> constraintValues)
+      implements SkyValue {
+    GetConstraintValueInfoValue {
+      requireNonNull(constraintValues, "constraintValues");
+    }
 
     static GetConstraintValueInfoValue create(List<ConstraintValueInfo> constraintValues) {
-      return new AutoValue_ConstraintValueLookupUtilTest_GetConstraintValueInfoValue(
-          constraintValues);
+      return new GetConstraintValueInfoValue(constraintValues);
     }
   }
 

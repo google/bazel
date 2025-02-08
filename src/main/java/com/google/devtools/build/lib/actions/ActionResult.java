@@ -14,28 +14,33 @@
 
 package com.google.devtools.build.lib.actions;
 
+import static java.util.Objects.requireNonNull;
 
-import com.google.auto.value.AutoValue;
+import com.google.auto.value.AutoBuilder;
 import com.google.common.collect.ImmutableList;
 import java.util.List;
 import java.util.function.Function;
 import javax.annotation.Nullable;
 
-/** Holds the result(s) of an action's execution. */
-@SuppressWarnings("GoodTime") // Use ints instead of Durations to improve build time (cl/505728570)
-@AutoValue
-public abstract class ActionResult {
+/**
+ * Holds the result(s) of an action's execution.
+ *
+ * @param spawnResults Returns the SpawnResults for the action.
+ */
+@SuppressWarnings("GoodTime")
+public record ActionResult(ImmutableList<SpawnResult> spawnResults) {
+  public ActionResult {
+    requireNonNull(spawnResults, "spawnResults");
+  }
 
   /** An empty ActionResult used by Actions that don't have any metadata to return. */
   public static final ActionResult EMPTY = ActionResult.create(ImmutableList.of());
 
-  /** Returns the SpawnResults for the action. */
-  public abstract ImmutableList<SpawnResult> spawnResults();
-
   /** Returns a builder that can be used to construct a {@link ActionResult} object. */
   public static Builder builder() {
-    return new AutoValue_ActionResult.Builder();
+    return new AutoBuilder_ActionResult_Builder();
   }
+
   /**
    * Returns the cumulative total of long values taken from a series of {@link SpawnResult}s.
    *
@@ -286,7 +291,7 @@ public abstract class ActionResult {
   }
 
   /** Builder for a {@link ActionResult} instance, which is immutable once built. */
-  @AutoValue.Builder
+  @AutoBuilder
   public abstract static class Builder {
 
     /** Sets the SpawnResults for the action. */

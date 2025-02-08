@@ -31,12 +31,11 @@ import com.google.devtools.build.lib.actions.ActionInput;
 import com.google.devtools.build.lib.actions.ActionInputHelper;
 import com.google.devtools.build.lib.actions.ActionInputMap;
 import com.google.devtools.build.lib.actions.ActionInputPrefetcher.Priority;
+import com.google.devtools.build.lib.actions.ActionInputPrefetcher.Reason;
 import com.google.devtools.build.lib.actions.Artifact;
 import com.google.devtools.build.lib.actions.Artifact.SpecialArtifact;
 import com.google.devtools.build.lib.actions.Artifact.TreeFileArtifact;
 import com.google.devtools.build.lib.actions.FileArtifactValue;
-import com.google.devtools.build.lib.actions.FileArtifactValue.RemoteFileArtifactValue;
-import com.google.devtools.build.lib.actions.FileArtifactValue.UnresolvedSymlinkArtifactValue;
 import com.google.devtools.build.lib.actions.FileStatusWithMetadata;
 import com.google.devtools.build.lib.actions.InputMetadataProvider;
 import com.google.devtools.build.lib.clock.Clock;
@@ -59,6 +58,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.channels.SeekableByteChannel;
+import java.time.Instant;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -299,13 +299,14 @@ public class RemoteActionFileSystem extends AbstractFileSystemWithCustomStat
     this.action = action;
   }
 
-  void injectRemoteFile(PathFragment path, byte[] digest, long size, long expireAtEpochMilli)
+  void injectRemoteFile(PathFragment path, byte[] digest, long size, Instant expirationTime)
       throws IOException {
     if (!isOutput(path)) {
       return;
     }
     var metadata =
-        RemoteFileArtifactValue.create(digest, size, /* locationIndex= */ 1, expireAtEpochMilli);
+        FileArtifactValue.createForRemoteFileWithMaterializationData(
+            digest, size, /* locationIndex= */ 1, expirationTime);
     remoteOutputTree.injectFile(path, metadata);
   }
 
@@ -327,12 +328,13 @@ public class RemoteActionFileSystem extends AbstractFileSystemWithCustomStat
     // It's more efficient to stat unconditionally.
     //
     // The parent path has already been canonicalized, so FOLLOW_NONE is effectively the same as
-    // FOLLOW_PARENT, but much more efficient as it doesn't call stat recursively.
+    // FOLLOW_PARENT, but much more efficient as it doesn't call stat recursively. Likewise for
+    // readSymbolicLinkInternal instead of readSymbolicLink.
     var stat = statInternal(path, FollowMode.FOLLOW_NONE, StatSources.ALL);
     if (stat == null) {
       throw new FileNotFoundException(path.getPathString() + " (No such file or directory)");
     }
-    return stat.isSymbolicLink() ? readSymbolicLink(path) : null;
+    return stat.isSymbolicLink() ? readSymbolicLinkInternal(path) : null;
   }
 
   // Like resolveSymbolicLinks(), except that only the parent path is canonicalized.
@@ -521,13 +523,16 @@ public class RemoteActionFileSystem extends AbstractFileSystemWithCustomStat
 
   @Override
   protected PathFragment readSymbolicLink(PathFragment path) throws IOException {
-    path = resolveSymbolicLinksForParent(path);
+    return readSymbolicLinkInternal(resolveSymbolicLinksForParent(path));
+  }
 
+  // Like readSymbolicLink(), except that the parent path is assumed to be already canonical.
+  private PathFragment readSymbolicLinkInternal(PathFragment path) throws IOException {
     if (path.startsWith(execRoot)) {
       var execPath = path.relativeTo(execRoot);
       var metadata = inputArtifactData.getMetadata(execPath);
-      if (metadata instanceof UnresolvedSymlinkArtifactValue unresolvedSymlinkArtifactValue) {
-        return PathFragment.create(unresolvedSymlinkArtifactValue.getSymlinkTarget());
+      if (metadata != null && metadata.getType().isSymlink()) {
+        return PathFragment.create(metadata.getUnresolvedSymlinkTarget());
       }
       if (metadata != null) {
         // Other input artifacts are never symlinks.
@@ -735,8 +740,7 @@ public class RemoteActionFileSystem extends AbstractFileSystemWithCustomStat
   @Nullable
   @VisibleForTesting
   FileArtifactValue getInputMetadata(ActionInput input) {
-    PathFragment execPath = input.getExecPath();
-    return inputArtifactData.getMetadata(execPath);
+    return inputArtifactData.getInputMetadata(input);
   }
 
   private void downloadFileIfRemote(PathFragment path) throws IOException {
@@ -753,7 +757,11 @@ public class RemoteActionFileSystem extends AbstractFileSystemWithCustomStat
       }
       getFromFuture(
           inputFetcher.prefetchFiles(
-              action, ImmutableList.of(input), this::getInputMetadata, Priority.CRITICAL));
+              action,
+              ImmutableList.of(input),
+              inputArtifactData,
+              Priority.CRITICAL,
+              Reason.INPUTS));
     } catch (InterruptedException e) {
       Thread.currentThread().interrupt();
       throw new IOException(String.format("Received interrupt while fetching file '%s'", path), e);
@@ -927,10 +935,10 @@ public class RemoteActionFileSystem extends AbstractFileSystemWithCustomStat
     }
 
     protected void injectFile(PathFragment path, FileArtifactValue metadata) throws IOException {
+      checkArgument(metadata.isRemote(), "metadata is not remote: %s", metadata);
       createDirectoryAndParents(path.getParentDirectory());
       InMemoryContentInfo node = getOrCreateWritableInode(path);
-      // If a node was already existed and is not a remote file node (i.e. directory or symlink node
-      // ), throw an error.
+      // If a node already exists but is not a regular file, throw an error.
       if (!(node instanceof RemoteInMemoryFileInfo remoteInMemoryFileInfo)) {
         throw new IOException("Could not inject into " + node);
       }

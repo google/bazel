@@ -91,7 +91,7 @@ public final class FilesetEntryFunction implements SkyFunction {
               String.format(
                   "%s contains a directory artifact '%s'",
                   params.getOwnerLabelForErrorMessages(), params.getDestPath()),
-              RecursiveFilesystemTraversalException.Type.FILE_OPERATION_FAILURE));
+              RecursiveFilesystemTraversalException.Type.CANNOT_TRAVERSE_SOURCE_DIRECTORY));
     }
 
     // The "direct" traversal params are present, which is the case when the FilesetEntry

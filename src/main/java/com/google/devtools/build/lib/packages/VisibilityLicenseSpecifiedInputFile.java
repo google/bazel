@@ -43,12 +43,9 @@ public final class VisibilityLicenseSpecifiedInputFile extends InputFile {
   }
 
   @Override
-  public RuleVisibility getVisibility() {
-    if (visibility != null) {
-      return visibility;
-    } else {
-      return getPackage().getPackageArgs().defaultVisibility();
-    }
+  @Nullable
+  public RuleVisibility getRawVisibility() {
+    return visibility;
   }
 
   @Override

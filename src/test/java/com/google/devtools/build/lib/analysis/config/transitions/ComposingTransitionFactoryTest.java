@@ -259,7 +259,7 @@ public class ComposingTransitionFactoryTest {
         RequiredConfigFragmentsProvider.builder();
     ConfigurationTransition transition = composed.create(new StubData());
     transition.addRequiredFragments(requiredFragments, null);
-    assertThat(requiredFragments.build().getOptionsClasses())
+    assertThat(requiredFragments.build().optionsClasses())
         .containsExactly(CppOptions.class, JavaOptions.class);
   }
 }

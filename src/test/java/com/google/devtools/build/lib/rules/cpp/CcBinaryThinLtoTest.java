@@ -414,6 +414,17 @@ public class CcBinaryThinLtoTest extends BuildViewTestCase {
   }
 
   @Test
+  public void testLtoBackendEnv() throws Exception {
+    createBuildFiles("features = ['env_feature'],");
+    setupThinLTOCrosstool(MockCcSupport.ENV_VAR_FEATURES);
+
+    LtoBackendAction backendAction =
+        getBackendAction("pkg/bin.lto/" + getRootExecPath() + "/pkg/_objs/bin/binfile.o");
+    assertThat(backendAction.getMnemonic()).isEqualTo("CcLtoBackendCompile");
+    assertThat(backendAction.getIncompleteEnvironmentForTesting()).containsEntry("cat", "meow");
+  }
+
+  @Test
   public void testFission() throws Exception {
     createBuildFiles();
     setupThinLTOCrosstool(CppRuleClasses.SUPPORTS_PIC, CppRuleClasses.PER_OBJECT_DEBUG_INFO);
@@ -1074,10 +1085,10 @@ public class CcBinaryThinLtoTest extends BuildViewTestCase {
                 linkAction, "pkg/bin.lto/" + rootExecPath + "/pkg/_objs/bin/binfile.o");
 
     // Checks that -fauto-profile is added to the LtoBackendAction.
-    assertThat(Joiner.on(" ").join(backendAction.getArguments())).containsMatch(
-        "-fauto-profile=[^ ]*/profile.afdo");
-    assertThat(ActionsTestUtil.baseArtifactNames(backendAction.getInputs())).contains(
-        "profile.afdo");
+    assertThat(Joiner.on(" ").join(backendAction.getArguments()))
+        .containsMatch("-fauto-profile=[^ ]*/profile.afdo");
+    assertThat(ActionsTestUtil.baseArtifactNames(backendAction.getInputs()))
+        .contains("profile.afdo");
   }
 
   private void setupThinLTOCrosstool(String... extraFeatures) throws Exception {

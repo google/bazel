@@ -22,7 +22,7 @@ import com.google.common.io.ByteSource;
 import com.google.common.io.ByteStreams;
 import com.google.devtools.build.lib.concurrent.ThreadSafety.ConditionallyThreadSafe;
 import com.google.devtools.build.lib.concurrent.ThreadSafety.ThreadSafe;
-import com.google.errorprone.annotations.InlineMe;
+import com.google.devtools.build.lib.util.StringEncoding;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -245,7 +245,11 @@ public class FileSystemUtils {
    * 'user.dir'. This version does not require a {@link FileSystem}.
    */
   public static PathFragment getWorkingDirectory() {
-    return PathFragment.create(System.getProperty("user.dir", "/"));
+    // System properties obtained from host are encoded using sun.jnu.encoding, so reencode them to
+    // the internal representation.
+    // https://github.com/openjdk/jdk/blob/285385247aaa262866697ed848040f05f4d94988/src/java.base/share/native/libjava/System.c#L121
+    return PathFragment.create(
+        StringEncoding.platformToInternal(System.getProperty("user.dir", "/")));
   }
 
   /**
@@ -620,23 +624,9 @@ public class FileSystemUtils {
   }
 
   /**
-   * Attempts to create a directory with the name of the given path, creating ancestors as
-   * necessary.
-   *
-   * <p>Deprecated. Prefer to call {@link Path#createDirectoryAndParents()} directly.
-   */
-  @Deprecated
-  @ThreadSafe
-  @InlineMe(replacement = "dir.createDirectoryAndParents()")
-  public static void createDirectoryAndParents(Path dir) throws IOException {
-    dir.createDirectoryAndParents();
-  }
-
-  /**
-   * Attempts to remove a relative chain of directories under a given base.
-   * Returns {@code true} if the removal was successful, and returns {@code
-   * false} if the removal fails because a directory was not empty. An
-   * {@link IOException} is thrown for any other errors.
+   * Attempts to remove a relative chain of directories under a given base. Returns {@code true} if
+   * the removal was successful, and returns {@code false} if the removal fails because a directory
+   * was not empty. An {@link IOException} is thrown for any other errors.
    */
   @ThreadSafe
   public static boolean removeDirectoryAndParents(Path base, PathFragment toRemove) {
@@ -854,21 +844,6 @@ public class FileSystemUtils {
   }
 
   /**
-   * Reads at most {@code limit} bytes from {@code inputFile} and returns it as a byte array.
-   *
-   * @throws IOException if there was an error.
-   */
-  public static byte[] readContentWithLimit(Path inputFile, int limit) throws IOException {
-    Preconditions.checkArgument(limit >= 0, "limit needs to be >=0, but it is %s", limit);
-    ByteSource byteSource = asByteSource(inputFile);
-    byte[] buffer = new byte[limit];
-    try (InputStream inputStream = byteSource.openBufferedStream()) {
-      int read = ByteStreams.read(inputStream, buffer, 0, limit);
-      return read == limit ? buffer : Arrays.copyOf(buffer, read);
-    }
-  }
-
-  /**
    * The type of {@link IOException} thrown by {@link #readWithKnownFileSize} when fewer bytes than
    * expected are read.
    */
@@ -887,22 +862,46 @@ public class FileSystemUtils {
   }
 
   /**
+   * The type of {@link IOException} thrown by {@link #readWithKnownFileSize} when more bytes than
+   * expected could be read.
+   */
+  public static class LongReadIOException extends IOException {
+    public final Path path;
+    public final int fileSize;
+
+    private LongReadIOException(Path path, int fileSize) {
+      super("File '" + path + "' is unexpectedly longer than " + fileSize + " bytes)");
+      this.path = path;
+      this.fileSize = fileSize;
+    }
+  }
+
+  /**
    * Reads the given file {@code path}, assumed to have size {@code fileSize}, and does a check on
    * the number of bytes read.
    *
    * <p>Use this method when you already know the size of the file. The check is intended to catch
-   * issues where filesystems incorrectly truncate files.
+   * issues where the filesystem incorrectly returns truncated file contents, or where an external
+   * modification has concurrently truncated or appended to the file.
    *
    * @throws IOException if there was an error, or if fewer than {@code fileSize} bytes were read.
    */
   public static byte[] readWithKnownFileSize(Path path, long fileSize) throws IOException {
+    Preconditions.checkArgument(fileSize >= 0, "fileSize needs to be >=0, but it is %s", fileSize);
     if (fileSize > Integer.MAX_VALUE) {
       throw new IOException("Cannot read file with size larger than 2GB");
     }
-    int fileSizeInt = (int) fileSize;
-    byte[] bytes = readContentWithLimit(path, fileSizeInt);
-    if (fileSizeInt > bytes.length) {
-      throw new ShortReadIOException(path, fileSizeInt, bytes.length);
+    int size = (int) fileSize;
+    byte[] bytes = new byte[size];
+    try (InputStream in = asByteSource(path).openBufferedStream()) {
+      int read = ByteStreams.read(in, bytes, 0, size);
+      if (read != size) {
+        throw new ShortReadIOException(path, size, read);
+      }
+      int eof = in.read();
+      if (eof != -1) {
+        throw new LongReadIOException(path, size);
+      }
     }
     return bytes;
   }

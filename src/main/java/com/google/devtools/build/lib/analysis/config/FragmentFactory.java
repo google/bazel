@@ -15,10 +15,10 @@ package com.google.devtools.build.lib.analysis.config;
 
 import static com.google.common.base.Throwables.throwIfInstanceOf;
 import static com.google.common.base.Throwables.throwIfUnchecked;
+import static java.util.Objects.requireNonNull;
 
 import com.github.benmanes.caffeine.cache.Caffeine;
 import com.github.benmanes.caffeine.cache.LoadingCache;
-import com.google.auto.value.AutoValue;
 import com.google.common.collect.ImmutableSet;
 import java.lang.reflect.InvocationTargetException;
 import java.util.concurrent.CompletionException;
@@ -84,23 +84,27 @@ public final class FragmentFactory {
     return trimmed.build();
   }
 
-  @AutoValue
-  abstract static class FragmentKey {
-    // These BuildOptions should be already-trimmed to maximize cache efficacy
-    abstract BuildOptions getBuildOptions();
-
-    abstract Class<? extends Fragment> getFragmentClass();
+  /**
+   * A fragment key.
+   *
+   * @param buildOptions These BuildOptions should be already-trimmed to maximize cache efficacy
+   */
+  record FragmentKey(BuildOptions buildOptions, Class<? extends Fragment> fragmentClass) {
+    FragmentKey {
+      requireNonNull(buildOptions, "buildOptions");
+      requireNonNull(fragmentClass, "fragmentClass");
+    }
 
     private static FragmentKey create(
         BuildOptions buildOptions, Class<? extends Fragment> fragmentClass) {
-      return new AutoValue_FragmentFactory_FragmentKey(buildOptions, fragmentClass);
+      return new FragmentKey(buildOptions, fragmentClass);
     }
   }
 
   private static Fragment makeFragment(FragmentKey fragmentKey)
       throws InvalidConfigurationException {
-    BuildOptions buildOptions = fragmentKey.getBuildOptions();
-    Class<? extends Fragment> fragmentClass = fragmentKey.getFragmentClass();
+    BuildOptions buildOptions = fragmentKey.buildOptions();
+    Class<? extends Fragment> fragmentClass = fragmentKey.fragmentClass();
     String noConstructorPattern = "%s lacks constructor(BuildOptions)";
     try {
       Fragment fragment =

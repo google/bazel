@@ -143,8 +143,8 @@ final class SkymeldUiStateTracker extends UiStateTracker {
       Pair<String, String> progress = packageProgressReceiver.progressState();
       String analysisProgress = progress.getFirst();
 
-      if (configuredTargetProgressReceiver != null) {
-        analysisProgress += ", " + configuredTargetProgressReceiver.getProgressString();
+      if (analysisProgressReceiver != null) {
+        analysisProgress += ", " + analysisProgressReceiver.getProgressString();
       }
 
       if (message.isEmpty()) {
@@ -189,7 +189,7 @@ final class SkymeldUiStateTracker extends UiStateTracker {
   @Override
   synchronized void configurationStarted(ConfigurationPhaseStartedEvent event) {
     buildStatus = BuildStatus.CONFIGURATION;
-    configuredTargetProgressReceiver = event.getConfiguredTargetProgressReceiver();
+    analysisProgressReceiver = event.getAnalysisProgressReceiver();
   }
 
   /**
@@ -209,14 +209,14 @@ final class SkymeldUiStateTracker extends UiStateTracker {
     if (packageProgressReceiver != null) {
       Pair<String, String> progress = packageProgressReceiver.progressState();
       workDone += " (" + progress.getFirst();
-      if (configuredTargetProgressReceiver != null) {
-        workDone += ", " + configuredTargetProgressReceiver.getProgressString();
+      if (analysisProgressReceiver != null) {
+        workDone += ", " + analysisProgressReceiver.getProgressString();
       }
       workDone += ")";
     }
     workDone += ".";
     packageProgressReceiver = null;
-    configuredTargetProgressReceiver = null;
+    analysisProgressReceiver = null;
     return workDone;
   }
 

@@ -60,7 +60,6 @@ cc_library(
         "//src/tools/launcher:__subpackages__",
         "//src/tools/singlejar:__pkg__",
         "//third_party/def_parser:__pkg__",
-        "//tools/cpp/runfiles:__pkg__",
         "//tools/test:__pkg__",
     ],
     deps = [

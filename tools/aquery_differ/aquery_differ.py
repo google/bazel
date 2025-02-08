@@ -38,7 +38,6 @@ import difflib
 import os
 import sys
 
-# Do not edit this line. Copybara replaces it with PY2 migration helper.
 from absl import app
 from absl import flags
 from google.protobuf import text_format

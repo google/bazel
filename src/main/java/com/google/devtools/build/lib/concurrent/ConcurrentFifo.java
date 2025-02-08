@@ -17,6 +17,7 @@ import static com.google.common.base.MoreObjects.toStringHelper;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.devtools.build.lib.unsafe.UnsafeProvider;
+
 import java.util.Arrays;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import sun.misc.Unsafe;
@@ -37,6 +38,7 @@ import sun.misc.Unsafe;
  * processors." Proceedings of the 18th ACM SIGPLAN symposium on Principles and practice of parallel
  * programming. 2013.
  */
+// TODO: b/386384684 - remove Unsafe usage
 @SuppressWarnings("SunApi") // TODO: b/359688989 - clean this up
 class ConcurrentFifo<T> { // Non-final for testing only.
   private static final Integer SKIP_SLOW_APPENDER = 1;
@@ -140,6 +142,7 @@ class ConcurrentFifo<T> { // Non-final for testing only.
    * @param takeIndexAddress padded location of the {@code int} take index.
    * @param appendIndexAddress padded location of the {@code int} append index.
    */
+  // TODO: b/386384684 - remove Unsafe usage
   ConcurrentFifo(
       Class<? super T> elementType,
       long sizeAddress,
@@ -161,6 +164,7 @@ class ConcurrentFifo<T> { // Non-final for testing only.
    *
    * @return true if successful, false if it would have exceeded the capacity.
    */
+  // TODO: b/386384684 - remove Unsafe usage
   boolean tryAppend(T task) {
     // Optimistically increases size, and rolls back if it exceeds capacity.
     if (UNSAFE.getAndAddInt(null, sizeAddress, 1) >= MAX_ELEMENTS) {
@@ -213,6 +217,7 @@ class ConcurrentFifo<T> { // Non-final for testing only.
    *
    * <p>This must not be called more times than {@link #tryAppend} has succeeded.
    */
+  // TODO: b/386384684 - remove Unsafe usage
   T take() {
     do {
       int offset = getQueueOffset(UNSAFE.getAndAddInt(null, takeIndexAddress, 1));
@@ -251,10 +256,12 @@ class ConcurrentFifo<T> { // Non-final for testing only.
     } while (true);
   }
 
+  // TODO: b/386384684 - remove Unsafe usage
   int size() {
     return UNSAFE.getIntVolatile(null, sizeAddress);
   }
 
+  // TODO: b/386384684 - remove Unsafe usage
   void clear() {
     UNSAFE.putInt(null, sizeAddress, 0);
     UNSAFE.putInt(null, appendIndexAddress, 0);
@@ -262,6 +269,7 @@ class ConcurrentFifo<T> { // Non-final for testing only.
     Arrays.fill(queue, null);
   }
 
+  // TODO: b/386384684 - remove Unsafe usage
   @Override
   public String toString() {
     int appendIndex = UNSAFE.getIntVolatile(null, appendIndexAddress);

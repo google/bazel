@@ -380,7 +380,7 @@ public final class CachingAnalysisEnvironment implements AnalysisEnvironment {
       // analysis phase.
       throw new MissingDepException("Restart due to missing main repository mapping");
     }
-    return mainRepoMapping.getRepositoryMapping();
+    return mainRepoMapping.repositoryMapping();
   }
 
   @Override

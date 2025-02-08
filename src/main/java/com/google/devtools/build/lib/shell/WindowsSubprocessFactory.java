@@ -15,7 +15,9 @@
 package com.google.devtools.build.lib.shell;
 
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Lists;
 import com.google.devtools.build.lib.shell.SubprocessBuilder.StreamAction;
+import com.google.devtools.build.lib.util.StringEncoding;
 import com.google.devtools.build.lib.vfs.PathFragment;
 import com.google.devtools.build.lib.windows.WindowsProcesses;
 import java.io.File;
@@ -32,7 +34,7 @@ public class WindowsSubprocessFactory implements SubprocessFactory {
 
   @Override
   public Subprocess create(SubprocessBuilder builder) throws IOException {
-    List<String> argv = builder.getArgv();
+    List<String> argv = Lists.transform(builder.getArgv(), StringEncoding::internalToPlatform);
 
     // DO NOT quote argv0, createProcess will do it for us.
     String argv0 = processArgv0(argv.get(0));
@@ -155,7 +157,11 @@ public class WindowsSubprocessFactory implements SubprocessFactory {
         // be an error, we have ignore them here.
         continue;
       }
-      result.append(entry.getKey() + "=" + entry.getValue() + "\0");
+      result
+          .append(StringEncoding.internalToPlatform(entry.getKey()))
+          .append("=")
+          .append(StringEncoding.internalToPlatform(entry.getValue()))
+          .append("\0");
     }
 
     result.append("\0");

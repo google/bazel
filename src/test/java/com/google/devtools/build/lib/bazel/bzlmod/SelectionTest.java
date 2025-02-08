@@ -54,7 +54,7 @@ public class SelectionTest {
             .buildOrThrow();
 
     Selection.Result selectionResult = Selection.run(depGraph, /* overrides= */ ImmutableMap.of());
-    assertThat(selectionResult.getResolvedDepGraph().entrySet())
+    assertThat(selectionResult.resolvedDepGraph().entrySet())
         .containsExactly(
             InterimModuleBuilder.create("aaa", Version.EMPTY)
                 .setKey(ModuleKey.ROOT)
@@ -71,7 +71,7 @@ public class SelectionTest {
             InterimModuleBuilder.create("ddd", "2.0", 1).buildEntry())
         .inOrder();
 
-    assertThat(selectionResult.getUnprunedDepGraph().entrySet())
+    assertThat(selectionResult.unprunedDepGraph().entrySet())
         .containsExactly(
             InterimModuleBuilder.create("aaa", Version.EMPTY)
                 .setKey(ModuleKey.ROOT)
@@ -112,7 +112,7 @@ public class SelectionTest {
             .buildOrThrow();
 
     Selection.Result selectionResult = Selection.run(depGraph, /* overrides= */ ImmutableMap.of());
-    assertThat(selectionResult.getResolvedDepGraph().entrySet())
+    assertThat(selectionResult.resolvedDepGraph().entrySet())
         .containsExactly(
             InterimModuleBuilder.create("aaa", Version.EMPTY)
                 .setKey(ModuleKey.ROOT)
@@ -129,7 +129,7 @@ public class SelectionTest {
             InterimModuleBuilder.create("ddd", "2.0", 1).buildEntry())
         .inOrder();
 
-    assertThat(selectionResult.getUnprunedDepGraph().entrySet())
+    assertThat(selectionResult.unprunedDepGraph().entrySet())
         .containsExactly(
             InterimModuleBuilder.create("aaa", Version.EMPTY)
                 .setKey(ModuleKey.ROOT)
@@ -170,7 +170,7 @@ public class SelectionTest {
             .buildOrThrow();
 
     Selection.Result selectionResult = Selection.run(depGraph, /* overrides= */ ImmutableMap.of());
-    assertThat(selectionResult.getResolvedDepGraph().entrySet())
+    assertThat(selectionResult.resolvedDepGraph().entrySet())
         .containsExactly(
             InterimModuleBuilder.create("aaa", Version.EMPTY)
                 .setKey(ModuleKey.ROOT)
@@ -188,7 +188,7 @@ public class SelectionTest {
             InterimModuleBuilder.create("ddd", "2.0", 1).buildEntry())
         .inOrder();
 
-    assertThat(selectionResult.getUnprunedDepGraph().entrySet())
+    assertThat(selectionResult.unprunedDepGraph().entrySet())
         .containsExactly(
             InterimModuleBuilder.create("aaa", Version.EMPTY)
                 .setKey(ModuleKey.ROOT)
@@ -236,7 +236,7 @@ public class SelectionTest {
             .build();
 
     Selection.Result selectionResult = Selection.run(depGraph, /* overrides= */ ImmutableMap.of());
-    assertThat(selectionResult.getResolvedDepGraph().entrySet())
+    assertThat(selectionResult.resolvedDepGraph().entrySet())
         .containsExactly(
             InterimModuleBuilder.create("aaa", Version.EMPTY)
                 .setKey(ModuleKey.ROOT)
@@ -253,7 +253,7 @@ public class SelectionTest {
             InterimModuleBuilder.create("ddd", "2.0").buildEntry())
         .inOrder();
 
-    assertThat(selectionResult.getUnprunedDepGraph().entrySet())
+    assertThat(selectionResult.unprunedDepGraph().entrySet())
         .containsExactly(
             InterimModuleBuilder.create("aaa", Version.EMPTY)
                 .setKey(ModuleKey.ROOT)
@@ -299,7 +299,7 @@ public class SelectionTest {
             .buildOrThrow();
 
     Selection.Result selectionResult = Selection.run(depGraph, /* overrides= */ ImmutableMap.of());
-    assertThat(selectionResult.getResolvedDepGraph().entrySet())
+    assertThat(selectionResult.resolvedDepGraph().entrySet())
         .containsExactly(
             InterimModuleBuilder.create("aaa", Version.EMPTY)
                 .setKey(ModuleKey.ROOT)
@@ -315,7 +315,7 @@ public class SelectionTest {
         .inOrder();
     // D is completely gone.
 
-    assertThat(selectionResult.getUnprunedDepGraph().entrySet())
+    assertThat(selectionResult.unprunedDepGraph().entrySet())
         .containsExactly(
             InterimModuleBuilder.create("aaa", Version.EMPTY)
                 .setKey(ModuleKey.ROOT)
@@ -421,7 +421,7 @@ public class SelectionTest {
             .buildOrThrow();
 
     Selection.Result selectionResult = Selection.run(depGraph, /* overrides= */ ImmutableMap.of());
-    assertThat(selectionResult.getResolvedDepGraph().entrySet())
+    assertThat(selectionResult.resolvedDepGraph().entrySet())
         .containsExactly(
             InterimModuleBuilder.create("aaa", Version.EMPTY)
                 .setKey(ModuleKey.ROOT)
@@ -438,7 +438,7 @@ public class SelectionTest {
             InterimModuleBuilder.create("ddd", "2.0", 2).buildEntry())
         .inOrder();
 
-    assertThat(selectionResult.getUnprunedDepGraph().entrySet())
+    assertThat(selectionResult.unprunedDepGraph().entrySet())
         .containsExactly(
             InterimModuleBuilder.create("aaa", Version.EMPTY)
                 .setKey(ModuleKey.ROOT)
@@ -478,7 +478,7 @@ public class SelectionTest {
             .buildOrThrow();
 
     Selection.Result selectionResult = Selection.run(depGraph, /* overrides= */ ImmutableMap.of());
-    assertThat(selectionResult.getResolvedDepGraph().entrySet())
+    assertThat(selectionResult.resolvedDepGraph().entrySet())
         .containsExactly(
             InterimModuleBuilder.create("aaa", Version.EMPTY)
                 .setKey(ModuleKey.ROOT)
@@ -495,7 +495,7 @@ public class SelectionTest {
             InterimModuleBuilder.create("ddd", "2.0", 2).buildEntry())
         .inOrder();
 
-    assertThat(selectionResult.getUnprunedDepGraph().entrySet())
+    assertThat(selectionResult.unprunedDepGraph().entrySet())
         .containsExactly(
             InterimModuleBuilder.create("aaa", Version.EMPTY)
                 .setKey(ModuleKey.ROOT)
@@ -585,7 +585,7 @@ public class SelectionTest {
     //        \-> ddd 1.0 -> bbb 1.1
     //         \-> eee 1.0 -> ccc 1.1
     Selection.Result selectionResult = Selection.run(depGraph, /* overrides= */ ImmutableMap.of());
-    assertThat(selectionResult.getResolvedDepGraph().entrySet())
+    assertThat(selectionResult.resolvedDepGraph().entrySet())
         .containsExactly(
             InterimModuleBuilder.create("aaa", "1.0")
                 .setKey(ModuleKey.ROOT)
@@ -606,7 +606,7 @@ public class SelectionTest {
                 .buildEntry())
         .inOrder();
 
-    assertThat(selectionResult.getUnprunedDepGraph().entrySet())
+    assertThat(selectionResult.unprunedDepGraph().entrySet())
         .containsExactly(
             InterimModuleBuilder.create("aaa", "1.0")
                 .setKey(ModuleKey.ROOT)
@@ -672,7 +672,7 @@ public class SelectionTest {
     //        \-> ddd 1.0 -> bbb 1.1
     //         \-> eee 1.0 -> ccc 1.1
     Selection.Result selectionResult = Selection.run(depGraph, /* overrides= */ ImmutableMap.of());
-    assertThat(selectionResult.getResolvedDepGraph().entrySet())
+    assertThat(selectionResult.resolvedDepGraph().entrySet())
         .containsExactly(
             InterimModuleBuilder.create("aaa", "1.0")
                 .setKey(ModuleKey.ROOT)
@@ -693,7 +693,7 @@ public class SelectionTest {
                 .buildEntry())
         .inOrder();
 
-    assertThat(selectionResult.getUnprunedDepGraph().entrySet())
+    assertThat(selectionResult.unprunedDepGraph().entrySet())
         .containsExactly(
             InterimModuleBuilder.create("aaa", "1.0")
                 .setKey(ModuleKey.ROOT)
@@ -769,7 +769,7 @@ public class SelectionTest {
                 ImmutableList.of(Version.parse("1.0"), Version.parse("2.0")), ""));
 
     Selection.Result selectionResult = Selection.run(depGraph, overrides);
-    assertThat(selectionResult.getResolvedDepGraph().entrySet())
+    assertThat(selectionResult.resolvedDepGraph().entrySet())
         .containsExactly(
             InterimModuleBuilder.create("aaa", Version.EMPTY)
                 .setKey(ModuleKey.ROOT)
@@ -780,8 +780,7 @@ public class SelectionTest {
             InterimModuleBuilder.create("bbb", "2.0").buildEntry())
         .inOrder();
 
-    assertThat(selectionResult.getUnprunedDepGraph())
-        .isEqualTo(selectionResult.getResolvedDepGraph());
+    assertThat(selectionResult.unprunedDepGraph()).isEqualTo(selectionResult.resolvedDepGraph());
   }
 
   @Test
@@ -842,7 +841,7 @@ public class SelectionTest {
                 ImmutableList.of(Version.parse("1.0"), Version.parse("2.0")), ""));
 
     Selection.Result selectionResult = Selection.run(depGraph, overrides);
-    assertThat(selectionResult.getResolvedDepGraph().entrySet())
+    assertThat(selectionResult.resolvedDepGraph().entrySet())
         .containsExactly(
             InterimModuleBuilder.create("aaa", Version.EMPTY)
                 .setKey(ModuleKey.ROOT)
@@ -859,8 +858,7 @@ public class SelectionTest {
             InterimModuleBuilder.create("ddd", "2.0", 2).buildEntry())
         .inOrder();
 
-    assertThat(selectionResult.getUnprunedDepGraph())
-        .isEqualTo(selectionResult.getResolvedDepGraph());
+    assertThat(selectionResult.unprunedDepGraph()).isEqualTo(selectionResult.resolvedDepGraph());
   }
 
   @Test
@@ -891,7 +889,7 @@ public class SelectionTest {
                 ImmutableList.of(Version.parse("1.0"), Version.parse("2.0")), ""));
 
     Selection.Result selectionResult = Selection.run(depGraph, overrides);
-    assertThat(selectionResult.getResolvedDepGraph().entrySet())
+    assertThat(selectionResult.resolvedDepGraph().entrySet())
         .containsExactly(
             InterimModuleBuilder.create("aaa", Version.EMPTY)
                 .setKey(ModuleKey.ROOT)
@@ -908,8 +906,7 @@ public class SelectionTest {
             InterimModuleBuilder.create("ddd", "2.0").buildEntry())
         .inOrder();
 
-    assertThat(selectionResult.getUnprunedDepGraph())
-        .isEqualTo(selectionResult.getResolvedDepGraph());
+    assertThat(selectionResult.unprunedDepGraph()).isEqualTo(selectionResult.resolvedDepGraph());
   }
 
   @Test
@@ -969,7 +966,7 @@ public class SelectionTest {
     //     \-> bbb4@1.0 -> ccc@1.7  [allowed]
     //     \-> bbb5@1.0 -> ccc@2.0  [allowed]
     Selection.Result selectionResult = Selection.run(depGraph, overrides);
-    assertThat(selectionResult.getResolvedDepGraph().entrySet())
+    assertThat(selectionResult.resolvedDepGraph().entrySet())
         .containsExactly(
             InterimModuleBuilder.create("aaa", Version.EMPTY)
                 .setKey(ModuleKey.ROOT)
@@ -1001,7 +998,7 @@ public class SelectionTest {
             InterimModuleBuilder.create("ccc", "2.0", 2).buildEntry())
         .inOrder();
 
-    assertThat(selectionResult.getUnprunedDepGraph().entrySet())
+    assertThat(selectionResult.unprunedDepGraph().entrySet())
         .containsExactly(
             InterimModuleBuilder.create("aaa", Version.EMPTY)
                 .setKey(ModuleKey.ROOT)
@@ -1182,7 +1179,7 @@ public class SelectionTest {
     //     \-> bbb4@1.1
     // ccc@1.5 and ccc@3.0, the versions violating the allowlist, are gone.
     Selection.Result selectionResult = Selection.run(depGraph, overrides);
-    assertThat(selectionResult.getResolvedDepGraph().entrySet())
+    assertThat(selectionResult.resolvedDepGraph().entrySet())
         .containsExactly(
             InterimModuleBuilder.create("aaa", Version.EMPTY)
                 .setKey(ModuleKey.ROOT)
@@ -1207,7 +1204,7 @@ public class SelectionTest {
             InterimModuleBuilder.create("ccc", "2.0", 2).buildEntry())
         .inOrder();
 
-    assertThat(selectionResult.getUnprunedDepGraph().entrySet())
+    assertThat(selectionResult.unprunedDepGraph().entrySet())
         .containsExactly(
             InterimModuleBuilder.create("aaa", Version.EMPTY)
                 .setKey(ModuleKey.ROOT)

@@ -77,8 +77,7 @@ public final class Program {
     ImmutableList.Builder<String> loads = ImmutableList.builder();
     ImmutableList.Builder<Location> loadLocations = ImmutableList.builder();
     for (Statement stmt : file.getStatements()) {
-      if (stmt instanceof LoadStatement) {
-        LoadStatement load = (LoadStatement) stmt;
+      if (stmt instanceof LoadStatement load) {
         String module = load.getImport().getValue();
         loads.add(module);
         loadLocations.add(load.getImport().getLocation());

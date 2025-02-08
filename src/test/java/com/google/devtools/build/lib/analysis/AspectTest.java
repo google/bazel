@@ -64,8 +64,6 @@ import com.google.devtools.build.lib.packages.StructImpl;
 import com.google.devtools.build.lib.skyframe.AspectKeyCreator.AspectKey;
 import com.google.devtools.build.lib.testutil.MoreAsserts;
 import com.google.devtools.build.lib.testutil.TestConstants;
-import com.google.devtools.build.lib.vfs.ModifiedFileSet;
-import com.google.devtools.build.lib.vfs.Root;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -183,36 +181,6 @@ public class AspectTest extends AnalysisTestCase {
     assertThat(a.getProvider(RuleInfo.class).getData().toList())
         .containsExactly("rule //a:a", "aspect //a:b", "aspect //a:c");
   }
-
-  @Test
-  public void aspectCreationWorksThroughBind() throws Exception {
-    if (getInternalTestExecutionMode() != TestConstants.InternalTestExecutionMode.NORMAL) {
-      // TODO(b/67651960): fix or justify disabling.
-      return;
-    }
-    setRulesAvailableInTests(TestAspects.BASE_RULE, TestAspects.HONEST_RULE,
-        TestAspects.ASPECT_REQUIRING_PROVIDER_RULE);
-    pkg("a",
-        "aspect_requiring_provider(name='a', foo=['//external:b'])",
-        "honest(name='b', foo=[])");
-
-    scratch.overwriteFile("WORKSPACE",
-        new ImmutableList.Builder<String>()
-            .addAll(analysisMock.getWorkspaceContents(mockToolsConfig))
-            .add("bind(name='b', actual='//a:b')")
-            .build());
-
-    useConfiguration("--enable_workspace");
-    update();
-
-    skyframeExecutor.invalidateFilesUnderPathForTesting(
-        reporter, ModifiedFileSet.EVERYTHING_MODIFIED, Root.fromPath(rootDirectory));
-
-    ConfiguredTarget a = getConfiguredTarget("//a:a");
-    assertThat(a.getProvider(RuleInfo.class).getData().toList())
-        .containsExactly("rule //a:a", "aspect //a:b");
-  }
-
 
   @Test
   public void aspectCreatedIfAdvertisedProviderIsPresent() throws Exception {

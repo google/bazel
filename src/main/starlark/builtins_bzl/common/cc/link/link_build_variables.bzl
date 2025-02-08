@@ -228,8 +228,7 @@ def setup_common_linking_variables(
         should_create_per_object_debug_info(feature_configuration, cpp_config)):
         vars[LINK_BUILD_VARIABLES.IS_USING_FISSION] = ""
 
-    if not cpp_config.incompatible_enable_cc_test_feature():
-        vars[LINK_BUILD_VARIABLES.IS_CC_TEST] = use_test_only_flags
+    vars[LINK_BUILD_VARIABLES.IS_CC_TEST] = use_test_only_flags
 
     vars[LINK_BUILD_VARIABLES.RUNTIME_LIBRARY_SEARCH_DIRECTORIES] = runtime_library_search_directories
 
@@ -284,10 +283,10 @@ def setup_linking_variables(
     Args:
       cc_toolchain: cc_toolchain for which we are creating build variables.
       feature_configuration: Feature configuration to be queried.
-      output_file: (str) Optional output file path. Used also as an input to interface_library builder.
+      output_file: (File) Optional output file. Used also as an input to interface_library builder.
       runtime_solib_name: (str) The name of the runtime solib symlink of the shared library.
-      interface_library_output: (str) Path where to generate interface library using the ifso builder tool.
-      thinlto_param_file: (str) Thinlto param file consumed by the final link action. (Produced
+      interface_library_output: (File) Optional interface library to generate using the ifso builder tool.
+      thinlto_param_file: (File) Optional Thinlto param file consumed by the final link action. (Produced
         by thin-lto indexing action)
     Returns:
         (dict[str, ?]) linking build variables
@@ -309,13 +308,13 @@ def setup_linking_variables(
         feature_configuration.is_enabled("propeller_optimize") and
         fdo_context.propeller_optimize_info and
         fdo_context.propeller_optimize_info.ld_profile):
-        vars[LINK_BUILD_VARIABLES.PROPELLER_OPTIMIZE_LD_PATH] = fdo_context.propeller_optimize_info.ld_profile.path
+        vars[LINK_BUILD_VARIABLES.PROPELLER_OPTIMIZE_LD_PATH] = fdo_context.propeller_optimize_info.ld_profile
 
     # ifso variables
-    should_generate_interface_library = output_file and cc_toolchain._if_so_builder.path and interface_library_output
+    should_generate_interface_library = output_file and cc_toolchain._if_so_builder and interface_library_output
     if should_generate_interface_library:
         vars[LINK_BUILD_VARIABLES.GENERATE_INTERFACE_LIBRARY] = "yes"
-        vars[LINK_BUILD_VARIABLES.INTERFACE_LIBRARY_BUILDER] = cc_toolchain._if_so_builder.path
+        vars[LINK_BUILD_VARIABLES.INTERFACE_LIBRARY_BUILDER] = cc_toolchain._if_so_builder
         vars[LINK_BUILD_VARIABLES.INTERFACE_LIBRARY_INPUT] = output_file
         vars[LINK_BUILD_VARIABLES.INTERFACE_LIBRARY_OUTPUT] = interface_library_output
     else:

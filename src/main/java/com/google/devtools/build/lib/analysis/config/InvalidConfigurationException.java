@@ -44,6 +44,11 @@ public class InvalidConfigurationException extends Exception implements Detailed
     this.detailedExitCode = null;
   }
 
+  public InvalidConfigurationException(String message, Code code, Throwable cause) {
+    super(message, cause);
+    this.detailedExitCode = createDetailedExitCode(message, code);
+  }
+
   public InvalidConfigurationException(Throwable cause) {
     super(cause.getMessage(), cause);
     this.detailedExitCode = null;

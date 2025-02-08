@@ -478,6 +478,63 @@ public final class StarlarkRepositoryContextTest {
   }
 
   @Test
+  public void testRename() throws Exception {
+    setUpContextForRule("test");
+    context.createFile(context.getPath("foo"), "foobar", true, true, thread);
+
+    context.rename(context.getPath("foo"), context.getPath("bar/baz"), thread);
+    testOutputFile(outputDirectory.getChild("bar").getChild("baz"), "foobar");
+
+    try {
+      context.rename(context.getPath("/foo"), context.getPath("bar"), thread);
+      fail("Expected error on renaming path outside of the repository directory");
+    } catch (RepositoryFunctionException ex) {
+      assertThat(ex)
+          .hasCauseThat()
+          .hasMessageThat()
+          .isEqualTo("Cannot write outside of the repository directory for path /foo");
+    }
+
+    try {
+      context.rename(context.getPath("foo"), context.getPath("/bar"), thread);
+      fail("Expected error on renaming path outside of the repository directory");
+    } catch (RepositoryFunctionException ex) {
+      assertThat(ex)
+          .hasCauseThat()
+          .hasMessageThat()
+          .isEqualTo("Cannot write outside of the repository directory for path /bar");
+    }
+  }
+
+  @Test
+  public void testRenameConflict() throws Exception {
+    setUpContextForRule("test");
+    context.createFile(context.getPath("foo"), "fooooo", true, true, thread);
+    context.createFile(context.getPath("bar"), "baaaar", true, true, thread);
+    context.createFile(context.getPath("baz.d/baz"), "baaaaz", true, true, thread);
+
+    try {
+      context.rename(context.getPath("foo"), context.getPath("bar"), thread);
+      fail("Expected error on renaming to a path that already exists");
+    } catch (RepositoryFunctionException ex) {
+      assertThat(ex)
+          .hasCauseThat()
+          .hasMessageThat()
+          .isEqualTo("Could not rename /outputDir/foo to /outputDir/bar: already exists");
+    }
+
+    try {
+      context.rename(context.getPath("foo"), context.getPath("baz.d"), thread);
+      fail("Expected error on renaming to a path that already exists");
+    } catch (RepositoryFunctionException ex) {
+      assertThat(ex)
+          .hasCauseThat()
+          .hasMessageThat()
+          .isEqualTo("Could not rename /outputDir/foo to /outputDir/baz.d: already exists");
+    }
+  }
+
+  @Test
   public void testSymlink() throws Exception {
     setUpContextForRule("test");
     context.createFile(context.getPath("foo"), "foobar", true, true, thread);

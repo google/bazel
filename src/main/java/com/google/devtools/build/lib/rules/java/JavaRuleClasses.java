@@ -17,14 +17,12 @@ package com.google.devtools.build.lib.rules.java;
 import static com.google.devtools.build.lib.packages.Attribute.attr;
 import static com.google.devtools.build.lib.packages.BuildType.LABEL;
 
-import com.google.common.collect.ImmutableList;
 import com.google.devtools.build.lib.analysis.RuleDefinition;
 import com.google.devtools.build.lib.analysis.RuleDefinitionEnvironment;
 import com.google.devtools.build.lib.analysis.config.ToolchainTypeRequirement;
 import com.google.devtools.build.lib.analysis.platform.ToolchainInfo;
 import com.google.devtools.build.lib.packages.RuleClass;
 import com.google.devtools.build.lib.packages.RuleClass.Builder.RuleClassType;
-import com.google.devtools.build.lib.packages.StarlarkProviderIdentifier;
 
 /** Common rule class definitions for Java rules. */
 public class JavaRuleClasses {
@@ -92,12 +90,4 @@ public class JavaRuleClasses {
           .build();
     }
   }
-
-  /**
-   * Meant to be an element of {@code mandatoryProvidersLists} in order to accept rules providing a
-   * {@link JavaInfo} through an attribute. Other providers can be included in {@code
-   * mandatoryProvidersLists} as well.
-   */
-  public static final ImmutableList<StarlarkProviderIdentifier> CONTAINS_JAVA_PROVIDER =
-      ImmutableList.of(StarlarkProviderIdentifier.forKey(JavaInfo.PROVIDER.getKey()));
 }

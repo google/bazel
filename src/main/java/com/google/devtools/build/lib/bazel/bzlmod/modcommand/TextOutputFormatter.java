@@ -96,7 +96,7 @@ public class TextOutputFormatter extends OutputFormatter {
       ModuleKey key, ModuleExtensionId extensionId, boolean unexpanded, int depth) {
     printTreeDrawing(IsIndirect.FALSE, depth);
     str.append('$');
-    str.append(extensionId.asTargetString());
+    str.append(extensionId);
     str.append(' ');
     if (unexpanded && options.extensionInfo == ExtensionShow.ALL) {
       str.append("... ");
@@ -154,8 +154,8 @@ public class TextOutputFormatter extends OutputFormatter {
       str.append(
           String.format(
               "<root> (%s@%s)",
-              rootModule.getName(),
-              rootModule.getVersion().equals(Version.EMPTY) ? "_" : rootModule.getVersion()));
+              rootModule.name(),
+              rootModule.version().equals(Version.EMPTY) ? "_" : rootModule.version()));
     } else {
       str.append(key).append(" ");
     }

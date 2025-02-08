@@ -19,7 +19,8 @@ package com.google.devtools.build.lib.bazel.bzlmod;
  * An override specifying that the module should still come from a registry, albeit with some other
  * properties overridden (such as which registry it comes from, whether patches are applied, etc.)
  */
-public interface RegistryOverride extends ModuleOverride {
+public sealed interface RegistryOverride extends ModuleOverride
+    permits SingleVersionOverride, MultipleVersionOverride {
 
   /**
    * The registry that should be used instead of the default list. Can be empty if there is no

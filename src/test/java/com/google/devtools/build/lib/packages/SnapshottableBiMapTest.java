@@ -14,9 +14,9 @@
 package com.google.devtools.build.lib.packages;
 
 import static com.google.common.truth.Truth.assertThat;
+import static java.util.Objects.requireNonNull;
 import static org.junit.Assert.assertThrows;
 
-import com.google.auto.value.AutoValue;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.BiMap;
 import com.google.common.collect.ImmutableBiMap;
@@ -33,23 +33,23 @@ import org.junit.runners.JUnit4;
 @RunWith(JUnit4.class)
 public final class SnapshottableBiMapTest {
   // Dummy value type for maps under test. AutoValue for correct hash/equals behavior.
-  @AutoValue
-  abstract static class Value {
+  record Value(String name, boolean tracked) {
+    Value {
+      requireNonNull(name, "name");
+    }
+
     static Value trackedOf(String name) {
-      return new AutoValue_SnapshottableBiMapTest_Value(name, true);
+      return new Value(name, true);
     }
 
     static Value untrackedOf(String name) {
-      return new AutoValue_SnapshottableBiMapTest_Value(name, false);
+      return new Value(name, false);
     }
 
     static boolean track(Value value) {
       return value.tracked();
     }
 
-    abstract String name();
-
-    abstract boolean tracked();
   }
 
   private static <E> void verifyCollectionSizeAndContentsInOrder(

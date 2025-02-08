@@ -127,7 +127,7 @@ public class PackageLoadingTest extends FoundationTestCase {
       PackageOptions packageOptions, BuildLanguageOptions buildLanguageOptions) {
     PathPackageLocator pkgLocator =
         PathPackageLocator.create(
-            /*outputBase=*/ null,
+            /* outputBase= */ null,
             packageOptions.packagePath,
             reporter,
             rootDirectory.asFragment(),
@@ -320,7 +320,7 @@ public class PackageLoadingTest extends FoundationTestCase {
   @Test
   public void testMovedBuildFileCausesReloadAfterSync() throws Exception {
     // PackageLoader doesn't support --package_path.
-    initializeSkyframeExecutor(/*doPackageLoadingChecks=*/ false);
+    initializeSkyframeExecutor(/* doPackageLoadingChecks= */ false);
 
     Path buildFile1 = scratch.file("pkg/BUILD", "cc_library(name = 'foo')");
     Path buildFile2 = scratch.file("/otherroot/pkg/BUILD", "cc_library(name = 'bar')");
@@ -445,7 +445,7 @@ public class PackageLoadingTest extends FoundationTestCase {
   @Test
   public void testLabelValidity() throws Exception {
     // PackageLoader doesn't support --package_path.
-    initializeSkyframeExecutor(/*doPackageLoadingChecks=*/ false);
+    initializeSkyframeExecutor(/* doPackageLoadingChecks= */ false);
 
     reporter.removeHandler(failFastHandler);
     setUpCacheWithTwoRootLocator();
@@ -506,7 +506,7 @@ public class PackageLoadingTest extends FoundationTestCase {
   @Test
   public void testDeletedPackages() throws Exception {
     // PackageLoader doesn't support --deleted_packages.
-    initializeSkyframeExecutor(/*doPackageLoadingChecks=*/ false);
+    initializeSkyframeExecutor(/* doPackageLoadingChecks= */ false);
     reporter.removeHandler(failFastHandler);
     setUpCacheWithTwoRootLocator();
     createBuildFile(rootDir1, "c", "d/x", "e/x");

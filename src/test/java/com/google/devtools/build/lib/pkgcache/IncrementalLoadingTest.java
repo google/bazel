@@ -43,8 +43,10 @@ import com.google.devtools.build.lib.packages.util.LoadingMock;
 import com.google.devtools.build.lib.rules.repository.RepositoryDelegatorFunction;
 import com.google.devtools.build.lib.runtime.QuiescingExecutorsImpl;
 import com.google.devtools.build.lib.skyframe.BazelSkyframeExecutorConstants;
+import com.google.devtools.build.lib.skyframe.BrokenDiffAwarenessException;
 import com.google.devtools.build.lib.skyframe.DiffAwareness;
 import com.google.devtools.build.lib.skyframe.PrecomputedValue;
+import com.google.devtools.build.lib.skyframe.RepositoryMappingFunction;
 import com.google.devtools.build.lib.skyframe.SequencedSkyframeExecutor;
 import com.google.devtools.build.lib.skyframe.SkyFunctions;
 import com.google.devtools.build.lib.skyframe.SkyframeExecutor;
@@ -427,6 +429,12 @@ public class IncrementalLoadingTest {
       }
 
       @Override
+      public ModifiedFileSet getDiffFromEvaluatingVersion(OptionsProvider options, FileSystem fs)
+          throws BrokenDiffAwarenessException {
+        throw new UnsupportedOperationException("not implemented");
+      }
+
+      @Override
       public String name() {
         return "PackageLoadingTester.DiffAwareness";
       }
@@ -516,7 +524,9 @@ public class IncrementalLoadingTest {
               PrecomputedValue.injected(
                   RepositoryDelegatorFunction.RESOLVED_FILE_INSTEAD_OF_WORKSPACE, Optional.empty()),
               PrecomputedValue.injected(
-                  RepositoryDelegatorFunction.VENDOR_DIRECTORY, Optional.empty())));
+                  RepositoryDelegatorFunction.VENDOR_DIRECTORY, Optional.empty()),
+              PrecomputedValue.injected(
+                  RepositoryMappingFunction.REPOSITORY_OVERRIDES, ImmutableMap.of())));
       BuildLanguageOptions buildLanguageOptions = Options.getDefaults(BuildLanguageOptions.class);
       buildLanguageOptions.incompatibleAutoloadExternally = ImmutableList.of();
       skyframeExecutor.preparePackageLoading(

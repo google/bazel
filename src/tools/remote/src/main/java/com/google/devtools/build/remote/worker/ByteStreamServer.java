@@ -34,6 +34,7 @@ import com.google.devtools.build.lib.vfs.Path;
 import io.grpc.Status;
 import io.grpc.protobuf.StatusProto;
 import io.grpc.stub.StreamObserver;
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.util.UUID;
@@ -83,11 +84,12 @@ final class ByteStreamServer extends ByteStreamImplBase {
     try {
       // This still relies on the blob size to be small enough to fit in memory.
       // TODO(olaola): refactor to fix this if the need arises.
-      Chunker c =
-          Chunker.builder().setInput(getFromFuture(cache.downloadBlob(context, digest))).build();
-      while (c.hasNext()) {
-        responseObserver.onNext(
-            ReadResponse.newBuilder().setData(c.next().getData()).build());
+      byte[] bytes = getFromFuture(cache.downloadBlob(context, digest));
+      try (Chunker c =
+          Chunker.builder().setInput(bytes.length, () -> new ByteArrayInputStream(bytes)).build()) {
+        while (c.hasNext()) {
+          responseObserver.onNext(ReadResponse.newBuilder().setData(c.next().getData()).build());
+        }
       }
       responseObserver.onCompleted();
     } catch (CacheNotFoundException e) {

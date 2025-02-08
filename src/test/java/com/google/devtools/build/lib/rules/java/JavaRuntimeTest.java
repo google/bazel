@@ -57,7 +57,7 @@ public class JavaRuntimeTest extends BuildViewTestCase {
   private JavaRuntimeInfo getJavaRuntimeInfo(ProviderCollection collection)
       throws EvalException, RuleErrorException {
     ToolchainInfo toolchainInfo = collection.get(ToolchainInfo.PROVIDER);
-    return JavaRuntimeInfo.PROVIDER.wrap(toolchainInfo.getValue("java_runtime", Info.class));
+    return JavaRuntimeInfo.wrap(toolchainInfo.getValue("java_runtime", Info.class));
   }
 
   @Test

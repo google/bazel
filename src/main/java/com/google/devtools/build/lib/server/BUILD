@@ -61,7 +61,7 @@ java_library(
         "//third_party:jsr305",
         "//third_party:netty",
         "//third_party/grpc-java:grpc-jar",
-        "@protobuf//:protobuf_java",
+        "@com_google_protobuf//:protobuf_java",
     ],
 )
 
@@ -99,5 +99,20 @@ java_library(
     ],
     deps = [
         "//src/main/java/com/google/devtools/build/lib/util:abrupt_exit_exception",
+    ],
+)
+
+java_library(
+    name = "install_base_garbage_collector",
+    srcs = [
+        "InstallBaseGarbageCollector.java",
+        "InstallBaseGarbageCollectorIdleTask.java",
+    ],
+    deps = [
+        ":idle_task",
+        "//src/main/java/com/google/devtools/build/lib/util:file_system_lock",
+        "//src/main/java/com/google/devtools/build/lib/vfs",
+        "//third_party:flogger",
+        "//third_party:guava",
     ],
 )

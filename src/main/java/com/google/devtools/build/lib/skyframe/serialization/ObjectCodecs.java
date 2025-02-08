@@ -252,8 +252,15 @@ public class ObjectCodecs {
   public Object deserializeWithSkyframe(
       FingerprintValueService fingerprintValueService, ByteString data)
       throws SerializationException {
+    return deserializeWithSkyframe(fingerprintValueService, data.newCodedInput());
+  }
+
+  @Nullable
+  public Object deserializeWithSkyframe(
+      FingerprintValueService fingerprintValueService, CodedInputStream codedIn)
+      throws SerializationException {
     return SharedValueDeserializationContext.deserializeWithSkyframe(
-        getCodecRegistry(), getDependencies(), fingerprintValueService, data);
+        getCodecRegistry(), getDependencies(), fingerprintValueService, codedIn);
   }
 
   static Object deserializeStreamFully(CodedInputStream codedIn, DeserializationContext context)

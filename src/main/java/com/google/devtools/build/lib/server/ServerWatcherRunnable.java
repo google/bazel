@@ -50,7 +50,7 @@ class ServerWatcherRunnable implements Runnable {
   private abstract static class LowMemoryChecker {
 
     /** Timestamp of the moment the server went idle. */
-    private long lastIdleTimeNanos = 0;
+    private long lastIdleTimeMillis = -1;
 
     /** Creates a memory checker that makes sense for the current platform. */
     static LowMemoryChecker forCurrentOS() {
@@ -65,9 +65,10 @@ class ServerWatcherRunnable implements Runnable {
 
     /** Checks if the server should shut down due to a low memory condition. */
     final boolean shouldShutdown() {
-      checkState(lastIdleTimeNanos > 0, "reset() ought to have been called before this");
+      checkState(lastIdleTimeMillis >= 0, "reset() ought to have been called before this");
 
-      if (BlazeClock.nanoTime() - lastIdleTimeNanos < TIME_IDLE_BEFORE_MEMORY_CHECK.toNanos()) {
+      if (BlazeClock.instance().currentTimeMillis() - lastIdleTimeMillis
+          < TIME_IDLE_BEFORE_MEMORY_CHECK.toMillis()) {
         // Only run memory check if the server has been idle for longer than
         // TIME_IDLE_BEFORE_MEMORY_CHECK.
         return false;
@@ -80,8 +81,8 @@ class ServerWatcherRunnable implements Runnable {
     abstract boolean check();
 
     /** Notifies the checker that the server went idle at the given timestamp. */
-    void reset(long lastIdleTimeNanos) {
-      this.lastIdleTimeNanos = lastIdleTimeNanos;
+    void reset(long lastIdleTimeMillis) {
+      this.lastIdleTimeMillis = lastIdleTimeMillis;
     }
   }
 
@@ -167,18 +168,18 @@ class ServerWatcherRunnable implements Runnable {
   public void run() {
     boolean idle = commandManager.isEmpty();
     boolean wasIdle = false;
-    long shutdownTimeNanos = -1;
+    long shutdownTimeMillis = -1;
 
     while (true) {
       if (!wasIdle && idle) {
-        long now = BlazeClock.nanoTime();
-        shutdownTimeNanos = now + Duration.ofSeconds(maxIdleSeconds).toNanos();
+        long now = BlazeClock.instance().currentTimeMillis();
+        shutdownTimeMillis = now + Duration.ofSeconds(maxIdleSeconds).toMillis();
         lowMemoryChecker.reset(now);
       }
 
       try {
         if (idle) {
-          Verify.verify(shutdownTimeNanos > 0);
+          Verify.verify(shutdownTimeMillis > 0);
           if (shutdownOnLowSysMem && lowMemoryChecker.shouldShutdown()) {
             logger.atSevere().log("Available RAM is low. Shutting down idle server...");
             break;
@@ -194,7 +195,7 @@ class ServerWatcherRunnable implements Runnable {
 
       wasIdle = idle;
       idle = commandManager.isEmpty();
-      if (wasIdle && idle && BlazeClock.nanoTime() >= shutdownTimeNanos) {
+      if (wasIdle && idle && BlazeClock.instance().currentTimeMillis() >= shutdownTimeMillis) {
         logger.atInfo().log("About to shutdown due to idleness");
         break;
       }

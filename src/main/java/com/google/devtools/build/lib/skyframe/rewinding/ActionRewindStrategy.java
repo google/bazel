@@ -18,9 +18,9 @@ import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.base.Preconditions.checkState;
 import static com.google.common.collect.ImmutableList.toImmutableList;
+import static java.util.Objects.requireNonNull;
 import static java.util.stream.Collectors.joining;
 
-import com.google.auto.value.AutoValue;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ConcurrentHashMultiset;
 import com.google.common.collect.ImmutableList;
@@ -437,7 +437,7 @@ public final class ActionRewindStrategy {
 
           if (expandedDeps.contains(Artifact.key(transitiveOwner))) {
             // The lost input is included in an aggregation artifact (e.g. a tree artifact or
-            // fileset) that is included by an aggregation artifact (e.g. a middleman) that the
+            // fileset) that is included by an aggregation artifact (e.g. a runfiles tree) that the
             // action directly depends on.
             lostInputOwningDirectDeps.add((DerivedArtifact) transitiveOwner);
             foundLostInputDepOwner = true;
@@ -446,7 +446,7 @@ public final class ActionRewindStrategy {
 
         if (expandedDeps.contains(Artifact.key(owner))) {
           // The lost input is included in an aggregation artifact (e.g. a tree artifact, fileset,
-          // or middleman) that the action directly depends on.
+          // or runfiles tree) that the action directly depends on.
           lostInputOwningDirectDeps.add((DerivedArtifact) owner);
           foundLostInputDepOwner = true;
         }
@@ -782,30 +782,26 @@ public final class ActionRewindStrategy {
    * A record indicating that {@link #failedKey} failed because it lost an input with the specified
    * digest.
    */
-  @AutoValue
-  abstract static class LostInputRecord {
-
-    abstract SkyKey failedKey();
-
-    abstract String lostInputDigest();
-
-    abstract String lostInputPath();
+  record LostInputRecord(SkyKey failedKey, String lostInputDigest, String lostInputPath) {
+    LostInputRecord {
+      requireNonNull(failedKey, "failedKey");
+      requireNonNull(lostInputDigest, "lostInputDigest");
+      requireNonNull(lostInputPath, "lostInputPath");
+    }
 
     static LostInputRecord create(SkyKey failedKey, String lostInputDigest, String lostInputPath) {
-      return new AutoValue_ActionRewindStrategy_LostInputRecord(
-          failedKey, lostInputDigest, lostInputPath);
+      return new LostInputRecord(failedKey, lostInputDigest, lostInputPath);
     }
   }
 
-  @AutoValue
-  abstract static class ActionAndLookupData {
-
-    abstract ActionLookupData lookupData();
-
-    abstract Action action();
+  record ActionAndLookupData(ActionLookupData lookupData, Action action) {
+    ActionAndLookupData {
+      requireNonNull(lookupData, "lookupData");
+      requireNonNull(action, "action");
+    }
 
     static ActionAndLookupData create(ActionLookupData lookupData, Action action) {
-      return new AutoValue_ActionRewindStrategy_ActionAndLookupData(lookupData, action);
+      return new ActionAndLookupData(lookupData, action);
     }
   }
 

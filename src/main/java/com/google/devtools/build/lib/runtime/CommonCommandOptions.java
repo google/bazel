@@ -23,6 +23,7 @@ import com.google.devtools.build.lib.vfs.PathFragment;
 import com.google.devtools.common.options.Converter;
 import com.google.devtools.common.options.Converters;
 import com.google.devtools.common.options.Converters.AssignmentConverter;
+import com.google.devtools.common.options.Converters.DurationConverter;
 import com.google.devtools.common.options.EnumConverter;
 import com.google.devtools.common.options.Option;
 import com.google.devtools.common.options.OptionDocumentationCategory;
@@ -104,6 +105,18 @@ public class CommonCommandOptions extends OptionsBase {
       effectTags = {OptionEffectTag.AFFECTS_OUTPUTS, OptionEffectTag.BAZEL_INTERNAL_CONFIGURATION},
       help = "Whether profiling slow operations is always turned on")
   public boolean alwaysProfileSlowOperations;
+
+  @Option(
+      name = "experimental_install_base_gc_max_age",
+      defaultValue = "30d",
+      documentationCategory = OptionDocumentationCategory.UNCATEGORIZED,
+      effectTags = {OptionEffectTag.HOST_MACHINE_RESOURCE_OPTIMIZATIONS},
+      converter = DurationConverter.class,
+      help =
+          "How long an install base must go unused before it's eligible for garbage collection."
+              + " If nonzero, the server will attempt to garbage collect other install bases when"
+              + " idle.")
+  public Duration installBaseGcMaxAge;
 
   /** Converter for UUID. Accepts values as specified by {@link UUID#fromString(String)}. */
   public static class UUIDConverter extends Converter.Contextless<UUID> {
@@ -283,8 +296,9 @@ public class CommonCommandOptions extends OptionsBase {
       effectTags = {OptionEffectTag.BAZEL_MONITORING},
       converter = OptionsUtils.PathFragmentConverter.class,
       help =
-          "If set, profile Bazel and write data to the specified "
-              + "file. Use bazel analyze-profile to analyze the profile.")
+          "If set, profile Bazel and write data to the specified file. See"
+              + " https://bazel.build/advanced/performance/json-trace-profile for more"
+              + " information.")
   public PathFragment profilePath;
 
   @Option(
@@ -457,17 +471,6 @@ public class CommonCommandOptions extends OptionsBase {
       metadataTags = {OptionMetadataTag.EXPERIMENTAL, OptionMetadataTag.HIDDEN},
       help = "Enable processing of +<file> parameters.")
   public boolean allowProjectFiles;
-
-  @Option(
-      name = "block_for_lock",
-      defaultValue = "true",
-      documentationCategory = OptionDocumentationCategory.UNDOCUMENTED,
-      effectTags = {OptionEffectTag.BAZEL_INTERNAL_CONFIGURATION},
-      metadataTags = {OptionMetadataTag.HIDDEN},
-      help =
-          "If set (the default), a command will block if there is another one running. If "
-              + "unset, these commands will immediately return with an error.")
-  public boolean blockForLock;
 
   // We could accept multiple of these, in the event where there's a chain of tools that led to a
   // Bazel invocation. We would not want to expect anything from the order of these, and would need

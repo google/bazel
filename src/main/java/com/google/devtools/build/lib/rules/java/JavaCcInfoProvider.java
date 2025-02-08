@@ -15,8 +15,8 @@
 package com.google.devtools.build.lib.rules.java;
 
 import static com.google.common.collect.ImmutableList.toImmutableList;
+import static java.util.Objects.requireNonNull;
 
-import com.google.auto.value.AutoValue;
 import com.google.common.collect.ImmutableList;
 import com.google.devtools.build.lib.collect.nestedset.Depset;
 import com.google.devtools.build.lib.collect.nestedset.NestedSet;
@@ -26,20 +26,23 @@ import com.google.devtools.build.lib.rules.cpp.CcInfo;
 import com.google.devtools.build.lib.rules.cpp.CcNativeLibraryInfo;
 import com.google.devtools.build.lib.rules.cpp.LibraryToLink;
 import com.google.devtools.build.lib.rules.java.JavaInfo.JavaInfoInternalProvider;
+import com.google.devtools.build.lib.skyframe.serialization.autocodec.AutoCodec;
 import java.util.Collection;
 import javax.annotation.Nullable;
 import net.starlark.java.eval.EvalException;
 
 /** Provides information about C++ libraries to be linked into Java targets. */
 @Immutable
-@AutoValue
-public abstract class JavaCcInfoProvider implements JavaInfoInternalProvider {
+@AutoCodec
+public record JavaCcInfoProvider(CcInfo ccInfo) implements JavaInfoInternalProvider {
+  public JavaCcInfoProvider {
+    requireNonNull(ccInfo, "ccInfo");
+  }
 
   // TODO(b/183579145): Replace CcInfo with only linking information.
-  public abstract CcInfo getCcInfo();
 
   public static JavaCcInfoProvider create(CcInfo ccInfo) {
-    return new AutoValue_JavaCcInfoProvider(
+    return new JavaCcInfoProvider(
         CcInfo.builder()
             .setCcLinkingContext(ccInfo.getCcLinkingContext())
             .setCcNativeLibraryInfo(ccInfo.getCcNativeLibraryInfo())
@@ -50,7 +53,7 @@ public abstract class JavaCcInfoProvider implements JavaInfoInternalProvider {
   /** Merges several JavaCcInfoProvider providers into one. */
   public static JavaCcInfoProvider merge(Collection<JavaCcInfoProvider> providers) {
     ImmutableList<CcInfo> ccInfos =
-        providers.stream().map(JavaCcInfoProvider::getCcInfo).collect(toImmutableList());
+        providers.stream().map(JavaCcInfoProvider::ccInfo).collect(toImmutableList());
     return create(CcInfo.merge(ccInfos));
   }
 

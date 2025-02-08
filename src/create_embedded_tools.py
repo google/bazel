@@ -45,8 +45,6 @@ output_paths = [
     ('*tools/j2objc/BUILD.tools', lambda x: 'tools/j2objc/BUILD'),
     ('*tools/platforms/*', lambda x: 'platforms/' + os.path.basename(x)),
     ('*tools/cpp/BUILD.tools', lambda x: 'tools/cpp/BUILD'),
-    ('*tools/cpp/runfiles/generated_*',
-     lambda x: 'tools/cpp/runfiles/' + os.path.basename(x)[len('generated_'):]),
     ('*launcher.exe', lambda x: 'tools/launcher/launcher.exe'),
     ('*launcher_maker.exe', lambda x: 'tools/launcher/launcher_maker.exe'),
     ('*def_parser.exe', lambda x: 'tools/def_parser/def_parser.exe'),

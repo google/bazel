@@ -16,7 +16,6 @@ package com.google.devtools.build.lib.analysis;
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.google.common.collect.ImmutableSortedMap.toImmutableSortedMap;
 import static java.nio.charset.StandardCharsets.ISO_8859_1;
-import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.Comparator.comparing;
 
 import com.github.benmanes.caffeine.cache.Caffeine;
@@ -146,7 +145,7 @@ public final class RepoMappingManifestAction extends AbstractFileWriteAction
   public String getFileContents(@Nullable EventHandler eventHandler) throws IOException {
     ByteArrayOutputStream stream = new ByteArrayOutputStream();
     newDeterministicWriter().writeOutputFile(stream);
-    return stream.toString(UTF_8);
+    return stream.toString(ISO_8859_1);
   }
 
   @Override

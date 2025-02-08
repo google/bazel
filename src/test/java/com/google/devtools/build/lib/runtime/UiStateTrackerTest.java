@@ -46,6 +46,7 @@ import com.google.devtools.build.lib.actions.SchedulingActionEvent;
 import com.google.devtools.build.lib.actions.util.ActionsTestUtil;
 import com.google.devtools.build.lib.analysis.ConfiguredTarget;
 import com.google.devtools.build.lib.analysis.config.BuildConfigurationValue;
+import com.google.devtools.build.lib.analysis.platform.PlatformInfo;
 import com.google.devtools.build.lib.bazel.repository.downloader.DownloadProgressEvent;
 import com.google.devtools.build.lib.buildeventstream.AnnounceBuildEventTransportsEvent;
 import com.google.devtools.build.lib.buildeventstream.BuildEventStreamProtos;
@@ -66,8 +67,8 @@ import com.google.devtools.build.lib.pkgcache.LoadingPhaseCompleteEvent;
 import com.google.devtools.build.lib.remote.Store;
 import com.google.devtools.build.lib.runtime.SkymeldUiStateTracker.BuildStatus;
 import com.google.devtools.build.lib.runtime.UiStateTracker.StrategyIds;
+import com.google.devtools.build.lib.skyframe.AnalysisProgressReceiver;
 import com.google.devtools.build.lib.skyframe.ConfigurationPhaseStartedEvent;
-import com.google.devtools.build.lib.skyframe.ConfiguredTargetProgressReceiver;
 import com.google.devtools.build.lib.skyframe.LoadingPhaseStartedEvent;
 import com.google.devtools.build.lib.skyframe.PackageProgressReceiver;
 import com.google.devtools.build.lib.skyframe.TopLevelStatusEvents.TestAnalyzedEvent;
@@ -216,7 +217,7 @@ public class UiStateTrackerTest extends FoundationTestCase {
             BuildEventStreamProtos.BuildEventId.getDefaultInstance(),
             BuildEventStreamProtos.BuildEvent.getDefaultInstance()),
         /* isToolConfiguration= */ true,
-        /* executionPlatform= */ null,
+        /* executionPlatform= */ PlatformInfo.EMPTY_PLATFORM_INFO,
         /* aspectDescriptors= */ ImmutableList.of(),
         /* execProperties= */ ImmutableMap.of());
   }
@@ -277,13 +278,10 @@ public class UiStateTrackerTest extends FoundationTestCase {
         new LoadingPhaseCompleteEvent(ImmutableSet.of(), ImmutableSet.of(), MOCK_REPO_MAPPING));
     String additionalMessage = "5 targets";
     stateTracker.additionalMessage = additionalMessage;
-    String configuredTargetProgressString = "5 targets configured";
-    ConfiguredTargetProgressReceiver configuredTargetProgressReceiver =
-        mock(ConfiguredTargetProgressReceiver.class);
-    when(configuredTargetProgressReceiver.getProgressString())
-        .thenReturn(configuredTargetProgressString);
-    stateTracker.configurationStarted(
-        new ConfigurationPhaseStartedEvent(configuredTargetProgressReceiver));
+    String analysisProgressString = "5 targets and 0 aspects configured";
+    AnalysisProgressReceiver analysisProgressReceiver = mock(AnalysisProgressReceiver.class);
+    when(analysisProgressReceiver.getProgressString()).thenReturn(analysisProgressString);
+    stateTracker.configurationStarted(new ConfigurationPhaseStartedEvent(analysisProgressReceiver));
 
     LoggingTerminalWriter terminalWriterLoadingConfiguration =
         new LoggingTerminalWriter(/*discardHighlight=*/ true);
@@ -293,8 +291,8 @@ public class UiStateTrackerTest extends FoundationTestCase {
     assertThat(loadingConfigurationOutput).contains(additionalMessage);
     assertThat(loadingConfigurationOutput).contains(loadingState);
     assertThat(loadingConfigurationOutput).contains(loadingActivity);
-    // It should contain the configured target progress string along with the loading information.
-    assertThat(loadingConfigurationOutput).contains(configuredTargetProgressString);
+    // It should contain the analysis progress string along with the loading information.
+    assertThat(loadingConfigurationOutput).contains(analysisProgressString);
   }
 
   @Test
@@ -653,7 +651,7 @@ public class UiStateTrackerTest extends FoundationTestCase {
                 BuildEventStreamProtos.BuildEventId.getDefaultInstance(),
                 BuildEventStreamProtos.BuildEvent.getDefaultInstance()),
             /* isToolConfiguration= */ false,
-            /* executionPlatform= */ null,
+            /* executionPlatform= */ PlatformInfo.EMPTY_PLATFORM_INFO,
             /* aspectDescriptors= */ ImmutableList.of(),
             /* execProperties= */ ImmutableMap.of());
     when(action.getOwner()).thenReturn(owner);
@@ -1199,7 +1197,7 @@ public class UiStateTrackerTest extends FoundationTestCase {
                 BuildEventStreamProtos.BuildEventId.getDefaultInstance(),
                 BuildEventStreamProtos.BuildEvent.getDefaultInstance()),
             /* isToolConfiguration= */ false,
-            /* executionPlatform= */ null,
+            /* executionPlatform= */ PlatformInfo.EMPTY_PLATFORM_INFO,
             /* aspectDescriptors= */ ImmutableList.of(),
             /* execProperties= */ ImmutableMap.of());
 
@@ -1217,7 +1215,7 @@ public class UiStateTrackerTest extends FoundationTestCase {
                 BuildEventStreamProtos.BuildEventId.getDefaultInstance(),
                 BuildEventStreamProtos.BuildEvent.getDefaultInstance()),
             /* isToolConfiguration= */ false,
-            /* executionPlatform= */ null,
+            /* executionPlatform= */ PlatformInfo.EMPTY_PLATFORM_INFO,
             /* aspectDescriptors= */ ImmutableList.of(),
             /* execProperties= */ ImmutableMap.of());
 
@@ -1235,7 +1233,7 @@ public class UiStateTrackerTest extends FoundationTestCase {
                 BuildEventStreamProtos.BuildEventId.getDefaultInstance(),
                 BuildEventStreamProtos.BuildEvent.getDefaultInstance()),
             /* isToolConfiguration= */ false,
-            /* executionPlatform= */ null,
+            /* executionPlatform= */ PlatformInfo.EMPTY_PLATFORM_INFO,
             /* aspectDescriptors= */ ImmutableList.of(),
             /* execProperties= */ ImmutableMap.of());
 

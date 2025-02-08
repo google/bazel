@@ -21,7 +21,6 @@ import com.google.devtools.common.options.Converters;
 import com.google.devtools.common.options.Option;
 import com.google.devtools.common.options.OptionDocumentationCategory;
 import com.google.devtools.common.options.OptionEffectTag;
-import com.google.devtools.common.options.OptionMetadataTag;
 import java.util.List;
 
 /**
@@ -39,20 +38,6 @@ public class J2ObjcCommandLineOptions extends FragmentOptions {
       help = "Additional options to pass to the J2ObjC tool.")
   public List<String> translationFlags;
 
-  /**
-   * @deprecated Use J2ObjC tree shaker instead.
-   */
-  @Deprecated
-  @Option(
-      name = "j2objc_dead_code_removal",
-      defaultValue = "false",
-      documentationCategory = OptionDocumentationCategory.UNDOCUMENTED,
-      effectTags = {OptionEffectTag.UNKNOWN},
-      help =
-          "Whether to perform J2ObjC dead code removal to strip unused code from the final app "
-              + "bundle.")
-  public boolean removeDeadCode;
-
   @Option(
     name = "j2objc_dead_code_report",
     defaultValue = "null",
@@ -65,32 +50,4 @@ public class J2ObjcCommandLineOptions extends FragmentOptions {
   )
   public Label deadCodeReport;
 
-  @Option(
-      name = "experimental_j2objc_header_map",
-      defaultValue = "true",
-      documentationCategory = OptionDocumentationCategory.UNCATEGORIZED,
-      effectTags = {OptionEffectTag.UNKNOWN},
-      metadataTags = {OptionMetadataTag.EXPERIMENTAL},
-      help = "Whether to generate J2ObjC header map in parallel of J2ObjC transpilation.")
-  public boolean experimentalJ2ObjcHeaderMap;
-
-  @Option(
-      name = "experimental_j2objc_shorter_header_path",
-      defaultValue = "false",
-      documentationCategory = OptionDocumentationCategory.UNCATEGORIZED,
-      effectTags = {OptionEffectTag.AFFECTS_OUTPUTS},
-      metadataTags = {OptionMetadataTag.EXPERIMENTAL},
-      help = "Whether to generate with shorter header path (uses \"_ios\" instead of \"_j2objc\").")
-  public boolean experimentalShorterHeaderPath;
-
-  @Option(
-      name = "incompatible_j2objc_library_migration",
-      defaultValue = "false",
-      documentationCategory = OptionDocumentationCategory.UNDOCUMENTED,
-      effectTags = {OptionEffectTag.LOADING_AND_ANALYSIS},
-      metadataTags = {OptionMetadataTag.INCOMPATIBLE_CHANGE},
-      help =
-          "If enabled, direct usage of the native j2objc_library rules is disabled. Please use the"
-              + " Starlark rule instead.")
-  public boolean j2objcLibraryMigration;
 }

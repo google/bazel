@@ -125,6 +125,7 @@ public final class ExampleWorker {
 
   public static void main(String[] args) throws Exception {
     if (ImmutableSet.copyOf(args).contains("--persistent_worker")) {
+      System.err.printf("Worker args: %s\n", String.join(" ", args));
       OptionsParser parser =
           OptionsParser.builder()
               .optionsClasses(ExampleWorkerOptions.class)

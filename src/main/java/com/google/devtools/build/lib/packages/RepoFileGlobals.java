@@ -14,6 +14,8 @@
 
 package com.google.devtools.build.lib.packages;
 
+import com.google.devtools.build.docgen.annot.GlobalMethods;
+import com.google.devtools.build.docgen.annot.GlobalMethods.Environment;
 import java.util.Map;
 import net.starlark.java.annot.Param;
 import net.starlark.java.annot.ParamType;
@@ -24,6 +26,7 @@ import net.starlark.java.eval.Starlark;
 import net.starlark.java.eval.StarlarkThread;
 
 /** Definition of the {@code repo()} function used in REPO.bazel files. */
+@GlobalMethods(environment = Environment.REPO)
 public final class RepoFileGlobals {
   private RepoFileGlobals() {}
 
@@ -59,8 +62,17 @@ public final class RepoFileGlobals {
 
   @StarlarkMethod(
       name = "repo",
-      documented = false, // documented separately
-      extraKeywords = @Param(name = "kwargs"),
+      doc =
+          "Declares metadata that applies to every rule in the repository. It must be called at "
+              + "most once per REPO.bazel file. If called, it must be the first call in the "
+              + "REPO.bazel file.",
+      extraKeywords =
+          @Param(
+              name = "kwargs",
+              doc =
+                  "The <code>repo()</code> function accepts exactly the same arguments as the "
+                      + "<a href=\"${link functions}#package\"><code>package()</code></a> function "
+                      + "in BUILD files."),
       useStarlarkThread = true)
   public void repoCallable(Map<String, Object> kwargs, StarlarkThread thread) throws EvalException {
     RepoThreadContext context = RepoThreadContext.fromOrFail(thread, "repo()");

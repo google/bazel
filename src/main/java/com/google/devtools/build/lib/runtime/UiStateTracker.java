@@ -53,8 +53,8 @@ import com.google.devtools.build.lib.events.Event;
 import com.google.devtools.build.lib.events.ExtendedEventHandler.FetchProgress;
 import com.google.devtools.build.lib.pkgcache.LoadingPhaseCompleteEvent;
 import com.google.devtools.build.lib.runtime.CrashDebuggingProtos.InflightActionInfo;
+import com.google.devtools.build.lib.skyframe.AnalysisProgressReceiver;
 import com.google.devtools.build.lib.skyframe.ConfigurationPhaseStartedEvent;
-import com.google.devtools.build.lib.skyframe.ConfiguredTargetProgressReceiver;
 import com.google.devtools.build.lib.skyframe.LoadingPhaseStartedEvent;
 import com.google.devtools.build.lib.skyframe.PackageProgressReceiver;
 import com.google.devtools.build.lib.skyframe.TopLevelStatusEvents.TestAnalyzedEvent;
@@ -384,7 +384,7 @@ class UiStateTracker {
 
   @Nullable protected ExecutionProgressReceiver executionProgressReceiver;
   @Nullable protected PackageProgressReceiver packageProgressReceiver;
-  @Nullable protected ConfiguredTargetProgressReceiver configuredTargetProgressReceiver;
+  @Nullable protected AnalysisProgressReceiver analysisProgressReceiver;
 
   // Set of build event protocol transports that need yet to be closed.
   private final Set<BuildEventTransport> bepOpenTransports = new HashSet<>();
@@ -434,7 +434,7 @@ class UiStateTracker {
   }
 
   void configurationStarted(ConfigurationPhaseStartedEvent event) {
-    configuredTargetProgressReceiver = event.getConfiguredTargetProgressReceiver();
+    analysisProgressReceiver = event.getAnalysisProgressReceiver();
   }
 
   void loadingComplete(LoadingPhaseCompleteEvent event) {
@@ -461,15 +461,15 @@ class UiStateTracker {
     if (packageProgressReceiver != null) {
       Pair<String, String> progress = packageProgressReceiver.progressState();
       workDone += " (" + progress.getFirst();
-      if (configuredTargetProgressReceiver != null) {
-        workDone += ", " + configuredTargetProgressReceiver.getProgressString();
+      if (analysisProgressReceiver != null) {
+        workDone += ", " + analysisProgressReceiver.getProgressString();
       }
       workDone += ")";
     }
     workDone += ".";
     status = null;
     packageProgressReceiver = null;
-    configuredTargetProgressReceiver = null;
+    analysisProgressReceiver = null;
     return workDone;
   }
 
@@ -1199,14 +1199,14 @@ class UiStateTracker {
 
     Duration waitTime =
         Duration.between(buildCompleteAt, Instant.ofEpochMilli(clock.currentTimeMillis()));
-    if (waitTime.getSeconds() == 0) {
+    if (waitTime.toSeconds() == 0) {
       // Special case for when bazel was interrupted, in which case we don't want to have a message.
       return;
     }
 
     String suffix = "";
     if (waitTime.compareTo(Duration.ofSeconds(SHOW_TIME_THRESHOLD_SECONDS)) > 0) {
-      suffix = "; " + waitTime.getSeconds() + "s";
+      suffix = "; " + waitTime.toSeconds() + "s";
     }
 
     String message = "Waiting for remote cache: ";
@@ -1244,7 +1244,7 @@ class UiStateTracker {
     }
     Duration waitTime =
         Duration.between(buildCompleteAt, Instant.ofEpochMilli(clock.currentTimeMillis()));
-    if (waitTime.getSeconds() == 0) {
+    if (waitTime.toSeconds() == 0) {
       // Special case for when bazel was interrupted, in which case we don't want to have
       // a BEP upload message.
       return;
@@ -1255,17 +1255,17 @@ class UiStateTracker {
 
     String waitMessage = "Waiting for build events upload: ";
     String name = bepOpenTransports.iterator().next().name();
-    String line = waitMessage + name + " " + waitTime.getSeconds() + "s";
+    String line = waitMessage + name + " " + waitTime.toSeconds() + "s";
 
     if (count == 1 && line.length() <= maxWidth) {
       terminalWriter.newline().append(line);
     } else if (count == 1) {
       waitMessage = "Waiting for: ";
-      String waitSecs = " " + waitTime.getSeconds() + "s";
+      String waitSecs = " " + waitTime.toSeconds() + "s";
       int maxNameWidth = maxWidth - waitMessage.length() - waitSecs.length();
       terminalWriter.newline().append(waitMessage + shortenedString(name, maxNameWidth) + waitSecs);
     } else {
-      terminalWriter.newline().append(waitMessage + waitTime.getSeconds() + "s");
+      terminalWriter.newline().append(waitMessage + waitTime.toSeconds() + "s");
       for (BuildEventTransport transport : bepOpenTransports) {
         name = "  " + transport.name();
         terminalWriter.newline().append(shortenedString(name, maxWidth));
@@ -1365,8 +1365,8 @@ class UiStateTracker {
       if (packageProgressReceiver != null) {
         Pair<String, String> progress = packageProgressReceiver.progressState();
         terminalWriter.append(" (" + progress.getFirst());
-        if (configuredTargetProgressReceiver != null) {
-          terminalWriter.append(", " + configuredTargetProgressReceiver.getProgressString());
+        if (analysisProgressReceiver != null) {
+          terminalWriter.append(", " + analysisProgressReceiver.getProgressString());
         }
         terminalWriter.append(")");
         if (!progress.getSecond().isEmpty() && !shortVersion) {

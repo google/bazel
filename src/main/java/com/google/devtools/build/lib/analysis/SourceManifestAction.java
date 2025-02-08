@@ -15,7 +15,6 @@ package com.google.devtools.build.lib.analysis;
 
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static java.nio.charset.StandardCharsets.ISO_8859_1;
-import static java.nio.charset.StandardCharsets.UTF_8;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableList;
@@ -27,6 +26,9 @@ import com.google.devtools.build.lib.actions.ActionKeyContext;
 import com.google.devtools.build.lib.actions.ActionOwner;
 import com.google.devtools.build.lib.actions.Artifact;
 import com.google.devtools.build.lib.actions.ArtifactExpander;
+import com.google.devtools.build.lib.actions.ExecException;
+import com.google.devtools.build.lib.actions.UserExecException;
+import com.google.devtools.build.lib.analysis.Runfiles.ConflictType;
 import com.google.devtools.build.lib.analysis.actions.AbstractFileWriteAction;
 import com.google.devtools.build.lib.analysis.actions.DeterministicWriter;
 import com.google.devtools.build.lib.analysis.starlark.UnresolvedSymlinkAction;
@@ -35,6 +37,9 @@ import com.google.devtools.build.lib.collect.nestedset.NestedSetBuilder;
 import com.google.devtools.build.lib.collect.nestedset.Order;
 import com.google.devtools.build.lib.concurrent.ThreadSafety.Immutable;
 import com.google.devtools.build.lib.events.EventHandler;
+import com.google.devtools.build.lib.events.StoredEventHandler;
+import com.google.devtools.build.lib.server.FailureDetails;
+import com.google.devtools.build.lib.server.FailureDetails.FailureDetail;
 import com.google.devtools.build.lib.util.Fingerprint;
 import com.google.devtools.build.lib.vfs.PathFragment;
 import java.io.BufferedWriter;
@@ -47,6 +52,7 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
+import java.util.function.BiConsumer;
 import javax.annotation.Nullable;
 
 /**
@@ -199,9 +205,7 @@ public final class SourceManifestAction extends AbstractFileWriteAction
   @VisibleForTesting
   public void writeOutputFile(OutputStream out, @Nullable EventHandler eventHandler)
       throws IOException {
-    writeFile(
-        out,
-        runfiles.getRunfilesInputs(eventHandler, getOwner().getLocation(), repoMappingManifest));
+    writeFile(out, runfiles.getRunfilesInputs(repoMappingManifest));
   }
 
   /**
@@ -213,7 +217,7 @@ public final class SourceManifestAction extends AbstractFileWriteAction
   public String getFileContents(@Nullable EventHandler eventHandler) throws IOException {
     ByteArrayOutputStream stream = new ByteArrayOutputStream();
     writeOutputFile(stream, eventHandler);
-    return stream.toString(UTF_8);
+    return stream.toString(ISO_8859_1);
   }
 
   @Override
@@ -222,10 +226,33 @@ public final class SourceManifestAction extends AbstractFileWriteAction
   }
 
   @Override
-  public DeterministicWriter newDeterministicWriter(ActionExecutionContext ctx) {
-    final Map<PathFragment, Artifact> runfilesInputs =
-        runfiles.getRunfilesInputs(
-            ctx.getEventHandler(), getOwner().getLocation(), repoMappingManifest);
+  public DeterministicWriter newDeterministicWriter(ActionExecutionContext ctx)
+      throws ExecException {
+    StoredEventHandler eventHandler = new StoredEventHandler();
+    BiConsumer<ConflictType, String> eventReceiver =
+        runfiles.eventRunfilesConflictReceiver(eventHandler, getOwner().getLocation());
+    boolean[] seenNestedRunfilesTree = new boolean[] {false};
+    BiConsumer<ConflictType, String> receiver =
+        (conflictType, message) -> {
+          eventReceiver.accept(conflictType, message);
+          if (conflictType == ConflictType.NESTED_RUNFILES_TREE) {
+            seenNestedRunfilesTree[0] = true;
+          }
+        };
+
+    Map<PathFragment, Artifact> runfilesInputs =
+        runfiles.getRunfilesInputs(receiver, repoMappingManifest);
+    eventHandler.replayOn(ctx.getEventHandler());
+    if (seenNestedRunfilesTree[0]) {
+      FailureDetail failureDetail =
+          FailureDetail.newBuilder()
+              .setMessage("Cannot create input manifest for runfiles tree")
+              .setAnalysis(
+                  FailureDetails.Analysis.newBuilder()
+                      .setCode(FailureDetails.Analysis.Code.INVALID_RUNFILES_TREE))
+              .build();
+      throw new UserExecException(failureDetail);
+    }
     return out -> writeFile(out, runfilesInputs);
   }
 

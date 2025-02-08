@@ -97,11 +97,10 @@ public final class StarlarkRuleConfiguredTargetUtil {
     try {
       // call rule.implementation(ctx)
       providersRaw =
-          Starlark.fastcall(
+          Starlark.positionalOnlyCall(
               ruleContext.getStarlarkThread(),
               ruleClass.getConfiguredTargetFunction(),
-              /* positional= */ new Object[] {ruleContext.getStarlarkRuleContext()},
-              /* named= */ new Object[0]);
+              ruleContext.getStarlarkRuleContext());
 
     } catch (Starlark.UncheckedEvalException ex) {
       // MissingDepException is expected to transit through Starlark execution.

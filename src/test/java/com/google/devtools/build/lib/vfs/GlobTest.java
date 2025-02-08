@@ -14,6 +14,7 @@
 package com.google.devtools.build.lib.vfs;
 
 import static com.google.common.truth.Truth.assertThat;
+import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.junit.Assert.assertThrows;
 
 import com.google.common.collect.ImmutableList;
@@ -31,10 +32,10 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.CancellationException;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.ThreadPoolExecutor;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Predicate;
 import org.junit.After;
@@ -539,11 +540,23 @@ public class GlobTest {
     final Thread mainThread = Thread.currentThread();
     final ThreadPoolExecutor executor = (ThreadPoolExecutor) Executors.newFixedThreadPool(10);
 
+    var interruptExactlyOnce = new AtomicBoolean(false);
+    // Ensures the cancellation occurs while the glob is running.
+    var waitInPredicate = new CountDownLatch(1);
+
     Predicate<Path> interrupterPredicate =
         new Predicate<Path>() {
           @Override
           public boolean test(Path input) {
-            mainThread.interrupt();
+            if (interruptExactlyOnce.compareAndSet(false, true)) {
+              mainThread.interrupt();
+            } else {
+              try {
+                assertThat(waitInPredicate.await(TestUtils.WAIT_TIMEOUT_SECONDS, SECONDS)).isTrue();
+              } catch (InterruptedException e) {
+                throw new AssertionError(e);
+              }
+            }
             return true;
           }
         };
@@ -561,14 +574,15 @@ public class GlobTest {
     assertThrows(InterruptedException.class, () -> globResult.get());
 
     globResult.cancel(true);
+    waitInPredicate.countDown();
+
     assertThrows(
         CancellationException.class, () -> Uninterruptibles.getUninterruptibly(globResult));
 
     Thread.interrupted();
     assertThat(executor.isShutdown()).isFalse();
     executor.shutdown();
-    assertThat(executor.awaitTermination(TestUtils.WAIT_TIMEOUT_SECONDS, TimeUnit.SECONDS))
-        .isTrue();
+    assertThat(executor.awaitTermination(TestUtils.WAIT_TIMEOUT_SECONDS, SECONDS)).isTrue();
   }
 
   @Test
@@ -621,8 +635,7 @@ public class GlobTest {
 
     assertThat(executor.isShutdown()).isFalse();
     executor.shutdown();
-    assertThat(executor.awaitTermination(TestUtils.WAIT_TIMEOUT_SECONDS, TimeUnit.SECONDS))
-        .isTrue();
+    assertThat(executor.awaitTermination(TestUtils.WAIT_TIMEOUT_SECONDS, SECONDS)).isTrue();
   }
 
   private static Collection<String> removeExcludes(ImmutableList<String> paths, String... excludes)

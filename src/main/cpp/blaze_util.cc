@@ -214,6 +214,16 @@ void SetDebugLog(blaze_util::LoggingDetail detail) {
 
 bool IsRunningWithinTest() { return ExistsEnv("TEST_TMPDIR"); }
 
+blaze_util::Path GetOOMFilePath(const blaze_util::Path& output_base) {
+  return output_base.GetRelative("blaze_oomed");
+}
+
+blaze_util::Path GetAbruptExitFilePath(const blaze_util::Path& output_base) {
+  // It would make more sense for this file to be in the "server" subdirectory,
+  // but changing that would require migrating invokers of Blaze.
+  return output_base.GetRelative("exit_code_to_use_on_abrupt_exit");
+}
+
 void WithEnvVars::SetEnvVars(const map<string, EnvVarValue>& vars) {
   for (const auto& var : vars) {
     switch (var.second.action) {

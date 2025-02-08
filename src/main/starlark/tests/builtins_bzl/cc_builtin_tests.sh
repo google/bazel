@@ -201,7 +201,7 @@ function test_cc_static_library_protobuf() {
   cat > pkg/BUILD<<'EOF'
 cc_static_library(
     name = "protobuf",
-    deps = ["@protobuf"],
+    deps = ["@com_google_protobuf//:protobuf"],
 )
 EOF
 

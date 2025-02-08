@@ -23,6 +23,7 @@ import com.google.common.io.BaseEncoding;
 import com.google.devtools.build.lib.actions.ActionExecutionContext;
 import com.google.devtools.build.lib.actions.ActionKeyContext;
 import com.google.devtools.build.lib.actions.ActionOwner;
+import com.google.devtools.build.lib.actions.ArgChunk;
 import com.google.devtools.build.lib.actions.Artifact;
 import com.google.devtools.build.lib.actions.ArtifactExpander;
 import com.google.devtools.build.lib.actions.CommandLine;
@@ -117,7 +118,7 @@ public final class ParameterFileWriteAction extends AbstractFileWriteAction {
   public String getStringContents()
       throws CommandLineExpansionException, InterruptedException, IOException {
     ByteArrayOutputStream out = new ByteArrayOutputStream();
-    ParameterFile.writeParameterFile(out, getArguments(), type, ISO_8859_1);
+    ParameterFile.writeParameterFile(out, getArguments(), type);
     return out.toString(ISO_8859_1);
   }
 
@@ -138,10 +139,10 @@ public final class ParameterFileWriteAction extends AbstractFileWriteAction {
   @Override
   public DeterministicWriter newDeterministicWriter(ActionExecutionContext ctx)
       throws ExecException, InterruptedException {
-    final Iterable<String> arguments;
+    final ArgChunk arguments;
     try {
       ArtifactExpander artifactExpander = Preconditions.checkNotNull(ctx.getArtifactExpander());
-      arguments = commandLine.arguments(artifactExpander, PathMapper.NOOP);
+      arguments = commandLine.expand(artifactExpander, PathMapper.NOOP);
     } catch (CommandLineExpansionException e) {
       throw new UserExecException(
           e,
@@ -154,17 +155,17 @@ public final class ParameterFileWriteAction extends AbstractFileWriteAction {
   }
 
   private static class ParamFileWriter implements DeterministicWriter {
-    private final Iterable<String> arguments;
+    private final ArgChunk arguments;
     private final ParameterFileType type;
 
-    ParamFileWriter(Iterable<String> arguments, ParameterFileType type) {
+    ParamFileWriter(ArgChunk arguments, ParameterFileType type) {
       this.arguments = arguments;
       this.type = type;
     }
 
     @Override
     public void writeOutputFile(OutputStream out) throws IOException {
-      ParameterFile.writeParameterFile(out, arguments, type, ISO_8859_1);
+      ParameterFile.writeParameterFile(out, arguments.arguments(), type);
     }
   }
 

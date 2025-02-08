@@ -27,7 +27,6 @@ import com.google.devtools.build.lib.vfs.Path;
 import com.google.devtools.build.lib.vfs.inmemoryfs.InMemoryFileSystem;
 import com.google.devtools.build.lib.worker.WorkerProcessStatus.Status;
 import java.io.IOException;
-import org.apache.commons.pool2.impl.DefaultPooledObject;
 import org.junit.After;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -124,12 +123,11 @@ public class WorkerFactoryTest {
         createWorkerKey(/* mustBeSandboxed= */ false, /* multiplex= */ false, "arg1");
     Worker worker = workerFactory.create(workerKey);
 
-    assertThat(workerFactory.validateObject(workerKey, new DefaultPooledObject<>(worker))).isTrue();
+    assertThat(workerFactory.validateWorker(workerKey, worker)).isTrue();
 
     worker.getStatus().maybeUpdateStatus(Status.KILLED_DUE_TO_MEMORY_PRESSURE);
 
-    assertThat(workerFactory.validateObject(workerKey, new DefaultPooledObject<>(worker)))
-        .isFalse();
+    assertThat(workerFactory.validateWorker(workerKey, worker)).isFalse();
   }
 
   protected WorkerKey createWorkerKey(boolean mustBeSandboxed, boolean multiplex, String... args) {

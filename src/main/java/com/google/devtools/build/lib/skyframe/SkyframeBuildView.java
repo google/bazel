@@ -104,8 +104,6 @@ import com.google.devtools.build.lib.skyframe.SkyframeExecutor.ConfigureTargetsR
 import com.google.devtools.build.lib.skyframe.SkyframeExecutor.FailureToRetrieveIntrospectedValueException;
 import com.google.devtools.build.lib.skyframe.SkyframeExecutor.TopLevelActionConflictReport;
 import com.google.devtools.build.lib.skyframe.config.BuildConfigurationKey;
-import com.google.devtools.build.lib.skyframe.serialization.analysis.RemoteAnalysisCachingDependenciesProvider;
-import com.google.devtools.build.lib.skyframe.serialization.analysis.RemoteAnalysisCachingDependenciesProvider.DisabledDependenciesProvider;
 import com.google.devtools.build.lib.util.DetailedExitCode;
 import com.google.devtools.build.lib.util.DetailedExitCode.DetailedExitCodeComparator;
 import com.google.devtools.build.lib.util.OrderedSetMultimap;
@@ -143,8 +141,6 @@ public final class SkyframeBuildView {
   private final ArtifactFactory artifactFactory;
   private final SkyframeExecutor skyframeExecutor;
   private final ActionKeyContext actionKeyContext;
-  private RemoteAnalysisCachingDependenciesProvider remoteAnalysisCachingDependenciesProvider =
-      DisabledDependenciesProvider.INSTANCE;
   private boolean enableAnalysis = false;
 
   // This hack allows us to see when an action lookup node has been invalidated, and thus when the
@@ -453,10 +449,10 @@ public final class SkyframeBuildView {
         BuildGraphMetrics buildGraphMetrics =
             analysisTraversalResult
                 .getMetrics()
-                .setOutputArtifactCount(conflictsAndStats.getOutputArtifactCount())
+                .setOutputArtifactCount(conflictsAndStats.outputArtifactCount())
                 .build();
         eventBus.post(new AnalysisGraphStatsEvent(buildGraphMetrics));
-        interTargetConflicts = conflictsAndStats.getConflicts();
+        interTargetConflicts = conflictsAndStats.conflicts();
         someActionLookupValueEvaluated = false;
       }
     }
@@ -638,6 +634,7 @@ public final class SkyframeBuildView {
       boolean extraActionTopLevelOnly,
       QuiescingExecutors executors,
       boolean shouldDiscardAnalysisCache,
+      boolean shouldClearSyscallCache,
       BuildDriverKeyTestContext buildDriverKeyTestContext,
       int skymeldAnalysisOverlapPercentage)
       throws InterruptedException,
@@ -718,7 +715,8 @@ public final class SkyframeBuildView {
                     buildResultListener,
                     skyframeExecutor,
                     ctKeys,
-                    shouldDiscardAnalysisCache,
+                    /* shouldDiscardAnalysisCache= */ shouldDiscardAnalysisCache,
+                    /* shouldClearSyscallCache= */ shouldClearSyscallCache,
                     /* measuredAnalysisTime= */ analysisWorkTimer.stop().elapsed().toMillis(),
                     /* conflictCheckingMode= */ conflictCheckingMode),
             /* executionGoAheadCallback= */ executor::launchQueuedUpExecutionPhaseTasks)) {
@@ -741,6 +739,9 @@ public final class SkyframeBuildView {
                   executors.executionParallelism(),
                   executor);
         } finally {
+          if (shouldClearSyscallCache) {
+            skyframeExecutor.clearSyscallCache();
+          }
           // Required for incremental correctness.
           // We unconditionally reset the states here instead of in #analysisFinishedCallback since
           // in case of --nokeep_going & analysis error, the analysis phase is never finished.
@@ -913,6 +914,7 @@ public final class SkyframeBuildView {
       SkyframeExecutor skyframeExecutor,
       List<ConfiguredTargetKey> configuredTargetKeys,
       boolean shouldDiscardAnalysisCache,
+      boolean shouldClearSyscallCache,
       long measuredAnalysisTime,
       ConflictCheckingMode conflictCheckingMode)
       throws InterruptedException {
@@ -945,7 +947,9 @@ public final class SkyframeBuildView {
 
     // Clearing the syscall cache here to free up some heap space.
     // TODO(b/273225564) Would this incur more CPU cost for the execution phase cache misses?
-    skyframeExecutor.clearSyscallCache();
+    if (shouldClearSyscallCache) {
+      skyframeExecutor.clearSyscallCache();
+    }
 
     enableAnalysis(false);
 
@@ -1448,15 +1452,6 @@ public final class SkyframeBuildView {
     return starlarkTransitionCache;
   }
 
-  public void setRemoteAnalysisCachingDependenciesProvider(
-      RemoteAnalysisCachingDependenciesProvider provider) {
-    this.remoteAnalysisCachingDependenciesProvider = provider;
-  }
-
-  public RemoteAnalysisCachingDependenciesProvider getRemoteAnalysisCachingDependenciesProvider() {
-    return remoteAnalysisCachingDependenciesProvider;
-  }
-
   private final class ActionLookupValueProgressReceiver implements EvaluationProgressReceiver {
     private final AtomicInteger configuredObjectCount = new AtomicInteger();
     private final AtomicInteger actionCount = new AtomicInteger();
@@ -1513,6 +1508,12 @@ public final class SkyframeBuildView {
               return;
             }
           }
+          if (alv.getNumActions() == 0) {
+            // No actions in deserialized action lookup values, and calling #getActions will
+            // cause an NPE.
+            return;
+          }
+
           // During multithreaded operation, this is only set to true, so no concurrency issues.
           someActionLookupValueEvaluated = true;
           ImmutableList<ActionAnalysisMetadata> actions = alv.getActions();

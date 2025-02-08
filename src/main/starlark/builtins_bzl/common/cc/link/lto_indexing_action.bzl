@@ -180,9 +180,9 @@ def _lto_indexing_action(
                     # must see all objects used to produce the final link output.
                     new_object_files.append(lto_artifacts.object_file())
                     continue
-                elif lib.lto_compilation_context.get_minimized_bitcode_or_self(a) == a:
-                    fail("For artifact '%s' in library '%s': need a shared LTO artifact for " +
-                         "bitcode" % (a, lib.file))
+                elif lib.lto_compilation_context.get_minimized_bitcode_or_self(a) != a:
+                    fail(("For artifact '%s' in library '%s': unexpectedly has a shared LTO artifact for " +
+                          "bitcode") % (a, lib.file))
             new_object_files.append(lib.lto_compilation_context.get_minimized_bitcode_or_self(a))
         unique_libraries.append(cc_internal.library_linker_input(
             lib.file,

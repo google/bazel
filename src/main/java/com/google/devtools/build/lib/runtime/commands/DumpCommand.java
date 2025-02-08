@@ -39,6 +39,8 @@ import com.google.devtools.build.lib.runtime.BlazeRuntime;
 import com.google.devtools.build.lib.runtime.BlazeWorkspace;
 import com.google.devtools.build.lib.runtime.Command;
 import com.google.devtools.build.lib.runtime.CommandEnvironment;
+import com.google.devtools.build.lib.runtime.InstrumentationOutput;
+import com.google.devtools.build.lib.runtime.InstrumentationOutputFactory.DestinationRelativeTo;
 import com.google.devtools.build.lib.server.FailureDetails;
 import com.google.devtools.build.lib.server.FailureDetails.DumpCommand.Code;
 import com.google.devtools.build.lib.server.FailureDetails.FailureDetail;
@@ -52,6 +54,7 @@ import com.google.devtools.build.lib.skyframe.config.BuildConfigurationKey;
 import com.google.devtools.build.lib.util.MemoryAccountant.Stats;
 import com.google.devtools.build.lib.util.RegexFilter;
 import com.google.devtools.build.lib.util.RegexFilter.RegexFilterConverter;
+import com.google.devtools.build.lib.vfs.PathFragment;
 import com.google.devtools.build.skyframe.InMemoryGraph;
 import com.google.devtools.build.skyframe.MemoizingEvaluator;
 import com.google.devtools.build.skyframe.NodeEntry;
@@ -384,7 +387,19 @@ public class DumpCommand implements BlazeCommand {
 
       if (dumpOptions.starlarkMemory != null) {
         try {
-          dumpStarlarkHeap(env.getBlazeWorkspace(), dumpOptions.starlarkMemory, out);
+          InstrumentationOutput starlarkHeapOutput =
+              runtime
+                  .getInstrumentationOutputFactory()
+                  .createInstrumentationOutput(
+                      /* name= */ "starlark_heap",
+                      PathFragment.create(dumpOptions.starlarkMemory),
+                      DestinationRelativeTo.WORKSPACE_OR_HOME,
+                      env,
+                      env.getReporter(),
+                      /* append= */ null,
+                      /* internal= */ null);
+          dumpStarlarkHeap(
+              env.getBlazeWorkspace(), starlarkHeapOutput, dumpOptions.starlarkMemory, out);
         } catch (IOException e) {
           String message = "Could not dump Starlark memory";
           env.getReporter().error(null, message, e);
@@ -672,7 +687,11 @@ public class DumpCommand implements BlazeCommand {
     return Optional.empty();
   }
 
-  private static void dumpStarlarkHeap(BlazeWorkspace workspace, String path, PrintStream out)
+  private static void dumpStarlarkHeap(
+      BlazeWorkspace workspace,
+      InstrumentationOutput starlarkHeapOutput,
+      String path,
+      PrintStream out)
       throws IOException {
     AllocationTracker allocationTracker = workspace.getAllocationTracker();
     if (allocationTracker == null) {
@@ -683,7 +702,10 @@ public class DumpCommand implements BlazeCommand {
       return;
     }
     out.println("Dumping Starlark heap to: " + path);
-    allocationTracker.dumpStarlarkAllocations(path);
+
+    // OutputStream is expected to be closed when allocationTracker.dumpStarlarkAllocations()
+    // returns.
+    allocationTracker.dumpStarlarkAllocations(starlarkHeapOutput.createOutputStream());
   }
 
   static BlazeCommandResult createFailureResult(String message, Code detailedCode) {

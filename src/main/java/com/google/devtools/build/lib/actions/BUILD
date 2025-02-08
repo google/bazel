@@ -15,7 +15,6 @@ java_library(
     name = "execution_requirements",
     srcs = ["ExecutionRequirements.java"],
     deps = [
-        "//third_party:auto_value",
         "//third_party:guava",
         "//third_party:jsr305",
     ],
@@ -37,7 +36,9 @@ java_library(
         "ActionCacheAwareAction.java",
         "ActionCacheChecker.java",
         "ActionCacheUtils.java",
+        "ActionChangePrunedEvent.java",
         "ActionCompletionEvent.java",
+        "ActionConcurrencyMeter.java",
         "ActionConflictException.java",
         "ActionContext.java",
         "ActionContextMarker.java",
@@ -103,15 +104,15 @@ java_library(
         "LostInputsActionExecutionException.java",
         "LostInputsExecException.java",
         "MapBasedActionGraph.java",
-        "MiddlemanAction.java",
         "MissingDepExecException.java",
         "MissingInputFileException.java",
         "MutableActionGraph.java",
         "NotifyOnActionCacheHit.java",
+        "OutputChecker.java",
         "ParamFileInfo.java",
         "ParameterFile.java",
-        "RemoteArtifactChecker.java",
         "ResourceEstimator.java",
+        "RunfilesTreeAction.java",
         "RunningActionEvent.java",
         "SandboxedSpawnStrategy.java",
         "ScanningActionEvent.java",
@@ -128,7 +129,6 @@ java_library(
         "StaticInputMetadataProvider.java",
         "StoppedScanningActionEvent.java",
         "TestExecException.java",
-        "TestMiddlemanObserver.java",
         "TopLevelOutputException.java",
         "TotalAndConfiguredTargetOnlyMetric.java",
         "UserExecException.java",
@@ -151,7 +151,6 @@ java_library(
         ":file_metadata",
         ":fileset_output_tree",
         ":localhost_capacity",
-        ":middleman_type",
         ":package_roots",
         ":runfiles_metadata",
         ":runfiles_tree",
@@ -160,6 +159,7 @@ java_library(
         "//src/main/java/com/google/devtools/build/lib/analysis:config/core_options",
         "//src/main/java/com/google/devtools/build/lib/analysis:symlink_entry",
         "//src/main/java/com/google/devtools/build/lib/analysis/platform",
+        "//src/main/java/com/google/devtools/build/lib/analysis/platform:constants",
         "//src/main/java/com/google/devtools/build/lib/bugreport",
         "//src/main/java/com/google/devtools/build/lib/buildeventstream",
         "//src/main/java/com/google/devtools/build/lib/buildeventstream/proto:build_event_stream_java_proto",
@@ -193,7 +193,6 @@ java_library(
         "//src/main/java/com/google/devtools/build/lib/util:filetype",
         "//src/main/java/com/google/devtools/build/lib/util:os",
         "//src/main/java/com/google/devtools/build/lib/util:shell_escaper",
-        "//src/main/java/com/google/devtools/build/lib/util:string",
         "//src/main/java/com/google/devtools/build/lib/util:var_int",
         "//src/main/java/com/google/devtools/build/lib/util/io",
         "//src/main/java/com/google/devtools/build/lib/vfs",
@@ -213,7 +212,7 @@ java_library(
         "//third_party:flogger",
         "//third_party:guava",
         "//third_party:jsr305",
-        "@protobuf//:protobuf_java",
+        "@com_google_protobuf//:protobuf_java",
         "@remoteapis//:build_bazel_remote_execution_v2_remote_execution_java_proto",
     ],
 )
@@ -313,6 +312,7 @@ java_library(
         "ArtifactRoot.java",
         "Artifacts.java",
         "PathMapper.java",
+        "PathMapperConstants.java",
     ],
     deps = [
         ":action_lookup_data",
@@ -322,6 +322,7 @@ java_library(
         ":commandline_item",
         ":package_roots",
         "//src/main/java/com/google/devtools/build/docgen/annot",
+        "//src/main/java/com/google/devtools/build/lib/analysis:config/core_options",
         "//src/main/java/com/google/devtools/build/lib/cmdline",
         "//src/main/java/com/google/devtools/build/lib/collect/nestedset",
         "//src/main/java/com/google/devtools/build/lib/collect/nestedset:fingerprint_cache",
@@ -345,7 +346,7 @@ java_library(
         "//third_party:error_prone_annotations",
         "//third_party:guava",
         "//third_party:jsr305",
-        "@protobuf//:protobuf_java",
+        "@com_google_protobuf//:protobuf_java",
     ],
 )
 
@@ -415,8 +416,10 @@ java_library(
     deps = [
         ":artifacts",
         ":has_digest",
+        "//src/main/java/com/google/devtools/build/lib/skyframe/serialization/autocodec",
         "//src/main/java/com/google/devtools/build/lib/vfs:pathfragment",
         "//third_party:auto_value",
+        "//third_party:error_prone_annotations",
         "//third_party:guava",
         "//third_party:jsr305",
     ],
@@ -451,7 +454,7 @@ java_library(
         "FileStateValue.java",
         "FileStatusWithMetadata.java",
         "FileValue.java",
-        "RemoteArtifactChecker.java",
+        "OutputChecker.java",
         "cache/MetadataDigestUtils.java",
     ],
     deps = [
@@ -477,7 +480,7 @@ java_library(
 java_library(
     name = "has_digest",
     srcs = ["HasDigest.java"],
-    deps = ["@protobuf//:protobuf_java"],
+    deps = ["@com_google_protobuf//:protobuf_java"],
 )
 
 java_library(
@@ -514,11 +517,6 @@ java_library(
         "//third_party:guava",
         "//third_party:jsr305",
     ],
-)
-
-java_library(
-    name = "middleman_type",
-    srcs = ["MiddlemanType.java"],
 )
 
 java_library(
@@ -575,6 +573,7 @@ java_library(
         "//src/main/java/com/google/devtools/build/lib/analysis:config/build_configuration",
         "//src/main/java/com/google/devtools/build/lib/analysis:symlink_entry",
         "//src/main/java/com/google/devtools/build/lib/collect/nestedset",
+        "//src/main/java/com/google/devtools/build/lib/util",
         "//src/main/java/com/google/devtools/build/lib/vfs:pathfragment",
         "//third_party:jsr305",
     ],
@@ -602,7 +601,4 @@ java_library(
 java_library(
     name = "total_and_configured_target_only_metric",
     srcs = ["TotalAndConfiguredTargetOnlyMetric.java"],
-    deps = [
-        "//third_party:auto_value",
-    ],
 )

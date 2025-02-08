@@ -58,8 +58,11 @@ final class FormatUtils {
    * and optionally to display the location of source files.
    *
    * @param relative flag to display the location relative to its package's source root directory.
+   * @param overrideSourceRoot if non-null and {@code relative} is false, replaces the package
+   *     source root
    */
-  static String getLocation(Target target, boolean relative) {
+  static String getLocation(
+      Target target, boolean relative, @Nullable PathFragment overrideSourceRoot) {
     Location loc = target.getLocation();
     if (target instanceof InputFile) {
       PathFragment packageDir = target.getPackage().getPackageDirectory().asFragment();
@@ -67,6 +70,8 @@ final class FormatUtils {
     }
     if (relative) {
       loc = getRootRelativeLocation(loc, target.getPackage());
+    } else if (overrideSourceRoot != null) {
+      loc = getLocationUnderAlternateRoot(loc, target.getPackage(), overrideSourceRoot);
     }
     return loc.toString();
   }
@@ -76,13 +81,20 @@ final class FormatUtils {
    * available.
    */
   static Location getRootRelativeLocation(Location location, @Nullable Package base) {
+    return getLocationUnderAlternateRoot(location, base, PathFragment.EMPTY_FRAGMENT);
+  }
+
+  private static Location getLocationUnderAlternateRoot(
+      Location location, @Nullable Package base, PathFragment alternateRoot) {
     if (base != null
         && base.getSourceRoot().isPresent()) { // !isPresent => WORKSPACE pseudo-package
       Root root = base.getSourceRoot().get();
       PathFragment file = PathFragment.create(location.file());
       if (root.contains(file)) {
         PathFragment rel = root.relativize(file);
-        location = Location.fromFileLineColumn(rel.toString(), location.line(), location.column());
+        location =
+            Location.fromFileLineColumn(
+                alternateRoot.getRelative(rel).toString(), location.line(), location.column());
       }
     }
     return location;

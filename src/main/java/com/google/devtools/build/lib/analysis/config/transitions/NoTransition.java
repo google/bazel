@@ -13,7 +13,6 @@
 // limitations under the License.
 package com.google.devtools.build.lib.analysis.config.transitions;
 
-import com.google.auto.value.AutoValue;
 import com.google.devtools.build.lib.analysis.config.BuildOptions;
 import com.google.devtools.build.lib.analysis.config.BuildOptionsView;
 import com.google.devtools.build.lib.events.EventHandler;
@@ -25,7 +24,7 @@ public final class NoTransition implements PatchTransition {
 
   @SerializationConstant public static final NoTransition INSTANCE = new NoTransition();
   private static final TransitionFactory<? extends TransitionFactory.Data> FACTORY_INSTANCE =
-      new AutoValue_NoTransition_Factory<>();
+      new Factory<>();
 
   private NoTransition() {}
 
@@ -59,8 +58,7 @@ public final class NoTransition implements PatchTransition {
   }
 
   /** A {@link TransitionFactory} implementation that generates the no transition. */
-  @AutoValue
-  abstract static class Factory<T extends TransitionFactory.Data>
+  record Factory<T extends TransitionFactory.Data>()
       implements TransitionFactory<T>, ConfigurationTransitionApi {
     @Override
     public ConfigurationTransition create(T unused) {

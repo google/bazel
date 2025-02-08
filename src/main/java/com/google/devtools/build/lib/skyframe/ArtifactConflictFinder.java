@@ -14,7 +14,8 @@
 
 package com.google.devtools.build.lib.skyframe;
 
-import com.google.auto.value.AutoValue;
+import static java.util.Objects.requireNonNull;
+
 import com.google.common.collect.ImmutableMap;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.google.devtools.build.lib.actions.ActionAnalysisMetadata;
@@ -119,6 +120,15 @@ class ArtifactConflictFinder {
     List<Artifact> myArtifacts = new ArrayList<>(values.size());
 
     for (ActionLookupValue value : values) {
+      if (value.getNumActions() == 0) {
+        // For remote analysis caching enabled builds with cache hits, deserialized
+        // ActionLookupValues do not contain actions.
+        //
+        // The full check will be delayed to the cache writing build, or any build
+        // that doesn't deserialize any remote ActionLookupValues.
+        continue;
+      }
+
       for (ActionAnalysisMetadata action : value.getActions()) {
         try {
           actionGraph.registerAction(action);
@@ -143,16 +153,17 @@ class ArtifactConflictFinder {
     allArtifacts.addAll(myArtifacts);
   }
 
-  @AutoValue
-  abstract static class ActionConflictsAndStats {
-    abstract ImmutableMap<ActionAnalysisMetadata, ActionConflictException> getConflicts();
-
-    abstract int getOutputArtifactCount();
+  record ActionConflictsAndStats(
+      ImmutableMap<ActionAnalysisMetadata, ActionConflictException> conflicts,
+      int outputArtifactCount) {
+    ActionConflictsAndStats {
+      requireNonNull(conflicts, "conflicts");
+    }
 
     static ActionConflictsAndStats create(
         ImmutableMap<ActionAnalysisMetadata, ActionConflictException> conflicts,
         int artifactCount) {
-      return new AutoValue_ArtifactConflictFinder_ActionConflictsAndStats(conflicts, artifactCount);
+      return new ActionConflictsAndStats(conflicts, artifactCount);
     }
   }
 }

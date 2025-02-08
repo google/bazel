@@ -271,7 +271,7 @@ public final class HelpCommand implements BlazeCommand {
   private static BazelFlagsProto.FlagInfo.Builder createFlagInfo(OptionDefinition option) {
     BazelFlagsProto.FlagInfo.Builder flagBuilder = BazelFlagsProto.FlagInfo.newBuilder();
     flagBuilder.setName(option.getOptionName());
-    flagBuilder.setHasNegativeFlag(option.hasNegativeOption());
+    flagBuilder.setHasNegativeFlag(option.usesBooleanValueSyntax());
     flagBuilder.setDocumentation(option.getHelpText());
     flagBuilder.setAllowsMultiple(option.allowsMultiple());
     flagBuilder.setRequiresValue(option.requiresValue());

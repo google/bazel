@@ -131,9 +131,9 @@ public class WorkerProcessMetricsCollector {
   public ImmutableList<WorkerProcessMetrics> collectMetrics() {
     ResourceSnapshot resourceSnapshot = collectResourceUsage();
 
-    ImmutableMap<Long, Integer> pidToMemoryInKb = resourceSnapshot.getPidToMemoryInKb();
+    ImmutableMap<Long, Integer> pidToMemoryInKb = resourceSnapshot.pidToMemoryInKb();
 
-    Instant collectionTime = resourceSnapshot.getCollectionTime();
+    Instant collectionTime = resourceSnapshot.collectionTime();
 
     ImmutableList.Builder<WorkerProcessMetrics> workerMetrics = new ImmutableList.Builder<>();
     for (Map.Entry<Long, WorkerProcessMetrics> entry : pidToWorkerProcessMetrics.entrySet()) {

@@ -14,7 +14,8 @@
 
 package com.google.devtools.build.lib.packages;
 
-import com.google.auto.value.AutoValue;
+import static java.util.Objects.requireNonNull;
+
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
@@ -155,7 +156,7 @@ public final class MacroInstance {
   }
 
   /**
-   * Returns the visibility of this macro instance.
+   * Returns the visibility of this macro instance, analogous to {@link Target#getActualVisibility}.
    *
    * <p>This value will be observed as the {@code visibility} parameter of the implementation
    * function. It is not necessarily the same as the {@code visibility} value passed in when
@@ -164,7 +165,7 @@ public final class MacroInstance {
    *
    * <p>It can be assumed that the returned list satisfies {@link RuleVisibility#validate}.
    */
-  public ImmutableList<Label> getVisibility() {
+  public ImmutableList<Label> getActualVisibility() {
     @SuppressWarnings("unchecked")
     List<Label> visibility = (List<Label>) Preconditions.checkNotNull(attrValues.get("visibility"));
     return ImmutableList.copyOf(visibility);
@@ -272,14 +273,14 @@ public final class MacroInstance {
    * Logical tuple of the package and id within the package. Used to label the Starlark evaluation
    * environment.
    */
-  @AutoValue
-  abstract static class UniqueId {
-    static UniqueId create(PackageIdentifier packageId, String id) {
-      return new AutoValue_MacroInstance_UniqueId(packageId, id);
+  record UniqueId(PackageIdentifier packageId, String id) {
+    UniqueId {
+      requireNonNull(packageId, "packageId");
+      requireNonNull(id, "id");
     }
 
-    abstract PackageIdentifier packageId();
-
-    abstract String id();
+    static UniqueId create(PackageIdentifier packageId, String id) {
+      return new UniqueId(packageId, id);
+    }
   }
 }

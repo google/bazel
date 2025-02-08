@@ -74,6 +74,7 @@ public class DynamicExecutionModule extends BlazeModule {
         : ImmutableList.<Class<? extends OptionsBase>>of();
   }
 
+  @SuppressWarnings("AllowVirtualThreads")
   @Override
   public void beforeCommand(CommandEnvironment env) {
     var buildRequestOptions = env.getOptions().getOptions(BuildRequestOptions.class);

@@ -14,7 +14,6 @@
 package com.google.devtools.build.lib.authandtls;
 
 import static com.google.common.truth.Truth.assertThat;
-import static java.nio.charset.StandardCharsets.UTF_8;
 
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
@@ -131,6 +130,6 @@ public class NetrcCredentialsTest {
       Map<String, List<String>> requestMetadata, String username, String password) {
     assertThat(requestMetadata.keySet()).containsExactly("Authorization");
     assertThat(Iterables.getOnlyElement(requestMetadata.values()))
-        .containsExactly(BasicHttpAuthenticationEncoder.encode(username, password, UTF_8));
+        .containsExactly(BasicHttpAuthenticationEncoder.encode(username, password));
   }
 }

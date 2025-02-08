@@ -13,7 +13,8 @@
 // limitations under the License.
 package com.google.devtools.build.lib.analysis.producers;
 
-import com.google.auto.value.AutoValue;
+import static java.util.Objects.requireNonNull;
+
 import com.google.devtools.build.lib.analysis.ToolchainCollection;
 import com.google.devtools.build.lib.analysis.ToolchainContext;
 import com.google.devtools.build.lib.analysis.config.ConfigConditions;
@@ -25,12 +26,12 @@ import javax.annotation.Nullable;
  *
  * <p>These are used together when computing dependencies.
  */
-@AutoValue
-public abstract class DependencyContext {
-  @Nullable
-  public abstract ToolchainCollection<UnloadedToolchainContext> unloadedToolchainContexts();
-
-  public abstract ConfigConditions configConditions();
+public record DependencyContext(
+    @Nullable ToolchainCollection<UnloadedToolchainContext> unloadedToolchainContexts,
+    ConfigConditions configConditions) {
+  public DependencyContext {
+    requireNonNull(configConditions, "configConditions");
+  }
 
   @Nullable
   public final ToolchainCollection<ToolchainContext> toolchainContexts() {
@@ -43,6 +44,6 @@ public abstract class DependencyContext {
   public static DependencyContext create(
       @Nullable ToolchainCollection<UnloadedToolchainContext> unloadedToolchainContexts,
       ConfigConditions configConditions) {
-    return new AutoValue_DependencyContext(unloadedToolchainContexts, configConditions);
+    return new DependencyContext(unloadedToolchainContexts, configConditions);
   }
 }

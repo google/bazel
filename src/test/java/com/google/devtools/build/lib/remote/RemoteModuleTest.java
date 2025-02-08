@@ -36,6 +36,7 @@ import com.google.common.truth.extensions.proto.ProtoTruth;
 import com.google.devtools.build.lib.analysis.BlazeDirectories;
 import com.google.devtools.build.lib.analysis.ServerDirectories;
 import com.google.devtools.build.lib.analysis.config.CoreOptions;
+import com.google.devtools.build.lib.analysis.test.TestConfiguration.TestOptions;
 import com.google.devtools.build.lib.authandtls.AuthAndTLSOptions;
 import com.google.devtools.build.lib.authandtls.credentialhelper.CredentialHelperEnvironment;
 import com.google.devtools.build.lib.authandtls.credentialhelper.CredentialModule;
@@ -58,6 +59,7 @@ import com.google.devtools.build.lib.runtime.Command;
 import com.google.devtools.build.lib.runtime.CommandEnvironment;
 import com.google.devtools.build.lib.runtime.CommandLinePathFactory;
 import com.google.devtools.build.lib.runtime.CommonCommandOptions;
+import com.google.devtools.build.lib.runtime.ConfigFlagDefinitions;
 import com.google.devtools.build.lib.runtime.commands.BuildCommand;
 import com.google.devtools.build.lib.runtime.proto.InvocationPolicyOuterClass.InvocationPolicy;
 import com.google.devtools.build.lib.testutil.Scratch;
@@ -139,6 +141,7 @@ public final class RemoteModuleTest {
     PackageOptions packageOptions = Options.getDefaults(PackageOptions.class);
     ClientOptions clientOptions = Options.getDefaults(ClientOptions.class);
     ExecutionOptions executionOptions = Options.getDefaults(ExecutionOptions.class);
+    TestOptions testOptions = Options.getDefaults(TestOptions.class);
 
     AuthAndTLSOptions authAndTLSOptions = Options.getDefaults(AuthAndTLSOptions.class);
 
@@ -150,6 +153,7 @@ public final class RemoteModuleTest {
     when(options.getOptions(RemoteOptions.class)).thenReturn(remoteOptions);
     when(options.getOptions(AuthAndTLSOptions.class)).thenReturn(authAndTLSOptions);
     when(options.getOptions(ExecutionOptions.class)).thenReturn(executionOptions);
+    when(options.getOptions(TestOptions.class)).thenReturn(testOptions);
 
     String productName = "bazel";
     Scratch scratch = new Scratch(new InMemoryFileSystem(DigestHashFunction.SHA256));
@@ -187,7 +191,8 @@ public final class RemoteModuleTest {
         /* commandExtensions= */ ImmutableList.of(),
         /* shutdownReasonConsumer= */ s -> {},
         NO_OP_COMMAND_EXTENSION_REPORTER,
-        /* attemptNumber= */ 1);
+        /* attemptNumber= */ 1,
+        ConfigFlagDefinitions.NONE);
   }
 
   static class CapabilitiesImpl extends CapabilitiesImplBase {

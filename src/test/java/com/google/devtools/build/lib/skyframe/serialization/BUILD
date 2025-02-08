@@ -97,7 +97,7 @@ java_test(
         "//third_party:jsr305",
         "//third_party:junit4",
         "//third_party:truth",
-        "@protobuf//:protobuf_java",
+        "@com_google_protobuf//:protobuf_java",
     ],
 )
 
@@ -126,11 +126,11 @@ java_test(
 )
 
 java_test(
-    name = "IgnoredPackagePrefixesValueCodecTest",
+    name = "IgnoredSubdirectoriesValueCodecTest",
     size = "small",
-    srcs = ["IgnoredPackagePrefixesValueCodecTest.java"],
+    srcs = ["IgnoredSubdirectoriesValueCodecTest.java"],
     deps = [
-        "//src/main/java/com/google/devtools/build/lib/skyframe:ignored_package_prefixes_value",
+        "//src/main/java/com/google/devtools/build/lib/skyframe:ignored_subdirectories_value",
         "//src/main/java/com/google/devtools/build/lib/skyframe/serialization/testutils",
         "//src/main/java/com/google/devtools/build/lib/vfs:pathfragment",
         "//third_party:guava",
@@ -313,10 +313,20 @@ java_test(
     srcs = ["ModuleCodecTest.java"],
     deps = [
         "//src/main/java/com/google/devtools/build/lib/cmdline",
+        "//src/main/java/com/google/devtools/build/lib/packages",
+        "//src/main/java/com/google/devtools/build/lib/skyframe:bzl_load_value",
+        "//src/main/java/com/google/devtools/build/lib/skyframe:skyframe_cluster",
+        "//src/main/java/com/google/devtools/build/lib/skyframe/serialization",
+        "//src/main/java/com/google/devtools/build/lib/skyframe/serialization:module_codec",
         "//src/main/java/com/google/devtools/build/lib/skyframe/serialization/testutils",
+        "//src/main/java/com/google/devtools/build/lib/skyframe/serialization/testutils:round-tripping",
+        "//src/main/java/com/google/devtools/build/skyframe:skyframe-objects",
         "//src/main/java/net/starlark/java/eval",
+        "//src/test/java/com/google/devtools/build/lib/analysis/util",
         "//third_party:guava",
+        "//third_party:jsr305",
         "//third_party:junit4",
+        "//third_party:truth",
     ],
 )
 
@@ -376,7 +386,7 @@ java_test(
         "//third_party:junit4",
         "//third_party:truth",
         "//third_party/pprof:profile_java_proto",
-        "@protobuf//:protobuf_java",
+        "@com_google_protobuf//:protobuf_java",
     ],
 )
 
@@ -403,7 +413,7 @@ java_library(
             "ProfileCollectorTest.java",
             "RecursivePkgKeyCodecTest.java",
             "RootedPathCodecTest.java",
-            "IgnoredPackagePrefixesValueCodecTest.java",
+            "IgnoredSubdirectoriesValueCodecTest.java",
             "LongCodecTest.java",
             "StarlarkInfoCodecTest.java",
             "StatementCodecTest.java",
@@ -422,10 +432,12 @@ java_library(
         "//src/main/java/com/google/devtools/build/lib/skyframe:precomputed_value",
         "//src/main/java/com/google/devtools/build/lib/skyframe/serialization",
         "//src/main/java/com/google/devtools/build/lib/skyframe/serialization:visible-for-serialization",
+        "//src/main/java/com/google/devtools/build/lib/skyframe/serialization/analysis:client_id",
         "//src/main/java/com/google/devtools/build/lib/skyframe/serialization/autocodec",
         "//src/main/java/com/google/devtools/build/lib/skyframe/serialization/autocodec:serialization-constant",
         "//src/main/java/com/google/devtools/build/lib/skyframe/serialization/testutils",
         "//src/main/java/com/google/devtools/build/lib/skyframe/serialization/testutils:dumper",
+        "//src/main/java/com/google/devtools/build/lib/skyframe/serialization/testutils:fake_invalidation_data_helper",
         "//src/main/java/com/google/devtools/build/lib/skyframe/serialization/testutils:round-tripping",
         "//src/main/java/com/google/devtools/build/lib/vfs",
         "//src/main/java/com/google/devtools/build/lib/vfs:pathfragment",
@@ -433,13 +445,14 @@ java_library(
         "//src/main/java/com/google/devtools/build/skyframe:skyframe-objects",
         "//src/main/protobuf:build_java_proto",
         "//third_party:auto_value",
+        "//third_party:error_prone_annotations",
         "//third_party:guava",
         "//third_party:jsr305",
         "//third_party:junit4",
         "//third_party:mockito",
         "//third_party:truth",
+        "@com_google_protobuf//:protobuf_java",
         "@maven//:com_google_testparameterinjector_test_parameter_injector",
-        "@protobuf//:protobuf_java",
     ],
 )
 

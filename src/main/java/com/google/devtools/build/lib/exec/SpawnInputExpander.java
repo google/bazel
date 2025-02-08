@@ -127,7 +127,7 @@ public final class SpawnInputExpander {
             baseDirectory);
         continue;
       }
-      Preconditions.checkArgument(!artifact.isMiddlemanArtifact(), artifact);
+      Preconditions.checkArgument(!artifact.isRunfilesTree(), artifact);
       if (artifact.isTreeArtifact()) {
         ArchivedTreeArtifact archivedTreeArtifact =
             expandArchivedTreeArtifacts ? null : artifactExpander.getArchivedTreeArtifact(artifact);
@@ -140,7 +140,7 @@ public final class SpawnInputExpander {
                   NestedSetBuilder.create(Order.STABLE_ORDER, artifact),
                   artifactExpander,
                   /* keepEmptyTreeArtifacts= */ false,
-                  /* keepMiddlemanArtifacts= */ false);
+                  /* keepRunfilesTreeArtifacts= */ false);
           for (ActionInput input : expandedInputs) {
             addMapping(
                 inputMap,
@@ -213,7 +213,7 @@ public final class SpawnInputExpander {
             inputFiles,
             artifactExpander,
             /* keepEmptyTreeArtifacts= */ true,
-            /* keepMiddlemanArtifacts= */ true);
+            /* keepRunfilesTreeArtifacts= */ true);
     for (ActionInput input : inputs) {
       if (input instanceof TreeFileArtifact) {
         addMapping(
@@ -223,7 +223,7 @@ public final class SpawnInputExpander {
                 .getRelative(((TreeFileArtifact) input).getParentRelativePath()),
             input,
             baseDirectory);
-      } else if (isMiddlemanArtifact(input)) {
+      } else if (isRunfilesTreeArtifact(input)) {
         RunfilesTree runfilesTree =
             inputMetadataProvider.getRunfilesMetadata(input).getRunfilesTree();
         addSingleRunfilesTreeToInputs(
@@ -369,7 +369,7 @@ public final class SpawnInputExpander {
             // better when a large tree is not the sole direct child of a nested set.
             ImmutableList<? extends ActionInput> leaves =
                 someInputFiles.getLeaves().stream()
-                    .filter(a -> !isTreeArtifact(a) && !isMiddlemanArtifact(a))
+                    .filter(a -> !isTreeArtifact(a) && !isRunfilesTreeArtifact(a))
                     .collect(toImmutableList());
             addInputs(
                 inputMap,
@@ -395,7 +395,7 @@ public final class SpawnInputExpander {
                     childVisitor);
               }
 
-              if (isMiddlemanArtifact(input)) {
+              if (isRunfilesTreeArtifact(input)) {
                 walkRunfilesTree(
                     baseDirectory,
                     inputMetadataProvider.getRunfilesMetadata(input).getRunfilesTree(),
@@ -473,7 +473,7 @@ public final class SpawnInputExpander {
     return input instanceof SpecialArtifact && ((SpecialArtifact) input).isTreeArtifact();
   }
 
-  private static boolean isMiddlemanArtifact(ActionInput input) {
-    return input instanceof Artifact && ((Artifact) input).isMiddlemanArtifact();
+  private static boolean isRunfilesTreeArtifact(ActionInput input) {
+    return input instanceof Artifact && ((Artifact) input).isRunfilesTree();
   }
 }

@@ -256,7 +256,7 @@ public class TargetCompleteEventTest extends AnalysisTestCase {
     CompletionContext completionContext =
         getCompletionContext(
             artifactsToBuild.getAllArtifacts().toList().stream()
-                .filter(a -> !a.isMiddlemanArtifact())
+                .filter(a -> !a.isRunfilesTree())
                 .collect(toImmutableMap(a -> a, a -> testShMetadata)),
             ImmutableMap.of(),
             baselineCoverageMetadata);

@@ -31,8 +31,8 @@ import com.google.perftools.profiles.ProfileProto.Line;
 import com.google.perftools.profiles.ProfileProto.Profile;
 import com.google.perftools.profiles.ProfileProto.Sample;
 import com.google.perftools.profiles.ProfileProto.ValueType;
-import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.OutputStream;
 import java.time.Instant;
 import java.util.HashMap;
 import java.util.Map;
@@ -281,14 +281,14 @@ public final class AllocationTracker implements Sampler, Debug.ThreadHook {
   }
 
   /** Dumps all Starlark analysis time allocations to a pprof-compatible file. */
-  public void dumpStarlarkAllocations(String path) throws IOException {
+  public void dumpStarlarkAllocations(OutputStream outputStream) throws IOException {
     // Make sure we don't track our own allocations
     enabled = false;
     System.gc();
     Profile profile = buildMemoryProfile();
-    try (GZIPOutputStream outputStream = new GZIPOutputStream(new FileOutputStream(path))) {
-      profile.writeTo(outputStream);
-      outputStream.finish();
+    try (GZIPOutputStream gzipOutputStream = new GZIPOutputStream(outputStream)) {
+      profile.writeTo(gzipOutputStream);
+      gzipOutputStream.finish();
     }
     enabled = true;
   }

@@ -56,6 +56,14 @@ msys*)
   ;;
 esac
 
+if $is_windows; then
+  export LC_ALL=C.utf8
+elif [[ "$(uname -s)" == "Linux" ]]; then
+  export LC_ALL=C.UTF-8
+else
+  export LC_ALL=en_US.UTF-8
+fi
+
 #### SETUP #############################################################
 
 add_to_bazelrc "build --genrule_strategy=local"
@@ -84,6 +92,38 @@ function test_fetch {
   bazel clean --expunge
   bazel fetch @remote//... --curses=yes 2>$TEST_log || fail "bazel fetch failed"
   expect_log 'Fetching.*remote_file'
+}
+
+function expect_log_with_msys_unicode_fix() {
+  if $is_windows; then
+    # MSYS grep for some reason doesn't find Unicode characters, so we convert
+    # both the pattern and the log to hex and search for the hex pattern.
+    # https://github.com/msys2/MSYS2-packages/issues/5001
+    local -r pattern_hex="$(echo -n "$1" | hexdump -ve '1/1 "%.2x"')"
+    hexdump -ve '1/1 "%.2x"' $TEST_log | grep -q -F "$pattern_hex" ||
+      fail "Could not find \"$1\" in \"$(cat $TEST_log)\" (via hexdump)"
+  else
+    expect_log "$1"
+  fi
+}
+
+function test_unicode_output {
+  local -r unicode_string="äöüÄÖÜß🌱"
+
+  mkdir -p pkg
+  cat > pkg/BUILD <<EOF
+print("str_${unicode_string}")
+
+genrule(
+  name = "gen",
+  outs = ["out_${unicode_string}"],
+  cmd = "touch \$@",
+)
+EOF
+
+  bazel build //pkg:gen 2>$TEST_log || fail "bazel build failed"
+  expect_log_with_msys_unicode_fix "str_${unicode_string}"
+  expect_log_with_msys_unicode_fix "out_${unicode_string}"
 }
 
 run_suite "Bazel-specific integration tests for the UI"

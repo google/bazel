@@ -43,7 +43,7 @@ import com.google.devtools.build.lib.bazel.bzlmod.BazelLockFileFunction;
 import com.google.devtools.build.lib.bazel.bzlmod.BazelModTidyFunction;
 import com.google.devtools.build.lib.bazel.bzlmod.BazelModuleInspectorFunction;
 import com.google.devtools.build.lib.bazel.bzlmod.BazelModuleResolutionFunction;
-import com.google.devtools.build.lib.bazel.bzlmod.LocalPathOverride;
+import com.google.devtools.build.lib.bazel.bzlmod.LocalPathRepoSpecs;
 import com.google.devtools.build.lib.bazel.bzlmod.ModuleExtensionRepoMappingEntriesFunction;
 import com.google.devtools.build.lib.bazel.bzlmod.ModuleFileFunction;
 import com.google.devtools.build.lib.bazel.bzlmod.ModuleOverride;
@@ -104,6 +104,7 @@ import com.google.devtools.build.lib.skyframe.BazelSkyframeExecutorConstants;
 import com.google.devtools.build.lib.skyframe.MutableSupplier;
 import com.google.devtools.build.lib.skyframe.PrecomputedValue;
 import com.google.devtools.build.lib.skyframe.PrecomputedValue.Injected;
+import com.google.devtools.build.lib.skyframe.RepositoryMappingFunction;
 import com.google.devtools.build.lib.skyframe.SkyFunctions;
 import com.google.devtools.build.lib.skyframe.SkyframeExecutorRepositoryHelpersHolder;
 import com.google.devtools.build.lib.starlarkbuildapi.repository.RepositoryBootstrap;
@@ -146,6 +147,7 @@ public class BazelRepositoryModule extends BlazeModule {
   private final MutableSupplier<Map<String, String>> clientEnvironmentSupplier =
       new MutableSupplier<>();
   private ImmutableMap<RepositoryName, PathFragment> overrides = ImmutableMap.of();
+  private ImmutableMap<String, PathFragment> injections = ImmutableMap.of();
   private ImmutableMap<String, ModuleOverride> moduleOverrides = ImmutableMap.of();
   private Optional<RootedPath> resolvedFileReplacingWorkspace = Optional.empty();
   private FileSystem filesystem;
@@ -161,6 +163,9 @@ public class BazelRepositoryModule extends BlazeModule {
   private List<String> allowedYankedVersions = ImmutableList.of();
   private boolean disableNativeRepoRules;
   private SingleExtensionEvalFunction singleExtensionEvalFunction;
+  private ModuleFileFunction moduleFileFunction;
+  private RepoSpecFunction repoSpecFunction;
+  private YankedVersionsFunction yankedVersionsFunction;
 
   private final VendorCommand vendorCommand = new VendorCommand(clientEnvironmentSupplier);
   private final RegistryFactoryImpl registryFactory =
@@ -245,17 +250,20 @@ public class BazelRepositoryModule extends BlazeModule {
         new SingleExtensionEvalFunction(directories, clientEnvironmentSupplier);
 
     if (builtinModules == null) {
-      builtinModules = ModuleFileFunction.getBuiltinModules(directories.getEmbeddedBinariesRoot());
+      builtinModules = ModuleFileFunction.getBuiltinModules();
     }
+
+    moduleFileFunction =
+        new ModuleFileFunction(
+            runtime.getRuleClassProvider().getBazelStarlarkEnvironment(),
+            directories.getWorkspace(),
+            builtinModules);
+    repoSpecFunction = new RepoSpecFunction();
+    yankedVersionsFunction = new YankedVersionsFunction();
 
     builder
         .addSkyFunction(SkyFunctions.REPOSITORY_DIRECTORY, repositoryDelegatorFunction)
-        .addSkyFunction(
-            SkyFunctions.MODULE_FILE,
-            new ModuleFileFunction(
-                runtime.getRuleClassProvider().getBazelStarlarkEnvironment(),
-                directories.getWorkspace(),
-                builtinModules))
+        .addSkyFunction(SkyFunctions.MODULE_FILE, moduleFileFunction)
         .addSkyFunction(SkyFunctions.BAZEL_DEP_GRAPH, new BazelDepGraphFunction())
         .addSkyFunction(
             SkyFunctions.BAZEL_LOCK_FILE, new BazelLockFileFunction(directories.getWorkspace()))
@@ -269,8 +277,8 @@ public class BazelRepositoryModule extends BlazeModule {
         .addSkyFunction(
             SkyFunctions.REGISTRY,
             new RegistryFunction(registryFactory, directories.getWorkspace()))
-        .addSkyFunction(SkyFunctions.REPO_SPEC, new RepoSpecFunction())
-        .addSkyFunction(SkyFunctions.YANKED_VERSIONS, new YankedVersionsFunction())
+        .addSkyFunction(SkyFunctions.REPO_SPEC, repoSpecFunction)
+        .addSkyFunction(SkyFunctions.YANKED_VERSIONS, yankedVersionsFunction)
         .addSkyFunction(
             SkyFunctions.VENDOR_FILE,
             new VendorFileFunction(runtime.getRuleClassProvider().getBazelStarlarkEnvironment()))
@@ -305,8 +313,10 @@ public class BazelRepositoryModule extends BlazeModule {
     DownloadManager downloadManager =
         new DownloadManager(repositoryCache, env.getDownloaderDelegate(), env.getHttpDownloader());
     this.starlarkRepositoryFunction.setDownloadManager(downloadManager);
+    this.moduleFileFunction.setDownloadManager(downloadManager);
+    this.repoSpecFunction.setDownloadManager(downloadManager);
+    this.yankedVersionsFunction.setDownloadManager(downloadManager);
     this.vendorCommand.setDownloadManager(downloadManager);
-    this.registryFactory.setDownloadManager(downloadManager);
 
     clientEnvironmentSupplier.set(env.getRepoEnv());
     PackageOptions pkgOptions = env.getOptions().getOptions(PackageOptions.class);
@@ -469,6 +479,24 @@ public class BazelRepositoryModule extends BlazeModule {
         overrides = ImmutableMap.of();
       }
 
+      if (repoOptions.repositoryInjections != null) {
+        Map<String, PathFragment> injectionMap = new LinkedHashMap<>();
+        for (RepositoryOptions.RepositoryInjection injection : repoOptions.repositoryInjections) {
+          if (injection.path().isEmpty()) {
+            injectionMap.remove(injection.apparentName());
+            continue;
+          }
+          String repoPath = getAbsolutePath(injection.path(), env);
+          injectionMap.put(injection.apparentName(), PathFragment.create(repoPath));
+        }
+        ImmutableMap<String, PathFragment> newInjections = ImmutableMap.copyOf(injectionMap);
+        if (!Maps.difference(injections, newInjections).areEqual()) {
+          injections = newInjections;
+        }
+      } else {
+        injections = ImmutableMap.of();
+      }
+
       if (repoOptions.moduleOverrides != null) {
         Map<String, ModuleOverride> moduleOverrideMap = new LinkedHashMap<>();
         for (RepositoryOptions.ModuleOverride override : repoOptions.moduleOverrides) {
@@ -477,7 +505,9 @@ public class BazelRepositoryModule extends BlazeModule {
             continue;
           }
           String modulePath = getAbsolutePath(override.path(), env);
-          moduleOverrideMap.put(override.moduleName(), LocalPathOverride.create(modulePath));
+          moduleOverrideMap.put(
+              override.moduleName(),
+              new NonRegistryOverride(LocalPathRepoSpecs.create(modulePath)));
         }
         ImmutableMap<String, ModuleOverride> newModOverrides =
             ImmutableMap.copyOf(moduleOverrideMap);
@@ -603,7 +633,8 @@ public class BazelRepositoryModule extends BlazeModule {
       lastRegistryInvalidation = now;
     }
     return ImmutableList.of(
-        PrecomputedValue.injected(RepositoryDelegatorFunction.REPOSITORY_OVERRIDES, overrides),
+        PrecomputedValue.injected(RepositoryMappingFunction.REPOSITORY_OVERRIDES, overrides),
+        PrecomputedValue.injected(ModuleFileFunction.INJECTED_REPOSITORIES, injections),
         PrecomputedValue.injected(ModuleFileFunction.MODULE_OVERRIDES, moduleOverrides),
         PrecomputedValue.injected(
             RepositoryDelegatorFunction.RESOLVED_FILE_INSTEAD_OF_WORKSPACE,

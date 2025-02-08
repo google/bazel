@@ -18,6 +18,7 @@ import com.google.common.collect.ImmutableMap;
 import com.google.devtools.build.lib.concurrent.ThreadSafety.Immutable;
 import com.google.devtools.build.lib.packages.BuiltinProvider;
 import com.google.devtools.build.lib.packages.NativeInfo;
+import com.google.devtools.build.lib.packages.RuleClass;
 import com.google.devtools.build.lib.starlarkbuildapi.test.ExecutionInfoApi;
 import java.util.Map;
 import net.starlark.java.eval.Dict;
@@ -30,9 +31,6 @@ import net.starlark.java.eval.EvalException;
 @Immutable
 public final class ExecutionInfo extends NativeInfo implements ExecutionInfoApi {
 
-  // TODO(bazel-team): Find a better location for this constant.
-  public static final String DEFAULT_TEST_RUNNER_EXEC_GROUP = "test";
-
   /** Starlark constructor and identifier for ExecutionInfo. */
   public static final ExecutionInfoProvider PROVIDER = new ExecutionInfoProvider();
 
@@ -40,7 +38,7 @@ public final class ExecutionInfo extends NativeInfo implements ExecutionInfoApi 
   private final String execGroup;
 
   public ExecutionInfo(Map<String, String> requirements) {
-    this(requirements, DEFAULT_TEST_RUNNER_EXEC_GROUP);
+    this(requirements, RuleClass.DEFAULT_TEST_RUNNER_EXEC_GROUP_NAME);
   }
 
   public ExecutionInfo(Map<String, String> requirements, String execGroup) {

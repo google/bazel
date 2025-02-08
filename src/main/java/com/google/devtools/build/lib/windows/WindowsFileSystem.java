@@ -17,6 +17,7 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.devtools.build.lib.concurrent.ThreadSafety.ThreadSafe;
 import com.google.devtools.build.lib.profiler.Profiler;
 import com.google.devtools.build.lib.profiler.ProfilerTask;
+import com.google.devtools.build.lib.util.StringEncoding;
 import com.google.devtools.build.lib.vfs.DigestHashFunction;
 import com.google.devtools.build.lib.vfs.FileStatus;
 import com.google.devtools.build.lib.vfs.JavaIoFileSystem;
@@ -54,7 +55,8 @@ public class WindowsFileSystem extends JavaIoFileSystem {
   protected boolean delete(PathFragment path) throws IOException {
     long startTime = Profiler.nanoTimeMaybe();
     try {
-      return WindowsFileOperations.deletePath(path.getPathString());
+      return WindowsFileOperations.deletePath(
+          StringEncoding.internalToPlatform(path.getPathString()));
     } catch (java.nio.file.DirectoryNotEmptyException e) {
       throw new IOException(path.getPathString() + ERR_DIRECTORY_NOT_EMPTY, e);
     } catch (java.nio.file.AccessDeniedException e) {
@@ -78,17 +80,17 @@ public class WindowsFileSystem extends JavaIoFileSystem {
             ? targetFragment
             : linkPath.getParentDirectory().getRelative(targetFragment);
     try {
-      java.nio.file.Path link = getIoFile(linkPath).toPath();
-      java.nio.file.Path target = getIoFile(targetPath).toPath();
-      if (target.toFile().isDirectory()) {
+      File link = getIoFile(linkPath);
+      File target = getIoFile(targetPath);
+      if (target.isDirectory()) {
         WindowsFileOperations.createJunction(link.toString(), target.toString());
       } else if (createSymbolicLinks) {
         WindowsFileOperations.createSymlink(link.toString(), target.toString());
-      } else if (!target.toFile().exists()) {
+      } else if (!target.exists()) {
         // Still Create a dangling junction if the target doesn't exist.
         WindowsFileOperations.createJunction(link.toString(), target.toString());
       } else {
-        Files.copy(target, link);
+        Files.copy(target.toPath(), link.toPath());
       }
     } catch (java.nio.file.FileAlreadyExistsException e) {
       throw new IOException(linkPath + ERR_FILE_EXISTS, e);
@@ -105,7 +107,7 @@ public class WindowsFileSystem extends JavaIoFileSystem {
     WindowsFileOperations.ReadSymlinkOrJunctionResult result =
         WindowsFileOperations.readSymlinkOrJunction(nioPath.toString());
     if (result.getStatus() == WindowsFileOperations.ReadSymlinkOrJunctionResult.Status.OK) {
-      return PathFragment.create(result.getResult());
+      return PathFragment.create(StringEncoding.platformToInternal(result.getResult()));
     }
     if (result.getStatus() == WindowsFileOperations.ReadSymlinkOrJunctionResult.Status.NOT_A_LINK) {
       throw new NotASymlinkException(path);

@@ -14,6 +14,7 @@
 
 package net.starlark.java.syntax;
 
+import com.google.common.base.Ascii;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
@@ -68,7 +69,7 @@ public final class Resolver extends NodeVisitor {
 
     @Override
     public String toString() {
-      return super.toString().toLowerCase();
+      return Ascii.toLowerCase(super.toString());
     }
   }
 
@@ -76,7 +77,7 @@ public final class Resolver extends NodeVisitor {
    * A Binding is a static abstraction of a variable. The Resolver maps each Identifier to a
    * Binding.
    */
-  public static final class Binding {
+  public static sealed class Binding permits ComprehensionBinding {
     private Scope scope;
     private final int index; // index within frame (LOCAL/CELL), freevars (FREE), or module (GLOBAL)
     @Nullable private final Identifier first; // first binding use, if syntactic
@@ -112,6 +113,39 @@ public final class Resolver extends NodeVisitor {
           ? scope.toString()
           : String.format(
               "%s[%d] %s @ %s", scope, index, first.getName(), first.getStartLocation());
+    }
+  }
+
+  /** A {@link Binding} for a variable of a list or dict comprehension. */
+  public static final class ComprehensionBinding extends Binding {
+    // Used only for determining the range of locations encompassing the comprehension's lexical
+    // scope. Can be replaced with {start0, end0, start1, end1} positions if we switch to a
+    // non-AST-based evaluation model.
+    private final Comprehension node;
+
+    private ComprehensionBinding(Scope scope, int index, Identifier first, Comprehension node) {
+      super(scope, index, first);
+      this.node = node;
+    }
+
+    /** Returns true if the given location falls within the scope of the comprehension. */
+    public boolean inScope(Location loc) {
+      if (!loc.file().equals(node.getStartLocation().file())) {
+        return false;
+      }
+      // Following Python3, the first for clause of a comprehension is resolved outside the
+      // comprehension block. All the other loops are resolved in the scope of their own bindings,
+      // permitting forward references.
+      Comprehension.For for0 = (Comprehension.For) node.getClauses().get(0);
+      Expression iterable0 = for0.getIterable();
+      if (loc.compareTo(iterable0.getStartLocation()) >= 0
+          && loc.compareTo(iterable0.getEndLocation()) < 0) {
+        return false;
+      }
+      if (loc.compareTo(node.getStartLocation()) >= 0 && loc.compareTo(node.getEndLocation()) < 0) {
+        return true;
+      }
+      return false;
     }
   }
 
@@ -275,6 +309,16 @@ public final class Resolver extends NodeVisitor {
      */
     public int numKeywordOnlyParams() {
       return numKeywordOnlyParams;
+    }
+
+    /** Returns the number of non-residual parameters. */
+    public int getNumNonResidualParameters() {
+      return params.size() - (hasKwargs ? 1 : 0) - (hasVarargs ? 1 : 0);
+    }
+
+    /** Returns the number of ordinary (non-residual, non-keyword-only) parameters. */
+    public int getNumOrdinaryParameters() {
+      return params.size() - (hasKwargs ? 1 : 0) - (hasVarargs ? 1 : 0) - numKeywordOnlyParams;
     }
 
     /** Returns the names of the parameters. Order is as for {@link #getParameters}. */
@@ -611,15 +655,13 @@ public final class Resolver extends NodeVisitor {
     pushLocalBlock(node, this.locals.frame, this.locals.freevars);
 
     for (Comprehension.Clause clause : clauses) {
-      if (clause instanceof Comprehension.For) {
-        Comprehension.For forClause = (Comprehension.For) clause;
+      if (clause instanceof Comprehension.For forClause) {
         createBindingsForLHS(forClause.getVars());
       }
     }
     for (int i = 0; i < clauses.size(); i++) {
       Comprehension.Clause clause = clauses.get(i);
-      if (clause instanceof Comprehension.For) {
-        Comprehension.For forClause = (Comprehension.For) clause;
+      if (clause instanceof Comprehension.For forClause) {
         if (i > 0) {
           visit(forClause.getIterable());
         }
@@ -931,7 +973,13 @@ public final class Resolver extends NodeVisitor {
         // New local binding: add to current block's bindings map, current function's frame.
         // (These are distinct entities in the case where the current block is a comprehension.)
         isNew = true;
-        bind = new Binding(Scope.LOCAL, locals.frame.size(), id);
+        if (locals.syntax instanceof Comprehension comprehension) {
+          // Assumption: any block nested in a comprehension is either another comprehension or has
+          // its own frame (e.g. a lambda).
+          bind = new ComprehensionBinding(Scope.LOCAL, locals.frame.size(), id, comprehension);
+        } else {
+          bind = new Binding(Scope.LOCAL, locals.frame.size(), id);
+        }
         locals.bindings.put(name, bind);
         locals.frame.add(bind);
       }

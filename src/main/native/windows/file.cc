@@ -18,11 +18,11 @@
 
 #include "src/main/native/windows/file.h"
 
-#include <WinIoCtl.h>
 #include <stdint.h>  // uint8_t
 #include <versionhelpers.h>
 #include <winbase.h>
 #include <windows.h>
+#include <winioctl.h>
 
 #include <memory>
 #include <sstream>

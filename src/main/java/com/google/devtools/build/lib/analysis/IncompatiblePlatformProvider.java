@@ -16,7 +16,6 @@ package com.google.devtools.build.lib.analysis;
 
 import static com.google.common.collect.ImmutableList.toImmutableList;
 
-import com.google.auto.value.AutoValue;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import com.google.devtools.build.lib.analysis.platform.ConstraintValueInfo;
@@ -24,6 +23,7 @@ import com.google.devtools.build.lib.cmdline.Label;
 import com.google.devtools.build.lib.concurrent.ThreadSafety.Immutable;
 import com.google.devtools.build.lib.packages.BuiltinProvider;
 import com.google.devtools.build.lib.packages.Info;
+import com.google.devtools.build.lib.skyframe.serialization.autocodec.AutoCodec;
 import com.google.devtools.build.lib.starlarkbuildapi.platform.IncompatiblePlatformProviderApi;
 import java.util.Comparator;
 import javax.annotation.Nullable;
@@ -41,10 +41,25 @@ import javax.annotation.Nullable;
  * {@code getConstraintsResponsibleForIncompatibility()}. On the other hand, if the corresponding
  * target is incompatible because one of its dependencies is incompatible, then all the incompatible
  * dependencies are available via {@code getTargetResponsibleForIncompatibility()}.
+ *
+ * @param targetPlatform Returns the target platform of the target that was incompatible.
+ * @param targetsResponsibleForIncompatibility Returns the incompatible dependencies that caused
+ *     this provider to be present.
+ *     <p>This may be null. If it is null, then {@code
+ *     getConstraintsResponsibleForIncompatibility()} is guaranteed to be non-null. It will have at
+ *     least one element in it if it is not null.
+ * @param constraintsResponsibleForIncompatibility Returns the constraints that the target platform
+ *     didn't satisfy.
+ *     <p>This may be null. If it is null, then {@code getTargetsResponsibleForIncompatibility()} is
+ *     guaranteed to be non-null. It will have at least one element in it if it is not null.
+ *     <p>The list is sorted based on the stringified label of each constraint.
  */
 @Immutable
-@AutoValue
-public abstract class IncompatiblePlatformProvider
+@AutoCodec
+public record IncompatiblePlatformProvider(
+    @Nullable Label targetPlatform,
+    @Nullable ImmutableList<ConfiguredTarget> targetsResponsibleForIncompatibility,
+    @Nullable ImmutableList<ConstraintValueInfo> constraintsResponsibleForIncompatibility)
     implements Info, IncompatiblePlatformProviderApi {
   /** Name used in Starlark for accessing this provider. */
   public static final String STARLARK_NAME = "IncompatiblePlatformProvider";
@@ -64,7 +79,7 @@ public abstract class IncompatiblePlatformProvider
       ImmutableList<ConfiguredTarget> targetsResponsibleForIncompatibility) {
     Preconditions.checkNotNull(targetsResponsibleForIncompatibility);
     Preconditions.checkArgument(!targetsResponsibleForIncompatibility.isEmpty());
-    return new AutoValue_IncompatiblePlatformProvider(
+    return new IncompatiblePlatformProvider(
         targetPlatform, targetsResponsibleForIncompatibility, null);
   }
 
@@ -81,7 +96,7 @@ public abstract class IncompatiblePlatformProvider
             .distinct()
             .collect(toImmutableList());
 
-    return new AutoValue_IncompatiblePlatformProvider(targetPlatform, null, constraints);
+    return new IncompatiblePlatformProvider(targetPlatform, null, constraints);
   }
 
   @Override
@@ -89,27 +104,4 @@ public abstract class IncompatiblePlatformProvider
     return true; // immutable and Starlark-hashable
   }
 
-  /** Returns the target platform of the target that was incompatible. */
-  @Nullable
-  public abstract Label targetPlatform();
-
-  /**
-   * Returns the incompatible dependencies that caused this provider to be present.
-   *
-   * <p>This may be null. If it is null, then {@code getConstraintsResponsibleForIncompatibility()}
-   * is guaranteed to be non-null. It will have at least one element in it if it is not null.
-   */
-  @Nullable
-  public abstract ImmutableList<ConfiguredTarget> targetsResponsibleForIncompatibility();
-
-  /**
-   * Returns the constraints that the target platform didn't satisfy.
-   *
-   * <p>This may be null. If it is null, then {@code getTargetsResponsibleForIncompatibility()} is
-   * guaranteed to be non-null. It will have at least one element in it if it is not null.
-   *
-   * <p>The list is sorted based on the stringified label of each constraint.
-   */
-  @Nullable
-  public abstract ImmutableList<ConstraintValueInfo> constraintsResponsibleForIncompatibility();
 }

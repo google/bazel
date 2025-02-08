@@ -34,6 +34,7 @@ import net.starlark.java.eval.EvalException;
 import net.starlark.java.eval.Starlark;
 import net.starlark.java.eval.StarlarkInt;
 import net.starlark.java.eval.StarlarkList;
+import net.starlark.java.eval.Tuple;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -804,6 +805,102 @@ public final class BuildTypeTest {
         .addEqualityGroup(new SelectorValue(ImmutableMap.of("a", 1, "c", 2), ""))
         .addEqualityGroup(new SelectorValue(ImmutableMap.of("a", 1, "b", 3), ""))
         .testEquals();
+  }
+
+  @Test
+  public void testLabelListDict() throws Exception {
+    Object input =
+        ImmutableMap.of(
+            "foo",
+            Arrays.asList(":foo", Label.parseCanonical("//foo:bar")),
+            "wiz",
+            Arrays.asList("//bang"));
+    Map<String, List<Label>> converted =
+        BuildType.LABEL_LIST_DICT.convert(input, null, labelConverter);
+    ImmutableMap<?, ?> expected =
+        ImmutableMap.of(
+            "foo",
+                Arrays.asList(
+                    Label.parseCanonical("//quux:foo"), Label.parseCanonical("//foo:bar")),
+            "wiz", Arrays.asList(Label.parseCanonical("//bang")));
+    assertThat(converted).isEqualTo(expected);
+    assertThat(converted).isNotSameInstanceAs(expected);
+    assertThat(collectLabels(BuildType.LABEL_LIST_DICT, converted))
+        .containsExactly(
+            Label.parseCanonical("//quux:foo"),
+            Label.parseCanonical("//foo:bar"),
+            Label.parseCanonical("//bang:bang"))
+        .inOrder();
+  }
+
+  @Test
+  public void testLabelListDict_concat() throws Exception {
+    assertThat(BuildType.LABEL_LIST_DICT.concat(ImmutableList.of())).isEmpty();
+
+    ImmutableMap<String, List<Label>> expected =
+        ImmutableMap.of(
+            "foo", Arrays.asList(Label.parseCanonical("//foo"), Label.parseCanonical("//bar")),
+            "wiz", Arrays.asList(Label.parseCanonical("//bang")));
+    assertThat(BuildType.LABEL_LIST_DICT.concat(ImmutableList.of(expected))).isEqualTo(expected);
+
+    ImmutableMap<String, List<Label>> map1 =
+        ImmutableMap.of(
+            "foo", Arrays.asList(Label.parseCanonical("//a"), Label.parseCanonical("//b")),
+            "bar", Arrays.asList(Label.parseCanonical("//c"), Label.parseCanonical("//d")));
+    ImmutableMap<String, List<Label>> map2 =
+        ImmutableMap.of(
+            "bar", Arrays.asList(Label.parseCanonical("//x"), Label.parseCanonical("//y")),
+            "baz", Arrays.asList(Label.parseCanonical("//z")));
+
+    ImmutableMap<String, List<Label>> expectedAfterConcat =
+        ImmutableMap.of(
+            "foo", Arrays.asList(Label.parseCanonical("//a"), Label.parseCanonical("//b")),
+            "bar", Arrays.asList(Label.parseCanonical("//x"), Label.parseCanonical("//y")),
+            "baz", Arrays.asList(Label.parseCanonical("//z")));
+
+    assertThat(BuildType.LABEL_LIST_DICT.concat(ImmutableList.of(map1, map2)))
+        .isEqualTo(expectedAfterConcat);
+  }
+
+  @Test
+  public void testLabelListDictBadFirstElement() throws Exception {
+    Object input =
+        ImmutableMap.of(
+            StarlarkInt.of(2), Arrays.asList("foo", "bar"), "wiz", Arrays.asList("bang"));
+    Type.ConversionException e =
+        assertThrows(
+            Type.ConversionException.class,
+            () -> BuildType.LABEL_LIST_DICT.convert(input, null, labelConverter));
+    assertThat(e)
+        .hasMessageThat()
+        .isEqualTo("expected value of type 'string' for dict key element, but got 2 (int)");
+  }
+
+  @Test
+  public void testLabelListDictBadSecondElement() throws Exception {
+    Object input = ImmutableMap.of("foo", "bar", "wiz", Arrays.asList("bang"));
+    Type.ConversionException e =
+        assertThrows(
+            Type.ConversionException.class,
+            () -> BuildType.LABEL_LIST_DICT.convert(input, null, labelConverter));
+    assertThat(e)
+        .hasMessageThat()
+        .isEqualTo(
+            "expected value of type 'list(label)' for dict value element, "
+                + "but got \"bar\" (string)");
+  }
+
+  @Test
+  public void testLabelListDictBadElements1() throws Exception {
+    Object input = ImmutableMap.of(Tuple.of("foo"), Tuple.of("bang"), "wiz", Tuple.of("bang"));
+    Type.ConversionException e =
+        assertThrows(
+            Type.ConversionException.class, () -> BuildType.LABEL_LIST_DICT.convert(input, null));
+    assertThat(e)
+        .hasMessageThat()
+        .isEqualTo(
+            "expected value of type 'string' for dict key element, but got "
+                + "(\"foo\",) (tuple)");
   }
 
   private static <T> ImmutableList<Label> collectLabels(Type<T> type, T value) {

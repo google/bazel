@@ -16,6 +16,7 @@ package com.google.devtools.build.lib.query2;
 import com.google.common.base.Predicate;
 import com.google.common.base.Predicates;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableSetMultimap;
 import com.google.common.collect.Iterables;
 import com.google.devtools.build.lib.packages.Target;
 import com.google.devtools.build.lib.query2.ParallelSkyQueryUtils.DepAndRdep;
@@ -50,16 +51,20 @@ class RdepsUnboundedVisitor extends AbstractTargetOuputtingVisitor<DepAndRdep> {
    */
   private final Uniquifier<SkyKey> validRdepUniquifier;
 
+  private final ImmutableSetMultimap<SkyKey, SkyKey> extraGlobalDeps;
+
   private final Predicate<SkyKey> unfilteredUniverse;
 
   RdepsUnboundedVisitor(
       SkyQueryEnvironment env,
       Uniquifier<SkyKey> validRdepUniquifier,
       Predicate<SkyKey> unfilteredUniverse,
+      ImmutableSetMultimap<SkyKey, SkyKey> extraGlobalDeps,
       Callback<Target> callback) {
     super(env, callback);
     this.validRdepUniquifier = validRdepUniquifier;
     this.unfilteredUniverse = unfilteredUniverse;
+    this.extraGlobalDeps = extraGlobalDeps;
   }
 
   /**
@@ -72,19 +77,25 @@ class RdepsUnboundedVisitor extends AbstractTargetOuputtingVisitor<DepAndRdep> {
     private final SkyQueryEnvironment env;
     private final Uniquifier<SkyKey> validRdepUniquifier;
     private final Predicate<SkyKey> unfilteredUniverse;
+    private final ImmutableSetMultimap<SkyKey, SkyKey> extraGlobalDeps;
     private final Callback<Target> callback;
 
     Factory(
-        SkyQueryEnvironment env, Predicate<SkyKey> unfilteredUniverse, Callback<Target> callback) {
+        SkyQueryEnvironment env,
+        Predicate<SkyKey> unfilteredUniverse,
+        ImmutableSetMultimap<SkyKey, SkyKey> extraGlobalDeps,
+        Callback<Target> callback) {
       this.env = env;
       this.unfilteredUniverse = unfilteredUniverse;
       this.validRdepUniquifier = env.createSkyKeyUniquifier();
+      this.extraGlobalDeps = extraGlobalDeps;
       this.callback = callback;
     }
 
     @Override
     public ParallelQueryVisitor<DepAndRdep, SkyKey, Target> create() {
-      return new RdepsUnboundedVisitor(env, validRdepUniquifier, unfilteredUniverse, callback);
+      return new RdepsUnboundedVisitor(
+          env, validRdepUniquifier, unfilteredUniverse, extraGlobalDeps, callback);
     }
   }
 
@@ -104,16 +115,16 @@ class RdepsUnboundedVisitor extends AbstractTargetOuputtingVisitor<DepAndRdep> {
     // need to filter out disallowed edges, but cannot do so before targetification occurs. This
     // means we may be wastefully visiting nodes via disallowed edges.
     ImmutableList.Builder<DepAndRdep> depAndRdepsToVisitBuilder = ImmutableList.builder();
-    env.getReverseDepLabelsOfLabels(uniqueValidRdeps)
-        .entrySet()
+    env.getReverseDepLabelsOfLabels(uniqueValidRdeps, extraGlobalDeps)
         .forEach(
-            reverseDepsEntry ->
+            (key, value) ->
                 depAndRdepsToVisitBuilder.addAll(
                     Iterables.transform(
                         Iterables.filter(
-                            reverseDepsEntry.getValue(),
+                            value,
                             Predicates.and(SkyQueryEnvironment.IS_LABEL, unfilteredUniverse)),
-                        rdep -> new DepAndRdep(reverseDepsEntry.getKey(), rdep))));
+                        (com.google.devtools.build.skyframe.SkyKey rdep) ->
+                            new DepAndRdep(key, rdep))));
 
     return new Visit(
         /*keysToUseForResult=*/ uniqueValidRdeps,

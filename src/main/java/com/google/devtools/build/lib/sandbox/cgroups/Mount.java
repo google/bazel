@@ -14,7 +14,8 @@
 
 package com.google.devtools.build.lib.sandbox.cgroups;
 
-import com.google.auto.value.AutoValue;
+import static java.util.Objects.requireNonNull;
+
 import com.google.common.collect.ImmutableList;
 import com.google.common.io.Files;
 import java.io.File;
@@ -25,9 +26,19 @@ import java.nio.file.Paths;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-/** Represents a mounted cgroup pseudo-filesystem. */
-@AutoValue
-public abstract class Mount {
+/**
+ * Represents a mounted cgroup pseudo-filesystem.
+ *
+ * @param opts Mount point options for this mount. In the context cgroups, this will contain the
+ *     controllers that are mounted at this mount point.
+ */
+public record Mount(Path path, String type, ImmutableList<String> opts) {
+  public Mount {
+    requireNonNull(path, "path");
+    requireNonNull(type, "type");
+    requireNonNull(opts, "opts");
+  }
+
   /**
    * A regexp that matches cgroups entries in {@code /proc/mounts}.
    *
@@ -36,22 +47,12 @@ public abstract class Mount {
   private static final Pattern CGROUPS_MOUNT_PATTERN =
       Pattern.compile("^[^\\s#]\\S*\\s+(?<file>\\S*)\\s+(?<vfstype>cgroup2?)\\s+(?<mntops>\\S*).*");
 
-  public abstract Path path();
-
-  public abstract String type();
-
-  /**
-   * Mount point options for this mount. In the context cgroups, this will contain the controllers
-   * that are mounted at this mount point.
-   */
-  public abstract ImmutableList<String> opts();
-
   public boolean isV2() {
     return type().equals("cgroup2");
   }
 
   static Mount create(Path path, String type, ImmutableList<String> opts) {
-    return new AutoValue_Mount(path, type, opts);
+    return new Mount(path, type, opts);
   }
 
   /**

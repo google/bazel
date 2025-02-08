@@ -152,6 +152,7 @@ public class SymlinkedSandboxedSpawn extends AbstractContainerizingSandboxedSpaw
                 /* environmentVariablesToClear= */ null,
                 /* cwd= */ null,
                 /* configurationChecksum= */ null,
-                /* executionPlatformLabel= */ null));
+                /* executionPlatformLabel= */ null,
+                /* spawnRunner= */ null));
   }
 }

@@ -73,19 +73,7 @@ bool WriteFile(const std::string &content, const Path &path,
 // Populates `result` with the full paths of the files. Every entry will have
 // `path` as its prefix. If `path` is a file, `result` contains just this
 // file.
-void GetAllFilesUnder(const std::string &path,
-                      std::vector<std::string> *result);
-
-class DirectoryEntryConsumer;
-
-// Visible for testing only.
-typedef void (*_ForEachDirectoryEntry)(const std::string &path,
-                                       DirectoryEntryConsumer *consume);
-
-// Visible for testing only.
-void _GetAllFilesUnder(const std::string &path,
-                       std::vector<std::string> *result,
-                       _ForEachDirectoryEntry walk_entries);
+void GetAllFilesUnder(const Path &path, std::vector<Path> *result);
 
 }  // namespace blaze_util
 

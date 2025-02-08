@@ -122,6 +122,9 @@ def _get_linkstatic_default_for_test():
         "//conditions:default": False,
     })
 
+def _get_cc_link_memlimit(compilation_mode, exec_info):
+    return exec_info
+
 def _get_nocopts_attr():
     return {}
 
@@ -173,6 +176,7 @@ semantics = struct(
     get_implementation_deps_allowed_attr = _get_implementation_deps_allowed_attr,
     check_can_use_implementation_deps = _check_can_use_implementation_deps,
     get_linkstatic_default_for_test = _get_linkstatic_default_for_test,
+    get_cc_link_memlimit = _get_cc_link_memlimit,
     get_runtimes_toolchain = _get_runtimes_toolchain,
     get_test_malloc_attr = _get_test_malloc_attr,
     get_cc_runtimes = _get_cc_runtimes,

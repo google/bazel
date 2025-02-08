@@ -14,16 +14,18 @@
 
 package com.google.devtools.build.lib.skyframe;
 
-import com.google.auto.value.AutoValue;
+import static java.util.Objects.requireNonNull;
+
 import com.google.devtools.build.lib.events.ExtendedEventHandler.Postable;
 import com.google.devtools.build.lib.vfs.PathFragment;
 
 /** Event issued when a source directory is encountered in {@link ArtifactFunction}. */
-@AutoValue
-public abstract class SourceDirectoryEvent implements Postable {
-  public abstract PathFragment execPath();
+public record SourceDirectoryEvent(PathFragment execPath) implements Postable {
+  public SourceDirectoryEvent {
+    requireNonNull(execPath, "execPath");
+  }
 
   public static SourceDirectoryEvent create(PathFragment execPath) {
-    return new AutoValue_SourceDirectoryEvent(execPath);
+    return new SourceDirectoryEvent(execPath);
   }
 }

@@ -63,6 +63,8 @@ import com.google.devtools.build.lib.runtime.BuildEventStreamer;
 import com.google.devtools.build.lib.runtime.CommandEnvironment;
 import com.google.devtools.build.lib.runtime.CommonCommandOptions;
 import com.google.devtools.build.lib.runtime.CountingArtifactGroupNamer;
+import com.google.devtools.build.lib.runtime.InstrumentationOutput;
+import com.google.devtools.build.lib.runtime.InstrumentationOutputFactory.DestinationRelativeTo;
 import com.google.devtools.build.lib.runtime.SynchronizedOutputStream;
 import com.google.devtools.build.lib.runtime.TargetSummaryPublisher;
 import com.google.devtools.build.lib.runtime.UiOptions;
@@ -73,6 +75,7 @@ import com.google.devtools.build.lib.util.DetailedExitCode;
 import com.google.devtools.build.lib.util.ExitCode;
 import com.google.devtools.build.lib.util.io.AnsiTerminal.Color;
 import com.google.devtools.build.lib.util.io.OutErr;
+import com.google.devtools.build.lib.vfs.PathFragment;
 import com.google.devtools.common.options.OptionsBase;
 import com.google.devtools.common.options.OptionsParsingException;
 import com.google.devtools.common.options.OptionsParsingResult;
@@ -81,8 +84,6 @@ import com.google.protobuf.util.Timestamps;
 import java.io.BufferedOutputStream;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.nio.file.Paths;
 import java.time.Duration;
 import java.util.AbstractMap.SimpleEntry;
 import java.util.HashMap;
@@ -121,8 +122,7 @@ public abstract class BuildEventServiceModule<OptionsT extends BuildEventService
   private boolean isRunsPerTestOverTheLimit;
   private BuildEventArtifactUploaderFactory uploaderFactoryToCleanup;
 
-  private BuildEventOutputStreamFactory buildEventOutputStreamFactory =
-      file -> new BufferedOutputStream(Files.newOutputStream(Paths.get(file)));
+  private BuildEventOutputStreamFactory buildEventOutputStreamFactory;
 
   /**
    * Holds the close futures for the upload of each transport with timeouts attached to them using
@@ -155,6 +155,13 @@ public abstract class BuildEventServiceModule<OptionsT extends BuildEventService
   private static final String CONNECTIVITY_CACHE_KEY = "BES";
 
   protected OptionsT besOptions;
+
+  /** Defines format of the build event file. */
+  enum BuildEventFileType {
+    TEXT,
+    JSON,
+    BINARY
+  }
 
   protected void reportCommandLineError(EventHandler commandLineReporter, Exception exception) {
     // Don't hide unchecked exceptions as part of the error reporting.
@@ -359,6 +366,7 @@ public abstract class BuildEventServiceModule<OptionsT extends BuildEventService
             ? this.bepOptions.buildEventUploadStrategy
             : "local";
 
+    buildEventOutputStreamFactory = createBuildEventOutputStreamFactory(cmdEnv);
     CountingArtifactGroupNamer artifactGroupNamer = new CountingArtifactGroupNamer();
 
     // We need to wait for the previous invocation before we check the list of allowed commands to
@@ -507,7 +515,7 @@ public abstract class BuildEventServiceModule<OptionsT extends BuildEventService
     try {
       Uninterruptibles.getUninterruptibly(
           Futures.allAsList(closeFuturesWithTimeoutsMap.values()),
-          getMaxWaitForPreviousInvocation().getSeconds(),
+          getMaxWaitForPreviousInvocation().toSeconds(),
           TimeUnit.SECONDS);
     } catch (TimeoutException | ExecutionException exception) {
       logger.atWarning().withCause(exception).log(
@@ -679,6 +687,7 @@ public abstract class BuildEventServiceModule<OptionsT extends BuildEventService
     this.buildRequestId = null;
     this.reporter = null;
     this.streamer = null;
+    this.buildEventOutputStreamFactory = null;
   }
 
   private void constructAndMaybeReportInvocationIdUrl() {
@@ -812,7 +821,8 @@ public abstract class BuildEventServiceModule<OptionsT extends BuildEventService
     if (!Strings.isNullOrEmpty(besStreamOptions.buildEventTextFile)) {
       try {
         BufferedOutputStream bepTextOutputStream =
-            buildEventOutputStreamFactory.create(besStreamOptions.buildEventTextFile);
+            buildEventOutputStreamFactory.create(
+                BuildEventFileType.TEXT, besStreamOptions.buildEventTextFile);
         BuildEventArtifactUploader localFileUploader =
             besStreamOptions.buildEventTextFilePathConversion
                 ? uploaderSupplier.get()
@@ -841,7 +851,8 @@ public abstract class BuildEventServiceModule<OptionsT extends BuildEventService
     if (!Strings.isNullOrEmpty(besStreamOptions.buildEventBinaryFile)) {
       try {
         BufferedOutputStream bepBinaryOutputStream =
-            buildEventOutputStreamFactory.create(besStreamOptions.buildEventBinaryFile);
+            buildEventOutputStreamFactory.create(
+                BuildEventFileType.BINARY, besStreamOptions.buildEventBinaryFile);
         BuildEventArtifactUploader localFileUploader =
             besStreamOptions.buildEventBinaryFilePathConversion
                 ? uploaderSupplier.get()
@@ -870,7 +881,8 @@ public abstract class BuildEventServiceModule<OptionsT extends BuildEventService
     if (!Strings.isNullOrEmpty(besStreamOptions.buildEventJsonFile)) {
       try {
         BufferedOutputStream bepJsonOutputStream =
-            buildEventOutputStreamFactory.create(besStreamOptions.buildEventJsonFile);
+            buildEventOutputStreamFactory.create(
+                BuildEventFileType.JSON, besStreamOptions.buildEventJsonFile);
         BuildEventArtifactUploader localFileUploader =
             besStreamOptions.buildEventJsonFilePathConversion
                 ? uploaderSupplier.get()
@@ -992,7 +1004,51 @@ public abstract class BuildEventServiceModule<OptionsT extends BuildEventService
   }
 
   @VisibleForTesting
+  BuildEventOutputStreamFactory createBuildEventOutputStreamFactory(CommandEnvironment env) {
+    return new BuildEventOutputStreamFactoryImpl(env);
+  }
+
+  @VisibleForTesting
   interface BuildEventOutputStreamFactory {
-    BufferedOutputStream create(String file) throws IOException;
+    BufferedOutputStream create(BuildEventFileType eventFileType, String filePath)
+        throws IOException;
+  }
+
+  private static class BuildEventOutputStreamFactoryImpl implements BuildEventOutputStreamFactory {
+    private final CommandEnvironment cmdEnv;
+
+    BuildEventOutputStreamFactoryImpl(CommandEnvironment cmdEnv) {
+      this.cmdEnv = cmdEnv;
+    }
+
+    @Override
+    public BufferedOutputStream create(BuildEventFileType eventFileType, String filePath)
+        throws IOException {
+      String buildEventFileName = "";
+      switch (eventFileType) {
+        case TEXT:
+          buildEventFileName = "build_event_text_file";
+          break;
+        case BINARY:
+          buildEventFileName = "build_event_binary_file";
+          break;
+        case JSON:
+          buildEventFileName = "build_event_json_file";
+          break;
+      }
+      InstrumentationOutput output =
+          cmdEnv
+              .getRuntime()
+              .getInstrumentationOutputFactory()
+              .createInstrumentationOutput(
+                  buildEventFileName,
+                  PathFragment.create(filePath),
+                  DestinationRelativeTo.WORKSPACE_OR_HOME,
+                  cmdEnv,
+                  cmdEnv.getReporter(),
+                  /* append= */ null,
+                  /* internal= */ null);
+      return new BufferedOutputStream(output.createOutputStream());
+    }
   }
 }

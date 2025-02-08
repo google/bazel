@@ -84,9 +84,61 @@ public interface Target extends TargetData {
   /** Returns the set of distribution types associated with this target. */
   Set<DistributionType> getDistributions();
 
-  /** Returns the visibility of this target. */
+  /**
+   * Returns the visibility that was supplied at the point of this target's declaration -- e.g. the
+   * {@code visibility} attribute/argument for a rule target or {@code exports_files()} declaration)
+   * -- or null if none was given.
+   *
+   * <p>Although this value is "raw", it is still normalized through {@link
+   * RuleVisibility#validateAndSimplify RuleVisibility parsing}, e.g. eliminating redundant {@code
+   * //visibility:private} items and replacing the list with a single {@code //visibility:public}
+   * item if at least one such item appears.
+   *
+   * <p>This value may be useful to tooling that wants to introspect a target's visibility via
+   * {@code bazel query} and feed the result back into a modified target declaration, without
+   * picking up the package's default visibility, or the added location of the package or symbolic
+   * macro the target was declared in. It is not useful as a direct input to the visibility
+   * semantics; for that see {@link #getActualVisibility}.
+   *
+   * <p>This is also the value that is introspected through {@code native.existing_rules()}, except
+   * that null is replaced by an empty visibility.
+   */
+  @Nullable
+  RuleVisibility getRawVisibility();
+
+  /**
+   * Returns the default visibility value to fall back on if this target does not have a raw
+   * visibility.
+   *
+   * <p>Usually this is just the package's default visibility value for targets not declared in
+   * symbolic macros, and private for targets within symbolic macros. (In other words, a package's
+   * default visibility does not propagate to within a symbolic macro.) However, some targets may
+   * inject additional default visibility behavior here.
+   */
+  default RuleVisibility getDefaultVisibility() {
+    return isCreatedInSymbolicMacro()
+        ? RuleVisibility.PRIVATE
+        : getPackage().getPackageArgs().defaultVisibility();
+  }
+
+  /**
+   * Returns the {@link #getRawVisibility raw visibility} of this target, falling back on a {@link
+   * #getDefaultVisibility default value} if no raw visibility was supplied.
+   *
+   * <p>Due to the fallback, the result cannot be null.
+   *
+   * <p>This value may be useful for introspecting a target's visibility and reporting it in a
+   * context where the package's default visibility is not known. It is not useful as a direct input
+   * to the visibility semantics; for that see {@link #getActualVisibility}.
+   */
+  // TODO(brandjon): Perhaps the default value within a symbolic macro should be the value of the
+  // `--default_visibility` flag / PrecomputedValue. This would ensure targets within macros are
+  // always visible within unit tests or escape-hatched builds.
   // TODO(jhorvitz): Usually one of the following two methods suffice. Try to remove this.
-  RuleVisibility getVisibility();
+  default RuleVisibility getVisibility() {
+    RuleVisibility result = getRawVisibility();
+    return result != null ? result : getDefaultVisibility();
+  }
 
   /**
    * Equivalent to calling {@link RuleVisibility#getDependencyLabels} on the value returned by
@@ -108,6 +160,27 @@ public interface Target extends TargetData {
    */
   default List<Label> getVisibilityDeclaredLabels() {
     return getVisibility().getDeclaredLabels();
+  }
+
+  /**
+   * Returns the visibility of this target, as understood by the visibility semantics.
+   *
+   * <p>This is the result of {@link #getVisibility} unioned with the package where this target was
+   * instantiated (which can differ from the package where this target lives if the target was
+   * created inside a symbolic macro).
+   *
+   * <p>This is the value that feeds into visibility checking in the analysis phase. See {@link
+   * ConfiguredTargetFactory#convertVisibility} and {@link
+   * CommonPrerequisiteValidator#isVisibleToLocation}.
+   */
+  default RuleVisibility getActualVisibility() {
+    RuleVisibility visibility = getVisibility();
+    MacroInstance declaringMacro = getDeclaringMacro();
+    PackageIdentifier instantiatingLoc =
+        declaringMacro == null
+            ? getPackage().getPackageIdentifier()
+            : declaringMacro.getDefinitionPackage();
+    return visibility.concatWithPackage(instantiatingLoc);
   }
 
   /** Returns whether this target type can be configured (e.g. accepts non-null configurations). */

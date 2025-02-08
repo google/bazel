@@ -35,6 +35,11 @@ public class BlazeVersionInfo {
   /** Key for the release timestamp is seconds. */
   public static final String BUILD_TIMESTAMP = "Build timestamp as int";
 
+  // If the current version is a development version, this environment variable can be used to
+  // override the version string (e.g. to deal with version-based feature detection during a
+  // bisect).
+  public static final String BAZEL_DEV_VERSION_OVERRIDE_ENV_VAR = "BAZEL_DEV_VERSION_OVERRIDE";
+
   private static final GoogleLogger logger = GoogleLogger.forEnclosingClass();
 
   private static BlazeVersionInfo instance = null;
@@ -126,7 +131,14 @@ public class BlazeVersionInfo {
    */
   public String getVersion() {
     String buildLabel = buildData.get(BUILD_LABEL);
-    return buildLabel != null ? buildLabel : "";
+    if (buildLabel != null) {
+      return buildLabel;
+    }
+    String override = System.getenv(BAZEL_DEV_VERSION_OVERRIDE_ENV_VAR);
+    if (override != null) {
+      return override;
+    }
+    return "";
   }
 
   /**

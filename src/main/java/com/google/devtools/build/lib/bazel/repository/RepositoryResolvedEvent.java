@@ -80,6 +80,9 @@ public class RepositoryResolvedEvent implements ResolvedEvent {
     ImmutableMap.Builder<String, Object> defaults = ImmutableMap.builder();
 
     for (Attribute attr : rule.getAttributes()) {
+      if (!attr.isPublic()) {
+        continue;
+      }
       String name = attr.getPublicName();
       try {
         Object value = attrs.getValue(name, Object.class);

@@ -16,6 +16,7 @@ package com.google.devtools.build.lib.packages;
 
 import com.google.devtools.build.lib.cmdline.Label;
 import java.util.List;
+import javax.annotation.Nullable;
 import net.starlark.java.syntax.Location;
 
 /** A generated file that is the output of a rule. */
@@ -50,6 +51,17 @@ public abstract class OutputFile extends FileTarget {
     super(generatingRule.getPackage(), label);
     this.generatingRule = generatingRule;
     this.outputKey = outputKey;
+  }
+
+  @Override
+  @Nullable
+  public final RuleVisibility getRawVisibility() {
+    return generatingRule.getRawVisibility();
+  }
+
+  @Override
+  public final RuleVisibility getDefaultVisibility() {
+    return generatingRule.getDefaultVisibility();
   }
 
   @Override

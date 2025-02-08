@@ -7,6 +7,6 @@ module(
 )
 
 bazel_dep(name = "rules_java", version = "4.0.0")
-bazel_dep(name = "protobuf", version = "3.19.0")
+bazel_dep(name = "protobuf", version = "3.19.0", repo_name = "com_google_protobuf")
 bazel_dep(name = "googleapis", version = "0.0.0-20240819-fe8ba054a")
 bazel_dep(name = "bazel", version = "", repo_name = "io_bazel")

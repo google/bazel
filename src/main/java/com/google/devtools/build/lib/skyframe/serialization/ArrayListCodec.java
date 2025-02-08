@@ -17,6 +17,7 @@ import static com.google.devtools.build.lib.skyframe.serialization.ArrayProcesso
 import static com.google.devtools.build.lib.unsafe.UnsafeProvider.getFieldOffset;
 import static com.google.devtools.build.lib.unsafe.UnsafeProvider.unsafe;
 
+
 import com.google.protobuf.CodedInputStream;
 import com.google.protobuf.CodedOutputStream;
 import java.io.IOException;
@@ -47,6 +48,7 @@ class ArrayListCodec extends AsyncObjectCodec<ArrayList> {
     }
   }
 
+  // TODO: b/386384684 - remove Unsafe usage
   @Override
   public ArrayList deserializeAsync(AsyncDeserializationContext context, CodedInputStream codedIn)
       throws SerializationException, IOException {

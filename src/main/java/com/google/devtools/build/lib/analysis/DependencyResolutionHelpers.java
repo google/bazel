@@ -335,8 +335,7 @@ public final class DependencyResolutionHelpers {
       ToolchainCollection<ToolchainContext> toolchainContexts,
       OrderedSetMultimap<DependencyKind, Label> outgoingLabels) {
     if (toolchainContexts != null) {
-      for (Map.Entry<String, ToolchainContext> entry :
-          toolchainContexts.getContextMap().entrySet()) {
+      for (Map.Entry<String, ToolchainContext> entry : toolchainContexts.contextMap().entrySet()) {
         outgoingLabels.putAll(
             DependencyKind.forExecGroup(entry.getKey()),
             entry.getValue().resolvedToolchainLabels());
@@ -351,7 +350,7 @@ public final class DependencyResolutionHelpers {
       return;
     }
     for (Map.Entry<String, UnloadedToolchainContext> execGroup :
-        toolchainContexts.getContextMap().entrySet()) {
+        toolchainContexts.contextMap().entrySet()) {
       for (var toolchainTypeToResolved :
           execGroup.getValue().toolchainTypeToResolved().asMap().entrySet()) {
         // map entries from (exec group, toolchain type) to resolved toolchain labels. We need to

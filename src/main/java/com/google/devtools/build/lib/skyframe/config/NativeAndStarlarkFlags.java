@@ -41,6 +41,8 @@ public abstract class NativeAndStarlarkFlags {
 
     public abstract Builder starlarkFlags(ImmutableMap<String, Object> starlarkFlags);
 
+    public abstract Builder scopesAttributes(ImmutableMap<String, String> scopesAttributes);
+
     public abstract Builder starlarkFlagDefaults(ImmutableMap<String, Object> starlarkFlagDefaults);
 
     public abstract Builder optionsClasses(
@@ -57,6 +59,7 @@ public abstract class NativeAndStarlarkFlags {
         .nativeFlags(ImmutableList.of())
         .starlarkFlags(ImmutableMap.of())
         .starlarkFlagDefaults(ImmutableMap.of())
+        .scopesAttributes(ImmutableMap.of())
         .optionsClasses(ImmutableSet.of());
   }
 
@@ -72,6 +75,8 @@ public abstract class NativeAndStarlarkFlags {
    * consumers can properly handle the flag.
    */
   public abstract ImmutableMap<String, Object> starlarkFlags();
+
+  public abstract ImmutableMap<String, String> scopesAttributes();
 
   // TODO: https://github.com/bazelbuild/bazel/issues/22365 - Improve looking up Starlark flag
   // option definitions and do not store this.
@@ -92,6 +97,7 @@ public abstract class NativeAndStarlarkFlags {
             .build();
     parser.parse(this.nativeFlags());
     parser.setStarlarkOptions(this.starlarkFlags());
+    parser.setScopesAttributes(this.scopesAttributes());
     return parser;
   }
 }

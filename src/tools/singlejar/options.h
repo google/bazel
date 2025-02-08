@@ -36,7 +36,8 @@ class Options {
         verbose(false),
         warn_duplicate_resources(false),
         check_desugar_deps(false),
-        multi_release(false) {}
+        multi_release(false),
+        no_strip_module_info(false) {}
 
   virtual ~Options() {}
 
@@ -69,6 +70,7 @@ class Options {
   bool warn_duplicate_resources;
   bool check_desugar_deps;
   bool multi_release;
+  bool no_strip_module_info;
   std::string hermetic_java_home;
   std::vector<std::string> add_exports;
   std::vector<std::string> add_opens;

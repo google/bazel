@@ -17,7 +17,7 @@ package com.google.devtools.build.lib.vfs;
 import static com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.devtools.build.lib.actions.Action;
-import com.google.devtools.build.lib.actions.RemoteArtifactChecker;
+import com.google.devtools.build.lib.actions.OutputChecker;
 import com.google.devtools.build.lib.actions.cache.OutputMetadataStore;
 import com.google.devtools.build.lib.analysis.BlazeDirectories;
 import com.google.devtools.build.lib.events.EventHandler;
@@ -112,7 +112,7 @@ public final class LocalOutputService implements OutputService {
   public void clean() {}
 
   @Override
-  public RemoteArtifactChecker getRemoteArtifactChecker() {
-    return RemoteArtifactChecker.IGNORE_ALL;
+  public OutputChecker getOutputChecker() {
+    return OutputChecker.TRUST_LOCAL_ONLY;
   }
 }

@@ -1,21 +1,374 @@
-## Release 9.0.0-pre.20241023.1 (2024-10-31)
+## Release 7.5.0 (2025-01-30)
 
 ```
-Baseline: 48e940f18d4f75bd6ba79415abfbac088687a1fa
-```
 
-This release contains contributions from many people at Google, as well as Zhongpeng Lin.
-
-## Release 9.0.0-pre.20241020.2 (2024-10-25)
+Release Notes:
 
 ```
-Baseline: fc0bbd73106c6d67ebe22a0544a0480f5400e284
+
+## Release 9.0.0-pre.20250121.1 (2025-01-30)
+
 ```
+Baseline: b704fdb18b8201ddfc017ab91b9d0a63892a4cd2
+```
+
+Incompatible changes:
+
+  - Changing `--test_env` no longer invalidates the analysis cache.
+    `ctx.configuration.test_env` may be empty for non-test rules and
+    should not be used by such rules.
+  - The `--enable_bzlmod` and `--enable_workspace` flags are now
+    no-ops. Bzlmod is now always enabled, and WORKSPACE is always
+    disabled.
+
+Important changes:
+
+  - Add a definition of the pacakge_metadata attribute.
+
+This release contains contributions from many people at Google, as well as Taylor Barrella.
+
+## Release 9.0.0-pre.20250115.2 (2025-01-23)
+
+```
+Baseline: 67c89b31f1d40635ad122639c3099ac3d882935d
+
+Cherry picks:
+
+   + cf701ebeab2565e910453cad8b1b950553596d83:
+     Fix performance regression on builds that change a test
+     configuration flag.
+```
+
+Important changes:
+
+  - On Linux, the default limit on the number of `--watchfs` file
+    events per directory has been raised to 10,000 (from 500). If
+    needed, it can be increased further via
+    `--host_jvm_args=-Djdk.nio.file.WatchService.maxEventsPerPoll=<lim
+    it>`.
+
+This release contains contributions from many people at Google, as well as Fabian Meumertzheim.
+
+## Release 8.0.1 (2025-01-17)
+
+```
+
+Release Notes:
+
+```
+
+## Release 9.0.0-pre.20250109.2 (2025-01-17)
+
+```
+Baseline: 457d248218540b0ae93d6454fa8a95ccad877063
+```
+
+New features:
+
+  - Materializer functions now have access to the label of the rule
+    they are running on as ctx.label .
+
+Important changes:
+
+  - Extra targets provided to `ctx.expand_location` now expand to
+    their executable (if any) instead of resulting in an error if
+    they provide a number of files different from one.
+    RELNOTES[INC]: The `--incompatible_locations_prefers_executable`
+    flag has been added and enabled, which makes it so that
+    `ctx.expand_location` expands `$(locations :x)` to the executable
+    of an extra target `:x` if it provides one and the number of
+    files provided by it is not one.
+
+This release contains contributions from many people at Google, as well as Benjamin Peterson, Fabian Meumertzheim.
+
+## Release 9.0.0-pre.20250106.2 (2025-01-13)
+
+```
+Baseline: fa48bc66e7118ca251c73bdad2c94039f51b5301
+```
+
+Important changes:
+
+  - Baseline coverage files are no longer ignored.
+  - select() on `cpu`, `host_cpu`, or `crosstool_top now emits a
+    "deprecated flag" warning
+  - `--max_idle_secs` now takes system sleep time into account when
+    deciding when to shutdown the blaze server.
+  - Flip --experimental_enable_starlark_set and enable the Starlark
+    set data type by default.
+
+This release contains contributions from many people at Google, as well as Alessandro Patti, Boleyn Su, Eric Riff, Fabian Meumertzheim, Keith Smiley, Kiron, Pareesh Madan, Steve Barrau, Torgil Svensson.
+
+## Release 9.0.0-pre.20241208.2 (2024-12-18)
+
+```
+Baseline: b00576de25ad5eed2af6607f51ad004874079519
+
+Cherry picks:
+
+   + a8e2c58656383f12dcee7125b8bd123bcec3428d:
+     Throw toolchain resolution error (as EvalError) instead of
+     IllegalStateException if create_compile_action() is called for
+     an action that isn't configured for the toolchain.
+```
+
+This release contains contributions from many people at Google, as well as .
+
+## Release 9.0.0-pre.20241208.1 (2024-12-16)
+
+```
+Baseline: b00576de25ad5eed2af6607f51ad004874079519
+```
+
+Important changes:
+
+  - Changing any part of --run_under that isn't the label (such as
+    the shell command) no longer invalidates the analysis cache.
+
+This release contains contributions from many people at Google, as well as Fabian Meumertzheim, Keith Smiley.
+
+## Release 9.0.0-pre.20241205.2 (2024-12-12)
+
+```
+Baseline: 41557184fedc704037897226f8d255dda0780c55
+
+Cherry picks:
+
+   + a1d1902e07adaad8be3d46a44fa42b2e9b150c1a:
+     Fix `EmptyRuleConfiguredTargetFactory` for native rules that are
+     not instances of `EmptyRule`
+```
+
+Incompatible changes:
+
+  - The legacy `@bazel_tools//tools/build_defs/repo:maven_rules.bzl`
+    rule for downloading Maven artifacts has been deleted. Consider
+    migrating to rules_jvm_external if you are using this rule.
+
+Important changes:
+
+  - Fix starlark_doc_extract proto output for symbolic macro
+    visibility,
+    attribute inheritance, and rule finalizers; and remove
+    non-existent "name"
+    attribute from starlark_doc_extract output for aspects.
+  - Java tests are no longer run with a `SecurityManager` that
+    prevents `System.exit`, since `SecurityManager` functionality is
+    being removed from the JDK.
+
+This release contains contributions from many people at Google, as well as Fabian Meumertzheim, Keith Lea, Keith Smiley, Lucas Loffel, Sara Adams, Xdng Yng.
+
+## Release 8.0.0 (2024-12-09)
+
+```
+
+Release Notes:
+
+```
+
+## Release 9.0.0-pre.20241125.4 (2024-12-07)
+
+```
+Baseline: 7b20da28ec69e3921a043199e6d0afb0246e71f0
+
+Cherry picks:
+
+   + e27ab916aaa6b12f2be4e463a54ef49965cc04a7:
+     Automated rollback of commit
+     3fdec931bfc401a379e2446731cf19daffe24a10.
+   + 17f3cbc33a1dc0b68479f1f1a25ab832f6322842:
+     Automated rollback of commit
+     8f74d8f4de7ba474adad59769241bb38ee83d3ab.
+   + bae909caf645559ba958a279a834e6a11ac5eae6:
+     Release 9.0.0-pre.20241125.4 (2024-12-07)
+   + 291dad6d529082d967753e23c667093ec87322c0:
+     Release 9.0.0-pre.20241125.4 (2024-12-07)
+   + 5d4705148b2a7b10b6c0cf12b0acf127625cda1b:
+     Release 9.0.0-pre.20241125.4 (2024-12-07)
+```
+
+This release contains contributions from many people at Google, as well as .
+
+## Release 9.0.0-pre.20241125.4 (2024-12-07)
+
+```
+Baseline: 7b20da28ec69e3921a043199e6d0afb0246e71f0
+
+Cherry picks:
+
+   + e27ab916aaa6b12f2be4e463a54ef49965cc04a7:
+     Automated rollback of commit
+     3fdec931bfc401a379e2446731cf19daffe24a10.
+   + 17f3cbc33a1dc0b68479f1f1a25ab832f6322842:
+     Automated rollback of commit
+     8f74d8f4de7ba474adad59769241bb38ee83d3ab.
+   + bae909caf645559ba958a279a834e6a11ac5eae6:
+     Release 9.0.0-pre.20241125.4 (2024-12-07)
+   + 291dad6d529082d967753e23c667093ec87322c0:
+     Release 9.0.0-pre.20241125.4 (2024-12-07)
+```
+
+This release contains contributions from many people at Google, as well as .
+
+## Release 9.0.0-pre.20241125.4 (2024-12-07)
+
+```
+Baseline: 7b20da28ec69e3921a043199e6d0afb0246e71f0
+
+Cherry picks:
+
+   + e27ab916aaa6b12f2be4e463a54ef49965cc04a7:
+     Automated rollback of commit
+     3fdec931bfc401a379e2446731cf19daffe24a10.
+   + 17f3cbc33a1dc0b68479f1f1a25ab832f6322842:
+     Automated rollback of commit
+     8f74d8f4de7ba474adad59769241bb38ee83d3ab.
+```
+
+This release contains contributions from many people at Google, as well as .
+
+## Release 9.0.0-pre.20241125.3 (2024-12-04)
+
+```
+Baseline: 7b20da28ec69e3921a043199e6d0afb0246e71f0
+
+Cherry picks:
+
+   + e27ab916aaa6b12f2be4e463a54ef49965cc04a7:
+     Automated rollback of commit
+     3fdec931bfc401a379e2446731cf19daffe24a10.
+   + d699813bb7120f2b80886763ddc1d1b01805db9b:
+     Release 9.0.0-pre.20241125.3 (2024-12-04)
+   + 0ee3d20da076a7e221ebe53a41ab3d7a60db23a6:
+     Release 9.0.0-pre.20241125.3 (2024-12-04)
+   + 08b47315d87033a38feb56e68a4fac99c9788af2:
+     Release 9.0.0-pre.20241125.3 (2024-12-04)
+   + 6c25f89955ad56c351e2b69a5dedb612f7dd45c2:
+     Release 9.0.0-pre.20241125.3 (2024-12-04)
+```
+
+This release contains contributions from many people at Google, as well as .
+
+## Release 9.0.0-pre.20241125.3 (2024-12-04)
+
+```
+Baseline: 7b20da28ec69e3921a043199e6d0afb0246e71f0
+
+Cherry picks:
+
+   + e27ab916aaa6b12f2be4e463a54ef49965cc04a7:
+     Automated rollback of commit
+     3fdec931bfc401a379e2446731cf19daffe24a10.
+   + d699813bb7120f2b80886763ddc1d1b01805db9b:
+     Release 9.0.0-pre.20241125.3 (2024-12-04)
+   + 0ee3d20da076a7e221ebe53a41ab3d7a60db23a6:
+     Release 9.0.0-pre.20241125.3 (2024-12-04)
+```
+
+This release contains contributions from many people at Google, as well as .
+
+## Release 9.0.0-pre.20241125.3 (2024-12-04)
+
+```
+Baseline: 7b20da28ec69e3921a043199e6d0afb0246e71f0
+
+Cherry picks:
+
+   + e27ab916aaa6b12f2be4e463a54ef49965cc04a7:
+     Automated rollback of commit
+     3fdec931bfc401a379e2446731cf19daffe24a10.
+```
+
+Important changes:
+
+  - `archive_override` now accepts all attributes usable with
+    `http_archive`; similar for `git_override` and `git_repository`.
+  - Fixed an issue where `genquery` in external repos would evaluate
+    labels as if they were in the main repo.
+  - Re-enable symbolic macro attribute inheritance.
+
+This release contains contributions from many people at Google, as well as Fabian Meumertzheim, Jordan Mele, Simon Thornington, Ulrik Falklof, Xdng Yng, Xudong Yang.
+
+## Release 9.0.0-pre.20241119.2 (2024-11-27)
+
+```
+Baseline: ebeab8ce6607f0ea8448178219c61a935535be6a
+
+Cherry picks:
+
+   + 650142fbe290d97e39b702d1dbcdbe126614b927:
+     Automated rollback of commit
+     4515bb6c932ce62c7889cf322319a3b49158acad.
+   + 4754de207c4dd05c531b57847e3a47bea229954a:
+     [Rolling release] Do not forward legacy `cmd.exe` variables to
+     the server (#24500)
+   + 94fb35b0af7d30b5479bfdb40cae51960a50f24c:
+     Fix rolling release (#24513)
+```
+
+Incompatible changes:
+
+  - Changing --test_env no longer invalidates the analysis cache.
+    `ctx.configuration.test_env` may be empty for non-test rules and
+    should not be used by such rules.
+
+Important changes:
+
+  - Add a set data type to Starlark, guarded by the
+    --experimental_enable_starlark_set flag.
+  - symbolic macro attribute inheritance is now marked experimental;
+    set --experimental_enable_macro_inherit_attrs flag to enable it.
+  - Changing any part of `--run_under` that isn't the label (such as
+    the shell command) no longer invalidates the analysis cache.
+  - The progress of completed configured aspects is now shown in the
+    UI, next to the number of completed targets. Example: "(100
+    packages loaded, 10000 targets and 500 aspects configured)".
+
+This release contains contributions from many people at Google, as well as Fabian Meumertzheim, kalvdans, Xùdōng Yáng.
+
+## Release 9.0.0-pre.20241113.4 (2024-11-20)
+
+```
+Baseline: 8d02d476f0a1ccc5bfcc47b2dd9ac17526c4d0fb
+
+Cherry picks:
+
+   + 04871da8478a9ce713a0c08b442a686bed61c7c9:
+     Use LinkedHashSet instead of HashSet in
+     CcCompilationContext.Builder for determinism
+   + aa5d821c58d8b20ba55365b32d1bccc3235eb70a:
+     Automated rollback of commit
+     7ffa08e649a57728a642fb1643396678ea2032a8.
+   + 08beb210eddd35b703857e005d99c60b963e8e10:
+     Put macro attribute inheritance behind an off-by-default
+     --experimental_enable_macro_inherit_attrs flag
+   + f8e1588bb3ae7f46ded713e129c6eff63d76d107:
+     Update `with_cfg.bzl` to v0.6.0
+```
+
+Incompatible changes:
+
+  - On Windows, a change to the output base locking protocol might
+    cause an older Bazel invoked immediately after a newer Bazel (on
+    the same output base) to error out instead of blocking for the
+    lock, even if --block_for_lock is enabled.
+  - The `--watchfs` startup option is now a no-op and will be removed
+    in April 2025. Use the `--watchfs` command option instead.
+  - The mnemonic passed to --worker_extra_flag is now matched against
+    the worker key mnemonic when one is available, instead of the
+    action mnemonic. This makes it consistent with other worker flags
+    taking a mnemonic.
 
 New features:
 
   - The "blaze --quiet" command line option can now be used to make
     Blaze emit much less output.
+  - REPO.bazel now allows another directive, "ignore_directories()".
+    It takes a list of directories to ignore just like .bazelignore
+    does, but with glob semantics.
+  - Commands executed by "bazel run" now have two extra environment
+    variables: $BUILD_ID indicates the id of the Bazel command and
+    $BUILD_EXECROOT indicates the execroot of the Bazel server.
 
 Important changes:
 
@@ -23,8 +376,35 @@ Important changes:
     and repository_ctx.extract() has been renamed to strip_prefix;
     the deprecated
     stripPrefix name remains usable for compatibility.
+  - A no-config transition is now available as `config.no_config()`.
+  - Actions that create runfiles trees are now considered regular
+    actions. This means that they are now reported in statistics,
+    critical paths and the like.
+  - External repositories that are managed by Bzlmod can now contain
+    a top-level `external` directory or package.
+  - `repository_ctx.execute` can now remove an environment variable
+    when executing a process by associating it with the value `None`
+    in the `environment` argument.
+  - Add inherit_attrs param to macro() to allow symbolic macros to
+    inherit attributes from rules or other symbolic macros.
+  - `bazel mod` now tries to evaluate all module extensions, even
+    when some have failed to evaluate.
+  - The new `--inject_repository` flag can be used to add new
+    repositories via the CLI with `--enable_bzlmod`. Such
+    repositories behave as if they were declared by
+    `local_repository` via `use_repo_rule` in the root module.
+  - symbolic macro attribute inheritance is now marked experimental;
+    set --experimental_enable_macro_inherit_attrs flag to enable it.
 
-This release contains contributions from many people at Google, as well as Dimi Shahbaz, Fabian Meumertzheim, Rostislav Rumenov.
+This release contains contributions from many people at Google, as well as Alexander Golovlev, Benson Muite, Cornelius Riemenschneider, dependabot[bot], Dimi Shahbaz, Fabian Meumertzheim, Farid Zakaria, Honnix, Jay Conrod, John Millikin, Keith Smiley, Matt Brown, Richard Woodbury, Roman Salvador, Rostislav Rumenov, Wojciech Mazur, Xdng Yng, Zhongpeng Lin.
+
+## Release 7.4.1 (2024-11-11)
+
+```
+
+Release Notes:
+
+```
 
 ## Release 9.0.0-pre.20241016.1 (2024-10-22)
 

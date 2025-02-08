@@ -15,8 +15,8 @@
 package com.google.devtools.build.lib.rules.java;
 
 import static com.google.devtools.build.lib.rules.java.JavaInfo.nullIfNone;
+import static java.util.Objects.requireNonNull;
 
-import com.google.auto.value.AutoValue;
 import com.google.common.collect.ImmutableList;
 import com.google.devtools.build.lib.actions.Artifact;
 import com.google.devtools.build.lib.collect.nestedset.Depset;
@@ -27,6 +27,7 @@ import com.google.devtools.build.lib.concurrent.ThreadSafety.Immutable;
 import com.google.devtools.build.lib.packages.RuleClass.ConfiguredTargetFactory.RuleErrorException;
 import com.google.devtools.build.lib.packages.StructImpl;
 import com.google.devtools.build.lib.rules.java.JavaInfo.JavaInfoInternalProvider;
+import com.google.devtools.build.lib.skyframe.serialization.autocodec.AutoCodec;
 import com.google.devtools.build.lib.starlarkbuildapi.java.JavaAnnotationProcessingApi;
 import java.util.List;
 import javax.annotation.Nullable;
@@ -39,7 +40,7 @@ public interface JavaGenJarsProvider
     extends JavaInfoInternalProvider, JavaAnnotationProcessingApi<Artifact> {
 
   JavaGenJarsProvider EMPTY =
-      new AutoValue_JavaGenJarsProvider_NativeJavaGenJarsProvider(
+      new NativeJavaGenJarsProvider(
           false,
           null,
           null,
@@ -76,7 +77,7 @@ public interface JavaGenJarsProvider
       classJarsBuilder.addTransitive(dep.getTransitiveGenClassJars());
       sourceJarsBuilder.addTransitive(dep.getTransitiveGenSourceJars());
     }
-    return new AutoValue_JavaGenJarsProvider_NativeJavaGenJarsProvider(
+    return new NativeJavaGenJarsProvider(
         usesAnnotationProcessing,
         genClassJar,
         genSourceJar,
@@ -92,7 +93,7 @@ public interface JavaGenJarsProvider
     } else if (obj instanceof JavaGenJarsProvider javaGenJarsProvider) {
       return javaGenJarsProvider;
     } else if (obj instanceof StructImpl struct) {
-      return new AutoValue_JavaGenJarsProvider_NativeJavaGenJarsProvider(
+      return new NativeJavaGenJarsProvider(
           struct.getValue("enabled", Boolean.class),
           nullIfNone(struct.getValue("class_jar"), Artifact.class),
           nullIfNone(struct.getValue("source_jar"), Artifact.class),
@@ -126,35 +127,27 @@ public interface JavaGenJarsProvider
 
   /** Natively constructed JavaGenJarsProvider */
   @Immutable
-  @AutoValue
-  abstract class NativeJavaGenJarsProvider implements JavaGenJarsProvider {
+  @AutoCodec
+  public record NativeJavaGenJarsProvider(
+      @Override boolean usesAnnotationProcessing,
+      @Nullable @Override Artifact getGenClassJar,
+      @Nullable @Override Artifact getGenSourceJar,
+      @Override NestedSet<Artifact> getProcessorClasspath,
+      NestedSet<String> getProcessorClassnames,
+      @Override NestedSet<Artifact> getTransitiveGenClassJars,
+      @Override NestedSet<Artifact> getTransitiveGenSourceJars)
+      implements JavaGenJarsProvider {
+    public NativeJavaGenJarsProvider {
+      requireNonNull(getProcessorClasspath, "getProcessorClasspath");
+      requireNonNull(getProcessorClassnames, "getProcessorClassnames");
+      requireNonNull(getTransitiveGenClassJars, "getTransitiveGenClassJars");
+      requireNonNull(getTransitiveGenSourceJars, "getTransitiveGenSourceJars");
+    }
 
     @Override
     public boolean isImmutable() {
       return true;
     }
-
-    @Override
-    public abstract boolean usesAnnotationProcessing();
-
-    @Nullable
-    @Override
-    public abstract Artifact getGenClassJar();
-
-    @Nullable
-    @Override
-    public abstract Artifact getGenSourceJar();
-
-    @Override
-    public abstract NestedSet<Artifact> getProcessorClasspath();
-
-    public abstract NestedSet<String> getProcessorClassnames();
-
-    @Override
-    public abstract NestedSet<Artifact> getTransitiveGenClassJars();
-
-    @Override
-    public abstract NestedSet<Artifact> getTransitiveGenSourceJars();
 
     @Override
     public Depset /*<Artifact>*/ getTransitiveGenClassJarsForStarlark() {

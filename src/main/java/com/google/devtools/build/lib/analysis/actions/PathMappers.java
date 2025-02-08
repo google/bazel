@@ -40,49 +40,6 @@ import javax.annotation.Nullable;
  * PathMapper}).
  */
 public final class PathMappers {
-  private static final PathFragment BAZEL_OUT = PathFragment.create("bazel-out");
-  private static final PathFragment BLAZE_OUT = PathFragment.create("blaze-out");
-
-  /**
-   * A special instance for use in {@link AbstractAction#computeKey} when path mapping is generally
-   * enabled for an action.
-   *
-   * <p>When computing an action key, the following approaches to taking path mapping into account
-   * do <b>not</b> work:
-   *
-   * <ul>
-   *   <li>Using the actual path mapper is prohibitive since constructing it requires checking for
-   *       collisions among the action input's paths when computing the action key, which flattens
-   *       the input depsets of all actions that opt into path mapping and also increases CPU usage.
-   *   <li>Unconditionally using {@link StrippingPathMapper} can result in stale action keys when an
-   *       action is opted out of path mapping at execution time due to input path collisions after
-   *       stripping. See path_mapping_test for an example.
-   *   <li>Using {@link PathMapper#NOOP} does not distinguish between map_each results built from
-   *       strings and those built from {@link
-   *       com.google.devtools.build.lib.starlarkbuildapi.FileApi#getExecPathStringForStarlark}.
-   *       While the latter will be mapped at execution time, the former won't, resulting in the
-   *       same digest for actions that behave differently at execution time. This is covered by
-   *       tests in StarlarkRuleImplementationFunctionsTest.
-   * </ul>
-   *
-   * <p>Instead, we use a special path mapping instance that preserves the equality relations
-   * between the original config segments, but prepends a fixed string to distinguish hard-coded
-   * path strings from mapped paths. This relies on actions using path mapping to be "root
-   * agnostic": they must not contain logic that depends on any particular (output) root path.
-   */
-  private static final PathMapper FOR_FINGERPRINTING =
-      execPath -> {
-        if (!execPath.startsWith(BAZEL_OUT) && !execPath.startsWith(BLAZE_OUT)) {
-          // This is not an output path.
-          return execPath;
-        }
-        String execPathString = execPath.getPathString();
-        int startOfConfigSegment = execPathString.indexOf('/') + 1;
-        return PathFragment.createAlreadyNormalized(
-            execPathString.substring(0, startOfConfigSegment)
-                + "pm-"
-                + execPathString.substring(startOfConfigSegment));
-      };
 
   // TODO: Remove actions from this list by adding ExecutionRequirements.SUPPORTS_PATH_MAPPING to
   //  their execution info instead.
@@ -136,13 +93,6 @@ public final class PathMappers {
     }
   }
 
-  /** Returns the instance to use during action key computation. */
-  public static PathMapper forActionKey(OutputPathsMode outputPathsMode) {
-    return outputPathsMode == OutputPathsMode.OFF
-        ? PathMapper.NOOP
-        : PathMappers.FOR_FINGERPRINTING;
-  }
-
   /**
    * Actions that support path mapping should call this method when creating their {@link Spawn}.
    *
@@ -190,7 +140,12 @@ public final class PathMappers {
     return configuration.getOptions().get(CoreOptions.class).outputPathsMode;
   }
 
-  private static OutputPathsMode getEffectiveOutputPathsMode(
+  /**
+   * Returns the effective {@link OutputPathsMode} for an action based on the action's mnemonic and
+   * execution info. This may return a mode other than {@link OutputPathsMode#OFF} even though path
+   * mapping will be disabled during execution due to path collisions.
+   */
+  public static OutputPathsMode getEffectiveOutputPathsMode(
       OutputPathsMode outputPathsMode, String mnemonic, Map<String, String> executionInfo) {
     if (executionInfo.containsKey(ExecutionRequirements.LOCAL)
         || (executionInfo.containsKey(ExecutionRequirements.NO_SANDBOX)

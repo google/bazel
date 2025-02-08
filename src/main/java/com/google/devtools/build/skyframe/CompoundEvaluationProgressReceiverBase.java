@@ -75,4 +75,11 @@ public class CompoundEvaluationProgressReceiverBase implements EvaluationProgres
       receiver.evaluated(skyKey, state, newValue, newError, directDeps);
     }
   }
+
+  @Override
+  public void changePruned(SkyKey skyKey) {
+    for (EvaluationProgressReceiver receiver : receivers) {
+      receiver.changePruned(skyKey);
+    }
+  }
 }

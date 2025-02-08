@@ -60,7 +60,8 @@ bool Options::ParseToken(ArgTokenStream *tokens) {
       tokens->MatchAndSet("--hermetic_java_home", &hermetic_java_home) ||
       tokens->MatchAndSet("--add_exports", &add_exports) ||
       tokens->MatchAndSet("--add_opens", &add_opens) ||
-      tokens->MatchAndSet("--output_jar_creator", &output_jar_creator)) {
+      tokens->MatchAndSet("--output_jar_creator", &output_jar_creator) ||
+      tokens->MatchAndSet("--no_strip_module_info", &no_strip_module_info)) {
     return true;
   } else if (tokens->MatchAndSet("--build_info_file", &optarg)) {
     build_info_files.push_back(optarg);

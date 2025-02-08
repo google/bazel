@@ -42,7 +42,7 @@ public class UnifiedCpu extends UnifiedController implements Controller.Cpu {
   public void setCpus(double cpus) throws IOException {
     long period;
     try (Scanner scanner = new Scanner(Files.newBufferedReader(path.resolve("cpu.max")))) {
-      period = scanner.skip(".*\\s").nextInt();
+      period = scanner.skip("\\S+\\s").nextInt();
     }
     long quota = Math.round(period * cpus);
     String limit = String.format("%d %d", quota, period);
@@ -52,6 +52,10 @@ public class UnifiedCpu extends UnifiedController implements Controller.Cpu {
   @Override
   public long getCpus() throws IOException {
     try (Scanner scanner = new Scanner(Files.newBufferedReader(path.resolve("cpu.max")))) {
+      if (!scanner.hasNextLong()) {
+        // Not a number, assume no limit and all processors available
+        return Runtime.getRuntime().availableProcessors();
+      }
       long quota = scanner.nextLong();
       long period = scanner.nextLong();
       return quota / period;

@@ -83,9 +83,9 @@ final class FakeActionInputFileCache implements InputMetadataProvider {
     cas.put(input, digest);
   }
 
-  public void addRunfilesTree(ActionInput runfilesMiddleman, RunfilesTree runfilesTree) {
+  public void addRunfilesTree(ActionInput runfilesTreeArtifact, RunfilesTree runfilesTree) {
     runfilesMap.put(
-        runfilesMiddleman,
+        runfilesTreeArtifact,
         new RunfilesArtifactValue(
             runfilesTree,
             ImmutableList.of(),

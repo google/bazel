@@ -225,13 +225,13 @@ You must pass these two startup flags to *every* Bazel invocation:
 
   ```
   STARTUP_FLAGS=\
-  --host_jvm_args=-javaagent:<path to java-allocation-instrumenter-3.3.0.jar> \
+  --host_jvm_args=-javaagent:<path to java-allocation-instrumenter-3.3.4.jar> \
   --host_jvm_args=-DRULE_MEMORY_TRACKER=1
   ```
 Note: You can download the allocation instrumenter jar file from [Maven Central
 Repository][allocation-instrumenter-link].
 
-[allocation-instrumenter-link]: https://repo1.maven.org/maven2/com/google/code/java-allocation-instrumenter/java-allocation-instrumenter/3.3.0
+[allocation-instrumenter-link]: https://repo1.maven.org/maven2/com/google/code/java-allocation-instrumenter/java-allocation-instrumenter/3.3.4
 
 These start the server in memory tracking mode. If you forget these for even
 one Bazel invocation the server will restart and you will have to start over.

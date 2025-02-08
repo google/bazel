@@ -39,11 +39,6 @@ public class UnixFileSystemTest extends SymlinkAwareFileSystemTest {
     // Nothing.
   }
 
-  @Override
-  protected void expectNotFound(Path path) throws IOException {
-    assertThat(path.statIfFound()).isNull();
-  }
-
   // Most tests are just inherited from FileSystemTest.
 
   @Test

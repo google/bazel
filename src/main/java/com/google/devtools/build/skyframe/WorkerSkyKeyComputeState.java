@@ -145,6 +145,7 @@ public class WorkerSkyKeyComputeState<T> implements SkyKeyComputeState {
    * when the worker finishes, successfully or otherwise. This may only be called from the host
    * Skyframe thread.
    */
+  @SuppressWarnings("AllowVirtualThreads")
   private synchronized ListenableFuture<T> getOrStartWorker(
       String workerThreadName, WorkerCallable<T> workerCallable) {
     if (workerFuture != null) {

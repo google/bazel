@@ -123,7 +123,7 @@ public final class RequiredConfigFragmentsTest extends BuildViewTestCase {
 
     RequiredConfigFragmentsProvider aTransitiveFragments =
         getConfiguredTarget("//a:a").getProvider(RequiredConfigFragmentsProvider.class);
-    assertThat(aTransitiveFragments.getFragmentClasses())
+    assertThat(aTransitiveFragments.fragmentClasses())
         .containsAtLeast(TestFragmentA.class, TestFragmentB.class);
   }
 
@@ -147,12 +147,12 @@ public final class RequiredConfigFragmentsTest extends BuildViewTestCase {
     assertThat(
             getConfiguredTarget("//a:config_on_a")
                 .getProvider(RequiredConfigFragmentsProvider.class)
-                .getOptionsClasses())
+                .optionsClasses())
         .contains(AOptions.class);
     assertThat(
             getConfiguredTarget("//a:config_on_native")
                 .getProvider(RequiredConfigFragmentsProvider.class)
-                .getOptionsClasses())
+                .optionsClasses())
         .doesNotContain(AOptions.class);
   }
 
@@ -172,8 +172,8 @@ public final class RequiredConfigFragmentsTest extends BuildViewTestCase {
 
     RequiredConfigFragmentsProvider aDirectFragments =
         getConfiguredTarget("//a:a").getProvider(RequiredConfigFragmentsProvider.class);
-    assertThat(aDirectFragments.getFragmentClasses()).contains(TestFragmentA.class);
-    assertThat(aDirectFragments.getFragmentClasses()).doesNotContain(TestFragmentB.class);
+    assertThat(aDirectFragments.fragmentClasses()).contains(TestFragmentA.class);
+    assertThat(aDirectFragments.fragmentClasses()).doesNotContain(TestFragmentB.class);
   }
 
   @Test
@@ -196,12 +196,12 @@ public final class RequiredConfigFragmentsTest extends BuildViewTestCase {
     assertThat(
             getConfiguredTarget("//a:config_on_a")
                 .getProvider(RequiredConfigFragmentsProvider.class)
-                .getOptionsClasses())
+                .optionsClasses())
         .contains(AOptions.class);
     assertThat(
             getConfiguredTarget("//a:config_on_native")
                 .getProvider(RequiredConfigFragmentsProvider.class)
-                .getOptionsClasses())
+                .optionsClasses())
         .doesNotContain(AOptions.class);
   }
 
@@ -220,7 +220,7 @@ public final class RequiredConfigFragmentsTest extends BuildViewTestCase {
         """);
     RequiredConfigFragmentsProvider requiredFragments =
         getConfiguredTarget("//a:myrule").getProvider(RequiredConfigFragmentsProvider.class);
-    assertThat(requiredFragments.getDefines()).containsExactly("myvar");
+    assertThat(requiredFragments.defines()).containsExactly("myvar");
   }
 
   @Test
@@ -246,7 +246,7 @@ public final class RequiredConfigFragmentsTest extends BuildViewTestCase {
         """);
     RequiredConfigFragmentsProvider requiredFragments =
         getConfiguredTarget("//a:simple").getProvider(RequiredConfigFragmentsProvider.class);
-    assertThat(requiredFragments.getDefines()).containsExactly("myvar");
+    assertThat(requiredFragments.defines()).containsExactly("myvar");
   }
 
   @Test
@@ -283,7 +283,7 @@ public final class RequiredConfigFragmentsTest extends BuildViewTestCase {
         """);
     RequiredConfigFragmentsProvider requiredFragments =
         getConfiguredTarget("//a:simple").getProvider(RequiredConfigFragmentsProvider.class);
-    assertThat(requiredFragments.getDefines()).containsExactly("required_var");
+    assertThat(requiredFragments.defines()).containsExactly("required_var");
   }
 
   /**
@@ -370,9 +370,9 @@ public final class RequiredConfigFragmentsTest extends BuildViewTestCase {
     useConfiguration("--include_config_fragments_provider=transitive");
     RequiredConfigFragmentsProvider requiredFragments =
         getConfiguredTarget("//a:parent").getProvider(RequiredConfigFragmentsProvider.class);
-    assertThat(requiredFragments.getFragmentClasses())
+    assertThat(requiredFragments.fragmentClasses())
         .contains(AspectWithConfigFragmentRequirements.REQUIRED_FRAGMENT);
-    assertThat(requiredFragments.getDefines())
+    assertThat(requiredFragments.defines())
         .containsExactly(AspectWithConfigFragmentRequirements.REQUIRED_DEFINE);
   }
 
@@ -437,8 +437,8 @@ public final class RequiredConfigFragmentsTest extends BuildViewTestCase {
     useConfiguration("--include_config_fragments_provider=direct");
     RequiredConfigFragmentsProvider requiredFragments =
         getConfiguredTarget("//a:cctarget").getProvider(RequiredConfigFragmentsProvider.class);
-    assertThat(requiredFragments.getOptionsClasses()).contains(CppOptions.class);
-    assertThat(requiredFragments.getOptionsClasses()).doesNotContain(JavaOptions.class);
+    assertThat(requiredFragments.optionsClasses()).contains(CppOptions.class);
+    assertThat(requiredFragments.optionsClasses()).doesNotContain(JavaOptions.class);
   }
 
   @Test
@@ -467,8 +467,8 @@ public final class RequiredConfigFragmentsTest extends BuildViewTestCase {
     useConfiguration("--include_config_fragments_provider=direct");
     RequiredConfigFragmentsProvider requiredFragments =
         getConfiguredTarget("//a:javatarget").getProvider(RequiredConfigFragmentsProvider.class);
-    assertThat(requiredFragments.getOptionsClasses()).contains(JavaOptions.class);
-    assertThat(requiredFragments.getOptionsClasses()).doesNotContain(CppOptions.class);
+    assertThat(requiredFragments.optionsClasses()).contains(JavaOptions.class);
+    assertThat(requiredFragments.optionsClasses()).doesNotContain(CppOptions.class);
   }
 
   @Test
@@ -509,9 +509,9 @@ public final class RequiredConfigFragmentsTest extends BuildViewTestCase {
     RequiredConfigFragmentsProvider requiredFragments =
         getConfiguredTarget("//a:javaparent").getProvider(RequiredConfigFragmentsProvider.class);
     // We consider the attribute transition over the parent -> child edge a property of the parent.
-    assertThat(requiredFragments.getOptionsClasses()).contains(JavaOptions.class);
+    assertThat(requiredFragments.optionsClasses()).contains(JavaOptions.class);
     // But not the child's rule transition.
-    assertThat(requiredFragments.getOptionsClasses()).doesNotContain(CppOptions.class);
+    assertThat(requiredFragments.optionsClasses()).doesNotContain(CppOptions.class);
   }
 
   @Test
@@ -565,9 +565,9 @@ public final class RequiredConfigFragmentsTest extends BuildViewTestCase {
         getAspect("//a:defs.bzl%a1").getProvider(RequiredConfigFragmentsProvider.class);
 
     if (setting == IncludeConfigFragmentsEnum.TRANSITIVE) {
-      assertThat(requiredFragments.getFragmentClasses()).contains(JavaConfiguration.class);
+      assertThat(requiredFragments.fragmentClasses()).contains(JavaConfiguration.class);
     } else {
-      assertThat(requiredFragments.getFragmentClasses()).doesNotContain(JavaConfiguration.class);
+      assertThat(requiredFragments.fragmentClasses()).doesNotContain(JavaConfiguration.class);
     }
   }
 
@@ -627,9 +627,9 @@ public final class RequiredConfigFragmentsTest extends BuildViewTestCase {
         getAspect("//a:defs.bzl%a2").getProvider(RequiredConfigFragmentsProvider.class);
 
     if (setting == IncludeConfigFragmentsEnum.TRANSITIVE) {
-      assertThat(requiredFragments.getDefines()).contains("my_var");
+      assertThat(requiredFragments.defines()).contains("my_var");
     } else {
-      assertThat(requiredFragments.getDefines()).doesNotContain("my_var");
+      assertThat(requiredFragments.defines()).doesNotContain("my_var");
     }
   }
 
@@ -655,7 +655,7 @@ public final class RequiredConfigFragmentsTest extends BuildViewTestCase {
     RequiredConfigFragmentsProvider requiredFragments =
         getConfiguredTarget("//a:example").getProvider(RequiredConfigFragmentsProvider.class);
 
-    assertThat(requiredFragments.getFragmentClasses()).contains(JavaConfiguration.class);
+    assertThat(requiredFragments.fragmentClasses()).contains(JavaConfiguration.class);
   }
 
   @Test
@@ -697,7 +697,7 @@ public final class RequiredConfigFragmentsTest extends BuildViewTestCase {
     RequiredConfigFragmentsProvider requiredFragments =
         getAspect("//a:defs.bzl%error_aspect").getProvider(RequiredConfigFragmentsProvider.class);
 
-    assertThat(requiredFragments.getDefines()).containsExactly("FAIL_MESSAGE");
+    assertThat(requiredFragments.defines()).containsExactly("FAIL_MESSAGE");
   }
 
   @Test
@@ -725,7 +725,7 @@ public final class RequiredConfigFragmentsTest extends BuildViewTestCase {
     RequiredConfigFragmentsProvider requiredFragments =
         getConfiguredTarget("//a:error").getProvider(RequiredConfigFragmentsProvider.class);
 
-    assertThat(requiredFragments.getDefines()).containsExactly("FAIL_MESSAGE");
+    assertThat(requiredFragments.defines()).containsExactly("FAIL_MESSAGE");
   }
 
   @Test
@@ -764,6 +764,6 @@ public final class RequiredConfigFragmentsTest extends BuildViewTestCase {
     RequiredConfigFragmentsProvider requiredFragments =
         getConfiguredTarget("//a:gen").getProvider(RequiredConfigFragmentsProvider.class);
 
-    assertThat(requiredFragments.getDefines()).containsExactly("x");
+    assertThat(requiredFragments.defines()).containsExactly("x");
   }
 }

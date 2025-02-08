@@ -16,10 +16,11 @@
 
 package com.tonicsystems.jarjar;
 
-import java.util.*;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.regex.Pattern;
-import org.objectweb.asm.*;
-import org.objectweb.asm.commons.*;
+import org.objectweb.asm.commons.Remapper;
 
 class PackageRemapper extends Remapper {
   private static final String RESOURCE_SUFFIX = "RESOURCE";
@@ -28,9 +29,9 @@ class PackageRemapper extends Remapper {
       Pattern.compile("\\[L[\\p{javaJavaIdentifierPart}\\.]+?;");
 
   private final List<Wildcard> wildcards;
-  private final Map<String, String> typeCache = new HashMap<String, String>();
-  private final Map<String, String> pathCache = new HashMap<String, String>();
-  private final Map<Object, String> valueCache = new HashMap<Object, String>();
+  private final Map<String, String> typeCache = new HashMap<>();
+  private final Map<String, String> pathCache = new HashMap<>();
+  private final Map<Object, String> valueCache = new HashMap<>();
   private final boolean verbose;
 
   public PackageRemapper(List<Rule> ruleList, boolean verbose) {
@@ -43,6 +44,7 @@ class PackageRemapper extends Remapper {
     return ARRAY_FOR_NAME_PATTERN.matcher(value).matches();
   }
 
+  @Override
   public String map(String key) {
     String s = typeCache.get(key);
     if (s == null) {
@@ -78,7 +80,7 @@ class PackageRemapper extends Remapper {
       if (absolute) {
         s = "/" + s;
       }
-      if (s.indexOf(RESOURCE_SUFFIX) < 0) {
+      if (!s.contains(RESOURCE_SUFFIX)) {
         return path;
       }
       s = s.substring(0, s.length() - RESOURCE_SUFFIX.length()) + end;
@@ -87,6 +89,7 @@ class PackageRemapper extends Remapper {
     return s;
   }
 
+  @Override
   public Object mapValue(Object value) {
     if (value instanceof String) {
       String s = valueCache.get(value);

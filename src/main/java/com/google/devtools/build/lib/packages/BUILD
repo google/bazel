@@ -46,15 +46,16 @@ java_library(
     srcs = glob(
         ["*.java"],
         exclude = [
+            "AutoloadSymbols.java",
             "BuilderFactoryForTesting.java",  # see builder_factory_for_testing
             "BzlVisibility.java",
+            "ConfiguredAttributeMapper.java",
+            "ExecGroup.java",
             "Globber.java",
             "GlobberUtils.java",
-            "ExecGroup.java",
-            "ConfiguredAttributeMapper.java",
             "LabelPrinter.java",
             "PackageSpecification.java",
-            "AutoloadSymbols.java",
+            "RuleClassUtils.java",
         ],
     ),
     deps = [
@@ -103,6 +104,7 @@ java_library(
         "//src/main/java/com/google/devtools/build/lib/util:filetype",
         "//src/main/java/com/google/devtools/build/lib/util:hash_codes",
         "//src/main/java/com/google/devtools/build/lib/util:string",
+        "//src/main/java/com/google/devtools/build/lib/util:string_encoding",
         "//src/main/java/com/google/devtools/build/lib/vfs",
         "//src/main/java/com/google/devtools/build/lib/vfs:pathfragment",
         "//src/main/java/com/google/devtools/build/skyframe:skyframe-objects",
@@ -131,12 +133,14 @@ java_library(
         "//src/main/java/com/google/devtools/build/lib/events",
         "//src/main/java/com/google/devtools/build/lib/packages",
         "//src/main/java/com/google/devtools/build/lib/packages/semantics",
+        "//src/main/java/com/google/devtools/build/lib/rules:repository/repository_directory_value",
         "//src/main/java/com/google/devtools/build/lib/skyframe:bzl_load_value",
         "//src/main/java/com/google/devtools/build/lib/skyframe:precomputed_value",
         "//src/main/java/com/google/devtools/build/lib/skyframe:repository_mapping_value",
         "//src/main/java/com/google/devtools/build/skyframe:skyframe-objects",
         "//src/main/java/net/starlark/java/eval",
         "//third_party:auto_value",
+        "//third_party:error_prone_annotations",
         "//third_party:guava",
         "//third_party:jsr305",
     ],
@@ -158,7 +162,9 @@ java_library(
     deps = [
         "//src/main/java/com/google/devtools/build/lib/analysis:config/toolchain_type_requirement",
         "//src/main/java/com/google/devtools/build/lib/cmdline",
+        "//src/main/java/com/google/devtools/build/lib/skyframe/serialization/autocodec",
         "//src/main/java/com/google/devtools/build/lib/starlarkbuildapi",
+        "//src/main/java/net/starlark/java/syntax",
         "//third_party:auto_value",
         "//third_party:guava",
         "//third_party:jsr305",
@@ -206,6 +212,20 @@ java_library(
     name = "rule_class_id",
     srcs = ["RuleClassId.java"],
     deps = [
+        "//src/main/java/com/google/devtools/build/lib/skyframe/serialization/autocodec",
         "//third_party:auto_value",
+    ],
+)
+
+java_library(
+    name = "rule_class_utils",
+    srcs = ["RuleClassUtils.java"],
+    deps = [
+        ":packages",
+        "//src/main/java/com/google/devtools/build/lib/packages/semantics",
+        "//src/main/java/com/google/devtools/build/lib/skyframe:starlark_builtins_value",
+        "//src/main/java/com/google/devtools/build/lib/starlarkbuildapi",
+        "//src/main/java/net/starlark/java/eval",
+        "//third_party:guava",
     ],
 )

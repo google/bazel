@@ -15,8 +15,8 @@
 package com.google.devtools.build.execlog;
 
 import static com.google.common.collect.ImmutableMap.toImmutableMap;
+import static java.util.Objects.requireNonNull;
 
-import com.google.auto.value.AutoValue;
 import com.google.common.base.Splitter;
 import com.google.common.collect.ImmutableMap;
 import com.google.devtools.common.options.Converter;
@@ -71,14 +71,14 @@ public class ConverterOptions extends OptionsBase {
       Arrays.stream(Format.values())
           .collect(toImmutableMap(f -> f.name().toLowerCase(Locale.US), f -> f));
 
-  @AutoValue
-  abstract static class FormatAndPath {
-    public abstract Format format();
-
-    public abstract Path path();
+  record FormatAndPath(Format format, Path path) {
+    FormatAndPath {
+      requireNonNull(format, "format");
+      requireNonNull(path, "path");
+    }
 
     public static FormatAndPath of(Format format, Path path) {
-      return new AutoValue_ConverterOptions_FormatAndPath(format, path);
+      return new FormatAndPath(format, path);
     }
   }
 

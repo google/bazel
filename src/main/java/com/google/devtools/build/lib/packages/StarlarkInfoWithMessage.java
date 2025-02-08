@@ -74,7 +74,6 @@ public final class StarlarkInfoWithMessage extends StarlarkInfoNoSchema {
   // However, either of these migrations could cause obscure user-visible changes in:
   //   - the type name ("struct" vs something else)
   //   - equality (`==`) semantics
-  //   - the availability of the ".to_proto" and ".to_json" methods
   //   - the availability of the struct concatenation operator (`+`) and the type of its result.
   //     (Today, concatenation of structs with different error messages is allowed, and the result
   //     uses the error message of the left-hand side. But maybe this should be disallowed, or maybe

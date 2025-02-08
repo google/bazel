@@ -15,6 +15,7 @@ package com.google.devtools.build.lib.concurrent;
 
 import static com.google.devtools.build.lib.unsafe.UnsafeProvider.unsafe;
 
+
 import java.lang.ref.Cleaner;
 import sun.misc.Unsafe;
 
@@ -27,6 +28,7 @@ final class AddressFreer implements Runnable {
     this.address = address;
   }
 
+  // TODO: b/386384684 - remove Unsafe usage
   @Override
   public void run() {
     unsafe().freeMemory(address);

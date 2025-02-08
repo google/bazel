@@ -13,47 +13,38 @@
 // limitations under the License.
 package com.google.devtools.build.lib.actions;
 
-import static java.nio.charset.StandardCharsets.ISO_8859_1;
-import static java.nio.charset.StandardCharsets.UTF_8;
-
 import com.google.common.collect.Iterables;
 import com.google.devtools.build.lib.unsafe.StringUnsafe;
 import com.google.devtools.build.lib.util.FileType;
 import com.google.devtools.build.lib.util.GccParamFileEscaper;
 import com.google.devtools.build.lib.util.ShellEscaper;
-import com.google.devtools.build.lib.util.StringUtil;
 import com.google.devtools.build.lib.util.WindowsParamFileEscaper;
 import com.google.devtools.build.lib.vfs.PathFragment;
 import java.io.BufferedOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
-import java.io.OutputStreamWriter;
-import java.nio.ByteBuffer;
-import java.nio.CharBuffer;
-import java.nio.charset.Charset;
-import java.nio.charset.CharsetEncoder;
 
 /**
- * Support for parameter file generation (as used by gcc and other tools, e.g.
- * {@code gcc @param_file}. Note that the parameter file needs to be explicitly
- * deleted after use. Different tools require different parameter file formats,
- * which can be selected via the {@link ParameterFileType} enum.
+ * Support for parameter file generation (as used by gcc and other tools, e.g. {@code
+ * gcc @param_file}. Note that the parameter file needs to be explicitly deleted after use.
+ * Different tools require different parameter file formats, which can be selected via the {@link
+ * ParameterFileType} enum.
  *
- * <p>The default charset is ISO-8859-1 (latin1). This also has to match the
- * expectation of the tool.
+ * <p>The default charset is ISO-8859-1 (latin1). This also has to match the expectation of the
+ * tool.
  *
- * <p>Don't use this class for new code. Use the ParameterFileWriteAction
- * instead!
+ * <p>Don't use this class for new code. Use the ParameterFileWriteAction instead!
  */
 public class ParameterFile {
+
+  public static final StringUnsafe STRING_UNSAFE = StringUnsafe.getInstance();
 
   /** Different styles of parameter files. */
   public enum ParameterFileType {
     /**
-     * A parameter file with every parameter on a separate line. This format
-     * cannot handle newlines in parameters. It is currently used for most
-     * tools, but may not be interpreted correctly if parameters contain
-     * white space or other special characters. It should be avoided for new
+     * A parameter file with every parameter on a separate line. This format cannot handle newlines
+     * in parameters. It is currently used for most tools, but may not be interpreted correctly if
+     * parameters contain white space or other special characters. It should be avoided for new
      * development.
      */
     UNQUOTED,
@@ -81,119 +72,38 @@ public class ParameterFile {
 
   public static final FileType PARAMETER_FILE = FileType.of(".params");
 
-  /**
-   * Creates a parameter file with the given parameters.
-   */
-  private ParameterFile() {
-  }
-  /**
-   * Derives an path from a given path by appending <code>".params"</code>.
-   */
+  /** Creates a parameter file with the given parameters. */
+  private ParameterFile() {}
+
+  /** Derives a path from a given path by appending <code>".params"</code>. */
   public static PathFragment derivePath(PathFragment original) {
     return derivePath(original, "2");
   }
 
-  /**
-   * Derives an path from a given path by appending <code>".params"</code>.
-   */
+  /** Derives a path from a given path by appending <code>".params"</code>. */
   public static PathFragment derivePath(PathFragment original, String flavor) {
     return original.replaceName(original.getBaseName() + "-" + flavor + ".params");
   }
 
   /** Writes an argument list to a parameter file. */
   public static void writeParameterFile(
-      OutputStream out, Iterable<String> arguments, ParameterFileType type, Charset charset)
-      throws IOException {
+      OutputStream out, Iterable<String> arguments, ParameterFileType type) throws IOException {
     OutputStream bufferedOut = new BufferedOutputStream(out);
     switch (type) {
-      case SHELL_QUOTED -> writeContent(bufferedOut, ShellEscaper.escapeAll(arguments), charset);
-      case GCC_QUOTED ->
-          writeContent(bufferedOut, GccParamFileEscaper.escapeAll(arguments), charset);
-      case UNQUOTED -> writeContent(bufferedOut, arguments, charset);
-      case WINDOWS ->
-          writeContent(bufferedOut, WindowsParamFileEscaper.escapeAll(arguments), charset);
+      case SHELL_QUOTED -> writeContent(bufferedOut, ShellEscaper.escapeAll(arguments));
+      case GCC_QUOTED -> writeContent(bufferedOut, GccParamFileEscaper.escapeAll(arguments));
+      case UNQUOTED -> writeContent(bufferedOut, arguments);
+      case WINDOWS -> writeContent(bufferedOut, WindowsParamFileEscaper.escapeAll(arguments));
     }
   }
 
-  private static void writeContent(
-      OutputStream outputStream, Iterable<String> arguments, Charset charset) throws IOException {
-    if (charset.equals(ISO_8859_1)) {
-      writeContentLatin1(outputStream, arguments);
-    } else if (charset.equals(UTF_8)) {
-      writeContentUtf8(outputStream, arguments);
-    } else {
-      // Generic charset support
-      OutputStreamWriter out = new OutputStreamWriter(outputStream, charset);
-      for (String line : arguments) {
-        out.write(line);
-        out.write('\n');
-      }
-      out.flush();
-    }
-  }
-
-  /**
-   * Fast LATIN-1 path that avoids GC overhead. This takes advantage of the fact that strings are
-   * encoded as either LATIN-1 or UTF-16 under JDK9+. When LATIN-1 we can simply copy the byte
-   * buffer, when UTF-16 we can fail loudly.
-   */
-  private static void writeContentLatin1(OutputStream outputStream, Iterable<String> arguments)
+  private static void writeContent(OutputStream out, Iterable<String> arguments)
       throws IOException {
-    StringUnsafe stringUnsafe = StringUnsafe.getInstance();
     for (String line : arguments) {
-      if (stringUnsafe.getCoder(line) == StringUnsafe.LATIN1) {
-        byte[] bytes = stringUnsafe.getByteArray(line);
-        outputStream.write(bytes);
-      } else {
-        // Error case, encode with '?' characters
-        ByteBuffer encodedBytes = ISO_8859_1.encode(CharBuffer.wrap(line));
-        outputStream.write(
-            encodedBytes.array(),
-            encodedBytes.arrayOffset(),
-            encodedBytes.arrayOffset() + encodedBytes.limit());
-      }
-      outputStream.write('\n');
+      out.write(STRING_UNSAFE.getInternalStringBytes(line));
+      out.write('\n');
     }
-    outputStream.flush();
-  }
-
-  /**
-   * Fast UTF-8 path that tries to coder GC overhead. This takes advantage of the fact that strings
-   * are encoded as either LATIN-1 or UTF-16 under JDK9+. When LATIN-1 we can check if the buffer is
-   * ASCII and copy that directly (since this is both valid LATIN-1 and UTF-8), in all other cases
-   * we must re-encode.
-   */
-  private static void writeContentUtf8(OutputStream outputStream, Iterable<String> arguments)
-      throws IOException {
-    CharsetEncoder encoder = UTF_8.newEncoder();
-    StringUnsafe stringUnsafe = StringUnsafe.getInstance();
-    for (String line : arguments) {
-      byte[] bytes = stringUnsafe.getByteArray(line);
-      if (stringUnsafe.getCoder(line) == StringUnsafe.LATIN1 && isAscii(bytes)) {
-        outputStream.write(bytes);
-      } else if (!StringUtil.reencodeInternalToExternal(line).equals(line)) {
-        // We successfully decoded line from utf8 - meaning it was already encoded as utf8.
-        // We do not want to double-encode.
-        outputStream.write(bytes);
-      } else {
-        ByteBuffer encodedBytes = encoder.encode(CharBuffer.wrap(line));
-        outputStream.write(
-            encodedBytes.array(),
-            encodedBytes.arrayOffset(),
-            encodedBytes.arrayOffset() + encodedBytes.limit());
-      }
-      outputStream.write('\n');
-    }
-    outputStream.flush();
-  }
-
-  private static boolean isAscii(byte[] latin1Bytes) {
-    boolean hiBitSet = false;
-    int n = latin1Bytes.length;
-    for (int i = 0; i < n; ++i) {
-      hiBitSet |= ((latin1Bytes[i] & 0x80) != 0);
-    }
-    return !hiBitSet;
+    out.flush();
   }
 
   /** Criterion shared by {@link #flagsOnly} and {@link #nonFlags}. */

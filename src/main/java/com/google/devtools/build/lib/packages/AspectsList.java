@@ -351,8 +351,7 @@ public final class AspectsList {
 
     private void addAspect(StarlarkAspect starlarkAspect, @Nullable String requiredByAspect)
         throws EvalException {
-      if (starlarkAspect instanceof StarlarkDefinedAspect) {
-        StarlarkDefinedAspect starlarkDefinedAspect = (StarlarkDefinedAspect) starlarkAspect;
+      if (starlarkAspect instanceof StarlarkDefinedAspect starlarkDefinedAspect) {
         if (!starlarkDefinedAspect.isExported()) {
           throw Starlark.errorf(
               "Aspects should be top-level values in extension files that define them.");

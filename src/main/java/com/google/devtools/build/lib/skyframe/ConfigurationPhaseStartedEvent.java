@@ -15,22 +15,22 @@ package com.google.devtools.build.lib.skyframe;
 
 import com.google.devtools.build.lib.events.ExtendedEventHandler;
 
-/** This event is fired at the beginning of the target configuration phase. */
+/** This event is fired at the beginning of the configuration phase. */
 public final class ConfigurationPhaseStartedEvent implements ExtendedEventHandler.Postable {
 
-  final ConfiguredTargetProgressReceiver configuredTargetProgress;
+  final AnalysisProgressReceiver analysisProgress;
 
   /**
    * Construct the event.
    *
-   * @param configuredTargetProgress a receiver that gets updated about the progress of target
+   * @param analysisProgress a receiver that gets updated about the progress of target and aspect
    *     configuration.
    */
-  public ConfigurationPhaseStartedEvent(ConfiguredTargetProgressReceiver configuredTargetProgress) {
-    this.configuredTargetProgress = configuredTargetProgress;
+  public ConfigurationPhaseStartedEvent(AnalysisProgressReceiver analysisProgress) {
+    this.analysisProgress = analysisProgress;
   }
 
-  public ConfiguredTargetProgressReceiver getConfiguredTargetProgressReceiver() {
-    return configuredTargetProgress;
+  public AnalysisProgressReceiver getAnalysisProgressReceiver() {
+    return analysisProgress;
   }
 }

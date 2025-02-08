@@ -956,11 +956,12 @@ def _is_stamping_enabled_for_aspect(ctx):
         stamp = ctx.rule.attr.stamp
     return stamp
 
-_RUNFILES_LIBRARY_TARGET = Label("@bazel_tools//tools/cpp/runfiles")
+_RUNFILES_LIBRARY_TARGET = Label("@rules_cc//cc/runfiles")
+_LEGACY_RUNFILES_LIBRARY_TARGET = Label("@bazel_tools//tools/cpp/runfiles")
 
 def _get_local_defines_for_runfiles_lookup(ctx, all_deps):
     for dep in all_deps:
-        if dep.label == _RUNFILES_LIBRARY_TARGET:
+        if dep.label == _RUNFILES_LIBRARY_TARGET or dep.label == _LEGACY_RUNFILES_LIBRARY_TARGET:
             return ["BAZEL_CURRENT_REPOSITORY=\"{}\"".format(ctx.label.workspace_name)]
     return []
 
@@ -1100,7 +1101,7 @@ def _get_coverage_environment(ctx, cc_config, cc_toolchain):
     }
     for k in list(env.keys()):
         if env[k] == None:
-            env[k] = ""
+            env.pop(k)
     if cc_config.fdo_instrument():
         env["FDO_DIR"] = cc_config.fdo_instrument()
     return env

@@ -15,8 +15,8 @@
 package com.google.devtools.build.lib.collect.nestedset;
 
 import static com.google.common.base.Preconditions.checkArgument;
-import static com.google.common.util.concurrent.Futures.immediateVoidFuture;
 import static com.google.common.util.concurrent.MoreExecutors.directExecutor;
+import static com.google.devtools.build.lib.skyframe.serialization.WriteStatuses.immediateWriteStatus;
 
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
@@ -125,7 +125,7 @@ class NestedSetSerializationCache {
             // has no effect).
             var unused =
                 putIfAbsent(
-                    contents, new PutOperation(fingerprint, immediateVoidFuture()), context);
+                    contents, new PutOperation(fingerprint, immediateWriteStatus()), context);
           }
 
           @Override

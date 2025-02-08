@@ -98,4 +98,16 @@ function test_multiple_keys_wrong_keys() {
   expect_log "ERROR: unknown key(s): 'foo', 'bar'"
 }
 
+# Regression test for https://github.com/bazelbuild/bazel/issues/24671
+function test_invalid_flag_error() {
+  # This type of loading error only happens with external dependencies.
+  if [[ "$PRODUCT_NAME" != "bazel" ]]; then
+    return 0
+  fi
+  bazel info --registry=foobarbaz &>$TEST_log \
+    && fail "expected ${PRODUCT_NAME} to fail with an invalid registry"
+  expect_not_log "crashed due to an internal error"
+  expect_log "Invalid registry URL: foobarbaz"
+}
+
 run_suite "Integration tests for ${PRODUCT_NAME} info."

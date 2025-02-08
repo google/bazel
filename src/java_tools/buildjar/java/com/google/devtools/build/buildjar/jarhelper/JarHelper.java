@@ -65,6 +65,8 @@ public class JarHelper {
   public static final Attributes.Name INJECTING_RULE_KIND =
       new Attributes.Name("Injecting-Rule-Kind");
 
+  public static final Attributes.Name MULTI_RELEASE = new Attributes.Name("Multi-Release");
+
   // ZIP timestamps have a resolution of 2 seconds.
   // see http://www.info-zip.org/FAQ.html#limits
   public static final long MINIMUM_TIMESTAMP_INCREMENT = 2000L;
@@ -76,6 +78,7 @@ public class JarHelper {
   protected boolean normalize;
   protected int storageMethod = JarEntry.DEFLATED;
   protected boolean verbose = false;
+  protected boolean multiRelease = false;
 
   // The state needed to create the Jar
   protected final Set<String> names = new HashSet<>();
@@ -91,6 +94,10 @@ public class JarHelper {
    */
   public void setNormalize(boolean normalize) {
     this.normalize = normalize;
+  }
+
+  public void multiRelease(boolean multiRelease) {
+    this.multiRelease = multiRelease;
   }
 
   /**

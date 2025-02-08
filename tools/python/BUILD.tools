@@ -11,7 +11,6 @@
 ################################################################################
 
 load(":python_version.bzl", "define_python_version_flag")
-load(":define_autodetecting_toolchain.bzl", "define_autodetecting_toolchain")
 
 package(default_visibility = ["//visibility:public"])
 
@@ -102,8 +101,9 @@ constraint_setting(name = "py3_interpreter_path")
 # workspaces. Ideally you should register your own Python toolchain, which will
 # supersede this one so long as its constraints match the target platform.
 
-define_autodetecting_toolchain(
+alias(
     name = "autodetecting_toolchain",
-    pywrapper_template = "pywrapper_template.txt",
-    windows_config_setting = "@bazel_tools//src/conditions:windows",
+    actual = "@rules_python//python:autodetecting_toolchain",
+    deprecation = "Use @rules_python//python:autodetecting_toolchain",
 )
+

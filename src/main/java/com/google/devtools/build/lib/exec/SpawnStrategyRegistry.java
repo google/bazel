@@ -13,9 +13,9 @@
 // limitations under the License.
 package com.google.devtools.build.lib.exec;
 
+import static java.util.Objects.requireNonNull;
 import static java.util.stream.Collectors.joining;
 
-import com.google.auto.value.AutoValue;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Joiner;
 import com.google.common.base.Preconditions;
@@ -327,9 +327,7 @@ public final class SpawnStrategyRegistry
      */
     @CanIgnoreReturnValue
     public Builder addDescriptionFilter(RegexFilter filter, List<String> identifiers) {
-      filterAndIdentifiers.add(
-          new AutoValue_SpawnStrategyRegistry_FilterAndIdentifiers(
-              filter, ImmutableList.copyOf(identifiers)));
+      filterAndIdentifiers.add(new FilterAndIdentifiers(filter, ImmutableList.copyOf(identifiers)));
       return this;
     }
 
@@ -736,11 +734,10 @@ public final class SpawnStrategyRegistry
                 .build()));
   }
 
-  @AutoValue
-  abstract static class FilterAndIdentifiers {
-
-    abstract RegexFilter filter();
-
-    abstract ImmutableList<String> identifiers();
+  record FilterAndIdentifiers(RegexFilter filter, ImmutableList<String> identifiers) {
+    FilterAndIdentifiers {
+      requireNonNull(filter, "filter");
+      requireNonNull(identifiers, "identifiers");
+    }
   }
 }

@@ -23,13 +23,16 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
 import com.google.common.eventbus.EventBus;
+import com.google.devtools.build.lib.actions.Action;
 import com.google.devtools.build.lib.actions.Artifact;
-import com.google.devtools.build.lib.actions.MiddlemanAction;
 import com.google.devtools.build.lib.actions.RunfilesTree;
+import com.google.devtools.build.lib.actions.RunfilesTreeAction;
 import com.google.devtools.build.lib.analysis.AnalysisResult;
 import com.google.devtools.build.lib.analysis.ConfiguredAspect;
 import com.google.devtools.build.lib.analysis.ConfiguredTarget;
+import com.google.devtools.build.lib.analysis.PlatformOptions;
 import com.google.devtools.build.lib.analysis.TransitiveInfoCollection;
+import com.google.devtools.build.lib.analysis.config.BuildConfigurationValue;
 import com.google.devtools.build.lib.analysis.util.BuildViewTestCase;
 import com.google.devtools.build.lib.cmdline.Label;
 import com.google.devtools.build.lib.collect.nestedset.Depset;
@@ -163,9 +166,9 @@ public class TestActionBuilderTest extends BuildViewTestCase {
       throws Exception {
     return getTestStatusArtifacts(label).stream()
         .map(this::getGeneratingAction)
-        .map(a -> ((TestRunnerAction) a).getRunfilesMiddleman())
+        .map(a -> ((TestRunnerAction) a).getRunfilesTree())
         .map(this::getGeneratingAction)
-        .map(a -> ((MiddlemanAction) a).getRunfilesTree())
+        .map(a -> ((RunfilesTreeAction) a).getRunfilesTree())
         .map(RunfilesTree::getMapping)
         .collect(toImmutableList());
   }
@@ -246,6 +249,32 @@ public class TestActionBuilderTest extends BuildViewTestCase {
     assertSharded(getConfiguredTarget("//javatests/jt:RGT_small"), 5);
     assertSharded(getConfiguredTarget("//javatests/jt:RGT_none"), 5);
     assertSharded(getConfiguredTarget("//javatests/jt:RGT_many"), 5);
+  }
+
+  @Test
+  public void testShardingForced_equalValue_equalChecksum() throws Exception {
+    useConfiguration("--test_sharding_strategy=forced=5");
+    var config1 = getTargetConfiguration();
+
+    initializeSkyframeExecutor();
+
+    useConfiguration("--test_sharding_strategy=forced=5");
+    var config2 = getTargetConfiguration();
+
+    assertThat(config2).isEqualTo(config1);
+  }
+
+  @Test
+  public void testShardingForced_differentValue_differentChecksum() throws Exception {
+    useConfiguration("--test_sharding_strategy=forced=5");
+    var config1 = getTargetConfiguration();
+
+    initializeSkyframeExecutor();
+
+    useConfiguration("--test_sharding_strategy=forced=6");
+    var config2 = getTargetConfiguration();
+
+    assertThat(config2).isNotEqualTo(config1);
   }
 
   @Test
@@ -755,6 +784,114 @@ public class TestActionBuilderTest extends BuildViewTestCase {
       throws Exception {
     ConfiguredTarget target = getConfiguredTarget(label);
     return target.getProvider(TestProvider.class).getTestParams().getTestStatusArtifacts();
+  }
+
+  @Test
+  public void testRunUnderConfiguredForTestExecPlatform() throws Exception {
+    scratch.file(
+        "some_test.bzl",
+        """
+        def _some_test_impl(ctx):
+            script = ctx.actions.declare_file(ctx.attr.name + ".sh")
+            ctx.actions.run_shell(
+                outputs = [script],
+                inputs = [],
+                command = "echo 'shell script goes here' > $@",
+            )
+            return [
+                DefaultInfo(executable = script),
+                testing.ExecutionInfo(exec_group = "alternative_test"),
+            ]
+
+        some_test = rule(
+            implementation = _some_test_impl,
+            test = True,
+            exec_groups = {
+                "test": exec_group(
+                    exec_compatible_with = [
+                        "%1$sos:linux",
+                    ],
+                ),
+                "alternative_test": exec_group(
+                    exec_compatible_with = [
+                        "%1$sos:android",
+                    ],
+                ),
+            },
+        )
+        """
+            .formatted(TestConstants.CONSTRAINTS_PACKAGE_ROOT));
+    scratch.file(
+        "BUILD",
+        """
+        load(':some_test.bzl', 'some_test')
+        platform(
+            name = "linux",
+            constraint_values = [
+                "%1$sos:linux",
+            ],
+        )
+        platform(
+            name = "windows",
+            constraint_values = [
+                "%1$sos:windows",
+            ],
+        )
+        platform(
+            name = "macos",
+            constraint_values = [
+                "%1$sos:macos",
+            ],
+        )
+        platform(
+            name = "android",
+            constraint_values = [
+                "%1$sos:android",
+            ],
+        )
+        genrule(
+            name = "run_under_tool",
+            outs = ["run_under_tool.sh"],
+            cmd = "echo 'runUnderTool' > $@",
+            executable = True,
+        )
+        some_test(
+            name = "some_test",
+            exec_compatible_with = ["%1$sos:macos"],
+        )
+        """
+            .formatted(TestConstants.CONSTRAINTS_PACKAGE_ROOT));
+    useConfiguration(
+        "--run_under=//:run_under_tool",
+        "--incompatible_bazel_test_exec_run_under",
+        "--platforms=//:windows",
+        "--host_platform=//:windows",
+        "--extra_execution_platforms=//:windows,//:android,//:linux,//:macos");
+
+    Action generateAction = getGeneratingAction(getExecutable("//:some_test"));
+    assertThat(generateAction.getExecutionPlatform().label())
+        .isEqualTo(Label.parseCanonicalUnchecked("//:macos"));
+
+    Action testAction = getGeneratingAction(getTestStatusArtifacts("//:some_test").get(0));
+    assertThat(testAction.getExecutionPlatform().label())
+        .isEqualTo(Label.parseCanonicalUnchecked("//:android"));
+
+    Artifact runUnderTool =
+        testAction.getInputs().toList().stream()
+            .filter(artifact -> artifact.getExecPath().getBaseName().equals("run_under_tool.sh"))
+            .findFirst()
+            .orElseThrow();
+    // TODO: The run_under_tool should be built for the exec platform of the test action, which
+    //  differs from the exec platform of the "test" exec group due to testing.ExecutionInfo.
+    //  Building for the "test" exec group is still preferred over building for the target platform
+    //  or the default exec platform of the test rule.
+    assertThat(
+            ((BuildConfigurationValue)
+                    getGeneratingAction(runUnderTool).getOwner().getBuildConfigurationInfo())
+                .getOptions()
+                .get(PlatformOptions.class)
+                .platforms)
+        .containsExactly(Label.parseCanonicalUnchecked("//:linux"));
   }
 
   private ImmutableList<Artifact.DerivedArtifact> getTestStatusArtifacts(

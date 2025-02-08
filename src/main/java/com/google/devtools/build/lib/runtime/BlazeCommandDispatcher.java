@@ -40,6 +40,7 @@ import com.google.devtools.build.lib.cmdline.RepositoryMapping;
 import com.google.devtools.build.lib.events.Event;
 import com.google.devtools.build.lib.events.EventHandler;
 import com.google.devtools.build.lib.events.EventKind;
+import com.google.devtools.build.lib.events.ExtendedEventHandler;
 import com.google.devtools.build.lib.events.ExtendedEventHandler.Postable;
 import com.google.devtools.build.lib.events.PrintingEventHandler;
 import com.google.devtools.build.lib.events.Reporter;
@@ -49,6 +50,8 @@ import com.google.devtools.build.lib.profiler.MemoryProfiler;
 import com.google.devtools.build.lib.profiler.Profiler;
 import com.google.devtools.build.lib.profiler.ProfilerTask;
 import com.google.devtools.build.lib.profiler.SilentCloseable;
+import com.google.devtools.build.lib.runtime.BlazeOptionHandler.DetailedParseResults;
+import com.google.devtools.build.lib.runtime.InstrumentationOutputFactory.DestinationRelativeTo;
 import com.google.devtools.build.lib.runtime.proto.InvocationPolicyOuterClass.InvocationPolicy;
 import com.google.devtools.build.lib.server.FailureDetails;
 import com.google.devtools.build.lib.server.FailureDetails.FailureDetail;
@@ -74,7 +77,6 @@ import com.google.devtools.common.options.TriState;
 import com.google.errorprone.annotations.CanIgnoreReturnValue;
 import com.google.protobuf.Any;
 import java.io.BufferedOutputStream;
-import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.time.Duration;
@@ -339,11 +341,12 @@ public class BlazeCommandDispatcher implements CommandDispatcher {
     BlazeOptionHandler optionHandler =
         new BlazeOptionHandler(
             runtime, workspace, command, commandAnnotation, optionsParser, invocationPolicy);
-    DetailedExitCode earlyExitCode =
-        optionHandler.parseOptions(
+    DetailedParseResults parseResults =
+        optionHandler.parseOptionsAndGetConfigDefinitions(
             args,
             storedEventHandler,
             /* invocationPolicyFlagListBuilder= */ ImmutableList.builder());
+    DetailedExitCode earlyExitCode = parseResults.detailedExitCode();
     OptionsParsingResult options = optionHandler.getOptionsResult();
 
     // The initCommand call also records the start time for the timestamp granularity monitor.
@@ -359,7 +362,8 @@ public class BlazeCommandDispatcher implements CommandDispatcher {
             commandExtensions,
             this::setShutdownReason,
             commandExtensionReporter,
-            attemptNumber);
+            attemptNumber,
+            parseResults.configFlagDefinitions());
 
     if (!attemptedCommandIds.isEmpty()) {
       if (attemptedCommandIds.contains(env.getCommandId())) {
@@ -400,9 +404,20 @@ public class BlazeCommandDispatcher implements CommandDispatcher {
     // Enable Starlark CPU profiling (--starlark_cpu_profile=/tmp/foo.pprof.gz)
     boolean success = false;
     if (!commonOptions.starlarkCpuProfile.isEmpty()) {
-      FileOutputStream out;
+      OutputStream out;
       try {
-        out = new FileOutputStream(commonOptions.starlarkCpuProfile);
+        InstrumentationOutput starlarkCpuProfile =
+            runtime
+                .getInstrumentationOutputFactory()
+                .createInstrumentationOutput(
+                    /* name= */ "starlarkCpuProfile",
+                    PathFragment.create(commonOptions.starlarkCpuProfile),
+                    DestinationRelativeTo.WORKING_DIRECTORY_OR_HOME,
+                    env,
+                    storedEventHandler,
+                    /* append= */ null,
+                    /* internal= */ null);
+        out = starlarkCpuProfile.createOutputStream();
       } catch (IOException ex) {
         String message = "Starlark CPU profiler: " + ex.getMessage();
         outErr.printErrLn(message);
@@ -634,8 +649,10 @@ public class BlazeCommandDispatcher implements CommandDispatcher {
                   runtime, workspace, command, commandAnnotation, optionsParser, invocationPolicy);
           ImmutableList.Builder<OptionAndRawValue> invocationPolicyFlagListBuilder =
               ImmutableList.builder();
+          // Do not handle any events since this is the second time we parse the options.
           earlyExitCode =
-              optionHandler.parseOptions(args, reporter, invocationPolicyFlagListBuilder);
+              optionHandler.parseOptions(
+                  args, ExtendedEventHandler.NOOP, invocationPolicyFlagListBuilder);
           env.setInvocationPolicyFlags(invocationPolicyFlagListBuilder.build());
         }
         if (!earlyExitCode.isSuccess()) {
@@ -666,6 +683,9 @@ public class BlazeCommandDispatcher implements CommandDispatcher {
       CommandLineEvent originalCommandLineEvent =
           new CommandLineEvent.OriginalCommandLineEvent(
               runtime, commandName, options, startupOptionsTaggedWithBazelRc);
+      // If flagsets are applied, a CanonicalCommandLineEvent is also emitted by
+      // BuildTool.buildTargets(). This is a duplicate event, and consumers are expected to
+      // handle it correctly, by accepting the last event.
       CommandLineEvent canonicalCommandLineEvent =
           new CommandLineEvent.CanonicalCommandLineEvent(runtime, commandName, options);
       BuildEventProtocolOptions bepOptions =
@@ -728,6 +748,9 @@ public class BlazeCommandDispatcher implements CommandDispatcher {
       return result;
     } finally {
       try {
+        // Profiler might still be running when an exception is thrown before BuildCompleteEvent is
+        // emitted or BlazeModule#completeCommand() is called. So we still need to try to stop the
+        // profiler here.
         Profiler.instance().stop();
         if (profilerStartedEvent.getProfile() instanceof LocalInstrumentationOutput profile) {
           profile.makeConvenienceLink();

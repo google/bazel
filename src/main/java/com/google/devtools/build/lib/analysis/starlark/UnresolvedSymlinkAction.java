@@ -46,16 +46,13 @@ import javax.annotation.Nullable;
 public final class UnresolvedSymlinkAction extends AbstractAction {
   private static final String GUID = "0f302651-602c-404b-881c-58913193cfe7";
 
-  private final PathFragment target;
+  private final String target;
   private final String progressMessage;
 
   private UnresolvedSymlinkAction(
       ActionOwner owner, Artifact primaryOutput, String target, String progressMessage) {
     super(owner, NestedSetBuilder.emptySet(Order.STABLE_ORDER), ImmutableSet.of(primaryOutput));
-    // TODO: PathFragment#create normalizes the symlink target, which may change how it resolves
-    //  when combined with directory symlinks. Ideally, Bazel's file system abstraction would
-    //  offer a way to create symlinks without any preprocessing of the target.
-    this.target = PathFragment.create(target);
+    this.target = target;
     this.progressMessage = progressMessage;
   }
 
@@ -71,7 +68,7 @@ public final class UnresolvedSymlinkAction extends AbstractAction {
 
     Path outputPath = actionExecutionContext.getInputPath(getPrimaryOutput());
     try {
-      outputPath.createSymbolicLink(target);
+      outputPath.createSymbolicLink(getTargetPathFragment());
     } catch (IOException e) {
       String message =
           String.format(
@@ -90,7 +87,7 @@ public final class UnresolvedSymlinkAction extends AbstractAction {
       @Nullable ArtifactExpander artifactExpander,
       Fingerprint fp) {
     fp.addString(GUID);
-    fp.addPath(target);
+    fp.addString(target);
   }
 
   @Override
@@ -108,8 +105,15 @@ public final class UnresolvedSymlinkAction extends AbstractAction {
     return progressMessage;
   }
 
-  public PathFragment getTarget() {
-    return target;
+  public String getTarget() {
+    return getTargetPathFragment().getPathString();
+  }
+
+  private PathFragment getTargetPathFragment() {
+    // TODO: PathFragment#create normalizes the symlink target, which may change how it resolves
+    //  when combined with directory symlinks. Ideally, Bazel's file system abstraction would
+    //  offer a way to create symlinks without any preprocessing of the target.
+    return PathFragment.create(target);
   }
 
   private static DetailedExitCode createDetailedExitCode(String message, Code detailedCode) {

@@ -13,6 +13,7 @@
 // limitations under the License.
 package com.google.devtools.build.lib.actions.cache;
 
+import static com.google.common.base.Preconditions.checkArgument;
 import static java.nio.charset.StandardCharsets.ISO_8859_1;
 
 import com.google.common.base.Preconditions;
@@ -20,7 +21,7 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
 import com.google.common.flogger.GoogleLogger;
-import com.google.devtools.build.lib.actions.FileArtifactValue.RemoteFileArtifactValue;
+import com.google.devtools.build.lib.actions.FileArtifactValue;
 import com.google.devtools.build.lib.actions.cache.ActionCache.Entry.SerializableTreeArtifactValue;
 import com.google.devtools.build.lib.actions.cache.Protos.ActionCacheStatistics;
 import com.google.devtools.build.lib.actions.cache.Protos.ActionCacheStatistics.MissReason;
@@ -37,8 +38,6 @@ import com.google.devtools.build.lib.util.VarInt;
 import com.google.devtools.build.lib.vfs.DigestUtils;
 import com.google.devtools.build.lib.vfs.Path;
 import com.google.devtools.build.lib.vfs.PathFragment;
-import com.google.devtools.build.lib.vfs.SyscallCache;
-import com.google.devtools.build.lib.vfs.UnixGlob;
 import java.io.ByteArrayOutputStream;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
@@ -54,7 +53,6 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Predicate;
 import javax.annotation.Nullable;
@@ -66,10 +64,9 @@ import javax.annotation.Nullable;
 @ConditionallyThreadSafe // condition: each instance must be instantiated with different cache root
 public class CompactPersistentActionCache implements ActionCache {
   private static final GoogleLogger logger = GoogleLogger.forEnclosingClass();
-  private static final int SAVE_INTERVAL_SECONDS = 3;
+  private static final Duration SAVE_INTERVAL = Duration.ofSeconds(3);
   // Log if periodically saving the action cache incurs more than 5% overhead.
-  private static final Duration MIN_TIME_FOR_LOGGING =
-      Duration.ofSeconds(SAVE_INTERVAL_SECONDS).dividedBy(20);
+  private static final Duration MIN_TIME_FOR_LOGGING = SAVE_INTERVAL.dividedBy(20);
 
   // Key of the action cache record that holds information used to verify referential integrity
   // between action cache and string indexer. Must be < 0 to avoid conflict with real action
@@ -78,12 +75,12 @@ public class CompactPersistentActionCache implements ActionCache {
 
   private static final int NO_INPUT_DISCOVERY_COUNT = -1;
 
-  private static final int VERSION = 17;
+  private static final int VERSION = 18;
 
   private static final class ActionMap extends PersistentMap<Integer, byte[]> {
     private final Clock clock;
     private final PersistentStringIndexer indexer;
-    private long nextUpdateSecs;
+    private long nextUpdateNanos;
 
     ActionMap(
         ConcurrentMap<Integer, byte[]> map,
@@ -95,17 +92,17 @@ public class CompactPersistentActionCache implements ActionCache {
       super(VERSION, map, mapFile, journalFile);
       this.indexer = indexer;
       this.clock = clock;
-      // Using nanoTime. currentTimeMillis may not provide enough granularity.
-      nextUpdateSecs = TimeUnit.NANOSECONDS.toSeconds(clock.nanoTime()) + SAVE_INTERVAL_SECONDS;
+      // Use nanoTime() instead of currentTimeMillis() to get monotonic time, not wall time.
+      nextUpdateNanos = clock.nanoTime() + SAVE_INTERVAL.toNanos();
       load();
     }
 
     @Override
     protected boolean updateJournal() {
-      // Using nanoTime. currentTimeMillis may not provide enough granularity.
-      long timeSecs = TimeUnit.NANOSECONDS.toSeconds(clock.nanoTime());
-      if (SAVE_INTERVAL_SECONDS == 0 || timeSecs > nextUpdateSecs) {
-        nextUpdateSecs = timeSecs + SAVE_INTERVAL_SECONDS;
+      // Use nanoTime() instead of currentTimeMillis() to get monotonic time, not wall time.
+      long currentTimeNanos = clock.nanoTime();
+      if (currentTimeNanos > nextUpdateNanos) {
+        nextUpdateNanos = currentTimeNanos + SAVE_INTERVAL.toNanos();
         // Force flushing of the PersistentStringIndexer instance. This is needed to ensure
         // that filename index data on disk is always up-to-date when we save action cache
         // data.
@@ -205,12 +202,13 @@ public class CompactPersistentActionCache implements ActionCache {
     PersistentMap<Integer, byte[]> map;
     Path cacheFile = cacheFile(cacheRoot);
     Path journalFile = journalFile(cacheRoot);
-    Path indexFile = cacheRoot.getChild("filename_index_v" + VERSION + ".blaze");
+    Path indexFile = indexFile(cacheRoot);
+    Path indexJournalFile = indexJournalFile(cacheRoot);
     ConcurrentMap<Integer, byte[]> backingMap = new ConcurrentHashMap<>();
 
     PersistentStringIndexer indexer;
     try {
-      indexer = PersistentStringIndexer.create(indexFile, clock);
+      indexer = PersistentStringIndexer.create(indexFile, indexJournalFile, clock);
     } catch (IOException e) {
       return logAndThrowOrRecurse(
           cacheRoot,
@@ -269,7 +267,7 @@ public class CompactPersistentActionCache implements ActionCache {
       e = new IOException(message, e);
     }
     logger.atWarning().withCause(e).log(
-        "Failed to load action cache, corrupted files to %s/*.bad", cacheRoot);
+        "Failed to load action cache, preexisting files kept as %s/*.bad", cacheRoot);
     reporterForInitializationErrors.handle(
         Event.error(
             "Error during action cache initialization: "
@@ -289,19 +287,15 @@ public class CompactPersistentActionCache implements ActionCache {
   private static void renameCorruptedFiles(Path cacheRoot) {
     try {
       for (Path path :
-          new UnixGlob.Builder(cacheRoot, SyscallCache.NO_CACHE)
-              .addPattern("action_*_v" + VERSION + ".*")
-              .glob()) {
-        path.renameTo(path.getParentDirectory().getChild(path.getBaseName() + ".bad"));
+          ImmutableList.of(
+              cacheFile(cacheRoot),
+              journalFile(cacheRoot),
+              indexFile(cacheRoot),
+              indexJournalFile(cacheRoot))) {
+        if (path.exists()) {
+          path.renameTo(path.getParentDirectory().getChild(path.getBaseName() + ".bad"));
+        }
       }
-      for (Path path :
-          new UnixGlob.Builder(cacheRoot, SyscallCache.NO_CACHE)
-              .addPattern("filename_*_v" + VERSION + ".*")
-              .glob()) {
-        path.renameTo(path.getParentDirectory().getChild(path.getBaseName() + ".bad"));
-      }
-    } catch (UnixGlob.BadPattern ex) {
-      throw new IllegalStateException(ex); // can't happen
     } catch (IOException e) {
       logger.atWarning().withCause(e).log("Unable to rename corrupted action cache files");
     }
@@ -335,11 +329,19 @@ public class CompactPersistentActionCache implements ActionCache {
   }
 
   public static Path cacheFile(Path cacheRoot) {
-    return cacheRoot.getChild("action_cache_v" + VERSION + ".blaze");
+    return cacheRoot.getChild("action_cache.blaze");
   }
 
   public static Path journalFile(Path cacheRoot) {
-    return cacheRoot.getChild("action_journal_v" + VERSION + ".blaze");
+    return cacheRoot.getChild("action_journal.blaze");
+  }
+
+  public static Path indexFile(Path cacheRoot) {
+    return cacheRoot.getChild("filename_index.blaze");
+  }
+
+  public static Path indexJournalFile(Path cacheRoot) {
+    return cacheRoot.getChild("filename_index_journal.blaze");
   }
 
   @Override
@@ -353,9 +355,10 @@ public class CompactPersistentActionCache implements ActionCache {
     return get(data);
   }
 
+  @Nullable
   private ActionCache.Entry get(byte[] data) {
     try {
-      return data != null ? decode(indexer, data) : null;
+      return data != null ? decode(data) : null;
     } catch (IOException e) {
       // return entry marked as corrupted.
       return ActionCache.Entry.CORRUPTED;
@@ -368,7 +371,7 @@ public class CompactPersistentActionCache implements ActionCache {
     Integer index = indexer.getOrCreateIndex(key);
     byte[] content;
     try {
-      content = encode(indexer, entry);
+      content = encode(entry);
     } catch (IOException e) {
       logger.atWarning().withCause(e).log("Failed to save cache entry %s with key %s", entry, key);
       return;
@@ -398,7 +401,13 @@ public class CompactPersistentActionCache implements ActionCache {
 
   @Override
   public void removeIf(Predicate<Entry> predicate) {
-    map.entrySet().removeIf(entry -> predicate.test(get(entry.getValue())));
+    for (Map.Entry<Integer, byte[]> entry : map.entrySet()) {
+      if (predicate.test(get(entry.getValue()))) {
+        // Although this is racy (the key might be concurrently set to a different value), we don't
+        // care because it's a very small window and it only impacts performance, not correctness.
+        map.remove(entry.getKey());
+      }
+    }
   }
 
   @ThreadSafety.ThreadHostile
@@ -437,7 +446,7 @@ public class CompactPersistentActionCache implements ActionCache {
       }
       String content;
       try {
-        content = decode(indexer, entry.getValue()).toString();
+        content = decode(entry.getValue()).toString();
       } catch (IOException e) {
         content = e + "\n";
       }
@@ -469,7 +478,7 @@ public class CompactPersistentActionCache implements ActionCache {
       }
       String content;
       try {
-        content = decode(indexer, entry.getValue()).toString();
+        content = decode(entry.getValue()).toString();
       } catch (IOException e) {
         content = e + "\n";
       }
@@ -494,21 +503,23 @@ public class CompactPersistentActionCache implements ActionCache {
     return map.size();
   }
 
-  private static void encodeRemoteMetadata(
-      RemoteFileArtifactValue value, StringIndexer indexer, ByteArrayOutputStream sink)
+  private void encodeRemoteMetadata(FileArtifactValue value, ByteArrayOutputStream sink)
       throws IOException {
+    checkArgument(value.isRemote(), "metadata is not remote: %s", value);
+
     MetadataDigestUtils.write(value.getDigest(), sink);
 
     VarInt.putVarLong(value.getSize(), sink);
 
     VarInt.putVarInt(value.getLocationIndex(), sink);
 
-    VarInt.putVarLong(value.getExpireAtEpochMilli(), sink);
+    VarInt.putVarLong(
+        value.getExpirationTime() != null ? value.getExpirationTime().toEpochMilli() : -1, sink);
 
-    Optional<PathFragment> materializationExecPath = value.getMaterializationExecPath();
-    if (materializationExecPath.isPresent()) {
+    PathFragment resolvedPath = value.getResolvedPath();
+    if (resolvedPath != null) {
       VarInt.putVarInt(1, sink);
-      VarInt.putVarInt(indexer.getOrCreateIndex(materializationExecPath.get().toString()), sink);
+      VarInt.putVarInt(indexer.getOrCreateIndex(resolvedPath.toString()), sink);
     } else {
       VarInt.putVarInt(0, sink);
     }
@@ -518,37 +529,47 @@ public class CompactPersistentActionCache implements ActionCache {
       DigestUtils.ESTIMATED_SIZE // digest
           + VarInt.MAX_VARLONG_SIZE // size
           + VarInt.MAX_VARINT_SIZE // locationIndex
-          + VarInt.MAX_VARINT_SIZE // expireAtEpochMilli
-          + VarInt.MAX_VARINT_SIZE; // materializationExecPath
+          + VarInt.MAX_VARLONG_SIZE // expirationTime
+          + (1 + VarInt.MAX_VARINT_SIZE); // resolvedPath
 
-  private static RemoteFileArtifactValue decodeRemoteMetadata(
-      StringIndexer indexer, ByteBuffer source) throws IOException {
+  private FileArtifactValue decodeRemoteMetadata(ByteBuffer source) throws IOException {
     byte[] digest = MetadataDigestUtils.read(source);
 
     long size = VarInt.getVarLong(source);
 
     int locationIndex = VarInt.getVarInt(source);
 
-    long expireAtEpochMilli = VarInt.getVarLong(source);
+    long expirationTimeEpochMilli = VarInt.getVarLong(source);
 
-    PathFragment materializationExecPath = null;
-    int numMaterializationExecPath = VarInt.getVarInt(source);
-    if (numMaterializationExecPath > 0) {
-      if (numMaterializationExecPath != 1) {
-        throw new IOException("Invalid presence marker for materialization path");
+    PathFragment resolvedPath = null;
+    int numResolvedPath = VarInt.getVarInt(source);
+    if (numResolvedPath > 0) {
+      if (numResolvedPath != 1) {
+        throw new IOException("Invalid presence marker for resolved path");
       }
-      materializationExecPath =
-          PathFragment.create(getStringForIndex(indexer, VarInt.getVarInt(source)));
+      resolvedPath = PathFragment.create(getStringForIndex(indexer, VarInt.getVarInt(source)));
     }
 
-    return RemoteFileArtifactValue.create(
-        digest, size, locationIndex, expireAtEpochMilli, materializationExecPath);
+    FileArtifactValue metadata;
+    if (expirationTimeEpochMilli < 0) {
+      metadata = FileArtifactValue.createForRemoteFile(digest, size, locationIndex);
+    } else {
+      metadata =
+          FileArtifactValue.createForRemoteFileWithMaterializationData(
+              digest, size, locationIndex, Instant.ofEpochMilli(expirationTimeEpochMilli));
+    }
+
+    if (resolvedPath != null) {
+      metadata = FileArtifactValue.createFromExistingWithResolvedPath(metadata, resolvedPath);
+    }
+
+    return metadata;
   }
 
   /**
    * @return action data encoded as a byte[] array.
    */
-  private static byte[] encode(StringIndexer indexer, ActionCache.Entry entry) throws IOException {
+  private byte[] encode(ActionCache.Entry entry) throws IOException {
     Preconditions.checkState(!entry.isCorrupted());
 
     byte[] actionKeyBytes = entry.getActionKey().getBytes(ISO_8859_1);
@@ -574,11 +595,11 @@ public class CompactPersistentActionCache implements ActionCache {
               * value.childValues().size();
 
       maxOutputTreesSize +=
-          (1 + VarInt.MAX_VARINT_SIZE) // value.archivedFileValue() optional
-              + value.archivedFileValue().map(ignored -> MAX_REMOTE_METADATA_SIZE).orElse(0);
+          // value.archivedFileValue() optional
+          1 + value.archivedFileValue().map(ignored -> MAX_REMOTE_METADATA_SIZE).orElse(0);
       maxOutputTreesSize +=
-          (1 + VarInt.MAX_VARINT_SIZE) // value.materializationExecPath() optional
-              + value.materializationExecPath().map(ignored -> MAX_REMOTE_METADATA_SIZE).orElse(0);
+          // value.resolvedPath() optional
+          1 + value.resolvedPath().map(ignored -> VarInt.MAX_VARINT_SIZE).orElse(0);
     }
 
     // Estimate the size of the buffer:
@@ -614,9 +635,9 @@ public class CompactPersistentActionCache implements ActionCache {
     MetadataDigestUtils.write(entry.getActionPropertiesDigest(), sink);
 
     VarInt.putVarInt(entry.getOutputFiles().size(), sink);
-    for (Map.Entry<String, RemoteFileArtifactValue> file : entry.getOutputFiles().entrySet()) {
+    for (Map.Entry<String, FileArtifactValue> file : entry.getOutputFiles().entrySet()) {
       VarInt.putVarInt(indexer.getOrCreateIndex(file.getKey()), sink);
-      encodeRemoteMetadata(file.getValue(), indexer, sink);
+      encodeRemoteMetadata(file.getValue(), sink);
     }
 
     VarInt.putVarInt(entry.getOutputTrees().size(), sink);
@@ -627,26 +648,25 @@ public class CompactPersistentActionCache implements ActionCache {
       SerializableTreeArtifactValue serializableTreeArtifactValue = tree.getValue();
 
       VarInt.putVarInt(serializableTreeArtifactValue.childValues().size(), sink);
-      for (Map.Entry<String, RemoteFileArtifactValue> child :
+      for (Map.Entry<String, FileArtifactValue> child :
           serializableTreeArtifactValue.childValues().entrySet()) {
         VarInt.putVarInt(indexer.getOrCreateIndex(child.getKey()), sink);
-        encodeRemoteMetadata(child.getValue(), indexer, sink);
+        encodeRemoteMetadata(child.getValue(), sink);
       }
 
-      Optional<RemoteFileArtifactValue> archivedFileValue =
+      Optional<FileArtifactValue> archivedFileValue =
           serializableTreeArtifactValue.archivedFileValue();
       if (archivedFileValue.isPresent()) {
         VarInt.putVarInt(1, sink);
-        encodeRemoteMetadata(archivedFileValue.get(), indexer, sink);
+        encodeRemoteMetadata(archivedFileValue.get(), sink);
       } else {
         VarInt.putVarInt(0, sink);
       }
 
-      Optional<PathFragment> materializationExecPath =
-          serializableTreeArtifactValue.materializationExecPath();
-      if (materializationExecPath.isPresent()) {
+      Optional<PathFragment> resolvedPath = serializableTreeArtifactValue.resolvedPath();
+      if (resolvedPath.isPresent()) {
         VarInt.putVarInt(1, sink);
-        VarInt.putVarInt(indexer.getOrCreateIndex(materializationExecPath.get().toString()), sink);
+        VarInt.putVarInt(indexer.getOrCreateIndex(resolvedPath.get().toString()), sink);
       } else {
         VarInt.putVarInt(0, sink);
       }
@@ -667,7 +687,7 @@ public class CompactPersistentActionCache implements ActionCache {
    * Creates new action cache entry using given compressed entry data. Data will stay in the
    * compressed format until entry is actually used by the dependency checker.
    */
-  private static ActionCache.Entry decode(StringIndexer indexer, byte[] data) throws IOException {
+  private ActionCache.Entry decode(byte[] data) throws IOException {
     try {
       ByteBuffer source = ByteBuffer.wrap(data);
 
@@ -695,11 +715,10 @@ public class CompactPersistentActionCache implements ActionCache {
       byte[] usedClientEnvDigest = MetadataDigestUtils.read(source);
 
       int numOutputFiles = VarInt.getVarInt(source);
-      Map<String, RemoteFileArtifactValue> outputFiles =
-          Maps.newHashMapWithExpectedSize(numOutputFiles);
+      Map<String, FileArtifactValue> outputFiles = Maps.newHashMapWithExpectedSize(numOutputFiles);
       for (int i = 0; i < numOutputFiles; i++) {
         String execPath = getStringForIndex(indexer, VarInt.getVarInt(source));
-        RemoteFileArtifactValue value = decodeRemoteMetadata(indexer, source);
+        FileArtifactValue value = decodeRemoteMetadata(source);
         outputFiles.put(execPath, value);
       }
 
@@ -709,37 +728,37 @@ public class CompactPersistentActionCache implements ActionCache {
       for (int i = 0; i < numOutputTrees; i++) {
         String treeKey = getStringForIndex(indexer, VarInt.getVarInt(source));
 
-        ImmutableMap.Builder<String, RemoteFileArtifactValue> childValues = ImmutableMap.builder();
+        ImmutableMap.Builder<String, FileArtifactValue> childValues = ImmutableMap.builder();
         int numChildValues = VarInt.getVarInt(source);
         for (int j = 0; j < numChildValues; ++j) {
           String childKey = getStringForIndex(indexer, VarInt.getVarInt(source));
-          RemoteFileArtifactValue value = decodeRemoteMetadata(indexer, source);
+          FileArtifactValue value = decodeRemoteMetadata(source);
           childValues.put(childKey, value);
         }
 
-        Optional<RemoteFileArtifactValue> archivedFileValue = Optional.empty();
+        Optional<FileArtifactValue> archivedFileValue = Optional.empty();
         int numArchivedFileValue = VarInt.getVarInt(source);
         if (numArchivedFileValue > 0) {
           if (numArchivedFileValue != 1) {
             throw new IOException("Invalid presence marker for archived representation");
           }
-          archivedFileValue = Optional.of(decodeRemoteMetadata(indexer, source));
+          archivedFileValue = Optional.of(decodeRemoteMetadata(source));
         }
 
-        Optional<PathFragment> materializationExecPath = Optional.empty();
-        int numMaterializationExecPath = VarInt.getVarInt(source);
-        if (numMaterializationExecPath > 0) {
-          if (numMaterializationExecPath != 1) {
-            throw new IOException("Invalid presence marker for materialization path");
+        Optional<PathFragment> resolvedPath = Optional.empty();
+        int numResolvedPath = VarInt.getVarInt(source);
+        if (numResolvedPath > 0) {
+          if (numResolvedPath != 1) {
+            throw new IOException("Invalid presence marker for resolved path");
           }
-          materializationExecPath =
+          resolvedPath =
               Optional.of(
                   PathFragment.create(getStringForIndex(indexer, VarInt.getVarInt(source))));
         }
 
         SerializableTreeArtifactValue value =
             SerializableTreeArtifactValue.create(
-                childValues.buildOrThrow(), archivedFileValue, materializationExecPath);
+                childValues.buildOrThrow(), archivedFileValue, resolvedPath);
         outputTrees.put(treeKey, value);
       }
 

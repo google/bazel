@@ -58,13 +58,14 @@ class SyntheticAttributeHashCalculator {
       Map<Attribute, Build.Attribute> serializedAttributes,
       Object extraDataForAttrHash,
       HashFunction hashFunction,
-      boolean includeAttributeSourceAspects) {
+      boolean includeAttributeSourceAspects,
+      boolean includeStarlarkRuleEnv) {
     HashingOutputStream hashingOutputStream =
         new HashingOutputStream(hashFunction, ByteStreams.nullOutputStream());
     CodedOutputStream codedOut = CodedOutputStream.newInstance(hashingOutputStream);
 
     RuleClass ruleClass = rule.getRuleClassObject();
-    if (ruleClass.isStarlark()) {
+    if (ruleClass.isStarlark() && includeStarlarkRuleEnv) {
       try {
         codedOut.writeByteArrayNoTag(
             Preconditions.checkNotNull(ruleClass.getRuleDefinitionEnvironmentDigest(), rule));

@@ -96,9 +96,7 @@ static string DescriptionFromCFError(CFErrorRef cf_err) {
   return UTF8StringFromCFStringRef(cf_err_string);
 }
 
-string GetOutputRoot() {
-  return "/var/tmp";
-}
+string GetCacheDir() { return "/var/tmp"; }
 
 void WarnFilesystemType(const blaze_util::Path &output_base) {
   // Check to see if we are on a non-local drive.

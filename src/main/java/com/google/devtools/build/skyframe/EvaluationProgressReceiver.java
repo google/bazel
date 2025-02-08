@@ -140,4 +140,7 @@ public interface EvaluationProgressReceiver {
       @Nullable SkyValue newValue,
       @Nullable ErrorInfo newError,
       @Nullable GroupedDeps directDeps) {}
+
+  /** Notifies that the node for {@code skyKey} has been change pruned. */
+  default void changePruned(SkyKey skyKey) {}
 }

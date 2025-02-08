@@ -32,25 +32,20 @@ public class GetCredentialsRequestTest {
   @Test
   public void parseValid() {
     assertThat(
-            GSON.fromJson("{\"uri\": \"http://example.com\"}", GetCredentialsRequest.class)
-                .getUri())
+            GSON.fromJson("{\"uri\": \"http://example.com\"}", GetCredentialsRequest.class).uri())
         .isEqualTo(URI.create("http://example.com"));
     assertThat(
-            GSON.fromJson("{\"uri\": \"https://example.com\"}", GetCredentialsRequest.class)
-                .getUri())
+            GSON.fromJson("{\"uri\": \"https://example.com\"}", GetCredentialsRequest.class).uri())
         .isEqualTo(URI.create("https://example.com"));
     assertThat(
-            GSON.fromJson("{\"uri\": \"grpc://example.com\"}", GetCredentialsRequest.class)
-                .getUri())
+            GSON.fromJson("{\"uri\": \"grpc://example.com\"}", GetCredentialsRequest.class).uri())
         .isEqualTo(URI.create("grpc://example.com"));
     assertThat(
-            GSON.fromJson("{\"uri\": \"grpcs://example.com\"}", GetCredentialsRequest.class)
-                .getUri())
+            GSON.fromJson("{\"uri\": \"grpcs://example.com\"}", GetCredentialsRequest.class).uri())
         .isEqualTo(URI.create("grpcs://example.com"));
 
     assertThat(
-            GSON.fromJson("{\"uri\": \"uri-without-protocol\"}", GetCredentialsRequest.class)
-                .getUri())
+            GSON.fromJson("{\"uri\": \"uri-without-protocol\"}", GetCredentialsRequest.class).uri())
         .isEqualTo(URI.create("uri-without-protocol"));
   }
 
@@ -93,24 +88,24 @@ public class GetCredentialsRequestTest {
     assertThat(
             GSON.fromJson(
                     "{\"uri\": \"http://example.com\", \"foo\": 1}", GetCredentialsRequest.class)
-                .getUri())
+                .uri())
         .isEqualTo(URI.create("http://example.com"));
     assertThat(
             GSON.fromJson(
                     "{\"foo\": 1, \"uri\": \"http://example.com\"}", GetCredentialsRequest.class)
-                .getUri())
+                .uri())
         .isEqualTo(URI.create("http://example.com"));
     assertThat(
             GSON.fromJson(
                     "{\"uri\": \"http://example.com\", \"foo\": 1, \"bar\": {}}",
                     GetCredentialsRequest.class)
-                .getUri())
+                .uri())
         .isEqualTo(URI.create("http://example.com"));
     assertThat(
             GSON.fromJson(
                     "{\"foo\": 1, \"uri\": \"http://example.com\", \"bar\": []}",
                     GetCredentialsRequest.class)
-                .getUri())
+                .uri())
         .isEqualTo(URI.create("http://example.com"));
   }
 }

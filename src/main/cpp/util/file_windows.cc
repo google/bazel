@@ -19,13 +19,13 @@
 #include <windows.h>
 
 #include <memory>
-#include <sstream>
 #include <string>
 #include <vector>
 
 #include "src/main/cpp/util/errors.h"
 #include "src/main/cpp/util/exit_code.h"
 #include "src/main/cpp/util/file.h"
+#include "src/main/cpp/util/file_platform.h"
 #include "src/main/cpp/util/logging.h"
 #include "src/main/cpp/util/path_platform.h"
 #include "src/main/cpp/util/strings.h"
@@ -37,8 +37,6 @@ namespace blaze_util {
 using bazel::windows::AutoHandle;
 using bazel::windows::GetLongPath;
 using bazel::windows::HasUncPrefix;
-using std::basic_string;
-using std::pair;
 using std::string;
 using std::unique_ptr;
 using std::vector;
@@ -359,25 +357,9 @@ int WriteToStdOutErr(const void* data, size_t size, bool to_stdout) {
   }
 }
 
-int RenameDirectory(const std::string& old_name, const std::string& new_name) {
-  wstring wold_name;
-  string error;
-  if (!AsAbsoluteWindowsPath(old_name, &wold_name, &error)) {
-    BAZEL_DIE(blaze_exit_code::LOCAL_ENVIRONMENTAL_ERROR)
-        << "RenameDirectory(" << old_name << ", " << new_name
-        << "): AsAbsoluteWindowsPath(" << old_name << ") failed: " << error;
-    return kRenameDirectoryFailureOtherError;
-  }
-
-  wstring wnew_name;
-  if (!AsAbsoluteWindowsPath(new_name, &wnew_name, &error)) {
-    BAZEL_DIE(blaze_exit_code::LOCAL_ENVIRONMENTAL_ERROR)
-        << "RenameDirectory(" << old_name << ", " << new_name
-        << "): AsAbsoluteWindowsPath(" << new_name << ") failed: " << error;
-    return kRenameDirectoryFailureOtherError;
-  }
-
-  if (!::MoveFileExW(wold_name.c_str(), wnew_name.c_str(),
+int RenameDirectory(const Path& old_path, const Path& new_path) {
+  if (!::MoveFileExW(old_path.AsNativePath().c_str(),
+                     new_path.AsNativePath().c_str(),
                      MOVEFILE_COPY_ALLOWED | MOVEFILE_FAIL_IF_NOT_TRACKABLE |
                          MOVEFILE_WRITE_THROUGH)) {
     return GetLastError() == ERROR_ALREADY_EXISTS
@@ -447,12 +429,13 @@ static bool RealPath(const WCHAR* path, unique_ptr<WCHAR[]>* result = nullptr) {
   }
 }
 
-bool ReadDirectorySymlink(const blaze_util::Path& name, string* result) {
+bool ReadDirectorySymlink(const blaze_util::Path& symlink,
+                          blaze_util::Path* result) {
   unique_ptr<WCHAR[]> result_ptr;
-  if (!RealPath(name.AsNativePath().c_str(), &result_ptr)) {
+  if (!RealPath(symlink.AsNativePath().c_str(), &result_ptr)) {
     return false;
   }
-  *result = WstringToCstring(RemoveUncPrefixMaybe(result_ptr.get()));
+  *result = Path(WstringToCstring(RemoveUncPrefixMaybe(result_ptr.get())));
   return true;
 }
 
@@ -512,9 +495,7 @@ bool CanReadFile(const std::string& path) {
   return CanReadFile(Path(path));
 }
 
-bool CanReadFile(const Path& path) {
-  return CanReadFileW(path.AsNativePath());
-}
+bool CanReadFile(const Path& path) { return CanReadFileW(path.AsNativePath()); }
 
 bool CanExecuteFile(const std::string& path) {
   return CanExecuteFile(Path(path));
@@ -535,46 +516,18 @@ bool CanAccessDirectory(const std::string& path) {
 }
 
 bool CanAccessDirectory(const Path& path) {
-  DWORD attr = ::GetFileAttributesW(path.AsNativePath().c_str());
-  if ((attr == INVALID_FILE_ATTRIBUTES) || !(attr & FILE_ATTRIBUTE_DIRECTORY)) {
-    // The path doesn't exist or is not a directory.
+  AutoHandle h(CreateFileW(path.AsNativePath().c_str(),
+                           GENERIC_READ | GENERIC_WRITE, kAllShare, nullptr,
+                           OPEN_EXISTING, FILE_FLAG_BACKUP_SEMANTICS, nullptr));
+  if (!h.IsValid()) {
     return false;
   }
-
-  // The only easy way to know if a directory is writable is by attempting to
-  // open a file for writing in it.
-  // File name with Thread ID avoids races among concurrent Bazel processes.
-  std::string dummy_name = "bazel_directory_access_test_";
-  dummy_name += std::to_string(::GetCurrentThreadId());
-
-  Path dummy_path = path.GetRelative(dummy_name);
-
-  // Attempt to open the dummy file for read/write access.
-  // If the file happens to exist, no big deal, we won't overwrite it thanks to
-  // OPEN_ALWAYS.
-  HANDLE handle = ::CreateFileW(
-      /* lpFileName */ dummy_path.AsNativePath().c_str(),
-      /* dwDesiredAccess */ GENERIC_WRITE | GENERIC_READ,
-      /* dwShareMode */ kAllShare,
-      /* lpSecurityAttributes */ nullptr,
-      /* dwCreationDisposition */ OPEN_ALWAYS,
-      /* dwFlagsAndAttributes */ FILE_ATTRIBUTE_NORMAL,
-      /* hTemplateFile */ nullptr);
-  DWORD err = GetLastError();
-  if (handle == INVALID_HANDLE_VALUE) {
-    // We couldn't open the file, and not because the dummy file already exists.
-    // Consequently it is because `path` doesn't exist.
+  BY_HANDLE_FILE_INFORMATION info;
+  if (!GetFileInformationByHandle(h, &info)) {
     return false;
   }
-  // The fact that we could open the file, regardless of it existing beforehand
-  // or not, means the directory also exists and we can read/write in it.
-  CloseHandle(handle);
-  if (err != ERROR_ALREADY_EXISTS) {
-    // The file didn't exist before, but due to OPEN_ALWAYS we created it just
-    // now, so do delete it.
-    ::DeleteFileW(dummy_path.AsNativePath().c_str());
-  }  // Otherwise the file existed before, leave it alone.
-  return true;
+  return info.dwFileAttributes != INVALID_FILE_ATTRIBUTES &&
+         (info.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY);
 }
 
 bool IsDirectoryW(const wstring& path) {
@@ -583,9 +536,14 @@ bool IsDirectoryW(const wstring& path) {
   // Follow reparse points in order to return false for dangling ones.
   AutoHandle h(CreateFileW(path.c_str(), 0, kAllShare, nullptr, OPEN_EXISTING,
                            FILE_FLAG_BACKUP_SEMANTICS, nullptr));
+  if (!h.IsValid()) {
+    return false;
+  }
   BY_HANDLE_FILE_INFORMATION info;
-  return h.IsValid() && GetFileInformationByHandle(h, &info) &&
-         info.dwFileAttributes != INVALID_FILE_ATTRIBUTES &&
+  if (!GetFileInformationByHandle(h, &info)) {
+    return false;
+  }
+  return info.dwFileAttributes != INVALID_FILE_ATTRIBUTES &&
          (info.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY);
 }
 
@@ -654,14 +612,16 @@ bool MakeDirectories(const Path& path, unsigned int mode) {
   return MakeDirectoriesW(path.AsNativePath(), mode);
 }
 
-string CreateTempDir(const std::string &prefix) {
-  string result = prefix + blaze_util::ToString(GetCurrentProcessId());
-  if (!blaze_util::MakeDirectories(result, 0777)) {
+Path CreateSiblingTempDir(const Path& other_path) {
+  Path path = other_path.GetParent().GetRelative(
+      other_path.GetBaseName() + ".tmp." +
+      blaze_util::ToString(GetCurrentProcessId()));
+  if (!blaze_util::MakeDirectories(path, 0777)) {
     BAZEL_DIE(blaze_exit_code::INTERNAL_ERROR)
-        << "couldn't create '" << result
+        << "couldn't create '" << path.AsPrintablePath()
         << "': " << blaze_util::GetLastErrorString();
   }
-  return result;
+  return path;
 }
 
 static bool RemoveContents(wstring path) {
@@ -726,8 +686,12 @@ static bool RemoveRecursivelyW(const wstring& path) {
   }
 }
 
-bool RemoveRecursively(const string& path) {
-  return RemoveRecursivelyW(Path(path).AsNativePath());
+bool RemoveRecursively(const std::string& path) {
+  return RemoveRecursively(Path(path));
+}
+
+bool RemoveRecursively(const Path& path) {
+  return RemoveRecursivelyW(path.AsNativePath());
 }
 
 static inline void ToLowerW(WCHAR* p) {
@@ -775,30 +739,8 @@ bool ChangeDirectory(const string& path) {
   }
   return ::SetCurrentDirectoryA(spath.c_str()) == TRUE;
 }
-
-class DirectoryTreeWalkerW : public DirectoryEntryConsumerW {
- public:
-  DirectoryTreeWalkerW(vector<wstring>* files,
-                       _ForEachDirectoryEntryW walk_entries)
-      : _files(files), _walk_entries(walk_entries) {}
-
-  void Consume(const wstring& path, bool follow_directory) override {
-    if (follow_directory) {
-      Walk(path);
-    } else {
-      _files->push_back(path);
-    }
-  }
-
-  void Walk(const wstring& path) { _walk_entries(path, this); }
-
- private:
-  vector<wstring>* _files;
-  _ForEachDirectoryEntryW _walk_entries;
-};
-
-void ForEachDirectoryEntryW(const wstring& path,
-                            DirectoryEntryConsumerW* consume) {
+static void ForEachDirectoryEntryW(const wstring& path,
+                                   DirectoryEntryConsumerW* consumer) {
   wstring wpath;
   if (path.empty() || IsDevNull(path.c_str())) {
     return;
@@ -831,37 +773,44 @@ void ForEachDirectoryEntryW(const wstring& path,
   do {
     if (kDot != metadata.cFileName && kDotDot != metadata.cFileName) {
       wstring wname = wpath + metadata.cFileName;
-      wstring name(/* omit prefix */ 4 + wname.c_str());
+      wstring name(wname.substr(kUncPrefix.length()));
       bool is_dir = (metadata.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) != 0;
       bool is_junc =
           (metadata.dwFileAttributes & FILE_ATTRIBUTE_REPARSE_POINT) != 0;
-      consume->Consume(name, is_dir && !is_junc);
+      consumer->Consume(name, is_dir && !is_junc);
     }
   } while (::FindNextFileW(handle, &metadata));
   ::FindClose(handle);
 }
 
+class DirectoryTreeWalkerW : public DirectoryEntryConsumerW {
+ public:
+  explicit DirectoryTreeWalkerW(vector<wstring>* files) : files(files) {}
+
+  void Consume(const wstring& path, bool is_directory) override {
+    if (is_directory) {
+      Walk(path);
+    } else {
+      files->push_back(path);
+    }
+  }
+
+  void Walk(const wstring& path) { ForEachDirectoryEntryW(path, this); }
+
+ private:
+  vector<wstring>* files;
+};
+
 void GetAllFilesUnderW(const wstring& path, vector<wstring>* result) {
-  _GetAllFilesUnderW(path, result, &ForEachDirectoryEntryW);
+  DirectoryTreeWalkerW(result).Walk(path);
 }
 
-void _GetAllFilesUnderW(const wstring& path, vector<wstring>* result,
-                        _ForEachDirectoryEntryW walk_entries) {
-  DirectoryTreeWalkerW(result, walk_entries).Walk(path);
-}
-
-void ForEachDirectoryEntry(const string &path,
-                           DirectoryEntryConsumer *consume) {
-  wstring wpath;
-  if (path.empty() || IsDevNull(path.c_str())) {
+void ForEachDirectoryEntry(const Path& path, DirectoryEntryConsumer* consumer) {
+  if (path.IsEmpty() || path.IsNull()) {
     return;
   }
-  string error;
-  if (!AsWindowsPath(path, &wpath, &error)) {
-    BAZEL_DIE(blaze_exit_code::LOCAL_ENVIRONMENTAL_ERROR)
-        << "ForEachDirectoryEntry(" << path
-        << "): AsWindowsPath failed: " << GetLastErrorString();
-  }
+
+  wstring wpath = path.AsNativePath();
 
   static const wstring kUncPrefix(L"\\\\?\\");
   static const wstring kDot(L".");
@@ -882,12 +831,12 @@ void ForEachDirectoryEntry(const string &path,
 
   do {
     if (kDot != metadata.cFileName && kDotDot != metadata.cFileName) {
-      wstring wname = wpath + metadata.cFileName;
-      string name(WstringToCstring(/* omit prefix */ 4 + wname.c_str()));
+      string name = WstringToCstring(metadata.cFileName);
+      Path child_path = path.GetRelative(name);
       bool is_dir = (metadata.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) != 0;
       bool is_junc =
           (metadata.dwFileAttributes & FILE_ATTRIBUTE_REPARSE_POINT) != 0;
-      consume->Consume(name, is_dir && !is_junc);
+      consumer->Consume(child_path, is_dir && !is_junc);
     }
   } while (::FindNextFileW(handle, &metadata));
   ::FindClose(handle);

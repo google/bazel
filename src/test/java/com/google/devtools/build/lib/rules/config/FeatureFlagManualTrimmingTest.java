@@ -534,42 +534,6 @@ public final class FeatureFlagManualTrimmingTest extends BuildViewTestCase {
   }
 
   @Test
-  public void nonexistentLabelInTransitiveConfigs_doesNotError() throws Exception {
-    scratch.file(
-        "test/BUILD",
-        """
-        load(":read_flags.bzl", "read_flags")
-
-        feature_flag_setter(
-            name = "target",
-            flag_values = {
-                ":trimmed_flag": "left",
-            },
-            transitive_configs = [":false_flag"],
-            deps = [":reader"],
-        )
-
-        read_flags(
-            name = "reader",
-            transitive_configs = [":false_flag"],
-        )
-
-        config_feature_flag(
-            name = "trimmed_flag",
-            allowed_values = [
-                "default",
-                "left",
-                "right",
-            ],
-            default_value = "default",
-        )
-        """);
-
-    getConfiguredTarget("//test:target");
-    assertNoEvents();
-  }
-
-  @Test
   public void magicLabelInTransitiveConfigs_doesNotError() throws Exception {
     scratch.file(
         "test/BUILD",

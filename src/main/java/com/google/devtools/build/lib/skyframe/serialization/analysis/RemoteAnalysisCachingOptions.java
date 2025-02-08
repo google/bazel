@@ -46,18 +46,21 @@ public class RemoteAnalysisCachingOptions extends OptionsBase {
     /** Serializes and uploads Skyframe analysis nodes after the build command finishes. */
     UPLOAD,
 
+    /**
+     * Dumps the manifest of SkyKeys computed in the frontier and the active set. This mode does not
+     * serialize and upload the keys.
+     */
+    DUMP_UPLOAD_MANIFEST_ONLY,
+
     /** Fetches and deserializes the Skyframe analysis nodes during the build. */
     DOWNLOAD,
-
-    /** Combination of DOWNLOAD and UPLOAD. */
-    FULL,
 
     /** Disabled. */
     OFF;
 
-    /** Returns true if the selected mode should fetch remote SkyValues for the analysis phase. */
-    public boolean downloadForAnalysis() {
-      return this == DOWNLOAD || this == FULL;
+    /** Returns true if the selected mode needs to connect to a backend. */
+    public boolean requiresBackendConnectivity() {
+      return this == DOWNLOAD || this == UPLOAD;
     }
   }
 

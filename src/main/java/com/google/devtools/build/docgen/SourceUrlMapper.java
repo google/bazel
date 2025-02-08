@@ -95,11 +95,9 @@ class SourceUrlMapper {
             + label.toPathFragment().getPathString();
     for (Map.Entry<String, String> entry : repoPathsRewrites.entrySet()) {
       if (path.startsWith(entry.getKey())) {
-        path = entry.getValue() + path.substring(entry.getKey().length());
-        break;
+        return entry.getValue() + path.substring(entry.getKey().length());
       }
     }
-
-    return path;
+    throw new IllegalStateException("Label URL left untransformed: " + path);
   }
 }

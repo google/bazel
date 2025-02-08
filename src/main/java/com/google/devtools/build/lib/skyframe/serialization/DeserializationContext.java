@@ -20,6 +20,7 @@ import static com.google.devtools.build.lib.unsafe.UnsafeProvider.unsafe;
 import com.google.common.collect.ImmutableClassToInstanceMap;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.devtools.build.skyframe.SkyKey;
+
 import com.google.errorprone.annotations.ForOverride;
 import com.google.protobuf.CodedInputStream;
 import java.io.IOException;
@@ -63,6 +64,7 @@ public abstract class DeserializationContext implements AsyncDeserializationCont
     setter.set(parent, value);
   }
 
+  // TODO: b/386384684 - remove Unsafe usage
   @Override
   @SuppressWarnings("SunApi") // TODO: b/331765692 - delete this
   public void deserialize(CodedInputStream codedIn, Object parent, long offset)

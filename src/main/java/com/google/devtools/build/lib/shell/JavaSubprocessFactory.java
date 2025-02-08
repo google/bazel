@@ -16,16 +16,15 @@ package com.google.devtools.build.lib.shell;
 
 import com.google.common.collect.Lists;
 import com.google.devtools.build.lib.shell.SubprocessBuilder.StreamAction;
-import com.google.devtools.build.lib.util.StringUtil;
+import com.google.devtools.build.lib.util.StringEncoding;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.lang.ProcessBuilder.Redirect;
-import java.util.List;
-import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.locks.ReentrantLock;
 
 /** A subprocess factory that uses {@link java.lang.ProcessBuilder}. */
 public class JavaSubprocessFactory implements SubprocessFactory {
@@ -116,6 +115,7 @@ public class JavaSubprocessFactory implements SubprocessFactory {
   }
 
   public static final JavaSubprocessFactory INSTANCE = new JavaSubprocessFactory();
+  private final ReentrantLock lock = new ReentrantLock();
 
   private JavaSubprocessFactory() {
     // We are a singleton
@@ -138,8 +138,9 @@ public class JavaSubprocessFactory implements SubprocessFactory {
   // I was able to reproduce this problem reliably by running significantly more threads than
   // there are CPU cores on my workstation - the more threads the more likely it happens.
   //
-  // As a workaround, we put a synchronized block around the fork.
-  private synchronized Process start(ProcessBuilder builder) throws IOException {
+  // As a workaround, we use a lock around the fork.
+  private Process start(ProcessBuilder builder) throws IOException {
+    lock.lock();
     try {
       return builder.start();
     } catch (IOException e) {
@@ -152,39 +153,26 @@ public class JavaSubprocessFactory implements SubprocessFactory {
             e);
       }
       throw e;
+    } finally {
+      lock.unlock();
     }
   }
 
   @Override
   public Subprocess create(SubprocessBuilder params) throws IOException {
     ProcessBuilder builder = new ProcessBuilder();
-    // On JDK 19 and newer, java.lang.ProcessImpl#start encodes argv and the environment using
-    // sun.jnu.encoding, so if sun.jnu.encoding is set to UTF-8, our argv needs to be UTF-8. (Note
-    // that on some platforms, for example on macOS, sun.jnu.encoding is hard-coded in the JVM as
-    // UTF-8.)
-    boolean reencodeToUtf8 =
-        Runtime.version().feature() >= 19
-            && Objects.equals(System.getProperty("sun.jnu.encoding"), "UTF-8");
-    List<String> argv = params.getArgv();
-    if (reencodeToUtf8) {
-      argv = Lists.transform(argv, StringUtil::reencodeInternalToExternal);
-    }
-    builder.command(argv);
+    builder.command(Lists.transform(params.getArgv(), StringEncoding::internalToPlatform));
     if (params.getEnv() != null) {
       builder.environment().clear();
-      if (reencodeToUtf8) {
-        params
-            .getEnv()
-            .forEach(
-                (key, value) ->
-                    builder
-                        .environment()
-                        .put(
-                            StringUtil.reencodeInternalToExternal(key),
-                            StringUtil.reencodeInternalToExternal(value)));
-      } else {
-        builder.environment().putAll(params.getEnv());
-      }
+      params
+          .getEnv()
+          .forEach(
+              (key, value) ->
+                  builder
+                      .environment()
+                      .put(
+                          StringEncoding.internalToPlatform(key),
+                          StringEncoding.internalToPlatform(value)));
     }
 
     builder.redirectOutput(getRedirect(params.getStdout(), params.getStdoutFile()));

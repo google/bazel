@@ -14,8 +14,8 @@
 package com.google.devtools.build.skyframe;
 
 import static com.google.common.base.Preconditions.checkNotNull;
+import static java.util.Objects.requireNonNull;
 
-import com.google.auto.value.AutoValue;
 import com.google.devtools.build.skyframe.Differencer.DiffWithDelta.Delta;
 import java.util.Collection;
 import java.util.Map;
@@ -51,19 +51,21 @@ public interface Differencer {
 
   /** A {@link Diff} that also potentially contains the new and old values for each changed key. */
   interface DiffWithDelta extends Diff {
-    /** Represents the delta between two values of the same key. */
-    @AutoValue
-    abstract class Delta {
-      /** Returns the old value, if any. */
-      @Nullable
-      public abstract SkyValue oldValue();
-
-      /** Returns the new value. */
-      public abstract SkyValue newValue();
-
-      /** Returns the max transitive source version of the new value. */
-      @Nullable
-      public abstract Version newMaxTransitiveSourceVersion();
+    /**
+     * Represents the delta between two values of the same key.
+     *
+     * @param oldValue Returns the old value, if any.
+     * @param newValue Returns the new value.
+     * @param newMaxTransitiveSourceVersion Returns the max transitive source version of the new
+     *     value.
+     */
+    public record Delta(
+        @Nullable SkyValue oldValue,
+        SkyValue newValue,
+        @Nullable Version newMaxTransitiveSourceVersion) {
+      public Delta {
+        requireNonNull(newValue, "newValue");
+      }
 
       public static Delta justNew(SkyValue newValue) {
         return changed(/* oldValue= */ null, newValue, /* newMaxTransitiveSourceVersion= */ null);
@@ -76,8 +78,7 @@ public interface Differencer {
 
       public static Delta changed(
           SkyValue oldValue, SkyValue newValue, @Nullable Version newMaxTransitiveSourceVersion) {
-        return new AutoValue_Differencer_DiffWithDelta_Delta(
-            oldValue, checkNotNull(newValue), newMaxTransitiveSourceVersion);
+        return new Delta(oldValue, checkNotNull(newValue), newMaxTransitiveSourceVersion);
       }
     }
   }

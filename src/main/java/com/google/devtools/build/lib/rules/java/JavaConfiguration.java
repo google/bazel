@@ -14,8 +14,8 @@
 package com.google.devtools.build.lib.rules.java;
 
 import static com.google.devtools.build.lib.rules.java.JavaStarlarkCommon.checkPrivateAccess;
+import static java.util.Objects.requireNonNull;
 
-import com.google.auto.value.AutoValue;
 import com.google.common.base.Ascii;
 import com.google.common.base.Optional;
 import com.google.common.collect.ImmutableList;
@@ -32,6 +32,7 @@ import com.google.devtools.build.lib.collect.nestedset.Depset;
 import com.google.devtools.build.lib.collect.nestedset.NestedSet;
 import com.google.devtools.build.lib.concurrent.ThreadSafety.Immutable;
 import com.google.devtools.build.lib.packages.BuiltinRestriction;
+import com.google.devtools.build.lib.skyframe.serialization.autocodec.AutoCodec;
 import com.google.devtools.build.lib.starlarkbuildapi.java.JavaConfigurationApi;
 import java.util.Map;
 import javax.annotation.Nullable;
@@ -317,15 +318,16 @@ public final class JavaConfiguration extends Fragment implements JavaConfigurati
   }
 
   /** Stores a String name and an optional associated label. */
-  @AutoValue
-  public abstract static class NamedLabel {
-    public static NamedLabel create(String name, Optional<Label> label) {
-      return new AutoValue_JavaConfiguration_NamedLabel(name, label);
+  @AutoCodec
+  public record NamedLabel(String name, Optional<Label> label) {
+    public NamedLabel {
+      requireNonNull(name, "name");
+      requireNonNull(label, "label");
     }
 
-    public abstract String name();
-
-    public abstract Optional<Label> label();
+    public static NamedLabel create(String name, Optional<Label> label) {
+      return new NamedLabel(name, label);
+    }
   }
 
   /** Returns bytecode optimizer to run. */

@@ -65,7 +65,10 @@ public class ParallelSkyQueryUtils {
         context,
         ParallelVisitorUtils.createParallelVisitorCallback(
             new RdepsUnboundedVisitor.Factory(
-                env, /*unfilteredUniverse=*/ Predicates.alwaysTrue(), callback)));
+                env,
+                /* unfilteredUniverse= */ Predicates.alwaysTrue(),
+                context.extraGlobalDeps(),
+                callback)));
   }
 
   static QueryTaskFuture<Void> getAllRdepsBoundedParallel(
@@ -79,7 +82,11 @@ public class ParallelSkyQueryUtils {
         context,
         ParallelVisitorUtils.createParallelVisitorCallback(
             new RdepsBoundedVisitor.Factory(
-                env, depth, /*universe=*/ Predicates.alwaysTrue(), callback)));
+                env,
+                depth,
+                /* universe= */ Predicates.alwaysTrue(),
+                context.extraGlobalDeps(),
+                callback)));
   }
 
   static QueryTaskFuture<Void> getRdepsInUniverseUnboundedParallel(
@@ -92,7 +99,8 @@ public class ParallelSkyQueryUtils {
         expression,
         context,
         ParallelVisitorUtils.createParallelVisitorCallback(
-            new RdepsUnboundedVisitor.Factory(env, unfilteredUniverse, callback)));
+            new RdepsUnboundedVisitor.Factory(
+                env, unfilteredUniverse, context.extraGlobalDeps(), callback)));
   }
 
   static QueryTaskFuture<Predicate<SkyKey>> getDTCSkyKeyPredicateFuture(
@@ -139,7 +147,8 @@ public class ParallelSkyQueryUtils {
         expression,
         context,
         ParallelVisitorUtils.createParallelVisitorCallback(
-            new RdepsBoundedVisitor.Factory(env, depth, universe, callback)));
+            new RdepsBoundedVisitor.Factory(
+                env, depth, universe, context.extraGlobalDeps(), callback)));
   }
 
   /** Specialized parallel variant of {@link SkyQueryEnvironment#getRBuildFiles}. */

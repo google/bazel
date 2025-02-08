@@ -113,7 +113,7 @@ public class JavaImportConfiguredTargetTest extends BuildViewTestCase {
     ConfiguredTarget configuredTarget = getConfiguredTarget("//java:java_imp");
     Artifact compiledArtifact =
         JavaInfo.getProvider(JavaCompilationArgsProvider.class, configuredTarget)
-            .getDirectCompileTimeJars()
+            .directCompileTimeJars()
             .toList()
             .get(0);
     SpawnAction action = (SpawnAction) getGeneratingAction(compiledArtifact);
@@ -217,13 +217,13 @@ public class JavaImportConfiguredTargetTest extends BuildViewTestCase {
     // JavaCompilationArgs should hold classpaths of the transitive closure.
     JavaCompilationArgsProvider recursiveCompilationArgs =
         JavaInfo.getProvider(JavaCompilationArgsProvider.class, importJar);
-    assertThat(prettyArtifactNames(recursiveCompilationArgs.getTransitiveCompileTimeJars()))
+    assertThat(prettyArtifactNames(recursiveCompilationArgs.transitiveCompileTimeJars()))
         .containsExactly(
             "java/jarlib2/_ijar/import-jar/java/jarlib2/import-ijar.jar",
             "java/jarlib2/_ijar/exportjar/java/jarlib2/exportjar-ijar.jar",
             "java/jarlib2/_ijar/depjar/java/jarlib2/depjar-ijar.jar")
         .inOrder();
-    assertThat(prettyArtifactNames(recursiveCompilationArgs.getRuntimeJars()))
+    assertThat(prettyArtifactNames(recursiveCompilationArgs.runtimeJars()))
         .containsExactly(
             "java/jarlib2/import.jar", "java/jarlib2/exportjar.jar", "java/jarlib2/depjar.jar")
         .inOrder();
@@ -231,12 +231,12 @@ public class JavaImportConfiguredTargetTest extends BuildViewTestCase {
     // Recursive deps work the same as with java_library.
     JavaCompilationArgsProvider compilationArgsProvider =
         JavaInfo.getProvider(JavaCompilationArgsProvider.class, importJar);
-    assertThat(prettyArtifactNames(compilationArgsProvider.getDirectCompileTimeJars()))
+    assertThat(prettyArtifactNames(compilationArgsProvider.directCompileTimeJars()))
         .containsExactly(
             "java/jarlib2/_ijar/import-jar/java/jarlib2/import-ijar.jar",
             "java/jarlib2/_ijar/exportjar/java/jarlib2/exportjar-ijar.jar")
         .inOrder();
-    assertThat(prettyArtifactNames(compilationArgsProvider.getRuntimeJars()))
+    assertThat(prettyArtifactNames(compilationArgsProvider.runtimeJars()))
         .containsExactly(
             "java/jarlib2/import.jar", "java/jarlib2/exportjar.jar", "java/jarlib2/depjar.jar")
         .inOrder();
@@ -349,16 +349,16 @@ public class JavaImportConfiguredTargetTest extends BuildViewTestCase {
 
     JavaCompilationArgsProvider compilationArgs =
         JavaInfo.getProvider(JavaCompilationArgsProvider.class, jarLib);
-    assertThat(prettyArtifactNames(compilationArgs.getTransitiveCompileTimeJars()))
+    assertThat(prettyArtifactNames(compilationArgs.transitiveCompileTimeJars()))
         .containsExactly(
             "java/genrules/_ijar/library-jar/java/genrules/generated-ijar.jar",
             "java/jarlib/_ijar/libraryjar/java/jarlib/library-ijar.jar")
         .inOrder();
-    assertThat(prettyArtifactNames(compilationArgs.getRuntimeJars()))
+    assertThat(prettyArtifactNames(compilationArgs.runtimeJars()))
         .containsExactly("java/genrules/generated.jar", "java/jarlib/library.jar")
         .inOrder();
 
-    Artifact jar = compilationArgs.getRuntimeJars().toList().get(0);
+    Artifact jar = compilationArgs.runtimeJars().toList().get(0);
     assertThat(getGeneratingAction(jar).prettyPrint())
         .isEqualTo("action 'Executing genrule //java/genrules:generated_jar'");
   }
@@ -577,7 +577,7 @@ public class JavaImportConfiguredTargetTest extends BuildViewTestCase {
         )
         """);
     ConfiguredTarget processorTarget = getConfiguredTarget("//java/com/google/test:jar");
-    JavaInfo javaInfo = processorTarget.get(JavaInfo.PROVIDER);
+    JavaInfo javaInfo = JavaInfo.getJavaInfo(processorTarget);
     assertThat(javaInfo.isNeverlink()).isTrue();
   }
 
@@ -598,7 +598,7 @@ public class JavaImportConfiguredTargetTest extends BuildViewTestCase {
     getConfiguredTarget("//java/my:a");
     Set<String> inputs =
         artifactsToStrings(
-            JavaInfo.getProvider(JavaSourceJarsProvider.class, aTarget).getTransitiveSourceJars());
+            JavaInfo.getProvider(JavaSourceJarsProvider.class, aTarget).transitiveSourceJars());
     assertThat(inputs)
         .isEqualTo(Sets.newHashSet("src java/my/dummy-src.jar", "bin java/my/libb-src.jar"));
   }
@@ -744,7 +744,7 @@ public class JavaImportConfiguredTargetTest extends BuildViewTestCase {
     ConfiguredTarget jarLib = getConfiguredTarget("//java/jarlib:libraryjar");
     JavaCompilationArgsProvider compilationArgsProvider =
         JavaInfo.getProvider(JavaCompilationArgsProvider.class, jarLib);
-    assertThat(prettyArtifactNames(compilationArgsProvider.getRuntimeJars()))
+    assertThat(prettyArtifactNames(compilationArgsProvider.runtimeJars()))
         .containsExactly("java/jarlib/library.jar");
   }
 
@@ -762,7 +762,7 @@ public class JavaImportConfiguredTargetTest extends BuildViewTestCase {
     List<String> jars =
         ActionsTestUtil.baseArtifactNames(
             JavaInfo.getProvider(JavaCompilationArgsProvider.class, lib)
-                .getTransitiveCompileTimeJars());
+                .transitiveCompileTimeJars());
     assertThat(jars).doesNotContain("b-ijar.jar");
     assertThat(jars).contains("b.jar");
   }

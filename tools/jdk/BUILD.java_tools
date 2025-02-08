@@ -1,5 +1,5 @@
-load("@protobuf//bazel:cc_proto_library.bzl", "cc_proto_library")
-load("@protobuf//bazel:proto_library.bzl", "proto_library")
+load("@com_google_protobuf//bazel:cc_proto_library.bzl", "cc_proto_library")
+load("@com_google_protobuf//bazel:proto_library.bzl", "proto_library")
 load("@rules_cc//cc:cc_binary.bzl", "cc_binary")
 load("@rules_cc//cc:cc_library.bzl", "cc_library")
 load("@rules_java//java:java_binary.bzl", "java_binary")
@@ -428,9 +428,11 @@ cc_library(
     name = "combiners",
     srcs = [
         "java_tools/src/tools/singlejar/combiners.cc",
+        "java_tools/src/tools/singlejar/log4j2_plugin_dat_combiner.cc",
     ],
     hdrs = [
         "java_tools/src/tools/singlejar/combiners.h",
+        "java_tools/src/tools/singlejar/log4j2_plugin_dat_combiner.h",
         ":transient_bytes",
     ],
     copts = SUPRESSED_WARNINGS,

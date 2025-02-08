@@ -80,8 +80,8 @@ import com.google.devtools.build.lib.actions.FileStateValue;
 import com.google.devtools.build.lib.actions.FilesetOutputTree;
 import com.google.devtools.build.lib.actions.InputMetadataProvider;
 import com.google.devtools.build.lib.actions.MapBasedActionGraph;
+import com.google.devtools.build.lib.actions.OutputChecker;
 import com.google.devtools.build.lib.actions.PackageRoots;
-import com.google.devtools.build.lib.actions.RemoteArtifactChecker;
 import com.google.devtools.build.lib.actions.ResourceManager;
 import com.google.devtools.build.lib.actions.ThreadStateReceiver;
 import com.google.devtools.build.lib.actions.UserExecException;
@@ -107,9 +107,12 @@ import com.google.devtools.build.lib.analysis.WorkspaceStatusAction.Factory;
 import com.google.devtools.build.lib.analysis.config.BuildConfigurationValue;
 import com.google.devtools.build.lib.analysis.config.BuildOptions;
 import com.google.devtools.build.lib.analysis.config.CoreOptions;
+import com.google.devtools.build.lib.analysis.config.ExecutionTransitionFactory;
 import com.google.devtools.build.lib.analysis.config.InvalidConfigurationException;
 import com.google.devtools.build.lib.analysis.config.StarlarkExecTransitionLoader;
 import com.google.devtools.build.lib.analysis.config.StarlarkExecTransitionLoader.StarlarkExecTransitionLoadingException;
+import com.google.devtools.build.lib.analysis.config.transitions.PatchTransition;
+import com.google.devtools.build.lib.analysis.config.transitions.TransitionUtil;
 import com.google.devtools.build.lib.analysis.constraints.RuleContextConstraintSemantics;
 import com.google.devtools.build.lib.analysis.platform.PlatformFunction;
 import com.google.devtools.build.lib.analysis.producers.ConfiguredTargetAndDataProducer;
@@ -143,6 +146,7 @@ import com.google.devtools.build.lib.events.ExtendedEventHandler;
 import com.google.devtools.build.lib.events.Reporter;
 import com.google.devtools.build.lib.io.FileSymlinkCycleUniquenessFunction;
 import com.google.devtools.build.lib.io.FileSymlinkInfiniteExpansionUniquenessFunction;
+import com.google.devtools.build.lib.packages.AttributeTransitionData;
 import com.google.devtools.build.lib.packages.AutoloadSymbols;
 import com.google.devtools.build.lib.packages.BuildFileContainsErrorsException;
 import com.google.devtools.build.lib.packages.BuildFileName;
@@ -205,8 +209,8 @@ import com.google.devtools.build.lib.skyframe.PackageFunction.ActionOnIOExceptio
 import com.google.devtools.build.lib.skyframe.PackageFunction.GlobbingStrategy;
 import com.google.devtools.build.lib.skyframe.PackageLookupFunction.CrossRepositoryLabelViolationStrategy;
 import com.google.devtools.build.lib.skyframe.RepositoryMappingValue.RepositoryMappingResolutionException;
+import com.google.devtools.build.lib.skyframe.SkyfocusOptions.FrontierViolationCheck;
 import com.google.devtools.build.lib.skyframe.SkyfocusOptions.SkyfocusDumpOption;
-import com.google.devtools.build.lib.skyframe.SkyfocusOptions.SkyfocusHandlingStrategy;
 import com.google.devtools.build.lib.skyframe.SkyframeActionExecutor.ActionCompletedReceiver;
 import com.google.devtools.build.lib.skyframe.SkyframeActionExecutor.ProgressSupplier;
 import com.google.devtools.build.lib.skyframe.SkyframeFocuser.FocusResult;
@@ -224,6 +228,10 @@ import com.google.devtools.build.lib.skyframe.config.PlatformMappingKey;
 import com.google.devtools.build.lib.skyframe.config.PlatformMappingValue;
 import com.google.devtools.build.lib.skyframe.rewinding.ActionRewindStrategy;
 import com.google.devtools.build.lib.skyframe.serialization.analysis.RemoteAnalysisCachingDependenciesProvider;
+import com.google.devtools.build.lib.skyframe.serialization.analysis.RemoteAnalysisCachingDependenciesProvider.DisabledDependenciesProvider;
+import com.google.devtools.build.lib.skyframe.serialization.analysis.RemoteAnalysisCachingOptions;
+import com.google.devtools.build.lib.skyframe.serialization.analysis.RemoteAnalysisCachingOptions.RemoteAnalysisCacheMode;
+import com.google.devtools.build.lib.skyframe.toolchains.RegisteredExecutionPlatformsCycleReporter;
 import com.google.devtools.build.lib.skyframe.toolchains.RegisteredExecutionPlatformsFunction;
 import com.google.devtools.build.lib.skyframe.toolchains.RegisteredToolchainsCycleReporter;
 import com.google.devtools.build.lib.skyframe.toolchains.RegisteredToolchainsFunction;
@@ -373,7 +381,7 @@ public abstract class SkyframeExecutor implements WalkableGraphFactory {
 
   private final AtomicInteger numPackagesSuccessfullyLoaded = new AtomicInteger(0);
   @Nullable private final PackageProgressReceiver packageProgress;
-  @Nullable private final ConfiguredTargetProgressReceiver configuredTargetProgress;
+  @Nullable private final AnalysisProgressReceiver analysisProgress;
   protected final SyscallCache syscallCache;
 
   private final SkyframeBuildView skyframeBuildView;
@@ -424,7 +432,7 @@ public abstract class SkyframeExecutor implements WalkableGraphFactory {
 
   SkyframeIncrementalBuildMonitor incrementalBuildMonitor = new SkyframeIncrementalBuildMonitor();
 
-  private final SkyFunction ignoredPackagePrefixesFunction;
+  private final SkyFunction ignoredSubdirectoriesFunction;
 
   private final ConfiguredRuleClassProvider ruleClassProvider;
 
@@ -511,12 +519,41 @@ public abstract class SkyframeExecutor implements WalkableGraphFactory {
    */
   private final boolean globUnderSingleDep;
 
+  private RemoteAnalysisCachingDependenciesProvider remoteAnalysisCachingDependenciesProvider =
+      DisabledDependenciesProvider.INSTANCE;
+
+  /** Non-null only when analysis caching mode is upload/download. */
+  @Nullable private ModifiedFileSet diffFromEvaluatingVersion;
+
   public void setRemoteAnalysisCachingDependenciesProvider(
       RemoteAnalysisCachingDependenciesProvider remoteAnalysisCachingDependenciesProvider) {
-    // TODO: b/356108550 - move this somewhere else when the deps are needed for the execution phase
-    // functions.
-    getSkyframeBuildView()
-        .setRemoteAnalysisCachingDependenciesProvider(remoteAnalysisCachingDependenciesProvider);
+    this.remoteAnalysisCachingDependenciesProvider = remoteAnalysisCachingDependenciesProvider;
+  }
+
+  /**
+   * Returns the dependencies for remote analysis caching.
+   *
+   * <p>Should not be called before analysis begins.
+   *
+   * <p>This will reture {@link DisabledDependenciesProvider} until the top level configuration is
+   * determined at the beginning of the analysis Skyframe evaluation, because it contains that
+   * value. See the callsite of {@link
+   * #setRemoteAnalysisCachingDependenciesProvider(RemoteAnalysisCachingDependenciesProvider)} for
+   * the exact point.
+   */
+  @VisibleForTesting // productionVisibility = Visibility.PRIVATE
+  public RemoteAnalysisCachingDependenciesProvider getRemoteAnalysisCachingDependenciesProvider() {
+    return remoteAnalysisCachingDependenciesProvider;
+  }
+
+  @VisibleForTesting
+  public boolean isRemoteAnalysisCachingEnabled() {
+    return remoteAnalysisCachingDependenciesProvider.mode() == RemoteAnalysisCacheMode.DOWNLOAD;
+  }
+
+  @Nullable
+  public ModifiedFileSet getDiffFromEvaluatingVersion() {
+    return diffFromEvaluatingVersion;
   }
 
   final class PathResolverFactoryImpl implements PathResolverFactory {
@@ -553,7 +590,7 @@ public abstract class SkyframeExecutor implements WalkableGraphFactory {
       ImmutableMap<SkyFunctionName, SkyFunction> extraSkyFunctions,
       SyscallCache syscallCache,
       ExternalFileAction externalFileAction,
-      SkyFunction ignoredPackagePrefixesFunction,
+      SkyFunction ignoredSubdirectoriesFunction,
       CrossRepositoryLabelViolationStrategy crossRepositoryLabelViolationStrategy,
       ImmutableList<BuildFileName> buildFilesByPriority,
       ExternalPackageHelper externalPackageHelper,
@@ -562,7 +599,7 @@ public abstract class SkyframeExecutor implements WalkableGraphFactory {
       boolean shouldUseRepoDotBazel,
       boolean shouldUnblockCpuWorkWhenFetchingDeps,
       @Nullable PackageProgressReceiver packageProgress,
-      @Nullable ConfiguredTargetProgressReceiver configuredTargetProgress,
+      @Nullable AnalysisProgressReceiver analysisProgress,
       SkyKeyStateReceiver skyKeyStateReceiver,
       BugReporter bugReporter,
       @Nullable Iterable<? extends DiffAwareness.Factory> diffAwarenessFactories,
@@ -592,7 +629,7 @@ public abstract class SkyframeExecutor implements WalkableGraphFactory {
     this.fileSystem = fileSystem;
     this.directories = checkNotNull(directories);
     this.actionKeyContext = checkNotNull(actionKeyContext);
-    this.ignoredPackagePrefixesFunction = ignoredPackagePrefixesFunction;
+    this.ignoredSubdirectoriesFunction = ignoredSubdirectoriesFunction;
     this.extraSkyFunctions = extraSkyFunctions;
 
     this.ruleClassProvider = (ConfiguredRuleClassProvider) pkgFactory.getRuleClassProvider();
@@ -620,7 +657,7 @@ public abstract class SkyframeExecutor implements WalkableGraphFactory {
     this.actionOnFilesystemErrorCodeLoadingBzlFile = actionOnFilesystemErrorCodeLoadingBzlFile;
     this.shouldUseRepoDotBazel = shouldUseRepoDotBazel;
     this.packageProgress = packageProgress;
-    this.configuredTargetProgress = configuredTargetProgress;
+    this.analysisProgress = analysisProgress;
     this.diffAwarenessManager =
         diffAwarenessFactories != null ? new DiffAwarenessManager(diffAwarenessFactories) : null;
     this.workspaceInfoFromDiffReceiver = workspaceInfoFromDiffReceiver;
@@ -683,7 +720,7 @@ public abstract class SkyframeExecutor implements WalkableGraphFactory {
     map.put(
         SkyFunctions.COLLECT_PACKAGES_UNDER_DIRECTORY,
         newCollectPackagesUnderDirectoryFunction(directories));
-    map.put(SkyFunctions.IGNORED_PACKAGE_PREFIXES, ignoredPackagePrefixesFunction);
+    map.put(SkyFunctions.IGNORED_SUBDIRECTORIES, ignoredSubdirectoriesFunction);
     map.put(SkyFunctions.TESTS_IN_SUITE, new TestExpansionFunction());
     map.put(SkyFunctions.TEST_SUITE_EXPANSION, new TestsForTargetPatternFunction());
     map.put(SkyFunctions.TARGET_PATTERN_PHASE, new TargetPatternPhaseFunction());
@@ -717,8 +754,9 @@ public abstract class SkyframeExecutor implements WalkableGraphFactory {
             cpuBoundSemaphore,
             shouldStoreTransitivePackagesInLoadingAndAnalysis(),
             shouldUnblockCpuWorkWhenFetchingDeps,
-            configuredTargetProgress,
-            this::getExistingPackage));
+            analysisProgress,
+            this::getExistingPackage,
+            this::getRemoteAnalysisCachingDependenciesProvider));
     map.put(
         SkyFunctions.ASPECT,
         new AspectFunction(
@@ -726,8 +764,16 @@ public abstract class SkyframeExecutor implements WalkableGraphFactory {
             ruleClassProvider,
             shouldStoreTransitivePackagesInLoadingAndAnalysis(),
             this::getExistingPackage,
-            new BaseTargetPrerequisitesSupplierImpl()));
-    map.put(SkyFunctions.TOP_LEVEL_ASPECTS, new ToplevelStarlarkAspectFunction());
+            new BaseTargetPrerequisitesSupplierImpl(),
+            this::getRemoteAnalysisCachingDependenciesProvider,
+            analysisProgress));
+    map.put(
+        SkyFunctions.TOP_LEVEL_ASPECTS,
+        new ToplevelStarlarkAspectFunction(
+            new BuildViewProvider(),
+            ruleClassProvider,
+            shouldStoreTransitivePackagesInLoadingAndAnalysis(),
+            this::getExistingPackage));
     map.put(
         SkyFunctions.BUILD_TOP_LEVEL_ASPECTS_DETAILS, new BuildTopLevelAspectsDetailsFunction());
     map.put(
@@ -804,7 +850,7 @@ public abstract class SkyframeExecutor implements WalkableGraphFactory {
             () -> !skyframeActionExecutor.actionFileSystemType().inMemoryFileSystem(),
             sourceArtifactsSeen,
             syscallCache,
-            getSkyframeBuildView()::getRemoteAnalysisCachingDependenciesProvider));
+            this::getRemoteAnalysisCachingDependenciesProvider));
     map.put(SkyFunctions.BUILD_INFO, new WorkspaceStatusFunction(this::makeWorkspaceStatusAction));
     map.put(SkyFunctions.COVERAGE_REPORT, new CoverageReportFunction(actionKeyContext));
     map.put(SkyFunctions.ACTION_EXECUTION, newActionExecutionFunction());
@@ -837,6 +883,7 @@ public abstract class SkyframeExecutor implements WalkableGraphFactory {
     FlagSetFunction flagSetFunction = new FlagSetFunction();
     map.put(SkyFunctions.FLAG_SET, flagSetFunction);
     this.buildDriverFunction = buildDriverFunction;
+    map.put(SkyFunctions.BUILD_OPTIONS_SCOPE, new BuildOptionsScopeFunction());
 
     map.putAll(extraSkyFunctions);
     return ImmutableMap.copyOf(map);
@@ -871,7 +918,7 @@ public abstract class SkyframeExecutor implements WalkableGraphFactory {
         directories,
         tsgm::get,
         bugReporter,
-        getSkyframeBuildView()::getRemoteAnalysisCachingDependenciesProvider,
+        this::getRemoteAnalysisCachingDependenciesProvider,
         this::getConsumedArtifactsTracker);
   }
 
@@ -1125,6 +1172,20 @@ public abstract class SkyframeExecutor implements WalkableGraphFactory {
     return GlobbingStrategy.NON_SKYFRAME;
   }
 
+  /**
+   * If not null, this is the only source root in the build, corresponding to the single element in
+   * a single-element package path. Such a single-source-root build need not plant the execroot
+   * symlink forest, and can trivially resolve source artifacts from exec paths. As a consequence,
+   * builds where this is not null do not need to track a package -> source root map. In addition,
+   * such builds can only occur in a monorepo, and thus do not need to produce repo mapping
+   * manifests for runfiles.
+   */
+  // TODO(wyv): To be safe, fail early if we're in a multi-repo setup but this is not being tracked.
+  @Nullable
+  public Root getForcedSingleSourceRootIfNoExecrootSymlinkCreation() {
+    return null;
+  }
+
   private boolean shouldStoreTransitivePackagesInLoadingAndAnalysis() {
     // Transitive packages may be needed for either RepoMappingManifestAction or Skymeld with
     // external repository support. They are never needed if external repositories are disabled. To
@@ -1360,8 +1421,56 @@ public abstract class SkyframeExecutor implements WalkableGraphFactory {
     AutoloadSymbols.AUTOLOAD_SYMBOLS.set(injectable(), autoloadSymbols);
   }
 
-  public void setBaselineConfiguration(BuildOptions buildOptions) {
+  public void setBaselineConfiguration(BuildOptions buildOptions, ExtendedEventHandler eventHandler)
+      throws InvalidConfigurationException, InterruptedException {
     PrecomputedValue.BASELINE_CONFIGURATION.set(injectable(), buildOptions);
+    PrecomputedValue.BASELINE_EXEC_CONFIGURATION.set(
+        injectable(), adjustForExec(buildOptions, eventHandler));
+  }
+
+  private BuildOptions adjustForExec(BuildOptions buildOptions, ExtendedEventHandler eventHandler)
+      throws InvalidConfigurationException, InterruptedException {
+    StarlarkAttributeTransitionProvider execTransition;
+    try {
+      execTransition = getStarlarkExecTransition(buildOptions, eventHandler);
+    } catch (StarlarkExecTransitionLoadingException e) {
+      throw new InvalidConfigurationException(e);
+    }
+    // Get the current target platform and use it as the exec platform.
+    // This value isn't actually important as long as it exists and is stable.
+    // TODO(345289271): Make this a value that's stable even when the target platform changes.
+    Label hostPlatform = buildOptions.get(PlatformOptions.class).hostPlatform;
+    return adjustForExec(buildOptions, execTransition, hostPlatform, eventHandler);
+  }
+
+  /** Adjusts the baseline options for the exec transition. */
+  private static BuildOptions adjustForExec(
+      BuildOptions baselineOptions,
+      StarlarkAttributeTransitionProvider starlarkExecTransition,
+      Label newPlatform,
+      ExtendedEventHandler eventHandler)
+      throws InterruptedException {
+
+    // A null executionPlatform actually skips transition application so need some value here when
+    // not overriding the platform. It is safe to supply some fake value here (as long as it is
+    // constant) since the baseline should never be used to actually construct an action or do
+    // toolchain resolution.
+    PatchTransition execTransition =
+        ExecutionTransitionFactory.createFactory()
+            .create(
+                AttributeTransitionData.builder()
+                    .executionPlatform(
+                        newPlatform != null
+                            ? newPlatform
+                            : Label.parseCanonicalUnchecked(
+                                "//this_is_a_faked_exec_platform_for_blaze_internals"))
+                    .analysisData(starlarkExecTransition)
+                    .build());
+    baselineOptions =
+        execTransition.patch(
+            TransitionUtil.restrict(execTransition, baselineOptions), eventHandler);
+
+    return baselineOptions;
   }
 
   public void injectExtraPrecomputedValues(List<PrecomputedValue.Injected> extraPrecomputedValues) {
@@ -1583,7 +1692,7 @@ public abstract class SkyframeExecutor implements WalkableGraphFactory {
   }
 
   public void initializeConsumedArtifactsTracker() {
-    consumedArtifactsTracker = new ConsumedArtifactsTracker(this::getEvaluator);
+    consumedArtifactsTracker = new ConsumedArtifactsTracker();
   }
 
   /** Sets the eventBus to use for posting events. */
@@ -1623,12 +1732,14 @@ public abstract class SkyframeExecutor implements WalkableGraphFactory {
         evaluateSkyKeys(eventHandler, ImmutableList.of(mainRepositoryMappingKey));
     if (mainRepoMappingResult.hasError()) {
       throw new InvalidConfigurationException(
-          "Cannot find main repository mapping", Code.INVALID_BUILD_OPTIONS);
+          "Cannot find main repository mapping",
+          Code.INVALID_BUILD_OPTIONS,
+          mainRepoMappingResult.getError().getException());
     }
     RepositoryMappingValue mainRepositoryMappingValue =
         (RepositoryMappingValue) mainRepoMappingResult.get(mainRepositoryMappingKey);
     RepoContext mainRepoContext =
-        RepoContext.of(RepositoryName.MAIN, mainRepositoryMappingValue.getRepositoryMapping());
+        RepoContext.of(RepositoryName.MAIN, mainRepositoryMappingValue.repositoryMapping());
 
     // Parse the options.
     PackageContext rootPackage = mainRepoContext.rootPackage();
@@ -1636,8 +1747,23 @@ public abstract class SkyframeExecutor implements WalkableGraphFactory {
     EvaluationResult<SkyValue> result =
         evaluateSkyKeys(eventHandler, ImmutableList.of(parsedFlagsKey));
     if (result.hasError()) {
-      throw new InvalidConfigurationException(
-          Code.INVALID_BUILD_OPTIONS, result.getError().getException());
+      Map.Entry<SkyKey, ErrorInfo> firstError = Iterables.get(result.errorMap().entrySet(), 0);
+      SkyKey errorKey = firstError.getKey();
+      ErrorInfo error = firstError.getValue();
+      Throwable e = error.getException();
+
+      if (e != null) {
+        throw new InvalidConfigurationException(Code.INVALID_BUILD_OPTIONS, e);
+      } else if (!error.getCycleInfo().isEmpty()) {
+        // This should not ever happen: there should not be a way for BuildConfigurationKeyValue.Key
+        // to produce a skyframe cycle. Produce a basic error message for developers
+        // to use to track down and fix the problem.
+        // Unfortunately, there's no way to express this as an invariant, so manual inspection of
+        // skyfunctions is the only way to prevent this.
+        cyclesReporter.reportCycles(error.getCycleInfo(), errorKey, eventHandler);
+        throw new InvalidConfigurationException(
+            "cannot load build configuration key because of this cycle", Code.CYCLE);
+      }
     }
     var parsedFlagsValue = (ParsedFlagsValue) result.get(parsedFlagsKey);
     return BuildOptions.of(
@@ -1650,8 +1776,8 @@ public abstract class SkyframeExecutor implements WalkableGraphFactory {
       ExtendedEventHandler eventHandler, BuildOptions buildOptions, boolean keepGoing)
       throws InvalidConfigurationException {
 
-    if (configuredTargetProgress != null) {
-      configuredTargetProgress.reset();
+    if (analysisProgress != null) {
+      analysisProgress.reset();
     }
 
     BuildConfigurationValue topLevelTargetConfig =
@@ -1911,7 +2037,7 @@ public abstract class SkyframeExecutor implements WalkableGraphFactory {
       ErrorInfo error = firstError.getValue();
       Throwable e = error.getException();
       // Wrap loading failed exceptions
-      if (e instanceof NoSuchThingException noSuchThingException) {
+      if (e != null && e instanceof NoSuchThingException noSuchThingException) {
         e = new InvalidConfigurationException(noSuchThingException.getDetailedExitCode(), e);
       } else if (e == null && !error.getCycleInfo().isEmpty()) {
         cyclesReporter.reportCycles(error.getCycleInfo(), firstError.getKey(), eventHandler);
@@ -1954,20 +2080,39 @@ public abstract class SkyframeExecutor implements WalkableGraphFactory {
    * <p>Production code handles this in Bazel's analysis phase skyfunctions.
    */
   @Nullable
-  @VisibleForTesting
-  public StarlarkAttributeTransitionProvider getStarlarkExecTransitionForTesting(
+  public StarlarkAttributeTransitionProvider getStarlarkExecTransition(
       BuildOptions options, ExtendedEventHandler eventHandler)
       throws StarlarkExecTransitionLoadingException, InterruptedException {
     return StarlarkExecTransitionLoader.loadStarlarkExecTransition(
             options,
-            (bzlKey) ->
-                (BzlLoadValue)
-                    evaluate(
-                            ImmutableList.of(bzlKey),
-                            /* keepGoing= */ false,
-                            /* numThreads= */ DEFAULT_THREAD_COUNT,
-                            eventHandler)
-                        .get(bzlKey))
+            (bzlKey) -> {
+              EvaluationResult<SkyValue> result =
+                  evaluate(
+                      ImmutableList.of(bzlKey),
+                      /* keepGoing= */ false,
+                      /* numThreads= */ DEFAULT_THREAD_COUNT,
+                      eventHandler);
+              if (result.hasError()) {
+                Map.Entry<SkyKey, ErrorInfo> firstError =
+                    Iterables.get(result.errorMap().entrySet(), 0);
+                ErrorInfo error = firstError.getValue();
+                Throwable e = error.getException();
+                // Wrap loading failed exceptions
+                if (e != null) {
+                  // If it's a BzlLoadFailedException, rethrow it directly.
+                  Throwables.throwIfInstanceOf(e, BzlLoadFailedException.class);
+                  // Otherwise, wrap it.
+                  throw new StarlarkExecTransitionLoadingException(e);
+                } else if (e == null && !error.getCycleInfo().isEmpty()) {
+                  cyclesReporter.reportCycles(
+                      error.getCycleInfo(), firstError.getKey(), eventHandler);
+                  throw new StarlarkExecTransitionLoadingException(
+                      "Unexpected cycle in exec transition dependencies");
+                }
+                throw new IllegalStateException("Unknown error while creating exec transition", e);
+              }
+              return (BzlLoadValue) result.get(bzlKey);
+            })
         .orElse(null);
   }
 
@@ -1988,9 +2133,8 @@ public abstract class SkyframeExecutor implements WalkableGraphFactory {
 
       if (e != null) {
         // Wrap exceptions related to loading
-        if (e instanceof NoSuchThingException) {
-          throw new InvalidConfigurationException(
-              ((NoSuchThingException) e).getDetailedExitCode(), e);
+        if (e instanceof NoSuchThingException noSuchThingException) {
+          throw new InvalidConfigurationException(noSuchThingException.getDetailedExitCode(), e);
         }
         Throwables.throwIfInstanceOf(e, InvalidConfigurationException.class);
         // If we get here, e is non-null but not an InvalidConfigurationException, so wrap it and
@@ -2095,7 +2239,7 @@ public abstract class SkyframeExecutor implements WalkableGraphFactory {
       throws InterruptedException {
     checkActive();
 
-    eventHandler.post(new ConfigurationPhaseStartedEvent(configuredTargetProgress));
+    eventHandler.post(new ConfigurationPhaseStartedEvent(analysisProgress));
     EvaluationContext evaluationContext =
         newEvaluationContextBuilder()
             .setParallelism(executors.analysisParallelism())
@@ -2159,16 +2303,11 @@ public abstract class SkyframeExecutor implements WalkableGraphFactory {
 
   private PackageRoots getPackageRoots() {
     Root virtualSourceRoot = directories.getVirtualSourceRoot();
-    if (virtualSourceRoot == null) {
-      return new MapAsPackageRoots(collectPackageRoots());
-    }
-
-    // No need to plant symlinks when using virtual roots.
-    // TODO: b/290617036 - Reconsider this for local action support with virtual roots.
-    checkState(
-        !outputService.actionFileSystemType().supportsLocalActions(),
-        "Local actions are incompatible with virtual roots");
-    return new PackageRootsNoSymlinkCreation(virtualSourceRoot);
+    return virtualSourceRoot == null
+            || outputService == null
+            || outputService.actionFileSystemType().shouldDoTopLevelOutputSetup()
+        ? new MapAsPackageRoots(collectPackageRoots())
+        : new PackageRootsNoSymlinkCreation(checkNotNull(virtualSourceRoot));
   }
 
   @Nullable
@@ -2239,30 +2378,26 @@ public abstract class SkyframeExecutor implements WalkableGraphFactory {
       QuiescingExecutor executor)
       throws InterruptedException {
     checkActive();
-    try {
-      buildDriverFunction.setShouldCheckForConflictWithTraversal(
-          () -> conflictCheckingModeInThisBuild == WITH_TRAVERSAL);
-      if (conflictCheckingModeInThisBuild != NONE) {
-        initializeSkymeldConflictFindingStates();
-      }
-      eventHandler.post(new ConfigurationPhaseStartedEvent(configuredTargetProgress));
-      // For the workspace status actions.
-      eventHandler.post(SomeExecutionStartedEvent.notCountedInExecutionTime());
-      EvaluationContext evaluationContext =
-          newEvaluationContextBuilder()
-              .setKeepGoing(keepGoing)
-              .setParallelism(executionParallelism)
-              .setExecutor(executor)
-              .setEventHandler(eventHandler)
-              .setMergingSkyframeAnalysisExecutionPhases(true)
-              .build();
-      return memoizingEvaluator.evaluate(
-          Iterables.concat(
-              buildDriverCTKeys, buildDriverAspectKeys, Artifact.keys(workspaceStatusArtifacts)),
-          evaluationContext);
-    } finally {
-      clearSyscallCache();
+    buildDriverFunction.setShouldCheckForConflictWithTraversal(
+        () -> conflictCheckingModeInThisBuild == WITH_TRAVERSAL);
+    if (conflictCheckingModeInThisBuild != NONE) {
+      initializeSkymeldConflictFindingStates();
     }
+    eventHandler.post(new ConfigurationPhaseStartedEvent(analysisProgress));
+    // For the workspace status actions.
+    eventHandler.post(SomeExecutionStartedEvent.notCountedInExecutionTime());
+    EvaluationContext evaluationContext =
+        newEvaluationContextBuilder()
+            .setKeepGoing(keepGoing)
+            .setParallelism(executionParallelism)
+            .setExecutor(executor)
+            .setEventHandler(eventHandler)
+            .setMergingSkyframeAnalysisExecutionPhases(true)
+            .build();
+    return memoizingEvaluator.evaluate(
+        Iterables.concat(
+            buildDriverCTKeys, buildDriverAspectKeys, Artifact.keys(workspaceStatusArtifacts)),
+        evaluationContext);
   }
 
   /** Called after a single Skyframe evaluation that involves action execution. */
@@ -2764,6 +2899,7 @@ public abstract class SkyframeExecutor implements WalkableGraphFactory {
         new ActionArtifactCycleReporter(packageManager),
         new TestExpansionCycleReporter(packageManager),
         new RegisteredToolchainsCycleReporter(),
+        new RegisteredExecutionPlatformsCycleReporter(),
         // TODO(ulfjack): The BzlLoadCycleReporter swallows previously reported cycles
         //  unconditionally! Is that intentional?
         new BzlLoadCycleReporter(),
@@ -2785,7 +2921,7 @@ public abstract class SkyframeExecutor implements WalkableGraphFactory {
   public abstract void detectModifiedOutputFiles(
       ModifiedFileSet modifiedOutputFiles,
       @Nullable Range<Long> lastExecutionTimeRange,
-      RemoteArtifactChecker remoteArtifactChecker,
+      OutputChecker outputChecker,
       int fsvcThreads)
       throws AbruptExitException, InterruptedException;
 
@@ -2976,7 +3112,7 @@ public abstract class SkyframeExecutor implements WalkableGraphFactory {
                   .build()),
           e);
     }
-    return evalResult.get(mainRepoMappingKey).getRepositoryMapping();
+    return evalResult.get(mainRepoMappingKey).repositoryMapping();
   }
 
   @Nullable
@@ -3154,6 +3290,13 @@ public abstract class SkyframeExecutor implements WalkableGraphFactory {
       }
     }
 
+    @Override
+    public void changePruned(SkyKey skyKey) {
+      if (executionProgressReceiver != null) {
+        executionProgressReceiver.changePruned(skyKey);
+      }
+    }
+
     private void maybeDropGenQueryDep(SkyValue newValue, GroupedDeps directDeps) {
       if (!(newValue instanceof RuleConfiguredTargetValue)) {
         return;
@@ -3262,6 +3405,11 @@ public abstract class SkyframeExecutor implements WalkableGraphFactory {
           }
 
           @Override
+          public ImmutableMap<String, String> getScopesAttributes() {
+            return ImmutableMap.of();
+          }
+
+          @Override
           public ImmutableMap<String, Object> getExplicitStarlarkOptions(
               java.util.function.Predicate<? super ParsedOptionDescription> filter) {
             return ImmutableMap.of();
@@ -3292,20 +3440,20 @@ public abstract class SkyframeExecutor implements WalkableGraphFactory {
 
     Path workspacePath = directories.getWorkspace();
     EvaluationResult<SkyValue> evaluationResult =
-        evaluateSkyKeys(eventHandler, ImmutableList.of(IgnoredPackagePrefixesValue.key()));
-    IgnoredPackagePrefixesValue ignoredPackagePrefixesValue =
-        (IgnoredPackagePrefixesValue) evaluationResult.get(IgnoredPackagePrefixesValue.key());
+        evaluateSkyKeys(eventHandler, ImmutableList.of(IgnoredSubdirectoriesValue.key()));
+    IgnoredSubdirectoriesValue ignoredSubdirectoriesValue =
+        (IgnoredSubdirectoriesValue) evaluationResult.get(IgnoredSubdirectoriesValue.key());
 
     if (diffAwarenessManager != null) {
       for (Root pathEntry : pkgRoots) {
-        // Ignored package prefixes are specified relative to the workspace root
-        // by definition of .bazelignore. So, we only use ignored paths when the
-        // package root is equal to the workspace path.
+        // Ignored subdirectories are specified relative to the workspace root by definition of
+        // .bazelignore. So, we only use ignored paths when the package root is equal to the
+        // workspace path.
         if (workspacePath != null
             && workspacePath.equals(pathEntry.asPath())
-            && ignoredPackagePrefixesValue != null) {
+            && ignoredSubdirectoriesValue != null) {
           ignoredPaths =
-              ignoredPackagePrefixesValue
+              ignoredSubdirectoriesValue
                   .asIgnoredSubdirectories()
                   .withPrefix(pathEntry.asPath().asFragment().toRelative());
         }
@@ -3317,6 +3465,14 @@ public abstract class SkyframeExecutor implements WalkableGraphFactory {
           workspaceInfo = modifiedFileSet.getWorkspaceInfo();
           workspaceInfoFromDiffReceiver.syncWorkspaceInfoFromDiff(
               pathEntry.asPath().asFragment(), workspaceInfo);
+
+          var remoteAnalysisCachingOptions = options.getOptions(RemoteAnalysisCachingOptions.class);
+          if (remoteAnalysisCachingOptions != null
+              && remoteAnalysisCachingOptions.mode.requiresBackendConnectivity()) {
+            handleDiffsForRemoteAnalysisCaching(
+                diffAwarenessManager.getDiffFromEvaluatingVersion(
+                    fileSystem, getPathForModifiedFileSet(pathEntry), ignoredPaths, options));
+          }
         }
         if (modifiedFileSet.getModifiedFileSet().treatEverythingAsModified()) {
           pathEntriesWithoutDiffInformation.add(Pair.of(pathEntry, modifiedFileSet));
@@ -3338,11 +3494,16 @@ public abstract class SkyframeExecutor implements WalkableGraphFactory {
           tsgm,
           pathEntriesWithoutDiffInformation,
           options.getOptions(PackageOptions.class).checkOutputFiles,
-          repoOptions == null || repoOptions.checkExternalRepositoryFiles,
+          repoOptions != null && repoOptions.checkExternalRepositoryFiles,
           fsvcThreads);
     }
     handleClientEnvironmentChanges();
     return workspaceInfo;
+  }
+
+  private void handleDiffsForRemoteAnalysisCaching(ModifiedFileSet diffFromEvaluatingVersion) {
+    logger.atInfo().log("Remote analysis caching diff: %s", diffFromEvaluatingVersion);
+    this.diffFromEvaluatingVersion = diffFromEvaluatingVersion;
   }
 
   /** Returns the path under which to find the modified file set. */
@@ -3810,7 +3971,7 @@ public abstract class SkyframeExecutor implements WalkableGraphFactory {
     }
   }
 
-  private <T extends SkyValue> EvaluationResult<T> evaluate(
+  public <T extends SkyValue> EvaluationResult<T> evaluate(
       Iterable<? extends SkyKey> roots,
       boolean keepGoing,
       int numThreads,
@@ -4088,7 +4249,7 @@ public abstract class SkyframeExecutor implements WalkableGraphFactory {
                 + productName
                 + " dump --skyframe=working_set' to show the working set, after this command."));
 
-    if (skyfocusOptions.handlingStrategy.equals(SkyfocusHandlingStrategy.STRICT)) {
+    if (skyfocusOptions.frontierViolationCheck.equals(FrontierViolationCheck.STRICT)) {
       reporter.handle(Event.warn("Changes outside of the working set will cause a build error."));
     }
 

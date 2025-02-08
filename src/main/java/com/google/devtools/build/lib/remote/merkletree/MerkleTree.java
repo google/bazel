@@ -13,7 +13,7 @@
 // limitations under the License.
 package com.google.devtools.build.lib.remote.merkletree;
 
-import static com.google.devtools.build.lib.util.StringUtil.reencodeInternalToExternal;
+import static com.google.devtools.build.lib.util.StringEncoding.internalToUnicode;
 
 import build.bazel.remote.execution.v2.Digest;
 import build.bazel.remote.execution.v2.Directory;
@@ -32,13 +32,15 @@ import com.google.common.collect.Multimap;
 import com.google.devtools.build.lib.actions.ActionInput;
 import com.google.devtools.build.lib.actions.ArtifactPathResolver;
 import com.google.devtools.build.lib.actions.InputMetadataProvider;
+import com.google.devtools.build.lib.actions.cache.VirtualActionInput;
 import com.google.devtools.build.lib.profiler.Profiler;
 import com.google.devtools.build.lib.profiler.SilentCloseable;
 import com.google.devtools.build.lib.remote.Scrubber.SpawnScrubber;
+import com.google.devtools.build.lib.remote.merkletree.MerkleTree.ContentSource.PathSource;
+import com.google.devtools.build.lib.remote.merkletree.MerkleTree.ContentSource.VirtualActionInputSource;
 import com.google.devtools.build.lib.remote.util.DigestUtil;
 import com.google.devtools.build.lib.vfs.Path;
 import com.google.devtools.build.lib.vfs.PathFragment;
-import com.google.protobuf.ByteString;
 import java.io.IOException;
 import java.util.Collection;
 import java.util.HashMap;
@@ -55,31 +57,14 @@ import javax.annotation.Nullable;
 public class MerkleTree {
   private static final String BAZEL_TOOL_INPUT_MARKER = "bazel_tool_input";
 
-  /** A path or contents */
-  public static class PathOrBytes {
+  /** A source of a file's content. */
+  public sealed interface ContentSource {
+    /** Content provided by an actual file. */
+    record PathSource(Path path) implements ContentSource {}
 
-    private final Path path;
-    private final ByteString bytes;
-
-    public PathOrBytes(Path path) {
-      this.path = Preconditions.checkNotNull(path, "path");
-      this.bytes = null;
-    }
-
-    public PathOrBytes(ByteString bytes) {
-      this.bytes = Preconditions.checkNotNull(bytes, "bytes");
-      this.path = null;
-    }
-
-    @Nullable
-    public Path getPath() {
-      return path;
-    }
-
-    @Nullable
-    public ByteString getBytes() {
-      return bytes;
-    }
+    /** Content provided by a virtual action input. */
+    record VirtualActionInputSource(VirtualActionInput virtualActionInput)
+        implements ContentSource {}
   }
 
   private interface MerkleTreeDirectoryVisitor {
@@ -95,7 +80,8 @@ public class MerkleTree {
   }
 
   private Map<Digest, Directory> digestDirectoryMap;
-  private Map<Digest, PathOrBytes> digestFileMap;
+  // Object is an unwrapped ContentSource to reduce retained memory when caching MerkleTrees.
+  private Map<Digest, Object> digestFileMap;
   @Nullable private final Directory rootProto;
   private final Digest rootDigest;
   private final SortedSet<DirectoryTree.FileNode> files;
@@ -177,13 +163,17 @@ public class MerkleTree {
     return this.digestDirectoryMap;
   }
 
-  private Map<Digest, PathOrBytes> getDigestFileMap() {
+  private Map<Digest, Object> getDigestFileMap() {
     if (this.digestFileMap == null) {
-      Map<Digest, PathOrBytes> newDigestMap = Maps.newHashMap();
+      Map<Digest, Object> newDigestMap = Maps.newHashMap();
       visitTree(
           (dir) -> {
             for (DirectoryTree.FileNode file : dir.getFiles()) {
-              newDigestMap.put(file.getDigest(), toPathOrBytes(file));
+              if (file.getPath() != null) {
+                newDigestMap.put(file.getDigest(), file.getPath());
+              } else {
+                newDigestMap.put(file.getDigest(), file.getVirtualActionInput());
+              }
             }
           });
       this.digestFileMap = newDigestMap;
@@ -197,8 +187,15 @@ public class MerkleTree {
   }
 
   @Nullable
-  public PathOrBytes getFileByDigest(Digest digest) {
-    return getDigestFileMap().get(digest);
+  public ContentSource getFileByDigest(Digest digest) {
+    return switch (getDigestFileMap().get(digest)) {
+      case Path path -> new PathSource(path);
+      case VirtualActionInput virtualActionInput ->
+          new VirtualActionInputSource(virtualActionInput);
+      case null -> null;
+      default ->
+          throw new IllegalStateException("Unexpected value: " + getDigestFileMap().get(digest));
+    };
   }
 
   /**
@@ -398,7 +395,7 @@ public class MerkleTree {
   private static FileNode buildProto(DirectoryTree.FileNode file) {
     var node =
         FileNode.newBuilder()
-            .setName(reencodeInternalToExternal(file.getPathSegment()))
+            .setName(internalToUnicode(file.getPathSegment()))
             .setDigest(file.getDigest())
             .setIsExecutable(file.isExecutable());
     if (file.isToolInput()) {
@@ -409,21 +406,15 @@ public class MerkleTree {
 
   private static DirectoryNode buildProto(String baseName, MerkleTree dir) {
     return DirectoryNode.newBuilder()
-        .setName(reencodeInternalToExternal(baseName))
+        .setName(internalToUnicode(baseName))
         .setDigest(dir.getRootDigest())
         .build();
   }
 
   private static SymlinkNode buildProto(DirectoryTree.SymlinkNode symlink) {
     return SymlinkNode.newBuilder()
-        .setName(reencodeInternalToExternal(symlink.getPathSegment()))
-        .setTarget(reencodeInternalToExternal(symlink.getTarget()))
+        .setName(internalToUnicode(symlink.getPathSegment()))
+        .setTarget(internalToUnicode(symlink.getTarget()))
         .build();
-  }
-
-  private static PathOrBytes toPathOrBytes(DirectoryTree.FileNode file) {
-    return file.getPath() != null
-        ? new PathOrBytes(file.getPath())
-        : new PathOrBytes(file.getBytes());
   }
 }

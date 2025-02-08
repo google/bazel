@@ -121,7 +121,6 @@ public class RunfilesTreeUpdater {
     if (!inputManifest.exists()) {
       return;
     }
-
     Path outputManifest =
         execRoot.getRelative(RunfilesSupport.outputManifestExecPath(tree.getExecPath()));
     try {
@@ -155,6 +154,7 @@ public class RunfilesTreeUpdater {
         new SymlinkTreeHelper(
             execRoot,
             inputManifest,
+            outputManifest,
             runfilesDir,
             /* filesetTree= */ false,
             tree.getWorkspaceName());
@@ -163,7 +163,7 @@ public class RunfilesTreeUpdater {
       case SKIP -> helper.clearRunfilesDirectory();
       case EXTERNAL -> helper.createSymlinksUsingCommand(binTools, env, outErr);
       case INTERNAL -> {
-        helper.createSymlinksDirectly(tree.getMapping());
+        helper.createRunfilesSymlinksDirectly(tree.getMapping());
         outputManifest.createSymbolicLink(inputManifest);
       }
     }

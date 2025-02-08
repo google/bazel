@@ -14,8 +14,8 @@
 package com.google.devtools.build.lib.collect.nestedset;
 
 import static com.google.common.truth.Truth.assertThat;
-import static com.google.common.util.concurrent.Futures.immediateVoidFuture;
 import static com.google.devtools.build.lib.skyframe.serialization.PackedFingerprint.getFingerprintForTesting;
+import static com.google.devtools.build.lib.skyframe.serialization.WriteStatuses.immediateWriteStatus;
 import static org.junit.Assert.assertThrows;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
@@ -26,6 +26,7 @@ import com.google.devtools.build.lib.bugreport.BugReporter;
 import com.google.devtools.build.lib.skyframe.serialization.FingerprintValueStore.MissingFingerprintValueException;
 import com.google.devtools.build.lib.skyframe.serialization.PackedFingerprint;
 import com.google.devtools.build.lib.skyframe.serialization.PutOperation;
+import com.google.devtools.build.lib.skyframe.serialization.WriteStatuses.SettableWriteStatus;
 import java.lang.ref.WeakReference;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -123,8 +124,8 @@ public final class NestedSetSerializationCacheTest {
     PackedFingerprint fingerprint2 = getFingerprintForTesting("xyz");
     Object[] contents1 = new Object[] {"abc"};
     Object[] contents2 = new Object[] {"xyz"};
-    PutOperation result1 = new PutOperation(fingerprint1, SettableFuture.create());
-    PutOperation result2 = new PutOperation(fingerprint2, SettableFuture.create());
+    PutOperation result1 = new PutOperation(fingerprint1, new SettableWriteStatus());
+    PutOperation result2 = new PutOperation(fingerprint2, new SettableWriteStatus());
 
     assertThat(cache.putIfAbsent(contents1, result1, DEFAULT_CONTEXT)).isNull();
     assertThat(cache.putIfAbsent(contents2, result2, DEFAULT_CONTEXT)).isNull();
@@ -140,9 +141,9 @@ public final class NestedSetSerializationCacheTest {
   public void putIfAbsent_existingFingerprintAndContents_returnsExistingResult() {
     PackedFingerprint fingerprint = getFingerprintForTesting("abc");
     Object[] contents = new Object[0];
-    PutOperation result1 = new PutOperation(fingerprint, SettableFuture.create());
-    PutOperation result2 = new PutOperation(fingerprint, SettableFuture.create());
-    PutOperation result3 = new PutOperation(fingerprint, SettableFuture.create());
+    PutOperation result1 = new PutOperation(fingerprint, new SettableWriteStatus());
+    PutOperation result2 = new PutOperation(fingerprint, new SettableWriteStatus());
+    PutOperation result3 = new PutOperation(fingerprint, new SettableWriteStatus());
 
     assertThat(cache.putIfAbsent(contents, result1, DEFAULT_CONTEXT)).isNull();
     assertThat(cache.putIfAbsent(contents, result2, DEFAULT_CONTEXT)).isSameInstanceAs(result1);
@@ -154,7 +155,7 @@ public final class NestedSetSerializationCacheTest {
     PackedFingerprint fingerprint = getFingerprintForTesting("abc");
     SettableFuture<Object[]> future = SettableFuture.create();
     Object[] contents = new Object[0];
-    PutOperation result = new PutOperation(fingerprint, SettableFuture.create());
+    PutOperation result = new PutOperation(fingerprint, new SettableWriteStatus());
 
     assertThat(cache.putFutureIfAbsent(fingerprint, future, DEFAULT_CONTEXT)).isNull();
     assertThat(cache.putIfAbsent(contents, result, DEFAULT_CONTEXT)).isNull();
@@ -211,7 +212,7 @@ public final class NestedSetSerializationCacheTest {
   public void putIfAbsent_cacheEntriesHaveLifetimeOfContents() {
     PackedFingerprint fingerprint = getFingerprintForTesting("abc");
     Object[] contents = new Object[0];
-    PutOperation result = new PutOperation(fingerprint, immediateVoidFuture());
+    PutOperation result = new PutOperation(fingerprint, immediateWriteStatus());
 
     var unused = cache.putIfAbsent(contents, result, DEFAULT_CONTEXT);
 
@@ -268,10 +269,10 @@ public final class NestedSetSerializationCacheTest {
     String contextUpper = "UPPER";
     Object[] contentsLower = new Object[] {"abc"};
     Object[] contentsUpper = new Object[] {"ABC"};
-    PutOperation resultLower1 = new PutOperation(fingerprint, SettableFuture.create());
-    PutOperation resultUpper1 = new PutOperation(fingerprint, SettableFuture.create());
-    PutOperation resultLower2 = new PutOperation(fingerprint, SettableFuture.create());
-    PutOperation resultUpper2 = new PutOperation(fingerprint, SettableFuture.create());
+    PutOperation resultLower1 = new PutOperation(fingerprint, new SettableWriteStatus());
+    PutOperation resultUpper1 = new PutOperation(fingerprint, new SettableWriteStatus());
+    PutOperation resultLower2 = new PutOperation(fingerprint, new SettableWriteStatus());
+    PutOperation resultUpper2 = new PutOperation(fingerprint, new SettableWriteStatus());
 
     assertThat(cache.putIfAbsent(contentsLower, resultLower1, contextLower)).isNull();
     assertThat(cache.putIfAbsent(contentsUpper, resultUpper1, contextUpper)).isNull();
@@ -304,8 +305,8 @@ public final class NestedSetSerializationCacheTest {
     PackedFingerprint fingerprint = getFingerprintForTesting("abc");
     SettableFuture<Object[]> future = SettableFuture.create();
     Object[] contents = new Object[0];
-    PutOperation result1 = new PutOperation(fingerprint, SettableFuture.create());
-    PutOperation result2 = new PutOperation(fingerprint, SettableFuture.create());
+    PutOperation result1 = new PutOperation(fingerprint, new SettableWriteStatus());
+    PutOperation result2 = new PutOperation(fingerprint, new SettableWriteStatus());
 
     assertThat(cache.putFutureIfAbsent(fingerprint, future, new Context())).isNull();
     assertThat(cache.putFutureIfAbsent(fingerprint, SettableFuture.create(), new Context()))

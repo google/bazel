@@ -14,7 +14,6 @@
 
 package com.google.devtools.build.lib.bazel.repository;
 
-import com.google.auto.value.AutoValue;
 import com.google.devtools.build.lib.cmdline.LabelSyntaxException;
 import com.google.devtools.build.lib.cmdline.RepositoryName;
 import com.google.devtools.build.lib.util.OptionsUtils;
@@ -28,6 +27,7 @@ import com.google.devtools.common.options.OptionMetadataTag;
 import com.google.devtools.common.options.OptionsBase;
 import com.google.devtools.common.options.OptionsParsingException;
 import java.util.List;
+import net.starlark.java.eval.EvalException;
 
 /** Command-line options for repositories. */
 public class RepositoryOptions extends OptionsBase {
@@ -131,8 +131,6 @@ public class RepositoryOptions extends OptionsBase {
               + "to download them.")
   public List<PathFragment> experimentalDistdir;
 
-
-
   @Option(
       name = "override_repository",
       defaultValue = "null",
@@ -148,6 +146,24 @@ public class RepositoryOptions extends OptionsBase {
               + " output of `bazel info workspace`. If the given path is empty, then remove any"
               + " previous overrides.")
   public List<RepositoryOverride> repositoryOverrides;
+
+  @Option(
+      name = "inject_repository",
+      defaultValue = "null",
+      allowMultiple = true,
+      converter = RepositoryInjectionConverter.class,
+      documentationCategory = OptionDocumentationCategory.UNCATEGORIZED,
+      effectTags = {OptionEffectTag.UNKNOWN},
+      help =
+          "Adds a new repository with a local path in the form of <repository name>=<path>. This"
+              + " only takes effect with --enable_bzlmod and is equivalent to adding a"
+              + " corresponding `local_repository` to the root module's MODULE.bazel file via"
+              + " `use_repo_rule`. If the given path is an absolute path, it will be used as it is."
+              + " If the given path is a relative path, it is relative to the current working"
+              + " directory. If the given path starts with '%workspace%', it is relative to the"
+              + " workspace root, which is the output of `bazel info workspace`. If the given path"
+              + " is empty, then remove any previous injections.")
+  public List<RepositoryInjection> repositoryInjections;
 
   @Option(
       name = "override_module",
@@ -191,6 +207,7 @@ public class RepositoryOptions extends OptionsBase {
       defaultValue = "null",
       documentationCategory = OptionDocumentationCategory.REMOTE,
       effectTags = {OptionEffectTag.UNKNOWN},
+      converter = OptionsUtils.PathFragmentConverter.class,
       help =
           "Specify a file to configure the remote downloader with. This file consists of lines, "
               + "each of which starts with a directive (`allow`, `block` or `rewrite`) followed "
@@ -198,7 +215,7 @@ public class RepositoryOptions extends OptionsBase {
               + "against, and one to use as a substitute URL, with back-references starting from "
               + "`$1`. It is possible for multiple `rewrite` directives for the same URL to be "
               + "give, and in this case multiple URLs will be returned.")
-  public String downloaderConfig;
+  public PathFragment downloaderConfig;
 
   /** See {@link #workerForRepoFetching}. */
   public enum WorkerForRepoFetching {
@@ -362,9 +379,38 @@ public class RepositoryOptions extends OptionsBase {
       OptionsUtils.PathFragmentConverter pathConverter = new OptionsUtils.PathFragmentConverter();
       String pathString = pathConverter.convert(pieces[1]).getPathString();
       try {
-        return RepositoryOverride.create(RepositoryName.create(pieces[0]), pathString);
+        return new RepositoryOverride(RepositoryName.create(pieces[0]), pathString);
       } catch (LabelSyntaxException e) {
         throw new OptionsParsingException("Invalid repository name given to override", input, e);
+      }
+    }
+
+    @Override
+    public String getTypeDescription() {
+      return "an equals-separated mapping of repository name to path";
+    }
+  }
+
+  /**
+   * Converts from an equals-separated pair of strings into RepositoryName->PathFragment mapping.
+   */
+  public static class RepositoryInjectionConverter
+      extends Converter.Contextless<RepositoryInjection> {
+
+    @Override
+    public RepositoryInjection convert(String input) throws OptionsParsingException {
+      String[] pieces = input.split("=", 2);
+      if (pieces.length != 2) {
+        throw new OptionsParsingException(
+            "Repository injections must be of the form 'repository-name=path'", input);
+      }
+      OptionsUtils.PathFragmentConverter pathConverter = new OptionsUtils.PathFragmentConverter();
+      String pathString = pathConverter.convert(pieces[1]).getPathString();
+      try {
+        RepositoryName.validateUserProvidedRepoName(pieces[0]);
+        return new RepositoryInjection(pieces[0], pathString);
+      } catch (EvalException e) {
+        throw new OptionsParsingException("Invalid repository name given to inject", input, e);
       }
     }
 
@@ -396,7 +442,7 @@ public class RepositoryOptions extends OptionsBase {
 
       OptionsUtils.PathFragmentConverter pathConverter = new OptionsUtils.PathFragmentConverter();
       String pathString = pathConverter.convert(pieces[1]).getPathString();
-      return ModuleOverride.create(pieces[0], pathString);
+      return new ModuleOverride(pieces[0], pathString);
     }
 
     @Override
@@ -406,28 +452,14 @@ public class RepositoryOptions extends OptionsBase {
   }
 
   /** A repository override, represented by a name and an absolute path to a repository. */
-  @AutoValue
-  public abstract static class RepositoryOverride {
+  public record RepositoryOverride(RepositoryName repositoryName, String path) {}
 
-    private static RepositoryOverride create(RepositoryName repositoryName, String path) {
-      return new AutoValue_RepositoryOptions_RepositoryOverride(repositoryName, path);
-    }
-
-    public abstract RepositoryName repositoryName();
-
-    public abstract String path();
-  }
+  /**
+   * A repository injected into the scope of the root module, represented by a name and an absolute
+   * path to a repository.
+   */
+  public record RepositoryInjection(String apparentName, String path) {}
 
   /** A module override, represented by a name and an absolute path to a module. */
-  @AutoValue
-  public abstract static class ModuleOverride {
-
-    private static ModuleOverride create(String moduleName, String path) {
-      return new AutoValue_RepositoryOptions_ModuleOverride(moduleName, path);
-    }
-
-    public abstract String moduleName();
-
-    public abstract String path();
-  }
+  public record ModuleOverride(String moduleName, String path) {}
 }

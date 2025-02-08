@@ -156,9 +156,7 @@ public class BzlmodRepoCycleReporter implements CyclesReporter.SingleCycleReport
             if (input instanceof RepositoryDirectoryValue.Key) {
               return ((RepositoryDirectoryValue.Key) input).argument().toString();
             } else if (input.argument() instanceof ModuleExtensionId id) {
-              return String.format(
-                  "extension '%s' defined in %s",
-                  id.getExtensionName(), id.getBzlFileLabel().getCanonicalForm());
+              return "module extension " + id;
             } else if (input.argument() instanceof RepositoryMappingValue.Key key) {
               if (key == RepositoryMappingValue.KEY_FOR_ROOT_MODULE_WITHOUT_WORKSPACE_REPOS) {
                 return "repository mapping of @@ without WORKSPACE repos";

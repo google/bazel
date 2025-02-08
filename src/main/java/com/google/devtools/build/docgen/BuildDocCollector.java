@@ -15,8 +15,8 @@
 package com.google.devtools.build.docgen;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
+import static java.util.Objects.requireNonNull;
 
-import com.google.auto.value.AutoValue;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Ascii;
 import com.google.common.base.Splitter;
@@ -480,14 +480,14 @@ public class BuildDocCollector {
   }
 
   /** The file and symbol from which documentation was obtained. */
-  @AutoValue
-  abstract static class DocumentationOrigin {
-    abstract String file();
-
-    abstract String symbol();
+  record DocumentationOrigin(String file, String symbol) {
+    DocumentationOrigin {
+      requireNonNull(file, "file");
+      requireNonNull(symbol, "symbol");
+    }
 
     static DocumentationOrigin create(String file, String symbol) {
-      return new AutoValue_BuildDocCollector_DocumentationOrigin(file, symbol);
+      return new DocumentationOrigin(file, symbol);
     }
   }
 }

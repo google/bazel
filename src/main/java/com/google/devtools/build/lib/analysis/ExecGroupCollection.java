@@ -15,14 +15,15 @@ package com.google.devtools.build.lib.analysis;
 
 import static com.google.common.collect.ImmutableSet.toImmutableSet;
 import static com.google.devtools.build.lib.packages.ExecGroup.DEFAULT_EXEC_GROUP_NAME;
-import static java.util.stream.Collectors.joining;
 
 import com.google.auto.value.AutoValue;
 import com.google.common.collect.HashBasedTable;
+import com.google.common.collect.ImmutableCollection;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.ImmutableMultimap;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.ImmutableTable;
-import com.google.common.collect.Maps;
+import com.google.common.collect.Iterables;
 import com.google.common.collect.Table;
 import com.google.devtools.build.lib.analysis.config.ToolchainTypeRequirement;
 import com.google.devtools.build.lib.analysis.platform.PlatformInfo;
@@ -37,6 +38,7 @@ import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import javax.annotation.Nullable;
+import net.starlark.java.spelling.SpellChecker;
 
 /**
  * A container class for groups of {@link ExecGroup} instances. This correctly handles exec group
@@ -48,16 +50,16 @@ public abstract class ExecGroupCollection {
   /**
    * Prepares the input exec groups to serve as {@link Builder#execGroups}.
    *
-   * <p>Applies any inheritance specified via {@link ExecGroup#copyFrom} and adds auto exec groups
-   * when {@code useAutoExecGroups} is true.
+   * <p>Adds auto exec groups when {@code useAutoExecGroups} is true.
    */
   public static ImmutableMap<String, ExecGroup> process(
       ImmutableMap<String, ExecGroup> execGroups,
       ImmutableSet<Label> defaultExecWith,
+      ImmutableMultimap<String, Label> execGroupExecWith,
       ImmutableSet<ToolchainTypeRequirement> defaultToolchainTypes,
       boolean useAutoExecGroups) {
     var processedGroups =
-        Maps.<String, ExecGroup>newHashMapWithExpectedSize(
+        ImmutableMap.<String, ExecGroup>builderWithExpectedSize(
             useAutoExecGroups
                 ? (execGroups.size() + defaultToolchainTypes.size())
                 : execGroups.size());
@@ -65,16 +67,23 @@ public abstract class ExecGroupCollection {
       String name = entry.getKey();
       ExecGroup execGroup = entry.getValue();
 
-      if (execGroup.copyFrom() != null) {
-        if (execGroup.copyFrom().equals(DEFAULT_EXEC_GROUP_NAME)) {
+      if (execGroup.copyFromDefault()) {
           execGroup =
               ExecGroup.builder()
                   .execCompatibleWith(defaultExecWith)
                   .toolchainTypes(defaultToolchainTypes)
                   .build();
-        } else {
-          execGroup = execGroup.inheritFrom(execGroups.get(execGroup.copyFrom()));
-        }
+      }
+      ImmutableCollection<Label> extraExecWith = execGroupExecWith.get(name);
+      if (!extraExecWith.isEmpty()) {
+        execGroup =
+            execGroup.toBuilder()
+                .execCompatibleWith(
+                    ImmutableSet.<Label>builder()
+                        .addAll(execGroup.execCompatibleWith())
+                        .addAll(extraExecWith)
+                        .build())
+                .build();
       }
 
       processedGroups.put(name, execGroup);
@@ -83,16 +92,22 @@ public abstract class ExecGroupCollection {
     if (useAutoExecGroups) {
       // Creates one exec group for each toolchain (automatic exec groups).
       for (ToolchainTypeRequirement toolchainType : defaultToolchainTypes) {
+        ImmutableSet<Label> execCompatibleWith = defaultExecWith;
+        ImmutableCollection<Label> extraExecWith =
+            execGroupExecWith.get(toolchainType.toolchainType().getUnambiguousCanonicalForm());
+        if (!extraExecWith.isEmpty()) {
+          execCompatibleWith =
+              ImmutableSet.<Label>builder().addAll(defaultExecWith).addAll(extraExecWith).build();
+        }
         processedGroups.put(
             toolchainType.toolchainType().toString(),
             ExecGroup.builder()
                 .addToolchainType(toolchainType)
-                .copyFrom(null)
-                .execCompatibleWith(defaultExecWith)
+                .execCompatibleWith(execCompatibleWith)
                 .build());
       }
     }
-    return ImmutableMap.copyOf(processedGroups);
+    return processedGroups.buildOrThrow();
   }
 
   /** Builder class for correctly constructing ExecGroupCollection instances. */
@@ -141,7 +156,10 @@ public abstract class ExecGroupCollection {
               .filter(name -> !execGroupNames.contains(name))
               .collect(toImmutableSet());
       if (!unknownTargetExecGroupNames.isEmpty()) {
-        throw new InvalidExecGroupException(unknownTargetExecGroupNames);
+        throw new InvalidExecGroupException(
+            "exec_properties",
+            unknownTargetExecGroupNames,
+            Iterables.concat(execGroupNames, ImmutableSet.of(DEFAULT_EXEC_GROUP_NAME)));
       }
     }
 
@@ -264,11 +282,18 @@ public abstract class ExecGroupCollection {
   /** An error for when the user tries to access a non-existent exec group. */
   public static final class InvalidExecGroupException extends AbstractSaneAnalysisException {
 
-    public InvalidExecGroupException(Collection<String> invalidNames) {
+    public InvalidExecGroupException(
+        String what, Collection<String> invalidNames, Iterable<String> validNames) {
       super(
           String.format(
-              "Tried to set properties for non-existent exec groups: %s.",
-              invalidNames.stream().collect(joining(","))));
+              "Tried to set %s for non-existent exec groups: %s%s",
+              what,
+              String.join(",", invalidNames),
+              invalidNames.stream()
+                  .map(invalidName -> SpellChecker.didYouMean(invalidName, validNames))
+                  .filter(s -> !s.isEmpty())
+                  .findFirst()
+                  .orElse("")));
     }
 
     @Override

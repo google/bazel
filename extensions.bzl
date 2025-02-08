@@ -16,12 +16,9 @@
 
 """
 
-load("@bazel_tools//tools/build_defs/repo:local.bzl", "local_repository")
 load("//:distdir.bzl", "distdir_tar", "repo_cache_tar")
 load("//:repositories.bzl", "DIST_ARCHIVE_REPOS", "embedded_jdk_repositories")
 load("//:workspace_deps.bzl", "WORKSPACE_REPOS")
-load("//src/main/res:winsdk_configure.bzl", "winsdk_configure")
-load("//src/test/shell/bazel:list_source_repository.bzl", "list_source_repository")
 load("//src/tools/bzlmod:utils.bzl", "parse_bazel_module_repos")
 load("//tools/distributions/debian:deps.bzl", "debian_deps")
 
@@ -46,17 +43,3 @@ def _bazel_build_deps(ctx):
     return ctx.extension_metadata(reproducible = True)
 
 bazel_build_deps = module_extension(implementation = _bazel_build_deps)
-
-### Dependencies for testing Bazel
-def _bazel_test_deps(ctx):
-    list_source_repository(name = "local_bazel_source_list")
-    winsdk_configure(name = "local_config_winsdk")
-
-    # /usr/local/kythe is setup on Bazel CI machines
-    local_repository(
-        name = "kythe_release",
-        path = "/usr/local/kythe",
-    )
-    return ctx.extension_metadata(reproducible = True)
-
-bazel_test_deps = module_extension(implementation = _bazel_test_deps)

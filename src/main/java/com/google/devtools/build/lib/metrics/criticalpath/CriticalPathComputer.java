@@ -24,6 +24,7 @@ import com.google.common.flogger.GoogleLogger;
 import com.google.common.flogger.StackSize;
 import com.google.devtools.build.lib.actions.Action;
 import com.google.devtools.build.lib.actions.ActionAnalysisMetadata;
+import com.google.devtools.build.lib.actions.ActionChangePrunedEvent;
 import com.google.devtools.build.lib.actions.ActionCompletionEvent;
 import com.google.devtools.build.lib.actions.ActionKeyContext;
 import com.google.devtools.build.lib.actions.ActionStartedEvent;
@@ -314,6 +315,23 @@ public class CriticalPathComputer {
         event.getRelativeActionStartTimeNanos(), event.getFinishTimeNanos(), action, component, "");
   }
 
+  @Subscribe
+  @AllowConcurrentEvents
+  public void actionChangePruned(ActionChangePrunedEvent event) throws InterruptedException {
+    if (graph == null) {
+      return;
+    }
+
+    var actionLookupData = event.actionLookupData();
+    if (!(Actions.getAction(graph, actionLookupData) instanceof Action action)) {
+      return;
+    }
+
+    var component = tryAddComponent(createComponent(action, event.finishTimeNanos()));
+    finalizeActionStat(
+        event.finishTimeNanos(), event.finishTimeNanos(), action, component, "change pruned");
+  }
+
   /**
    * Record that the failed rewound action is no longer running. The action may or may not start
    * again later.
@@ -340,10 +358,9 @@ public class CriticalPathComputer {
       long finishTimeNanos,
       Action action,
       CriticalPathComponent component,
-      String finalizeReason)
-      throws InterruptedException {
+      String finalizeReason) {
     for (Artifact input : action.getInputs().toList()) {
-      addArtifactDependency(component, input, startTimeNanos, finishTimeNanos);
+      addArtifactDependency(component, input, finishTimeNanos);
     }
     if (Duration.ofNanos(finishTimeNanos - startTimeNanos).compareTo(Duration.ofMillis(-5)) < 0) {
       // See note in {@link Clock#nanoTime} about non increasing subsequent #nanoTime calls.
@@ -357,22 +374,8 @@ public class CriticalPathComputer {
 
   /** If "input" is a generated artifact, link its critical path to the one we're building. */
   private void addArtifactDependency(
-      CriticalPathComponent actionStats,
-      Artifact input,
-      long componentStartNanos,
-      long componentFinishNanos)
-      throws InterruptedException {
+      CriticalPathComponent actionStats, Artifact input, long componentFinishNanos) {
     CriticalPathComponent depComponent = outputArtifactToComponent.get(input);
-
-    if (depComponent == null && !input.isSourceArtifact() && graph != null) {
-      // The generating action of the input is missing. It happens when the action was change
-      // pruned in an incremental build. Query skyframe for the Action data.
-      if (Actions.getGeneratingAction(graph, input) instanceof Action action) {
-        depComponent = tryAddComponent(createComponent(action, componentStartNanos));
-        finalizeActionStat(
-            componentStartNanos, componentStartNanos, action, depComponent, "change pruning");
-      }
-    }
 
     // Typically, the dep component should already be finished since its output was used as an input
     // for a just-completed action. However, we tolerate it still running for (a) action rewinding

@@ -98,18 +98,20 @@ Java_com_google_devtools_build_lib_skyframe_MacOSXFsEventsDiffAwareness_create(
   context.release = nullptr;
   context.copyDescription = nullptr;
 
-  // Create an CFArrayRef of CFStringRef from the Java array of String
+  // Create a CFArrayRef of CFStringRef from the Java array of UTF-8 byte
+  // strings.
   jsize length = env->GetArrayLength(paths);
   CFStringRef *pathsArray = new CFStringRef[length];
   for (int i = 0; i < length; i++) {
-    jstring path = (jstring)env->GetObjectArrayElement(paths, i);
-    const char *pathCStr = env->GetStringUTFChars(path, nullptr);
-    pathsArray[i] =
-        CFStringCreateWithCString(nullptr, pathCStr, kCFStringEncodingUTF8);
-    env->ReleaseStringUTFChars(path, pathCStr);
+    jbyteArray path = (jbyteArray)env->GetObjectArrayElement(paths, i);
+    jbyte *pathBytes = env->GetByteArrayElements(path, nullptr);
+    jsize pathLength = env->GetArrayLength(path);
+    pathsArray[i] = CFStringCreateWithBytes(
+        nullptr, (UInt8 *)pathBytes, pathLength, kCFStringEncodingUTF8, false);
+    env->ReleaseByteArrayElements(path, pathBytes, JNI_ABORT);
   }
   CFArrayRef pathsToWatch =
-      CFArrayCreate(nullptr, (const void **)pathsArray, 1, nullptr);
+      CFArrayCreate(nullptr, (const void **)pathsArray, length, nullptr);
   delete[] pathsArray;
   info->stream = FSEventStreamCreate(
       nullptr, &FsEventsDiffAwarenessCallback, &context, pathsToWatch,
@@ -160,11 +162,15 @@ Java_com_google_devtools_build_lib_skyframe_MacOSXFsEventsDiffAwareness_poll(
   if (info->everything_changed) {
     result = nullptr;
   } else {
-    jclass classString = env->FindClass("java/lang/String");
-    result = env->NewObjectArray(info->paths.size(), classString, nullptr);
+    jclass classByteArray = env->FindClass("[B");
+    result = env->NewObjectArray(info->paths.size(), classByteArray, nullptr);
     int i = 0;
     for (auto it = info->paths.begin(); it != info->paths.end(); it++, i++) {
-      env->SetObjectArrayElement(result, i, env->NewStringUTF(it->c_str()));
+      jbyteArray path = env->NewByteArray(it->size());
+      env->SetByteArrayRegion(path, 0, it->size(),
+                              reinterpret_cast<const jbyte *>(it->c_str()));
+      env->SetObjectArrayElement(result, i, path);
+      env->DeleteLocalRef(path);
     }
   }
 

@@ -59,7 +59,6 @@ import com.google.devtools.build.lib.remote.util.DigestUtil;
 import com.google.devtools.build.lib.remote.util.TracingMetadataUtils;
 import com.google.devtools.build.lib.remote.util.Utils;
 import com.google.devtools.build.lib.remote.zstd.ZstdDecompressingOutputStream;
-import com.google.devtools.build.lib.vfs.Path;
 import com.google.protobuf.ByteString;
 import io.grpc.Channel;
 import io.grpc.Status;
@@ -109,7 +108,7 @@ public class GrpcCacheClient implements RemoteCacheClient, MissingDigestsFinder 
             options.remoteInstanceName,
             channel,
             callCredentialsProvider,
-            options.remoteTimeout.getSeconds(),
+            options.remoteTimeout.toSeconds(),
             retrier,
             options.maximumOpenFiles,
             digestUtil.getDigestFunction());
@@ -143,7 +142,7 @@ public class GrpcCacheClient implements RemoteCacheClient, MissingDigestsFinder 
             TracingMetadataUtils.attachMetadataInterceptor(context.getRequestMetadata()),
             new NetworkTimeInterceptor(context::getNetworkTime))
         .withCallCredentials(callCredentialsProvider.getCallCredentials())
-        .withDeadlineAfter(options.remoteTimeout.getSeconds(), TimeUnit.SECONDS);
+        .withDeadlineAfter(options.remoteTimeout.toSeconds(), TimeUnit.SECONDS);
   }
 
   private ByteStreamStub bsAsyncStub(RemoteActionExecutionContext context, Channel channel) {
@@ -152,7 +151,7 @@ public class GrpcCacheClient implements RemoteCacheClient, MissingDigestsFinder 
             TracingMetadataUtils.attachMetadataInterceptor(context.getRequestMetadata()),
             new NetworkTimeInterceptor(context::getNetworkTime))
         .withCallCredentials(callCredentialsProvider.getCallCredentials())
-        .withDeadlineAfter(options.remoteTimeout.getSeconds(), TimeUnit.SECONDS);
+        .withDeadlineAfter(options.remoteTimeout.toSeconds(), TimeUnit.SECONDS);
   }
 
   private ActionCacheFutureStub acFutureStub(
@@ -162,7 +161,7 @@ public class GrpcCacheClient implements RemoteCacheClient, MissingDigestsFinder 
             TracingMetadataUtils.attachMetadataInterceptor(context.getRequestMetadata()),
             new NetworkTimeInterceptor(context::getNetworkTime))
         .withCallCredentials(callCredentialsProvider.getCallCredentials())
-        .withDeadlineAfter(options.remoteTimeout.getSeconds(), TimeUnit.SECONDS);
+        .withDeadlineAfter(options.remoteTimeout.toSeconds(), TimeUnit.SECONDS);
   }
 
   @Override
@@ -484,25 +483,13 @@ public class GrpcCacheClient implements RemoteCacheClient, MissingDigestsFinder 
   }
 
   @Override
-  public ListenableFuture<Void> uploadFile(
-      RemoteActionExecutionContext context, Digest digest, Path path) {
-    return uploadChunker(
-        context,
-        digest,
-        Chunker.builder()
-            .setInput(digest.getSizeBytes(), path)
-            .setCompressed(shouldCompress(digest))
-            .build());
-  }
-
-  @Override
   public ListenableFuture<Void> uploadBlob(
-      RemoteActionExecutionContext context, Digest digest, ByteString data) {
+      RemoteActionExecutionContext context, Digest digest, Blob blob) {
     return uploadChunker(
         context,
         digest,
         Chunker.builder()
-            .setInput(data.toByteArray())
+            .setInput(digest.getSizeBytes(), blob)
             .setCompressed(shouldCompress(digest))
             .build());
   }
@@ -513,10 +500,10 @@ public class GrpcCacheClient implements RemoteCacheClient, MissingDigestsFinder 
     f.addListener(
         () -> {
           try {
-            chunker.reset();
+            chunker.close();
           } catch (IOException e) {
             logger.atWarning().withCause(e).log(
-                "failed to reset chunker uploading %s/%d", digest.getHash(), digest.getSizeBytes());
+                "failed to close chunker uploading %s/%d", digest.getHash(), digest.getSizeBytes());
           }
         },
         MoreExecutors.directExecutor());

@@ -98,7 +98,8 @@ final class AspectCompletor
       CompletionContext ctx,
       ImmutableMap<String, ArtifactsInOutputGroup> outputs,
       Environment env) {
-    return AspectCompleteEvent.createFailed(skyKey.actionLookupKey(), ctx, rootCauses, outputs);
+    return AspectCompleteEvent.createFailed(
+        skyKey.actionLookupKey(), ctx, rootCauses, outputs, value.getWritesOutputToMasterLog());
   }
 
   @Override
@@ -111,6 +112,7 @@ final class AspectCompletor
     return AspectCompleteEvent.createSuccessful(
         skyKey.actionLookupKey(),
         completionContext,
-        artifactsToBuild.getAllArtifactsByOutputGroup());
+        artifactsToBuild.getAllArtifactsByOutputGroup(),
+        value.getWritesOutputToMasterLog());
   }
 }

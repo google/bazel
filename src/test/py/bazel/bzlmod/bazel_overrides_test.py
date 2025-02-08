@@ -14,6 +14,7 @@
 # limitations under the License.
 # pylint: disable=g-long-ternary
 
+import json
 import os
 import shutil
 import tempfile
@@ -45,7 +46,6 @@ class BazelOverridesTest(test_base.TestBase):
         [
             # In ipv6 only network, this has to be enabled.
             # 'startup --host_jvm_args=-Djava.net.preferIPv6Addresses=true',
-            'build --noenable_workspace',
             'build --registry=' + self.main_registry.getURL(),
             # We need to have BCR here to make sure built-in modules like
             # bazel_tools can work.
@@ -400,7 +400,7 @@ class BazelOverridesTest(test_base.TestBase):
             'bazel_dep(name = "ss", version = "1.0")',
             'local_path_override(',
             '  module_name = "ss",',
-            '  path = "%s",' % self.Path('aa'),
+            '  path = "%s",' % self.Path('aa').replace('\\', '/'),
             ')',
         ],
     )
@@ -494,8 +494,8 @@ class BazelOverridesTest(test_base.TestBase):
         allow_failure=True,
     )
     self.assertIn(
-        'ERROR: Error computing the main repository mapping: module not found'
-        ' in registries: ss@1.0',
+        'ERROR: Error computing the main repository mapping: module ss@1.0 not'
+        ' found in registries:',
         stderr,
     )
 
@@ -555,6 +555,122 @@ class BazelOverridesTest(test_base.TestBase):
 
     self.ScratchFile('module/MODULE.bazel', ["module(name = 'module')"])
     _, _, _ = self.RunBazel(['build', '@module//:all'])
+
+  def testInjectRepository(self):
+    self.ScratchFile(
+        'MODULE.bazel',
+        [
+            'bazel_dep(name="other_module", version="1.0")',
+            (
+                'local_path_override(module_name="other_module",'
+                ' path="other_module")'
+            ),
+            'ext = use_extension("//:defs.bzl", "my_ext")',
+            'use_repo(ext, "repo")',
+        ],
+    )
+
+    self.ScratchFile(
+        'other_module/MODULE.bazel',
+        ['module(name="other_module", version="1.0")'],
+    )
+    self.ScratchFile('other_repo/REPO.bazel')
+    self.ScratchFile('other_repo/BUILD', ['filegroup(name="target")'])
+
+    self.ScratchFile(
+        'defs.bzl',
+        [
+            'def _repo_impl(ctx):',
+            '  ctx.file("BUILD")',
+            'my_repo = repository_rule(implementation=_repo_impl)',
+            'def _ext_impl(ctx):',
+            '  my_repo(name = "repo")',
+            'my_ext = module_extension(implementation=_ext_impl)',
+        ],
+    )
+    self.ScratchFile('BUILD')
+
+    self.RunBazel([
+        'build',
+        '--inject_repository=my_repo=%workspace%/other_repo',
+        '@my_repo//:target',
+    ])
+
+    _, stdout, _ = self.RunBazel([
+        'mod',
+        'dump_repo_mapping',
+        '--inject_repository=my_repo=%workspace%/other_repo',
+        '',
+    ])
+    main_repo_mapping = json.loads('\n'.join(stdout))
+    self.assertEqual(main_repo_mapping['my_repo'], '+_repo_rules+my_repo')
+
+    _, stdout, _ = self.RunBazel([
+        'mod',
+        'dump_repo_mapping',
+        '--inject_repository=my_repo=%workspace%/other_repo',
+        '+_repo_rules+my_repo',
+    ])
+    my_repo_mapping = json.loads('\n'.join(stdout))
+    self.assertEqual(main_repo_mapping, my_repo_mapping)
+
+  def testInjectRepositoryOnExistingRepo(self):
+    self.ScratchFile(
+        'MODULE.bazel',
+        [
+            'ext = use_extension("//:defs.bzl", "my_ext")',
+            'use_repo(ext, my_repo = "repo")',
+        ],
+    )
+
+    self.ScratchFile('other_repo/REPO.bazel')
+    self.ScratchFile('other_repo/BUILD', ['filegroup(name="target")'])
+
+    self.ScratchFile(
+        'defs.bzl',
+        [
+            'def _repo_impl(ctx):',
+            '  ctx.file("BUILD")',
+            'my_repo = repository_rule(implementation=_repo_impl)',
+            'def _ext_impl(ctx):',
+            '  my_repo(name = "repo")',
+            'my_ext = module_extension(implementation=_ext_impl)',
+        ],
+    )
+    self.ScratchFile('BUILD')
+
+    exit_code, _, stderr = self.RunBazel(
+        [
+            'build',
+            '--inject_repository=my_repo=%workspace%/other_repo',
+            '//:all',
+        ],
+        allow_failure=True,
+    )
+    self.AssertNotExitCode(exit_code, 0, stderr)
+    self.assertIn(
+        "Error in use_repo: The repo name 'my_repo' is already being used by"
+        ' --inject_repository at <builtin>',
+        stderr,
+    )
+
+  def testOverrideRepositoryOnNonExistentRepo(self):
+    self.ScratchFile('other_repo/REPO.bazel')
+    self.ScratchFile('other_repo/BUILD', ['filegroup(name="target")'])
+
+    exit_code, _, stderr = self.RunBazel(
+        [
+            'build',
+            '--override_repository=my_repo=%workspace%/other_repo',
+            '@my_repo//:target',
+        ],
+        allow_failure=True,
+    )
+    self.AssertNotExitCode(exit_code, 0, stderr)
+    self.assertIn(
+        "ERROR: No repository visible as '@my_repo' from main repository",
+        stderr,
+    )
 
 
 if __name__ == '__main__':

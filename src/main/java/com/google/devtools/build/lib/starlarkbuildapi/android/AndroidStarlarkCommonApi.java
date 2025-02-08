@@ -13,7 +13,6 @@
 // limitations under the License.
 package com.google.devtools.build.lib.starlarkbuildapi.android;
 
-import com.google.devtools.build.lib.packages.Info;
 import com.google.devtools.build.lib.packages.RuleClass.ConfiguredTargetFactory.RuleErrorException;
 import com.google.devtools.build.lib.starlarkbuildapi.FileApi;
 import com.google.devtools.build.lib.starlarkbuildapi.FilesToRunProviderApi;
@@ -65,27 +64,6 @@ public interface AndroidStarlarkCommonApi<
       })
   @Nullable
   String getSourceDirectoryRelativePathFromResource(FileT resource);
-
-  @StarlarkMethod(
-      name = "enable_implicit_sourceless_deps_exports_compatibility",
-      doc = "Takes a JavaInfo and converts it to an implicit exportable JavaInfo.",
-      documented = false,
-      parameters = {
-        @Param(
-            name = "dep",
-            doc =
-                "A JavaInfo that will be used as an implicit export for sourceless deps exports"
-                    + " compatibility.",
-            positional = true,
-            named = false),
-        @Param(
-            name = "neverlink",
-            doc = "Whether to only use this JavaInfo at compile time and not at runtime.",
-            positional = true,
-            defaultValue = "False")
-      })
-  JavaInfoT enableImplicitSourcelessDepsExportsCompatibility(Info javaInfo, boolean neverlink)
-      throws RuleErrorException;
 
   @StarlarkMethod(
       name = "create_dex_merger_actions",

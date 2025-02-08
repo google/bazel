@@ -52,7 +52,7 @@ public final class RuleInfoExtractorTest extends PackageLoadingTestCase {
     ExtractorContext extractorContext =
         ExtractorContext.builder()
             .labelRenderer(LabelRenderer.DEFAULT)
-            .extractNonStarlarkAttrs(true)
+            .extractNativelyDefinedAttrs(true)
             .build();
     RuleInfo ruleInfo =
         RuleInfoExtractor.buildRuleInfo(extractorContext, "namespace.test_rule", ruleClass);
@@ -61,13 +61,15 @@ public final class RuleInfoExtractorTest extends PackageLoadingTestCase {
             RuleInfo.newBuilder()
                 .setRuleName("namespace.test_rule")
                 .setOriginKey(OriginKey.newBuilder().setName("test_rule").setFile("<native>"))
-                .addAttribute(AttributeInfoExtractor.IMPLICIT_NAME_ATTRIBUTE_INFO)
+                .addAllAttribute(RuleInfoExtractor.IMPLICIT_RULE_ATTRIBUTES.values())
                 .addAttribute(
                     AttributeInfo.newBuilder()
                         .setName("tags")
                         .setType(AttributeType.STRING_LIST)
                         .setDefaultValue("[]")
-                        .setMandatory(false))
+                        .setMandatory(false)
+                        .setNativelyDefined(true)
+                        .build())
                 .build());
   }
 
@@ -87,7 +89,7 @@ public final class RuleInfoExtractorTest extends PackageLoadingTestCase {
     ExtractorContext extractorContext =
         ExtractorContext.builder()
             .labelRenderer(LabelRenderer.DEFAULT)
-            .extractNonStarlarkAttrs(true)
+            .extractNativelyDefinedAttrs(true)
             .build();
     for (RuleClass ruleClass : ruleClassProvider.getRuleClassMap().values()) {
       RuleInfo ruleInfo =
@@ -99,7 +101,7 @@ public final class RuleInfoExtractorTest extends PackageLoadingTestCase {
           .isEqualTo("<native>");
       assertWithMessage("rule '%s'", ruleClass.getName())
           .that(ruleInfo.getAttributeList().getFirst())
-          .isEqualTo(AttributeInfoExtractor.IMPLICIT_NAME_ATTRIBUTE_INFO);
+          .isEqualTo(RuleInfoExtractor.IMPLICIT_RULE_ATTRIBUTES.get("name"));
       assertWithMessage("rule '%s'", ruleClass.getName())
           .that(ruleInfo.getAttributeList().stream().map(AttributeInfo::getName))
           .containsNoDuplicates();

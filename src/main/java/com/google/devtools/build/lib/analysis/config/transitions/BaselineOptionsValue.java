@@ -14,12 +14,14 @@
 
 package com.google.devtools.build.lib.analysis.config.transitions;
 
-import com.google.auto.value.AutoValue;
+import static java.util.Objects.requireNonNull;
+
 import com.google.devtools.build.lib.analysis.config.BuildOptions;
 import com.google.devtools.build.lib.cmdline.Label;
 import com.google.devtools.build.lib.concurrent.ThreadSafety.Immutable;
 import com.google.devtools.build.lib.concurrent.ThreadSafety.ThreadSafe;
 import com.google.devtools.build.lib.skyframe.SkyFunctions;
+import com.google.devtools.build.lib.skyframe.serialization.autocodec.AutoCodec;
 import com.google.devtools.build.skyframe.SkyFunctionName;
 import com.google.devtools.build.skyframe.SkyKey;
 import com.google.devtools.build.skyframe.SkyValue;
@@ -44,12 +46,14 @@ import javax.annotation.Nullable;
 @CheckReturnValue
 @Immutable
 @ThreadSafe
-@AutoValue
-public abstract class BaselineOptionsValue implements SkyValue {
-  public abstract BuildOptions toOptions();
+@AutoCodec
+public record BaselineOptionsValue(BuildOptions toOptions) implements SkyValue {
+  public BaselineOptionsValue {
+    requireNonNull(toOptions, "toOptions");
+  }
 
   public static BaselineOptionsValue create(BuildOptions toOptions) {
-    return new AutoValue_BaselineOptionsValue(toOptions);
+    return new BaselineOptionsValue(toOptions);
   }
 
   public static Key key(boolean afterExecTransition, @Nullable Label newPlatform) {
@@ -60,12 +64,8 @@ public abstract class BaselineOptionsValue implements SkyValue {
   @CheckReturnValue
   @Immutable
   @ThreadSafe
-  @AutoValue
-  public abstract static class Key implements SkyKey {
-    public abstract boolean afterExecTransition();
-
-    @Nullable
-    public abstract Label newPlatform();
+  @AutoCodec
+  public record Key(boolean afterExecTransition, @Nullable Label newPlatform) implements SkyKey {
 
     @Override
     public SkyFunctionName functionName() {
@@ -82,7 +82,7 @@ public abstract class BaselineOptionsValue implements SkyValue {
     }
 
     static Key create(boolean afterExecTransition, @Nullable Label newPlatform) {
-      return new AutoValue_BaselineOptionsValue_Key(afterExecTransition, newPlatform);
+      return new Key(afterExecTransition, newPlatform);
     }
   }
 }

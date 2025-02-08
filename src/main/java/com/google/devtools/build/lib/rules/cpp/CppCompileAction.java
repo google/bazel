@@ -16,7 +16,6 @@ package com.google.devtools.build.lib.rules.cpp;
 import static com.google.common.base.MoreObjects.firstNonNull;
 import static com.google.common.collect.ImmutableSet.toImmutableSet;
 import static com.google.devtools.build.lib.actions.ActionAnalysisMetadata.mergeMaps;
-import static java.nio.charset.StandardCharsets.ISO_8859_1;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.CharMatcher;
@@ -99,7 +98,6 @@ import com.google.devtools.build.skyframe.SkyframeLookupResult;
 import com.google.protobuf.ByteString;
 import java.io.IOException;
 import java.io.InputStream;
-import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -269,8 +267,6 @@ public class CppCompileAction extends AbstractAction implements IncludeScannable
     this.sourceFile = sourceFile;
     this.shareable = shareable;
     this.configuration = configuration;
-    // We do not need to include the middleman artifact since it is a generated artifact and will
-    // definitely exist prior to this action execution.
     this.mandatoryInputs = mandatoryInputs;
     this.mandatorySpawnInputs = mandatorySpawnInputs;
     this.additionalPrunableHeaders = additionalPrunableHeaders;
@@ -283,12 +279,7 @@ public class CppCompileAction extends AbstractAction implements IncludeScannable
         Preconditions.checkNotNull(additionalIncludeScanningRoots);
     this.compileCommandLine =
         buildCommandLine(
-            sourceFile,
-            coptsFilter,
-            actionName,
-            dotdFile,
-            featureConfiguration,
-            variables);
+            sourceFile, coptsFilter, actionName, dotdFile, featureConfiguration, variables);
     this.executionInfo = executionInfo;
     this.actionName = actionName;
     this.featureConfiguration = featureConfiguration;
@@ -519,7 +510,7 @@ public class CppCompileAction extends AbstractAction implements IncludeScannable
                 "failed to generate compile command for rule '%s: %s",
                 getOwner().getLabel(), e.getMessage());
         DetailedExitCode code = createDetailedExitCode(message, Code.COMMAND_GENERATION_FAILURE);
-        throw new ActionExecutionException(message, this, /*catastrophe=*/ false, code);
+        throw new ActionExecutionException(message, this, /* catastrophe= */ false, code);
       }
       commandLineKey = computeCommandLineKey(options);
       ImmutableList<PathFragment> systemIncludeDirs = getSystemIncludeDirs(options);
@@ -913,10 +904,7 @@ public class CppCompileAction extends AbstractAction implements IncludeScannable
     ParamFileInfo paramFileInfo = null;
     if (cppConfiguration().useArgsParamsFile()) {
       paramFileInfo =
-          ParamFileInfo.builder(ParameterFileType.GCC_QUOTED)
-              .setCharset(ISO_8859_1)
-              .setUseAlways(true)
-              .build();
+          ParamFileInfo.builder(ParameterFileType.GCC_QUOTED).setUseAlways(true).build();
     }
     CommandLineAndParamFileInfo commandLineAndParamFileInfo =
         new CommandLineAndParamFileInfo(commandLine, paramFileInfo);
@@ -1104,7 +1092,7 @@ public class CppCompileAction extends AbstractAction implements IncludeScannable
   }
 
   /**
-   * Recalculates this action's live input collection, including sources, middlemen.
+   * Recalculates this action's live input collection.
    *
    * <p>Can only be called if {@link #discoversInputs}, and must be called after execution in that
    * case.
@@ -1356,15 +1344,14 @@ public class CppCompileAction extends AbstractAction implements IncludeScannable
                 paramFilePath,
                 compileCommandLine.getCompilerOptions(getOverwrittenVariables(), pathMapper),
                 // TODO(b/132888308): Support MSVC, which has its own method of escaping strings.
-                ParameterFileType.GCC_QUOTED,
-                StandardCharsets.ISO_8859_1);
+                ParameterFileType.GCC_QUOTED);
       } catch (CommandLineExpansionException e) {
         String message =
             String.format(
                 "failed to generate compile command for rule '%s: %s",
                 getOwner().getLabel(), e.getMessage());
         DetailedExitCode code = createDetailedExitCode(message, Code.COMMAND_GENERATION_FAILURE);
-        throw new ActionExecutionException(message, this, /*catastrophe=*/ false, code);
+        throw new ActionExecutionException(message, this, /* catastrophe= */ false, code);
       }
     }
 
@@ -1604,7 +1591,7 @@ public class CppCompileAction extends AbstractAction implements IncludeScannable
               "failed to generate compile command for rule '%s: %s",
               getOwner().getLabel(), e.getMessage());
       DetailedExitCode code = createDetailedExitCode(message, Code.COMMAND_GENERATION_FAILURE);
-      throw new ActionExecutionException(message, this, /*catastrophe=*/ false, code);
+      throw new ActionExecutionException(message, this, /* catastrophe= */ false, code);
     }
   }
 
@@ -1768,7 +1755,7 @@ public class CppCompileAction extends AbstractAction implements IncludeScannable
               "failed to generate compile environment variables for rule '%s: %s",
               getOwner().getLabel(), e.getMessage());
       DetailedExitCode code = createDetailedExitCode(message, Code.COMMAND_GENERATION_FAILURE);
-      throw new ActionExecutionException(message, this, /*catastrophe=*/ false, code);
+      throw new ActionExecutionException(message, this, /* catastrophe= */ false, code);
     }
   }
 

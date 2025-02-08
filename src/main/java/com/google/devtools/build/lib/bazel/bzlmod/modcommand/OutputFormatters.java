@@ -14,9 +14,9 @@
 
 package com.google.devtools.build.lib.bazel.bzlmod.modcommand;
 
+import static java.util.Objects.requireNonNull;
 import static java.util.stream.Collectors.joining;
 
-import com.google.auto.value.AutoValue;
 import com.google.common.base.Ascii;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
@@ -62,26 +62,25 @@ public final class OutputFormatters {
     protected PrintWriter printer;
     protected ModOptions options;
 
-    /** Compact representation of the data provided by the {@code --verbose} flag. */
-    @AutoValue
-    abstract static class Explanation {
-
-      /** The version from/to which the module was changed after resolution. */
-      abstract Version getChangedVersion();
-
-      abstract ResolutionReason getResolutionReason();
-
-      /**
-       * The list of modules who originally requested the selected version in the case of
-       * Minimal-Version-Selection.
-       */
-      @Nullable
-      abstract ImmutableSet<ModuleKey> getRequestedByModules();
+    /**
+     * Compact representation of the data provided by the {@code --verbose} flag.
+     *
+     * @param changedVersion The version from/to which the module was changed after resolution.
+     * @param requestedByModules The list of modules who originally requested the selected version
+     *     in the case of Minimal-Version-Selection.
+     */
+    record Explanation(
+        Version changedVersion,
+        ResolutionReason resolutionReason,
+        @Nullable ImmutableSet<ModuleKey> requestedByModules) {
+      Explanation {
+        requireNonNull(changedVersion, "changedVersion");
+        requireNonNull(resolutionReason, "resolutionReason");
+      }
 
       static Explanation create(
           Version version, ResolutionReason reason, ImmutableSet<ModuleKey> requestedByModules) {
-        return new AutoValue_OutputFormatters_OutputFormatter_Explanation(
-            version, reason, requestedByModules);
+        return new Explanation(version, reason, requestedByModules);
       }
 
       /**
@@ -90,12 +89,12 @@ public final class OutputFormatters {
        */
       String toExplanationString(boolean unused) {
         String changedVersionLabel =
-            getChangedVersion().equals(Version.EMPTY) ? "_" : getChangedVersion().toString();
+            changedVersion().equals(Version.EMPTY) ? "_" : changedVersion().toString();
         String toOrWasString = unused ? "to" : "was";
         String reasonString =
-            getRequestedByModules() != null
-                ? getRequestedByModules().stream().map(ModuleKey::toString).collect(joining(", "))
-                : Ascii.toLowerCase(getResolutionReason().toString());
+            requestedByModules() != null
+                ? requestedByModules().stream().map(ModuleKey::toString).collect(joining(", "))
+                : Ascii.toLowerCase(resolutionReason().toString());
         return String.format("(%s %s, cause %s)", toOrWasString, changedVersionLabel, reasonString);
       }
     }
@@ -150,18 +149,18 @@ public final class OutputFormatters {
       String repoName = parentModule.getAllDeps(options.includeUnused).get(key);
       Version changedVersion;
       ImmutableSet<ModuleKey> changedByModules = null;
-      ResolutionReason reason = parentModule.getDepReasons().get(repoName);
+      ResolutionReason reason = parentModule.depReasons().get(repoName);
       AugmentedModule replacement =
-          module.isUsed() ? module : depGraph.get(parentModule.getDeps().get(repoName));
+          module.isUsed() ? module : depGraph.get(parentModule.deps().get(repoName));
       if (reason != ResolutionReason.ORIGINAL) {
         if (!module.isUsed()) {
-          changedVersion = replacement.getVersion();
+          changedVersion = replacement.version();
         } else {
-          AugmentedModule old = depGraph.get(parentModule.getUnusedDeps().get(repoName));
-          changedVersion = old.getVersion();
+          AugmentedModule old = depGraph.get(parentModule.unusedDeps().get(repoName));
+          changedVersion = old.version();
         }
         if (reason == ResolutionReason.MINIMAL_VERSION_SELECTION) {
-          changedByModules = replacement.getOriginalDependants();
+          changedByModules = replacement.originalDependants();
         }
         return Explanation.create(changedVersion, reason, changedByModules);
       }

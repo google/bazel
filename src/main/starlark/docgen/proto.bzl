@@ -15,16 +15,15 @@
 
 # Build Encyclopedia entry point for Proto rules implemented in protobuf repository
 
-load("@protobuf//bazel:py_proto_library.bzl", "py_proto_library")
-load("@protobuf//bazel/private:bazel_cc_proto_library.bzl", "cc_proto_library")  # buildifier: disable=bzl-visibility
-load("@protobuf//bazel/private:bazel_java_proto_library_rule.bzl", "java_proto_library")  # buildifier: disable=bzl-visibility
-load("@protobuf//bazel/private:bazel_proto_library_rule.bzl", "proto_library")  # buildifier: disable=bzl-visibility
-load("@protobuf//bazel/private:java_lite_proto_library.bzl", "java_lite_proto_library")  # buildifier: disable=bzl-visibility
-load("@protobuf//bazel/private:proto_lang_toolchain_rule.bzl", "proto_lang_toolchain")  # buildifier: disable=bzl-visibility
-load("@protobuf//bazel/private:proto_toolchain_rule.bzl", "proto_toolchain")  # buildifier: disable=bzl-visibility
+load("@com_google_protobuf//bazel:py_proto_library.bzl", "py_proto_library")
+load("@com_google_protobuf//bazel/private:bazel_cc_proto_library.bzl", "cc_proto_library")  # buildifier: disable=bzl-visibility
+load("@com_google_protobuf//bazel/private:bazel_java_proto_library_rule.bzl", "java_proto_library")  # buildifier: disable=bzl-visibility
+load("@com_google_protobuf//bazel/private:bazel_proto_library_rule.bzl", "proto_library")  # buildifier: disable=bzl-visibility
+load("@com_google_protobuf//bazel/private:java_lite_proto_library.bzl", "java_lite_proto_library")  # buildifier: disable=bzl-visibility
+load("@com_google_protobuf//bazel/private:proto_lang_toolchain_rule.bzl", "proto_lang_toolchain")  # buildifier: disable=bzl-visibility
+load("@com_google_protobuf//bazel/private:proto_toolchain_rule.bzl", "proto_toolchain")  # buildifier: disable=bzl-visibility
 
-binary_rules = struct(
-)
+binary_rules = struct()
 
 library_rules = struct(
     proto_library = proto_library,
@@ -34,8 +33,7 @@ library_rules = struct(
     py_proto_library = py_proto_library,
 )
 
-test_rules = struct(
-)
+test_rules = struct()
 
 other_rules = struct(
     proto_toolchain = proto_toolchain,

@@ -43,7 +43,6 @@ import com.google.devtools.build.lib.actions.ArtifactRoot;
 import com.google.devtools.build.lib.actions.ArtifactRoot.RootType;
 import com.google.devtools.build.lib.actions.BasicActionLookupValue;
 import com.google.devtools.build.lib.actions.FileArtifactValue;
-import com.google.devtools.build.lib.actions.MiddlemanType;
 import com.google.devtools.build.lib.actions.util.ActionsTestUtil;
 import com.google.devtools.build.lib.actions.util.InjectedActionLookupKey;
 import com.google.devtools.build.lib.actions.util.TestAction.DummyAction;
@@ -535,11 +534,6 @@ public final class ActionTemplateExpansionFunctionTest extends FoundationTestCas
     @Override
     public NestedSet<Artifact> getMandatoryInputs() {
       return NestedSetBuilder.create(Order.STABLE_ORDER, inputTreeArtifact);
-    }
-
-    @Override
-    public MiddlemanType getActionType() {
-      return MiddlemanType.NORMAL;
     }
 
     @Override

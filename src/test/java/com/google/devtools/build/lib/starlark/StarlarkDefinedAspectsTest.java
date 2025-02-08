@@ -60,6 +60,7 @@ import com.google.devtools.build.lib.skyframe.AspectKeyCreator.AspectKey;
 import com.google.devtools.build.lib.skyframe.BzlLoadValue;
 import com.google.devtools.build.lib.skyframe.ConfiguredTargetKey;
 import com.google.devtools.build.lib.skyframe.SkyframeExecutor;
+import com.google.devtools.build.lib.skyframe.config.BuildConfigurationKey;
 import com.google.devtools.build.lib.skyframe.serialization.testutils.RoundTripping;
 import com.google.devtools.build.lib.testutil.TestRuleClassProvider;
 import com.google.devtools.build.lib.vfs.Path;
@@ -9766,6 +9767,66 @@ r = rule(_r_impl, attrs = { 'dep' : attr.label(aspects = [a])})
             .collect(toImmutableList());
     // aspect depends on the result of its application on the target deps if it propagates to them
     assertThat(aspectsDeps).containsExactly("//test:t2");
+  }
+
+  @Test
+  public void testTopLevelAspectNotDependsOnConfigeredTopLevelTarget() throws Exception {
+    scratch.file(
+        "test/defs.bzl",
+        """
+        def _a_impl(target, ctx):
+          return []
+        a = aspect(
+          implementation = _a_impl,
+          attr_aspects = ['dep'],
+        )
+
+        def _rule_impl(ctx):
+          pass
+        r1 = rule(
+          implementation = _rule_impl,
+          attrs = {
+            'dep': attr.label(),
+          },
+        )
+        """);
+    scratch.file(
+        "test/BUILD",
+        """
+        load('//test:defs.bzl', 'r1')
+        r1(name = 't1', dep = ':t2')
+        r1(name = 't2', dep = ':t3')
+        r1(name = 't3')
+        """);
+
+    var unused = update(ImmutableList.of("//test:defs.bzl%a"), "//test:t1");
+    var topLevelAspectsNode =
+        skyframeExecutor.getEvaluator().getInMemoryGraph().getAllNodeEntries().stream()
+            .filter(n -> n.getKey().getCanonicalName().contains("TopLevelAspectsKey"))
+            .findFirst()
+            .orElse(null);
+    assertThat(topLevelAspectsNode).isNotNull();
+
+    // top level aspect should not depend on any configured target.
+    ImmutableList<String> configuredTargetsDeps =
+        stream(Iterables.filter(topLevelAspectsNode.getDirectDeps(), ConfiguredTargetKey.class))
+            .map(k -> k.getLabel().toString())
+            .collect(toImmutableList());
+    assertThat(configuredTargetsDeps).isEmpty();
+
+    // top level aspect should not even depend on any build configuration.
+    ImmutableList<String> buildConfiguredTargetsDeps =
+        stream(Iterables.filter(topLevelAspectsNode.getDirectDeps(), BuildConfigurationKey.class))
+            .map(k -> k.getCanonicalName())
+            .collect(toImmutableList());
+    assertThat(buildConfiguredTargetsDeps).hasSize(0);
+
+    // top level aspect should depend on the result of aspect's application on the top level target.
+    ImmutableList<String> aspectsDeps =
+        stream(Iterables.filter(topLevelAspectsNode.getDirectDeps(), AspectKey.class))
+            .map(k -> k.getLabel().toString())
+            .collect(toImmutableList());
+    assertThat(aspectsDeps).containsExactly("//test:t1");
   }
 
   private ImmutableList<AspectKey> getAspectKeys(String targetLabel, String aspectLabel) {

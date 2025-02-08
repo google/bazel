@@ -139,4 +139,44 @@ public final class JavaConfiguredTargetsTest extends BuildViewTestCase {
 
     assertThat(error).hasMessageThat().contains("cannot determine test class");
   }
+
+  @Test
+  public void nativeJavaRuleReportsMissingLoad() throws Exception {
+    scratch.file(
+        "foo/BUILD",
+        """
+        java_library(name = 'foo')
+        """);
+
+    AssertionError error = assertThrows(AssertionError.class, () -> getConfiguredTarget("//foo"));
+
+    assertThat(error)
+        .hasMessageThat()
+        .contains(
+            """
+            The java_library rule has been removed, add the following to your BUILD/bzl file:
+
+            load("@rules_java//java:java_library.bzl", "java_library")
+            """);
+  }
+
+  @Test
+  public void nativeJavaToolchainRuleReportsMissingLoad() throws Exception {
+    scratch.file(
+        "foo/BUILD",
+        """
+        java_toolchain(name = 'foo')
+        """);
+
+    AssertionError error = assertThrows(AssertionError.class, () -> getConfiguredTarget("//foo"));
+
+    assertThat(error)
+        .hasMessageThat()
+        .contains(
+            """
+            The java_toolchain rule has been removed, add the following to your BUILD/bzl file:
+
+            load("@rules_java//java/toolchains:java_toolchain.bzl", "java_toolchain")
+            """);
+  }
 }

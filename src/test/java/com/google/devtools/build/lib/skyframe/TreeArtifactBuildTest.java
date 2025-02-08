@@ -40,7 +40,7 @@ import com.google.devtools.build.lib.actions.Artifact.TreeFileArtifact;
 import com.google.devtools.build.lib.actions.ArtifactRoot;
 import com.google.devtools.build.lib.actions.ArtifactRoot.RootType;
 import com.google.devtools.build.lib.actions.BuildFailedException;
-import com.google.devtools.build.lib.actions.FileArtifactValue.RemoteFileArtifactValue;
+import com.google.devtools.build.lib.actions.FileArtifactValue;
 import com.google.devtools.build.lib.actions.InputMetadataProvider;
 import com.google.devtools.build.lib.actions.util.ActionsTestUtil;
 import com.google.devtools.build.lib.actions.util.TestAction;
@@ -604,18 +604,16 @@ public final class TreeArtifactBuildTest extends TimestampBuilderTestCase {
   @Test
   public void remoteDirectoryInjection() throws Exception {
     SpecialArtifact out = createTreeArtifact("output");
-    RemoteFileArtifactValue remoteFile1 =
-        RemoteFileArtifactValue.create(
+    FileArtifactValue remoteFile1 =
+        FileArtifactValue.createForRemoteFile(
             Hashing.sha256().hashString("one", UTF_8).asBytes(),
             /* size= */ 3,
-            /* locationIndex= */ 1,
-            /* expireAtEpochMilli= */ -1);
-    RemoteFileArtifactValue remoteFile2 =
-        RemoteFileArtifactValue.create(
+            /* locationIndex= */ 1);
+    FileArtifactValue remoteFile2 =
+        FileArtifactValue.createForRemoteFile(
             Hashing.sha256().hashString("two", UTF_8).asBytes(),
             /* size= */ 3,
-            /* locationIndex= */ 2,
-            /* expireAtEpochMilli= */ -1);
+            /* locationIndex= */ 2);
 
     Action action =
         new SimpleTestAction(out) {

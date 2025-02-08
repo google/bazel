@@ -61,6 +61,17 @@ def convert_library_to_link_list_to_linker_input_list(linker_inputs, static_mode
         [lib for linker_input in linker_inputs for lib in linker_input.libraries],
         order = "topological",
     )
+
+    return cc_internal.convert_library_to_link_list_to_linker_input_list(libraries_to_link, static_mode, for_dynamic_library, supports_dynamic_linker)
+
+# A pure Starlark implementation of convert_library_to_link_list_to_linker_input_list
+# at the moment unused, becuase it causes a regression
+def _convert_library_to_link_list_to_linker_input_list(linker_inputs, static_mode, for_dynamic_library, supports_dynamic_linker):
+    libraries_to_link = depset(
+        [lib for linker_input in linker_inputs for lib in linker_input.libraries],
+        order = "topological",
+    )
+
     library_inputs = []
 
     for library_to_link in libraries_to_link.to_list():

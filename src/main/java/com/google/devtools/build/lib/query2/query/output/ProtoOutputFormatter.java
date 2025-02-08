@@ -18,6 +18,7 @@ import static com.google.devtools.build.lib.query2.proto.proto2api.Build.Target.
 import static com.google.devtools.build.lib.query2.proto.proto2api.Build.Target.Discriminator.PACKAGE_GROUP;
 import static com.google.devtools.build.lib.query2.proto.proto2api.Build.Target.Discriminator.RULE;
 import static com.google.devtools.build.lib.query2.proto.proto2api.Build.Target.Discriminator.SOURCE_FILE;
+import static com.google.devtools.build.lib.util.StringEncoding.internalToUnicode;
 
 import com.google.common.base.Preconditions;
 import com.google.common.base.Predicate;
@@ -64,6 +65,7 @@ import com.google.devtools.build.lib.query2.query.aspectresolvers.AspectResolver
 import com.google.devtools.build.lib.starlarkdocextract.ExtractorContext;
 import com.google.devtools.build.lib.starlarkdocextract.LabelRenderer;
 import com.google.devtools.build.lib.starlarkdocextract.RuleInfoExtractor;
+import com.google.devtools.build.lib.vfs.PathFragment;
 import com.google.protobuf.CodedOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
@@ -115,11 +117,14 @@ public class ProtoOutputFormatter extends AbstractUnorderedFormatter {
   private boolean includeSyntheticAttributeHash = false;
   private boolean includeInstantiationStack = false;
   private boolean includeDefinitionStack = false;
+  private boolean includeStarlarkRuleEnv = true;
   protected boolean includeAttributeSourceAspects = false;
   private HashFunction hashFunction = null;
 
   /** Non-null if and only if --proto:rule_classes option is set. */
   @Nullable private RuleClassInfoFormatter ruleClassInfoFormatter;
+
+  @Nullable private PathFragment overrideSourceRoot;
 
   @Nullable private EventHandler eventHandler;
 
@@ -145,8 +150,14 @@ public class ProtoOutputFormatter extends AbstractUnorderedFormatter {
     this.includeInstantiationStack = options.protoIncludeInstantiationStack;
     this.includeDefinitionStack = options.protoIncludeDefinitionStack;
     this.includeAttributeSourceAspects = options.protoIncludeAttributeSourceAspects;
+    this.includeStarlarkRuleEnv = options.protoIncludeStarlarkRuleEnv;
     this.hashFunction = hashFunction;
     this.ruleClassInfoFormatter = options.protoRuleClasses ? new RuleClassInfoFormatter() : null;
+  }
+
+  @Override
+  public void setOverrideSourceRoot(PathFragment overrideSourceRoot) {
+    this.overrideSourceRoot = overrideSourceRoot;
   }
 
   @Override
@@ -192,10 +203,12 @@ public class ProtoOutputFormatter extends AbstractUnorderedFormatter {
     if (target instanceof Rule rule) {
       Build.Rule.Builder rulePb =
           Build.Rule.newBuilder()
-              .setName(labelPrinter.toString(rule.getLabel()))
-              .setRuleClass(rule.getRuleClass());
+              .setName(internalToUnicode(labelPrinter.toString(rule.getLabel())))
+              .setRuleClass(internalToUnicode(rule.getRuleClass()));
       if (includeLocations) {
-        rulePb.setLocation(FormatUtils.getLocation(target, relativeLocations));
+        rulePb.setLocation(
+            internalToUnicode(
+                FormatUtils.getLocation(target, relativeLocations, overrideSourceRoot)));
       }
       addAttributes(rulePb, rule, extraDataForAttrHash, labelPrinter);
       byte[] transitiveDigest = rule.getRuleClassObject().getRuleDefinitionEnvironmentDigest();
@@ -248,19 +261,22 @@ public class ProtoOutputFormatter extends AbstractUnorderedFormatter {
           aspectsDependencies.values().stream()
               .flatMap(m -> m.values().stream())
               .distinct()
-              .forEach(dep -> rulePb.addRuleInput(labelPrinter.toString(dep)));
+              .forEach(dep -> rulePb.addRuleInput(internalToUnicode(labelPrinter.toString(dep))));
         }
         // Include explicit elements for all direct inputs and outputs of a rule; this goes beyond
         // what is available from the attributes above, since it may also (depending on options)
         // include implicit outputs, exec-configuration outputs, and default values.
         rule.getSortedLabels(dependencyFilter)
-            .forEach(input -> rulePb.addRuleInput(labelPrinter.toString(input)));
+            .forEach(input -> rulePb.addRuleInput(internalToUnicode(labelPrinter.toString(input))));
         rule.getOutputFiles().stream()
             .distinct()
-            .forEach(output -> rulePb.addRuleOutput(labelPrinter.toString(output.getLabel())));
+            .forEach(
+                output ->
+                    rulePb.addRuleOutput(
+                        internalToUnicode(labelPrinter.toString(output.getLabel()))));
       }
       for (String feature : rule.getPackage().getPackageArgs().features().toStringList()) {
-        rulePb.addDefaultSetting(feature);
+        rulePb.addDefaultSetting(internalToUnicode(feature));
       }
 
       if (includeInstantiationStack) {
@@ -268,7 +284,10 @@ public class ProtoOutputFormatter extends AbstractUnorderedFormatter {
           // Always report relative locations.
           // (New fields needn't honor relativeLocations.)
           rulePb.addInstantiationStack(
-              FormatUtils.getRootRelativeLocation(fr.location, rule.getPackage()) + ": " + fr.name);
+              internalToUnicode(
+                  FormatUtils.getRootRelativeLocation(fr.location, rule.getPackage())
+                      + ": "
+                      + fr.name));
         }
       }
 
@@ -277,7 +296,10 @@ public class ProtoOutputFormatter extends AbstractUnorderedFormatter {
           // Always report relative locations.
           // (New fields needn't honor relativeLocations.)
           rulePb.addDefinitionStack(
-              FormatUtils.getRootRelativeLocation(fr.location, rule.getPackage()) + ": " + fr.name);
+              internalToUnicode(
+                  FormatUtils.getRootRelativeLocation(fr.location, rule.getPackage())
+                      + ": "
+                      + fr.name));
         }
       }
 
@@ -292,11 +314,14 @@ public class ProtoOutputFormatter extends AbstractUnorderedFormatter {
       Rule generatingRule = outputFile.getGeneratingRule();
       GeneratedFile.Builder output =
           GeneratedFile.newBuilder()
-              .setGeneratingRule(labelPrinter.toString(generatingRule.getLabel()))
-              .setName(labelPrinter.toString(label));
+              .setGeneratingRule(
+                  internalToUnicode(labelPrinter.toString(generatingRule.getLabel())))
+              .setName(internalToUnicode(labelPrinter.toString(label)));
 
       if (includeLocations) {
-        output.setLocation(FormatUtils.getLocation(target, relativeLocations));
+        output.setLocation(
+            internalToUnicode(
+                FormatUtils.getLocation(target, relativeLocations, overrideSourceRoot)));
       }
       targetPb.setType(GENERATED_FILE);
       targetPb.setGeneratedFile(output.build());
@@ -304,10 +329,12 @@ public class ProtoOutputFormatter extends AbstractUnorderedFormatter {
       Label label = inputFile.getLabel();
 
       Build.SourceFile.Builder input =
-          Build.SourceFile.newBuilder().setName(labelPrinter.toString(label));
+          Build.SourceFile.newBuilder().setName(internalToUnicode(labelPrinter.toString(label)));
 
       if (includeLocations) {
-        input.setLocation(FormatUtils.getLocation(target, relativeLocations));
+        input.setLocation(
+            internalToUnicode(
+                FormatUtils.getLocation(target, relativeLocations, overrideSourceRoot)));
       }
 
       if (inputFile.getName().equals("BUILD")) {
@@ -317,56 +344,64 @@ public class ProtoOutputFormatter extends AbstractUnorderedFormatter {
                 : aspectResolver.computeBuildFileDependencies(inputFile.getPackage());
 
         for (Label starlarkLoadLabel : starlarkLoadLabels) {
-          input.addSubinclude(labelPrinter.toString(starlarkLoadLabel));
+          input.addSubinclude(internalToUnicode(labelPrinter.toString(starlarkLoadLabel)));
         }
 
         for (String feature : inputFile.getPackage().getPackageArgs().features().toStringList()) {
-          input.addFeature(feature);
+          input.addFeature(internalToUnicode(feature));
         }
 
         input.setPackageContainsErrors(inputFile.getPackage().containsErrors());
       }
 
+      // TODO(bazel-team): We're being inconsistent about whether we include the package's
+      // default_visibility in the target. For files we do, but for rules we don't.
+
       for (Label visibilityDependency : target.getVisibilityDependencyLabels()) {
-        input.addPackageGroup(labelPrinter.toString(visibilityDependency));
+        input.addPackageGroup(internalToUnicode(labelPrinter.toString(visibilityDependency)));
       }
 
       for (Label visibilityDeclaration : target.getVisibilityDeclaredLabels()) {
-        input.addVisibilityLabel(labelPrinter.toString(visibilityDeclaration));
+        input.addVisibilityLabel(internalToUnicode(labelPrinter.toString(visibilityDeclaration)));
       }
 
       targetPb.setType(SOURCE_FILE);
       targetPb.setSourceFile(input);
     } else if (target instanceof FakeLoadTarget) {
       Label label = target.getLabel();
-      SourceFile.Builder input = SourceFile.newBuilder().setName(labelPrinter.toString(label));
+      SourceFile.Builder input =
+          SourceFile.newBuilder().setName(internalToUnicode(labelPrinter.toString(label)));
 
       if (includeLocations) {
-        input.setLocation(FormatUtils.getLocation(target, relativeLocations));
+        input.setLocation(
+            internalToUnicode(
+                FormatUtils.getLocation(target, relativeLocations, overrideSourceRoot)));
       }
       targetPb.setType(SOURCE_FILE);
       targetPb.setSourceFile(input.build());
     } else if (target instanceof PackageGroup packageGroup) {
       Build.PackageGroup.Builder packageGroupPb =
-          Build.PackageGroup.newBuilder().setName(labelPrinter.toString(packageGroup.getLabel()));
+          Build.PackageGroup.newBuilder()
+              .setName(internalToUnicode(labelPrinter.toString(packageGroup.getLabel())));
       for (String containedPackage :
           packageGroup.getContainedPackages(packageGroupIncludesDoubleSlash)) {
-        packageGroupPb.addContainedPackage(containedPackage);
+        packageGroupPb.addContainedPackage(internalToUnicode(containedPackage));
       }
       for (Label include : packageGroup.getIncludes()) {
-        packageGroupPb.addIncludedPackageGroup(labelPrinter.toString(include));
+        packageGroupPb.addIncludedPackageGroup(internalToUnicode(labelPrinter.toString(include)));
       }
 
       targetPb.setType(PACKAGE_GROUP);
       targetPb.setPackageGroup(packageGroupPb);
     } else if (target instanceof EnvironmentGroup envGroup) {
       Build.EnvironmentGroup.Builder envGroupPb =
-          Build.EnvironmentGroup.newBuilder().setName(labelPrinter.toString(envGroup.getLabel()));
+          Build.EnvironmentGroup.newBuilder()
+              .setName(internalToUnicode(labelPrinter.toString(envGroup.getLabel())));
       for (Label env : envGroup.getEnvironments()) {
-        envGroupPb.addEnvironment(labelPrinter.toString(env));
+        envGroupPb.addEnvironment(internalToUnicode(labelPrinter.toString(env)));
       }
       for (Label defaultEnv : envGroup.getDefaults()) {
-        envGroupPb.addDefault(labelPrinter.toString(defaultEnv));
+        envGroupPb.addDefault(internalToUnicode(labelPrinter.toString(defaultEnv)));
       }
       targetPb.setType(ENVIRONMENT_GROUP);
       targetPb.setEnvironmentGroup(envGroupPb);
@@ -421,7 +456,8 @@ public class ProtoOutputFormatter extends AbstractUnorderedFormatter {
                       serializedAttributes,
                       extraDataForAttrHash,
                       hashFunction,
-                      includeAttributeSourceAspects))
+                      includeAttributeSourceAspects,
+                      includeStarlarkRuleEnv))
               .setType(Discriminator.STRING));
     }
   }
@@ -538,6 +574,7 @@ public class ProtoOutputFormatter extends AbstractUnorderedFormatter {
     // Same for maps as for collections.
     if (attrType == Types.STRING_DICT
         || attrType == Types.STRING_LIST_DICT
+        || attrType == BuildType.LABEL_LIST_DICT
         || attrType == BuildType.LABEL_DICT_UNARY
         || attrType == BuildType.LABEL_KEYED_STRING_DICT) {
       Map<Object, Object> mergedDict = new HashMap<>();
@@ -558,7 +595,7 @@ public class ProtoOutputFormatter extends AbstractUnorderedFormatter {
     private final ExtractorContext extractorContext =
         ExtractorContext.builder()
             .labelRenderer(LabelRenderer.DEFAULT)
-            .extractNonStarlarkAttrs(true)
+            .extractNativelyDefinedAttrs(true)
             .build();
 
     /**
@@ -567,7 +604,7 @@ public class ProtoOutputFormatter extends AbstractUnorderedFormatter {
      */
     public void addRuleClassKeyAndInfoIfNeeded(Build.Rule.Builder rulePb, Rule rule) {
       String ruleClassKey = rule.getRuleClassObject().getKey();
-      rulePb.setRuleClassKey(ruleClassKey);
+      rulePb.setRuleClassKey(internalToUnicode(ruleClassKey));
       if (ruleClassKeys.add(ruleClassKey)) {
         // TODO(b/368091415): instead of rule.getRuleClass(), we should be using the rule's public
         // name. But to find the public name, we would need access to the globals dictionary of

@@ -306,6 +306,23 @@ flaky tests and see whether a fix causes a test to pass consistently.
 
   <tr>
     <td>
+    <h3 id="flag-test-filter" data-text="test_filter"><code><a href="https://bazel.build/reference/command-line-reference#flag--test_filter">--test_filter</a></code></h3>
+    </td>
+    <td>
+
+This flag is particularly useful when iterating on a single test method, such as
+when a change you made breaks a test. Instead of re-running
+all the test methods in the test suite, you can focus solely on the specific
+test(s) that failed. This allows for faster feedback and more efficient
+debugging. This flag is often used in conjunction with
+<code>--test_output=<strong>streamed</strong></code> for real-time test output.
+
+</td>
+
+  </tr>
+
+  <tr>
+    <td>
     <h3 id="flag-test-output" data-text="test_output"><code><a href="https://bazel.build/reference/command-line-reference#flag--test_output">--test_output</a></code></h3>
     </td>
     <td>

@@ -14,21 +14,16 @@
 
 package com.google.devtools.build.lib.runtime;
 
-import com.google.auto.value.AutoValue;
+import com.google.auto.value.AutoBuilder;
 import com.google.common.annotations.VisibleForTesting;
 
 /** A memory pressure event. */
-@AutoValue
-public abstract class MemoryPressureEvent {
-  public abstract boolean wasManualGc();
-
-  public abstract boolean wasGcLockerInitiatedGc();
-
-  public abstract boolean wasFullGc();
-
-  public abstract long tenuredSpaceUsedBytes();
-
-  public abstract long tenuredSpaceMaxBytes();
+public record MemoryPressureEvent(
+    boolean wasManualGc,
+    boolean wasGcLockerInitiatedGc,
+    boolean wasFullGc,
+    long tenuredSpaceUsedBytes,
+    long tenuredSpaceMaxBytes) {
 
   public final int percentTenuredSpaceUsed() {
     return (int) ((tenuredSpaceUsedBytes() * 100L) / tenuredSpaceMaxBytes());
@@ -36,7 +31,7 @@ public abstract class MemoryPressureEvent {
 
   @VisibleForTesting
   public static Builder newBuilder() {
-    return new AutoValue_MemoryPressureEvent.Builder()
+    return new AutoBuilder_MemoryPressureEvent_Builder()
         .setWasManualGc(false)
         .setWasGcLockerInitiatedGc(false)
         .setWasFullGc(false);
@@ -44,7 +39,7 @@ public abstract class MemoryPressureEvent {
 
   /** A memory pressure event builder. */
   @VisibleForTesting
-  @AutoValue.Builder
+  @AutoBuilder
   public abstract static class Builder {
     public abstract Builder setWasManualGc(boolean value);
 

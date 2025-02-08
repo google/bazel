@@ -13,27 +13,31 @@
 // limitations under the License.
 package com.google.devtools.build.lib.actions;
 
-import com.google.auto.value.AutoValue;
+import static java.util.Objects.requireNonNull;
+
 import com.google.devtools.build.lib.events.ExtendedEventHandler.Postable;
 
-/** Notifications for the progress of an in-flight action. */
-@AutoValue
-public abstract class ActionProgressEvent implements Postable {
+/**
+ * Notifications for the progress of an in-flight action.
+ *
+ * @param action Gets the metadata associated with the action being scheduled.
+ * @param progressId The id that uniquely determines the progress among all progress events within
+ *     an action.
+ * @param progress Human readable description of the progress.
+ * @param finished Whether the download progress reported about is finished already.
+ */
+public record ActionProgressEvent(
+    ActionExecutionMetadata action, String progressId, String progress, boolean finished)
+    implements Postable {
+  public ActionProgressEvent {
+    requireNonNull(action, "action");
+    requireNonNull(progressId, "progressId");
+    requireNonNull(progress, "progress");
+  }
 
   public static ActionProgressEvent create(
       ActionExecutionMetadata action, String progressId, String progress, boolean finished) {
-    return new AutoValue_ActionProgressEvent(action, progressId, progress, finished);
+    return new ActionProgressEvent(action, progressId, progress, finished);
   }
 
-  /** Gets the metadata associated with the action being scheduled. */
-  public abstract ActionExecutionMetadata action();
-
-  /** The id that uniquely determines the progress among all progress events within an action. */
-  public abstract String progressId();
-
-  /** Human readable description of the progress. */
-  public abstract String progress();
-
-  /** Whether the download progress reported about is finished already. */
-  public abstract boolean finished();
 }

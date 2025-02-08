@@ -350,15 +350,15 @@ public class WorkerTestUtils {
       }
 
       @Override
-      public Worker borrowObject(WorkerKey key) throws IOException, InterruptedException {
+      public Worker borrowWorker(WorkerKey key) throws IOException, InterruptedException {
         return worker;
       }
 
       @Override
-      public void returnObject(WorkerKey key, Worker obj) {}
+      public void returnWorker(WorkerKey key, Worker worker) {}
 
       @Override
-      public void invalidateObject(WorkerKey key, Worker obj) throws InterruptedException {}
+      public void invalidateWorker(Worker worker) throws InterruptedException {}
 
       @Override
       public void reset() {}

@@ -17,6 +17,7 @@ package com.google.devtools.build.lib.exec;
 import static com.google.common.truth.Truth.assertThat;
 
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Iterables;
 import com.google.devtools.build.lib.actions.ParameterFile;
 import com.google.devtools.build.lib.actions.ParameterFile.ParameterFileType;
 import com.google.devtools.build.lib.testutil.FoundationTestCase;
@@ -80,9 +81,12 @@ public class ParameterFileTest extends FoundationTestCase {
   private static ImmutableList<String> writeContent(Charset charset, Iterable<String> content)
       throws Exception {
     ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
-    ParameterFile.writeParameterFile(outputStream, content, ParameterFileType.UNQUOTED, charset);
-    return ImmutableList.<String>builder()
-        .add(new String(outputStream.toByteArray(), charset).split("\n"))
-        .build();
+    ParameterFile.writeParameterFile(
+        outputStream,
+        Iterables.transform(
+            // Bazel internally represents all strings as raw bytes in ISO-8859-1.
+            content, s -> new String(s.getBytes(charset), StandardCharsets.ISO_8859_1)),
+        ParameterFileType.UNQUOTED);
+    return ImmutableList.<String>builder().add(outputStream.toString(charset).split("\n")).build();
   }
 }

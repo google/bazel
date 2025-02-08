@@ -897,8 +897,8 @@ public final class StandaloneTestStrategyTest extends BuildViewTestCase {
             });
 
     FakeActionInputFileCache inputMetadataProvider = new FakeActionInputFileCache();
-    inputMetadataProvider.putRunfilesTree(actionA.getRunfilesMiddleman(), runfilesTreeFor(actionA));
-    inputMetadataProvider.putRunfilesTree(actionB.getRunfilesMiddleman(), runfilesTreeFor(actionB));
+    inputMetadataProvider.putRunfilesTree(actionA.getRunfilesTree(), runfilesTreeFor(actionA));
+    inputMetadataProvider.putRunfilesTree(actionB.getRunfilesTree(), runfilesTreeFor(actionB));
 
     ActionExecutionContext actionExecutionContext =
         new FakeActionExecutionContext(
@@ -996,8 +996,8 @@ public final class StandaloneTestStrategyTest extends BuildViewTestCase {
             });
 
     FakeActionInputFileCache inputMetadataProvider = new FakeActionInputFileCache();
-    inputMetadataProvider.putRunfilesTree(actionA.getRunfilesMiddleman(), runfilesTreeFor(actionA));
-    inputMetadataProvider.putRunfilesTree(actionB.getRunfilesMiddleman(), runfilesTreeFor(actionB));
+    inputMetadataProvider.putRunfilesTree(actionA.getRunfilesTree(), runfilesTreeFor(actionA));
+    inputMetadataProvider.putRunfilesTree(actionB.getRunfilesTree(), runfilesTreeFor(actionB));
 
     ActionExecutionContext actionExecutionContext =
         new FakeActionExecutionContext(
@@ -1102,8 +1102,8 @@ public final class StandaloneTestStrategyTest extends BuildViewTestCase {
             });
 
     FakeActionInputFileCache inputMetadataProvider = new FakeActionInputFileCache();
-    inputMetadataProvider.putRunfilesTree(actionA.getRunfilesMiddleman(), runfilesTreeFor(actionA));
-    inputMetadataProvider.putRunfilesTree(actionB.getRunfilesMiddleman(), runfilesTreeFor(actionB));
+    inputMetadataProvider.putRunfilesTree(actionA.getRunfilesTree(), runfilesTreeFor(actionA));
+    inputMetadataProvider.putRunfilesTree(actionB.getRunfilesTree(), runfilesTreeFor(actionB));
 
     ActionExecutionContext actionExecutionContext =
         new FakeActionExecutionContext(

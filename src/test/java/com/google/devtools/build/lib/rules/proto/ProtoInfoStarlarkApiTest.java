@@ -63,7 +63,7 @@ public class ProtoInfoStarlarkApiTest extends BuildViewTestCase {
     scratch.file(
         "foo/test.bzl",
         """
-        load('@protobuf//bazel/common:proto_info.bzl', 'ProtoInfo')
+        load('@com_google_protobuf//bazel/common:proto_info.bzl', 'ProtoInfo')
         load("//myinfo:myinfo.bzl", "MyInfo")
 
         def _impl(ctx):
@@ -76,7 +76,7 @@ public class ProtoInfoStarlarkApiTest extends BuildViewTestCase {
 
     scratch.file(
         "foo/BUILD",
-        "load('@protobuf//bazel:proto_library.bzl', 'proto_library')",
+        "load('@com_google_protobuf//bazel:proto_library.bzl', 'proto_library')",
         "load(':test.bzl', 'test')",
         "test(name='test', dep=':proto')",
         "proto_library(name='proto', srcs=['p.proto'])");
@@ -93,7 +93,7 @@ public class ProtoInfoStarlarkApiTest extends BuildViewTestCase {
     scratch.file(
         "third_party/foo/myTestRule.bzl",
         """
-        load('@protobuf//bazel/common:proto_info.bzl', 'ProtoInfo')
+        load('@com_google_protobuf//bazel/common:proto_info.bzl', 'ProtoInfo')
         load("//myinfo:myinfo.bzl", "MyInfo")
 
         def _my_test_rule_impl(ctx):
@@ -109,7 +109,7 @@ public class ProtoInfoStarlarkApiTest extends BuildViewTestCase {
 
     scratch.file(
         "third_party/foo/BUILD",
-        "load('@protobuf//bazel:proto_library.bzl', 'proto_library')",
+        "load('@com_google_protobuf//bazel:proto_library.bzl', 'proto_library')",
         "licenses(['unencumbered'])",
         "load(':myTestRule.bzl', 'my_test_rule')",
         "my_test_rule(",

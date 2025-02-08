@@ -110,8 +110,8 @@ public final class Json implements StarlarkValue {
         return;
       }
 
-      if (x instanceof String) {
-        appendQuoted((String) x);
+      if (x instanceof String s) {
+        appendQuoted(s);
         return;
       }
 
@@ -120,8 +120,8 @@ public final class Json implements StarlarkValue {
         return;
       }
 
-      if (x instanceof StarlarkFloat) {
-        if (!Double.isFinite(((StarlarkFloat) x).toDouble())) {
+      if (x instanceof StarlarkFloat fl) {
+        if (!Double.isFinite(fl.toDouble())) {
           throw Starlark.errorf("cannot encode non-finite float %s", x);
         }
         out.append(x.toString()); // always contains a decimal point or exponent
@@ -136,9 +136,7 @@ public final class Json implements StarlarkValue {
       }
 
       // e.g. dict (must have string keys)
-      if (x instanceof Map) {
-        Map<?, ?> m = (Map) x;
-
+      if (x instanceof Map<?, ?> m) {
         // Sort keys for determinism.
         Object[] keys = m.keySet().toArray();
         for (Object key : keys) {
@@ -169,11 +167,11 @@ public final class Json implements StarlarkValue {
       }
 
       // e.g. tuple, list
-      if (x instanceof StarlarkIterable) {
+      if (x instanceof StarlarkIterable<?> it) {
         out.append('[');
         String sep = "";
         int i = 0;
-        for (Object elem : (StarlarkIterable) x) {
+        for (Object elem : it) {
           out.append(sep);
           sep = ",";
           try {
@@ -188,9 +186,7 @@ public final class Json implements StarlarkValue {
       }
 
       // e.g. struct
-      if (x instanceof Structure) {
-        Structure obj = (Structure) x;
-
+      if (x instanceof Structure obj) {
         // Sort keys for determinism.
         String[] fields = obj.getFieldNames().toArray(new String[0]);
         Arrays.sort(fields);

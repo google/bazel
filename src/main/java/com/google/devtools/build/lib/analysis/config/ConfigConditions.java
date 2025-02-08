@@ -13,7 +13,8 @@
 // limitations under the License.
 package com.google.devtools.build.lib.analysis.config;
 
-import com.google.auto.value.AutoValue;
+import static java.util.Objects.requireNonNull;
+
 import com.google.common.collect.ImmutableMap;
 import com.google.devtools.build.lib.analysis.ConfiguredTarget;
 import com.google.devtools.build.lib.analysis.platform.ConstraintValueInfo;
@@ -33,16 +34,18 @@ import com.google.devtools.build.lib.skyframe.ConfiguredTargetAndData;
  * ConfigMatchingProvider}, on the principle that providers are the correct interfaces for storing
  * and sharing target metadata. {@link ConfiguredTarget} isn't meant to persist that long.
  */
-@AutoValue
-public abstract class ConfigConditions {
-  public abstract ImmutableMap<Label, ConfiguredTargetAndData> asConfiguredTargets();
-
-  public abstract ImmutableMap<Label, ConfigMatchingProvider> asProviders();
+public record ConfigConditions(
+    ImmutableMap<Label, ConfiguredTargetAndData> asConfiguredTargets,
+    ImmutableMap<Label, ConfigMatchingProvider> asProviders) {
+  public ConfigConditions {
+    requireNonNull(asConfiguredTargets, "asConfiguredTargets");
+    requireNonNull(asProviders, "asProviders");
+  }
 
   public static ConfigConditions create(
       ImmutableMap<Label, ConfiguredTargetAndData> asConfiguredTargets,
       ImmutableMap<Label, ConfigMatchingProvider> asProviders) {
-    return new AutoValue_ConfigConditions(asConfiguredTargets, asProviders);
+    return new ConfigConditions(asConfiguredTargets, asProviders);
   }
 
   public static final ConfigConditions EMPTY =

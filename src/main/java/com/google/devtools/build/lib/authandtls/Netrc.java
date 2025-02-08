@@ -13,6 +13,8 @@
 // limitations under the License.
 package com.google.devtools.build.lib.authandtls;
 
+import static java.util.Objects.requireNonNull;
+
 import com.google.auto.value.AutoValue;
 import com.google.common.base.MoreObjects;
 import com.google.common.collect.ImmutableMap;
@@ -21,8 +23,12 @@ import java.io.InputStream;
 import javax.annotation.Nullable;
 
 /** Container for the content of a .netrc file. */
-@AutoValue
-public abstract class Netrc {
+public record Netrc(
+    @Nullable Credential defaultCredential, ImmutableMap<String, Credential> credentials) {
+  public Netrc {
+    requireNonNull(credentials, "credentials");
+  }
+
   public static Netrc fromStream(InputStream inputStream) throws IOException {
     return NetrcParser.parseAndClose(inputStream);
   }
@@ -34,7 +40,7 @@ public abstract class Netrc {
    */
   public static Netrc create(
       @Nullable Credential defaultCredential, ImmutableMap<String, Credential> credentials) {
-    return new AutoValue_Netrc(defaultCredential, credentials);
+    return new Netrc(defaultCredential, credentials);
   }
 
   /**
@@ -45,11 +51,6 @@ public abstract class Netrc {
   public Credential getCredential(String machine) {
     return credentials().getOrDefault(machine, defaultCredential());
   }
-
-  @Nullable
-  public abstract Credential defaultCredential();
-
-  public abstract ImmutableMap<String, Credential> credentials();
 
   /** Container for login, password and account of a machine in .netrc */
   @AutoValue

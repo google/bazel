@@ -13,6 +13,7 @@
 // limitations under the License.
 package com.google.devtools.build.lib.exec;
 
+import static com.google.common.base.Preconditions.checkState;
 import static com.google.common.collect.ImmutableList.toImmutableList;
 
 import com.google.common.collect.ImmutableList;
@@ -23,7 +24,7 @@ import com.google.devtools.build.lib.actions.ActionInput;
 import com.google.devtools.build.lib.actions.Artifact;
 import com.google.devtools.build.lib.actions.Artifact.TreeFileArtifact;
 import com.google.devtools.build.lib.actions.ExecException;
-import com.google.devtools.build.lib.actions.FileArtifactValue.UnresolvedSymlinkArtifactValue;
+import com.google.devtools.build.lib.actions.FileArtifactValue;
 import com.google.devtools.build.lib.actions.InputMetadataProvider;
 import com.google.devtools.build.lib.actions.RunfilesArtifactValue;
 import com.google.devtools.build.lib.actions.RunfilesTree;
@@ -162,7 +163,7 @@ public class ExpandedSpawnLogContext extends SpawnLogContext {
           toolFiles.stream()
               .filter(
                   actionInput ->
-                      actionInput instanceof Artifact artifact && artifact.isMiddlemanArtifact())
+                      actionInput instanceof Artifact artifact && artifact.isRunfilesTree())
               .map(inputMetadataProvider::getRunfilesMetadata)
               .map(RunfilesArtifactValue::getRunfilesTree)
               .map(RunfilesTree::getExecPath)
@@ -184,8 +185,8 @@ public class ExpandedSpawnLogContext extends SpawnLogContext {
 
           boolean isTool =
               toolFiles.contains(input)
-                  || input instanceof TreeFileArtifact treeFileArtifact
-                      && toolFiles.contains(treeFileArtifact.getParent())
+                  || (input instanceof TreeFileArtifact treeFileArtifact
+                      && toolFiles.contains(treeFileArtifact.getParent()))
                   || toolRunfilesDirectories.stream().anyMatch(displayPath::startsWith);
 
           Path contentPath = fileSystem.getPath(execRoot.getRelative(input.getExecPathString()));
@@ -197,12 +198,12 @@ public class ExpandedSpawnLogContext extends SpawnLogContext {
           }
 
           if (input.isSymlink()) {
-            UnresolvedSymlinkArtifactValue metadata =
-                (UnresolvedSymlinkArtifactValue) inputMetadataProvider.getInputMetadata(input);
+            FileArtifactValue metadata = inputMetadataProvider.getInputMetadata(input);
+            checkState(metadata.getType().isSymlink(), metadata);
             builder
                 .addInputsBuilder()
                 .setPath(displayPath.getPathString())
-                .setSymlinkTargetPath(metadata.getSymlinkTarget())
+                .setSymlinkTargetPath(metadata.getUnresolvedSymlinkTarget())
                 .setIsTool(isTool);
             continue;
           }

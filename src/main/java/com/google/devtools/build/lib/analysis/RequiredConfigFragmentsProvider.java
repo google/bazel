@@ -14,8 +14,8 @@
 
 package com.google.devtools.build.lib.analysis;
 
+import static java.util.Objects.requireNonNull;
 
-import com.google.auto.value.AutoValue;
 import com.google.common.base.MoreObjects;
 import com.google.common.collect.Collections2;
 import com.google.common.collect.ImmutableSet;
@@ -25,6 +25,7 @@ import com.google.devtools.build.lib.analysis.config.FragmentOptions;
 import com.google.devtools.build.lib.cmdline.Label;
 import com.google.devtools.build.lib.concurrent.BlazeInterners;
 import com.google.devtools.build.lib.concurrent.ThreadSafety.Immutable;
+import com.google.devtools.build.lib.skyframe.serialization.autocodec.AutoCodec;
 import com.google.devtools.build.lib.skyframe.serialization.autocodec.SerializationConstant;
 import com.google.devtools.build.lib.util.ClassName;
 import com.google.errorprone.annotations.CanIgnoreReturnValue;
@@ -40,39 +41,40 @@ import java.util.Set;
  *
  * <p>See {@link com.google.devtools.build.lib.analysis.config.RequiredFragmentsUtil} for details.
  */
-@AutoValue
 @Immutable
-public abstract class RequiredConfigFragmentsProvider implements TransitiveInfoProvider {
+@AutoCodec
+public record RequiredConfigFragmentsProvider(
+    ImmutableSet<Class<? extends FragmentOptions>> optionsClasses,
+    ImmutableSet<Class<? extends Fragment>> fragmentClasses,
+    ImmutableSet<String> defines,
+    ImmutableSet<Label> starlarkOptions)
+    implements TransitiveInfoProvider {
+  public RequiredConfigFragmentsProvider {
+    requireNonNull(optionsClasses, "optionsClasses");
+    requireNonNull(fragmentClasses, "fragmentClasses");
+    requireNonNull(defines, "defines");
+    requireNonNull(starlarkOptions, "starlarkOptions");
+  }
 
   private static final Interner<RequiredConfigFragmentsProvider> interner =
       BlazeInterners.newWeakInterner();
 
   @SerializationConstant
   public static final RequiredConfigFragmentsProvider EMPTY =
-      new AutoValue_RequiredConfigFragmentsProvider(
+      new RequiredConfigFragmentsProvider(
           ImmutableSet.of(), ImmutableSet.of(), ImmutableSet.of(), ImmutableSet.of());
-
-  RequiredConfigFragmentsProvider() {}
-
-  public abstract ImmutableSet<Class<? extends FragmentOptions>> getOptionsClasses();
-
-  public abstract ImmutableSet<Class<? extends Fragment>> getFragmentClasses();
-
-  public abstract ImmutableSet<String> getDefines();
-
-  public abstract ImmutableSet<Label> getStarlarkOptions();
 
   @Override
   public final String toString() {
     return MoreObjects.toStringHelper(RequiredConfigFragmentsProvider.class)
         .add(
             "optionsClasses",
-            Collections2.transform(getOptionsClasses(), ClassName::getSimpleNameWithOuter))
+            Collections2.transform(optionsClasses(), ClassName::getSimpleNameWithOuter))
         .add(
             "fragmentClasses",
-            Collections2.transform(getFragmentClasses(), ClassName::getSimpleNameWithOuter))
-        .add("defines", getDefines())
-        .add("starlarkOptions", getStarlarkOptions())
+            Collections2.transform(fragmentClasses(), ClassName::getSimpleNameWithOuter))
+        .add("defines", defines())
+        .add("starlarkOptions", starlarkOptions())
         .toString();
   }
 
@@ -165,10 +167,10 @@ public abstract class RequiredConfigFragmentsProvider implements TransitiveInfoP
     @CanIgnoreReturnValue
     public Builder merge(RequiredConfigFragmentsProvider provider) {
       if (provider != null) {
-        optionsClasses = appendAll(optionsClasses, provider.getOptionsClasses());
-        fragmentClasses = appendAll(fragmentClasses, provider.getFragmentClasses());
-        defines = appendAll(defines, provider.getDefines());
-        starlarkOptions = appendAll(starlarkOptions, provider.getStarlarkOptions());
+        optionsClasses = appendAll(optionsClasses, provider.optionsClasses());
+        fragmentClasses = appendAll(fragmentClasses, provider.fragmentClasses());
+        defines = appendAll(defines, provider.defines());
+        starlarkOptions = appendAll(starlarkOptions, provider.starlarkOptions());
       }
       return this;
     }
@@ -231,7 +233,7 @@ public abstract class RequiredConfigFragmentsProvider implements TransitiveInfoP
         return EMPTY;
       }
       return interner.intern(
-          new AutoValue_RequiredConfigFragmentsProvider(
+          new RequiredConfigFragmentsProvider(
               ImmutableSet.copyOf(optionsClasses),
               ImmutableSet.copyOf(fragmentClasses),
               ImmutableSet.copyOf(defines),

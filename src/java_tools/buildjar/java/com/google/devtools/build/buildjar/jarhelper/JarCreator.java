@@ -202,6 +202,9 @@ public class JarCreator extends JarHelper {
     if (injectingRuleKind != null) {
       attributes.put(JarHelper.INJECTING_RULE_KIND, injectingRuleKind);
     }
+    if (multiRelease) {
+      attributes.put(JarHelper.MULTI_RELEASE, "true");
+    }
     ByteArrayOutputStream out = new ByteArrayOutputStream();
     manifest.write(out);
     return out.toByteArray();

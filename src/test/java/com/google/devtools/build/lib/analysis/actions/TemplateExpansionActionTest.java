@@ -39,6 +39,7 @@ import com.google.devtools.build.lib.exec.BinTools;
 import com.google.devtools.build.lib.exec.util.TestExecutorBuilder;
 import com.google.devtools.build.lib.testutil.FoundationTestCase;
 import com.google.devtools.build.lib.util.Fingerprint;
+import com.google.devtools.build.lib.util.StringEncoding;
 import com.google.devtools.build.lib.util.io.FileOutErr;
 import com.google.devtools.build.lib.vfs.FileSystemUtils;
 import com.google.devtools.build.lib.vfs.Path;
@@ -252,7 +253,10 @@ public class TemplateExpansionActionTest extends FoundationTestCase {
     // scratch.overwriteFile appends a newline, so we need an additional \n here
     String expected = String.format("%s%s\n", SPECIAL_CHARS, SPECIAL_CHARS);
 
-    executeTemplateExpansion(expected, ImmutableList.of(Substitution.of("%key%", SPECIAL_CHARS)));
+    executeTemplateExpansion(
+        expected,
+        ImmutableList.of(
+            Substitution.of("%key%", StringEncoding.unicodeToInternal(SPECIAL_CHARS))));
   }
 
   private String computeKey(TemplateExpansionAction action) throws EvalException {

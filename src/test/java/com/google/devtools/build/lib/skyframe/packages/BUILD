@@ -1,6 +1,10 @@
 load("@rules_java//java:defs.bzl", "java_library", "java_test")
 
-package(default_visibility = ["//src:__subpackages__"])
+package(
+    default_applicable_licenses = ["//:license"],
+    default_testonly = 1,
+    default_visibility = ["//src:__subpackages__"],
+)
 
 filegroup(
     name = "srcs",
@@ -11,7 +15,6 @@ filegroup(
 
 java_library(
     name = "AbstractPackageLoaderTest",
-    testonly = 1,
     srcs = ["AbstractPackageLoaderTest.java"],
     deps = [
         "//src/main/java/com/google/devtools/build/lib/cmdline",
@@ -40,8 +43,6 @@ java_test(
     srcs = ["BazelPackageLoaderTest.java"],
     deps = [
         ":AbstractPackageLoaderTest",
-        "//src/main/java/com/google/devtools/build/lib/analysis:config/fragment_options",
-        "//src/main/java/com/google/devtools/build/lib/analysis:server_directories",
         "//src/main/java/com/google/devtools/build/lib/cmdline",
         "//src/main/java/com/google/devtools/build/lib/packages",
         "//src/main/java/com/google/devtools/build/lib/packages/semantics",
@@ -49,7 +50,6 @@ java_test(
         "//src/main/java/com/google/devtools/build/lib/skyframe/packages:PackageLoader",
         "//src/main/java/com/google/devtools/build/lib/vfs",
         "//src/main/java/com/google/devtools/build/lib/vfs:pathfragment",
-        "//src/main/java/com/google/devtools/common/options:options_internal",
         "//src/main/java/net/starlark/java/eval",
         "//src/test/java/com/google/devtools/build/lib/testutil:JunitUtils",
         "//third_party:guava",
@@ -57,5 +57,3 @@ java_test(
         "//third_party:truth",
     ],
 )
-
-test_suite(name = "all_tests")

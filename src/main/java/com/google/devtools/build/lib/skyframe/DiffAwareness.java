@@ -14,6 +14,7 @@
 package com.google.devtools.build.lib.skyframe;
 
 import com.google.devtools.build.lib.cmdline.IgnoredSubdirectories;
+import com.google.devtools.build.lib.vfs.FileSystem;
 import com.google.devtools.build.lib.vfs.ModifiedFileSet;
 import com.google.devtools.build.lib.vfs.Root;
 import com.google.devtools.common.options.OptionsProvider;
@@ -78,6 +79,16 @@ public interface DiffAwareness extends Closeable {
    */
   ModifiedFileSet getDiff(@Nullable View oldView, View newView)
       throws IncompatibleViewException, InterruptedException, BrokenDiffAwarenessException;
+
+  /**
+   * Returns the set of files of interest that have been modified between the current view and the
+   * evaluating version.
+   *
+   * <p>This is loosely defined as the set of changed but unsubmitted files relative to the current
+   * "commit". These can include both tracked and untracked files by a version control system.
+   */
+  ModifiedFileSet getDiffFromEvaluatingVersion(OptionsProvider options, FileSystem fs)
+      throws BrokenDiffAwarenessException;
 
   /** @return the name of this implementation */
   String name();

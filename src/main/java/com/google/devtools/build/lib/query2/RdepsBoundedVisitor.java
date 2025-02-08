@@ -16,6 +16,7 @@ package com.google.devtools.build.lib.query2;
 import com.google.common.base.Predicate;
 import com.google.common.base.Predicates;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableSetMultimap;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Streams;
 import com.google.devtools.build.lib.packages.Target;
@@ -41,16 +42,19 @@ class RdepsBoundedVisitor extends AbstractTargetOuputtingVisitor<DepAndRdepAtDep
   private final int depth;
   private final MinDepthUniquifier<SkyKey> validRdepMinDepthUniquifier;
   private final Predicate<SkyKey> universe;
+  private final ImmutableSetMultimap<SkyKey, SkyKey> extraGlobalDeps;
 
   private RdepsBoundedVisitor(
       SkyQueryEnvironment env,
       int depth,
       MinDepthUniquifier<SkyKey> validRdepMinDepthUniquifier,
       Predicate<SkyKey> universe,
+      ImmutableSetMultimap<SkyKey, SkyKey> extraGlobalDeps,
       Callback<Target> callback) {
     super(env, callback);
     this.depth = depth;
     this.validRdepMinDepthUniquifier = validRdepMinDepthUniquifier;
+    this.extraGlobalDeps = extraGlobalDeps;
     this.universe = universe;
   }
 
@@ -59,20 +63,27 @@ class RdepsBoundedVisitor extends AbstractTargetOuputtingVisitor<DepAndRdepAtDep
     private final int depth;
     private final MinDepthUniquifier<SkyKey> validRdepMinDepthUniquifier;
     private final Predicate<SkyKey> universe;
+    private final ImmutableSetMultimap<SkyKey, SkyKey> extraGlobalDeps;
     private final Callback<Target> callback;
 
     Factory(
-        SkyQueryEnvironment env, int depth, Predicate<SkyKey> universe, Callback<Target> callback) {
+        SkyQueryEnvironment env,
+        int depth,
+        Predicate<SkyKey> universe,
+        ImmutableSetMultimap<SkyKey, SkyKey> extraGlobalDeps,
+        Callback<Target> callback) {
       this.env = env;
       this.depth = depth;
       this.universe = universe;
       this.validRdepMinDepthUniquifier = env.createMinDepthSkyKeyUniquifier();
+      this.extraGlobalDeps = extraGlobalDeps;
       this.callback = callback;
     }
 
     @Override
     public ParallelQueryVisitor<DepAndRdepAtDepth, SkyKey, Target> create() {
-      return new RdepsBoundedVisitor(env, depth, validRdepMinDepthUniquifier, universe, callback);
+      return new RdepsBoundedVisitor(
+          env, depth, validRdepMinDepthUniquifier, universe, extraGlobalDeps, callback);
     }
   }
 
@@ -106,7 +117,7 @@ class RdepsBoundedVisitor extends AbstractTargetOuputtingVisitor<DepAndRdepAtDep
     // Retrieve the reverse deps as SkyKeys and defer the targetification and filtering to next
     // recursive visitation.
     Map<SkyKey, Iterable<SkyKey>> unfilteredRdepsOfRdeps =
-        env.getReverseDepLabelsOfLabels(uniqueValidRdepsBelowDepthBound);
+        env.getReverseDepLabelsOfLabels(uniqueValidRdepsBelowDepthBound, extraGlobalDeps);
 
     ImmutableList.Builder<DepAndRdepAtDepth> depAndRdepAtDepthsToVisitBuilder =
         ImmutableList.builder();

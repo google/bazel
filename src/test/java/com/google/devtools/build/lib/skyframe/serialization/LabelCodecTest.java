@@ -30,7 +30,9 @@ public class LabelCodecTest {
     var tester = new SerializationTester(Label.parseCanonical("//foo/bar:baz"));
 
     if (useSharedValues) {
-      tester.addCodec(Label.valueSharingCodec()).makeMemoizingAndAllowFutureBlocking(true);
+      tester
+          .addCodec(new ValueSharingAdapter<>(Label.deferredCodec()))
+          .makeMemoizingAndAllowFutureBlocking(true);
     }
 
     tester.runTests();

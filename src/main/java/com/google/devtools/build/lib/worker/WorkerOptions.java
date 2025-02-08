@@ -40,7 +40,7 @@ public class WorkerOptions extends OptionsBase {
    * Defines a resource converter for named values in the form [name=]value, where the value is
    * {@link ResourceConverter.FLAG_SYNTAX}. If no name is provided (used when setting a default),
    * the empty string is used as the key. The default value for unspecified mnemonics is defined in
-   * {@link WorkerPoolImplLegacy.createWorkerPools}. "auto" currently returns the default.
+   * {@link WorkerPoolImpl.createPool}. "auto" currently returns the default.
    */
   public static class MultiResourceConverter extends Converter.Contextless<Entry<String, Integer>> {
 
@@ -73,16 +73,6 @@ public class WorkerOptions extends OptionsBase {
       return "[name=]value, where value is " + ResourceConverter.FLAG_SYNTAX;
     }
   }
-
-  @Option(
-      name = "experimental_use_new_worker_pool",
-      defaultValue = "false",
-      documentationCategory = OptionDocumentationCategory.UNDOCUMENTED,
-      effectTags = {OptionEffectTag.EXECUTION},
-      help =
-          "Uses a new worker pool implementation (no change in behavior, reimplementation of "
-              + " the worker pool in order to deprecate the use of a third party tool).")
-  public boolean useNewWorkerPool;
 
   @Option(
       name = "worker_max_instances",

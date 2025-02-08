@@ -74,9 +74,9 @@ public class WorkerFilesHash {
             spawn.getToolFiles(),
             artifactExpander,
             /* keepEmptyTreeArtifacts= */ false,
-            /* keepMiddlemanArtifacts= */ true);
+            /* keepRunfilesTreeArtifacts= */ true);
     for (ActionInput tool : tools) {
-      if (tool instanceof Artifact artifact && artifact.isMiddlemanArtifact()) {
+      if (tool instanceof Artifact artifact && artifact.isRunfilesTree()) {
         RunfilesTree runfilesTree =
             actionInputFileCache.getRunfilesMetadata(tool).getRunfilesTree();
         PathFragment root = runfilesTree.getExecPath();

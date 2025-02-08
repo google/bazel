@@ -418,8 +418,7 @@ final class Parser {
 
     // IDENTIFIER  or  IDENTIFIER = test
     expr = parseTest();
-    if (expr instanceof Identifier) {
-      Identifier id = (Identifier) expr;
+    if (expr instanceof Identifier id) {
       // parse a named argument
       if (token.kind == TokenKind.EQUALS) {
         nextToken();

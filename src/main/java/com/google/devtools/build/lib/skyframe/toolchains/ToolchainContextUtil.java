@@ -13,13 +13,18 @@
 // limitations under the License.
 package com.google.devtools.build.lib.skyframe.toolchains;
 
+import static com.google.common.collect.ImmutableSet.toImmutableSet;
+
+import com.google.common.collect.ImmutableMultimap;
 import com.google.common.collect.ImmutableSet;
 import com.google.devtools.build.lib.analysis.ExecGroupCollection;
 import com.google.devtools.build.lib.analysis.PlatformConfiguration;
 import com.google.devtools.build.lib.analysis.config.CoreOptions;
 import com.google.devtools.build.lib.analysis.config.ToolchainTypeRequirement;
 import com.google.devtools.build.lib.analysis.producers.UnloadedToolchainContextsInputs;
+import com.google.devtools.build.lib.analysis.starlark.StarlarkExecGroupCollection;
 import com.google.devtools.build.lib.cmdline.Label;
+import com.google.devtools.build.lib.cmdline.LabelSyntaxException;
 import com.google.devtools.build.lib.packages.BuildType;
 import com.google.devtools.build.lib.packages.NonconfigurableAttributeMapper;
 import com.google.devtools.build.lib.packages.RawAttributeMapper;
@@ -38,7 +43,8 @@ public final class ToolchainContextUtil {
       CoreOptions coreOptions,
       PlatformConfiguration platformConfig,
       @Nullable Label parentExecutionPlatformLabel,
-      BuildConfigurationKey toolchainConfigurationKey) {
+      BuildConfigurationKey toolchainConfigurationKey)
+      throws ExecGroupCollection.InvalidExecGroupException {
     Rule rule = target.getAssociatedRule();
     if (rule == null) {
       return UnloadedToolchainContextsInputs.empty();
@@ -49,18 +55,23 @@ public final class ToolchainContextUtil {
         ruleClass
             .getAutoExecGroupsMode()
             .isEnabled(RawAttributeMapper.of(rule), coreOptions.useAutoExecGroups);
-    var defaultExecConstraintLabels = getExecutionPlatformConstraints(rule, platformConfig);
-    ImmutableSet<ToolchainTypeRequirement> toolchainTypes = ruleClass.getToolchainTypes();
 
+    ImmutableSet<ToolchainTypeRequirement> toolchainTypes = ruleClass.getToolchainTypes();
     if (!ruleClass.isStarlark() && ruleClass.getName().equals("genrule")) {
       // Override the toolchain types based on the target-level "toolchains" attribute.
       toolchainTypes = updateToolchainTypesFromAttribute(rule, toolchainTypes);
     }
 
+    var defaultExecConstraintLabels = getExecutionPlatformConstraints(rule, platformConfig);
+    var perExecGroupExecConstraintLabels =
+        getPerExecGroupExecutionPlatformConstraints(
+            rule, platformConfig, toolchainTypes, useAutoExecGroups);
+
     var processedExecGroups =
         ExecGroupCollection.process(
             ruleClass.getExecGroups(),
             defaultExecConstraintLabels,
+            perExecGroupExecConstraintLabels,
             toolchainTypes,
             useAutoExecGroups);
 
@@ -135,7 +146,7 @@ public final class ToolchainContextUtil {
    * Returns the target-specific execution platform constraints, based on the rule definition and
    * any constraints added by the target, including those added for the target on the command line.
    */
-  public static ImmutableSet<Label> getExecutionPlatformConstraints(
+  private static ImmutableSet<Label> getExecutionPlatformConstraints(
       Rule rule, @Nullable PlatformConfiguration platformConfiguration) {
     if (platformConfiguration == null) {
       return ImmutableSet.of(); // See NoConfigTransition.
@@ -154,6 +165,72 @@ public final class ToolchainContextUtil {
         platformConfiguration.getAdditionalExecutionConstraintsFor(rule.getLabel()));
 
     return execConstraintLabels.build();
+  }
+
+  private static ImmutableMultimap<String, Label> getPerExecGroupExecutionPlatformConstraints(
+      Rule rule,
+      @Nullable PlatformConfiguration platformConfiguration,
+      ImmutableSet<ToolchainTypeRequirement> toolchainTypes,
+      boolean useAutoExecGroups)
+      throws ExecGroupCollection.InvalidExecGroupException {
+    if (platformConfiguration == null) {
+      return ImmutableMultimap.of(); // See NoConfigTransition.
+    }
+    if (!rule.getRuleClassObject()
+        .hasAttr(RuleClass.EXEC_GROUP_COMPATIBLE_WITH_ATTR, BuildType.LABEL_LIST_DICT)) {
+      return ImmutableMultimap.of();
+    }
+    NonconfigurableAttributeMapper mapper = NonconfigurableAttributeMapper.of(rule);
+    ImmutableMultimap.Builder<String, Label> execGroupConstraints = ImmutableMultimap.builder();
+
+    var packageContext =
+        Label.PackageContext.of(
+            rule.getPackage().getPackageIdentifier(), rule.getPackage().getRepositoryMapping());
+    for (var entry :
+        mapper
+            .get(RuleClass.EXEC_GROUP_COMPATIBLE_WITH_ATTR, BuildType.LABEL_LIST_DICT)
+            .entrySet()) {
+      String canonicalKey;
+      if (StarlarkExecGroupCollection.isValidGroupName(entry.getKey())) {
+        canonicalKey = entry.getKey();
+        if (!rule.getRuleClassObject().getExecGroups().containsKey(canonicalKey)) {
+          throw new ExecGroupCollection.InvalidExecGroupException(
+              "execution constraints",
+              ImmutableSet.of(canonicalKey),
+              rule.getRuleClassObject().getExecGroups().keySet());
+        }
+      } else if (useAutoExecGroups) {
+        Label label;
+        try {
+          label = Label.parseWithPackageContext(entry.getKey(), packageContext);
+        } catch (LabelSyntaxException e) {
+          throw new ExecGroupCollection.InvalidExecGroupException(
+              "execution constraints", ImmutableSet.of(entry.getKey()), ImmutableSet.of());
+        }
+        if (toolchainTypes.stream()
+            .map(ToolchainTypeRequirement::toolchainType)
+            .noneMatch(label::equals)) {
+          ImmutableSet<String> suggestedLabels = ImmutableSet.of();
+          // TODO: Generalize Label#getDisplayForm to accept non-main repo mappings.
+          if (rule.getLabel().getRepository().isMain()) {
+            suggestedLabels =
+                toolchainTypes.stream()
+                    .map(ToolchainTypeRequirement::toolchainType)
+                    .map(type -> type.getDisplayForm(rule.getPackage().getRepositoryMapping()))
+                    .collect(toImmutableSet());
+          }
+          throw new ExecGroupCollection.InvalidExecGroupException(
+              "execution constraints", ImmutableSet.of(entry.getKey()), suggestedLabels);
+        }
+        canonicalKey = label.getUnambiguousCanonicalForm();
+      } else {
+        throw new ExecGroupCollection.InvalidExecGroupException(
+            "execution constraints", ImmutableSet.of(entry.getKey()), ImmutableSet.of());
+      }
+      execGroupConstraints.putAll(canonicalKey, entry.getValue());
+    }
+
+    return execGroupConstraints.build();
   }
 
   private ToolchainContextUtil() {}

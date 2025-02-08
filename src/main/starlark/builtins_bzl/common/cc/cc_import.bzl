@@ -416,8 +416,6 @@ most build rules</a>."""),
             allow_files = True,
             flags = ["SKIP_CONSTRAINTS_OVERRIDE"],
         ),
-        # TODO(b/288421584): necessary because IDE aspect can't see toolchains
-        "_cc_toolchain": attr.label(default = "@" + semantics.get_repo() + "//tools/cpp:current_cc_toolchain"),
         "_use_auto_exec_groups": attr.bool(default = True),
     },
     provides = [CcInfo],

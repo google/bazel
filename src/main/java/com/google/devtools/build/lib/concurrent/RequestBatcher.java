@@ -20,6 +20,7 @@ import static com.google.common.util.concurrent.Futures.immediateFailedFuture;
 import static com.google.devtools.build.lib.concurrent.PaddedAddresses.createPaddedBaseAddress;
 import static com.google.devtools.build.lib.concurrent.PaddedAddresses.getAlignedAddress;
 import static java.lang.Math.min;
+import static java.util.concurrent.Executors.newFixedThreadPool;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableList;
@@ -28,6 +29,7 @@ import com.google.common.util.concurrent.AbstractFuture;
 import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.devtools.build.lib.unsafe.UnsafeProvider;
+
 import com.google.errorprone.annotations.CanIgnoreReturnValue;
 import java.lang.ref.Cleaner;
 import java.util.List;
@@ -108,7 +110,32 @@ public final class RequestBatcher<RequestT, ResponseT> {
    */
   @VisibleForTesting static final int BATCH_SIZE = 4095;
 
-  private final Executor executor;
+  /**
+   * Executor provided by the client to invoke callbacks for individual responses within a batched
+   * response.
+   *
+   * <p><b>Important:</b> For each batch, response callbacks are executed sequentially on a single
+   * thread. If a callback involves significant processing, the client should offload the work to
+   * separate threads to prevent delays in processing subsequent responses.
+   */
+  private final Executor responseDistributionExecutor;
+
+  /**
+   * Executor dedicated to draining the queue, specifically the {@link
+   * #continueToNextBatchOrBecomeIdle} method.
+   *
+   * <p><b>Purpose of Isolation:</b> This executor is isolated to prevent potential deadlocks. The
+   * {@link #submit} method can block if the task queue is full. If all threads in the client's
+   * executor become blocked waiting to submit tasks, only {@link #continueToNextBatchOrBecomeIdle}
+   * can free up space in the queue. Scheduling this continuation logic on the same, potentially
+   * blocked, client executor would lead to a deadlock.
+   *
+   * <p><b>Deadlock Avoidance:</b> As long as {@link #continueToNextBatchOrBecomeIdle} does not
+   * contain blocking operations (which is true in the current implementation), using a separate
+   * executor is sufficient to prevent this specific deadlock scenario.
+   */
+  private final Executor queueDrainingExecutor;
+
   private final Multiplexer<RequestT, ResponseT> multiplexer;
 
   /** Number of active workers to target. */
@@ -146,7 +173,9 @@ public final class RequestBatcher<RequestT, ResponseT> {
   }
 
   public static <RequestT, ResponseT> RequestBatcher<RequestT, ResponseT> create(
-      Executor executor, Multiplexer<RequestT, ResponseT> multiplexer, int targetWorkerCount) {
+      Executor responseDistributionExecutor,
+      Multiplexer<RequestT, ResponseT> multiplexer,
+      int targetWorkerCount) {
     long baseAddress = createPaddedBaseAddress(4);
     long countersAddress = getAlignedAddress(baseAddress, /* offset= */ 0);
 
@@ -159,7 +188,15 @@ public final class RequestBatcher<RequestT, ResponseT> {
 
     var batcher =
         new RequestBatcher<RequestT, ResponseT>(
-            executor, multiplexer, targetWorkerCount, countersAddress, queue);
+            /* responseDistributionExecutor= */ responseDistributionExecutor,
+            // `targetWorkerCount` is the maximum level of invocation concurrency possible for the
+            // `queueDrainingExecutor`. It is possible for this to overrun, but the work is
+            // relatively lightweight and the batch round trip latency is expected to dominate.
+            /* queueDrainingExecutor= */ newFixedThreadPool(targetWorkerCount),
+            multiplexer,
+            targetWorkerCount,
+            countersAddress,
+            queue);
 
     cleaner.register(batcher, new AddressFreer(baseAddress));
 
@@ -172,9 +209,11 @@ public final class RequestBatcher<RequestT, ResponseT> {
    * <p>Caller owns memory addresses used by {@code queue} and cleanup of memory at {@code
    * countersAddress}.
    */
+  // TODO: b/386384684 - remove Unsafe usage
   @VisibleForTesting
   RequestBatcher(
-      Executor executor,
+      Executor responseDistributionExecutor,
+      Executor queueDrainingExecutor,
       Multiplexer<RequestT, ResponseT> multiplexer,
       int targetWorkerCount,
       long countersAddress,
@@ -185,7 +224,8 @@ public final class RequestBatcher<RequestT, ResponseT> {
         "targetWorkerCount=%s > %s",
         targetWorkerCount,
         ACTIVE_WORKERS_COUNT_MAX);
-    this.executor = executor;
+    this.responseDistributionExecutor = responseDistributionExecutor;
+    this.queueDrainingExecutor = queueDrainingExecutor;
     this.multiplexer = multiplexer;
     this.targetWorkerCount = targetWorkerCount;
     this.countersAddress = countersAddress;
@@ -198,9 +238,12 @@ public final class RequestBatcher<RequestT, ResponseT> {
   /**
    * Submits a request, subject to batching.
    *
+   * <p>This method <em>blocks</em> when the queue is full.
+   *
    * <p>Callers should consider processing the response on a different executor if processing is
    * expensive to avoid delaying work pending other responses in the batch.
    */
+  // TODO: b/386384684 - remove Unsafe usage
   public ListenableFuture<ResponseT> submit(RequestT request) {
     var requestResponse = new RequestResponse<RequestT, ResponseT>(request);
 
@@ -254,6 +297,7 @@ public final class RequestBatcher<RequestT, ResponseT> {
     }
   }
 
+  // TODO: b/386384684 - remove Unsafe usage
   @Override
   public String toString() {
     int snapshot = UNSAFE.getIntVolatile(null, countersAddress);
@@ -276,7 +320,7 @@ public final class RequestBatcher<RequestT, ResponseT> {
     ListenableFuture<List<ResponseT>> futureResponses =
         multiplexer.execute(Lists.transform(batch, RequestResponse::request));
 
-    futureResponses.addListener(this::continueToNextBatchOrBecomeIdle, executor);
+    futureResponses.addListener(this::continueToNextBatchOrBecomeIdle, queueDrainingExecutor);
 
     addCallback(
         futureResponses,
@@ -304,7 +348,7 @@ public final class RequestBatcher<RequestT, ResponseT> {
             }
           }
         },
-        executor);
+        responseDistributionExecutor);
   }
 
   /**
@@ -312,6 +356,7 @@ public final class RequestBatcher<RequestT, ResponseT> {
    *
    * @param requestResponse an element to add to the batch.
    */
+  // TODO: b/386384684 - remove Unsafe usage
   private ImmutableList<RequestResponse<RequestT, ResponseT>> populateBatch(
       RequestResponse<RequestT, ResponseT> requestResponse) {
     var accumulator =
@@ -340,6 +385,7 @@ public final class RequestBatcher<RequestT, ResponseT> {
    * <p>Tries to process the next batch if enqueued requests are available. Otherwise, stops working
    * and decrements the active worker count.
    */
+  // TODO: b/386384684 - remove Unsafe usage
   private void continueToNextBatchOrBecomeIdle() {
     while (true) {
       int snapshot = UNSAFE.getIntVolatile(null, countersAddress);

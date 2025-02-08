@@ -16,8 +16,8 @@ package com.google.devtools.build.lib.skyframe.toolchains;
 
 import static com.google.common.truth.Truth.assertThat;
 import static com.google.devtools.build.skyframe.EvaluationResultSubjectFactory.assertThatEvaluationResult;
+import static java.util.Objects.requireNonNull;
 
-import com.google.auto.value.AutoValue;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.google.devtools.build.lib.analysis.BlazeDirectories;
@@ -28,6 +28,7 @@ import com.google.devtools.build.lib.analysis.util.AnalysisMock;
 import com.google.devtools.build.lib.cmdline.Label;
 import com.google.devtools.build.lib.packages.NoSuchPackageException;
 import com.google.devtools.build.lib.rules.platform.ToolchainTestCase;
+import com.google.devtools.build.lib.skyframe.serialization.autocodec.AutoCodec;
 import com.google.devtools.build.lib.skyframe.toolchains.ToolchainTypeLookupUtil.InvalidToolchainTypeException;
 import com.google.devtools.build.lib.skyframe.util.SkyframeExecutorTestUtils;
 import com.google.devtools.build.skyframe.EvaluationResult;
@@ -178,25 +179,29 @@ public class ToolchainTypeLookupUtilTest extends ToolchainTestCase {
     assertContainsEvent("no such package 'fake': BUILD file not found");
   }
 
+  // TODO: b/381396141 - Add a regression test for failure to find the second Skyframe value.
+
   // Calls ToolchainTypeLookupUtil.getToolchainTypeInfo.
   private static final SkyFunctionName GET_TOOLCHAIN_TYPE_INFO_FUNCTION =
       SkyFunctionName.createHermetic("GET_TOOLCHAIN_TYPE_INFO_FUNCTION");
 
-  @AutoValue
-  abstract static class GetToolchainTypeInfoKey implements SkyKey {
+  @AutoCodec
+  record GetToolchainTypeInfoKey(
+      ImmutableSet<ToolchainTypeRequirement> toolchainTypes, BuildConfigurationValue configuration)
+      implements SkyKey {
+    GetToolchainTypeInfoKey {
+      requireNonNull(toolchainTypes, "toolchainTypes");
+      requireNonNull(configuration, "configuration");
+    }
+
     @Override
     public SkyFunctionName functionName() {
       return GET_TOOLCHAIN_TYPE_INFO_FUNCTION;
     }
 
-    abstract ImmutableSet<ToolchainTypeRequirement> toolchainTypes();
-
-    abstract BuildConfigurationValue configuration();
-
     public static GetToolchainTypeInfoKey create(
         BuildConfigurationValue configuration, ToolchainTypeRequirement... toolchainTypes) {
-      return new AutoValue_ToolchainTypeLookupUtilTest_GetToolchainTypeInfoKey(
-          ImmutableSet.copyOf(toolchainTypes), configuration);
+      return new GetToolchainTypeInfoKey(ImmutableSet.copyOf(toolchainTypes), configuration);
     }
   }
 
@@ -212,12 +217,15 @@ public class ToolchainTypeLookupUtilTest extends ToolchainTestCase {
     }
   }
 
-  @AutoValue
-  abstract static class GetToolchainTypeInfoValue implements SkyValue {
-    abstract Map<Label, ToolchainTypeInfo> toolchainTypes();
+  @AutoCodec
+  record GetToolchainTypeInfoValue(Map<Label, ToolchainTypeInfo> toolchainTypes)
+      implements SkyValue {
+    GetToolchainTypeInfoValue {
+      requireNonNull(toolchainTypes, "toolchainTypes");
+    }
 
     static GetToolchainTypeInfoValue create(Map<Label, ToolchainTypeInfo> toolchainTypes) {
-      return new AutoValue_ToolchainTypeLookupUtilTest_GetToolchainTypeInfoValue(toolchainTypes);
+      return new GetToolchainTypeInfoValue(toolchainTypes);
     }
   }
 

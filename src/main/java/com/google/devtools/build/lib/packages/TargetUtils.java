@@ -394,8 +394,7 @@ public final class TargetUtils {
   public static String formatMissingEdge(
       @Nullable Target target, Label label, NoSuchThingException e, @Nullable Attribute attr) {
     // instanceof returns false if target is null (which is exploited here)
-    if (target instanceof Rule) {
-      Rule rule = (Rule) target;
+    if (target instanceof Rule rule) {
       if (isExplicitDependency(rule, label)) {
         return String.format("%s and referenced by '%s'", e.getMessage(), target.getLabel());
       } else {

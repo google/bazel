@@ -39,7 +39,12 @@ import net.starlark.java.eval.StarlarkThread;
 @AutoValue
 public abstract class BazelModuleContext {
   /** Label associated with the Starlark {@link net.starlark.java.eval.Module}. */
-  public abstract Label label();
+  public final Label label() {
+    return key().getLabel();
+  }
+
+  /** {@link com.google.devtools.build.lib.skyframe.BzlLoadValue.Key} used to create the module. */
+  public abstract BazelModuleKey key();
 
   /** The repository mapping applicable to the repo where the .bzl file is located in. */
   public abstract RepositoryMapping repoMapping();
@@ -158,13 +163,12 @@ public abstract class BazelModuleContext {
   }
 
   public static BazelModuleContext create(
-      Label label,
+      BazelModuleKey key,
       RepositoryMapping repoMapping,
       String filename,
       ImmutableList<Module> loads,
       byte[] bzlTransitiveDigest) {
-    return new AutoValue_BazelModuleContext(
-        label, repoMapping, filename, loads, bzlTransitiveDigest);
+    return new AutoValue_BazelModuleContext(key, repoMapping, filename, loads, bzlTransitiveDigest);
   }
 
   public final Label.PackageContext packageContext() {

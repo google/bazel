@@ -542,7 +542,7 @@ public final class RemoteModule extends BlazeModule {
             invocationId,
             remoteOptions.remoteInstanceName,
             callCredentials,
-            remoteOptions.remoteTimeout.getSeconds(),
+            remoteOptions.remoteTimeout.toSeconds(),
             retrier);
 
     ReferenceCountedChannel execChannel = null;
@@ -1192,7 +1192,7 @@ public final class RemoteModule extends BlazeModule {
           && !credentials.getRequestMetadata(new URI(remoteOptions.remoteCache)).isEmpty()) {
         // TODO(yannic): Make this a error aborting the build.
         credentialHelperEnvironment
-            .getEventReporter()
+            .eventReporter()
             .handle(
                 Event.warn(
                     "Credentials are transmitted in plaintext to "

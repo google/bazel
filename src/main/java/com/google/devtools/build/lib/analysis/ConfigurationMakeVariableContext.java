@@ -16,15 +16,12 @@ package com.google.devtools.build.lib.analysis;
 
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Streams;
 import com.google.devtools.build.lib.analysis.MakeVariableSupplier.MapBackedMakeVariableSupplier;
 import com.google.devtools.build.lib.analysis.MakeVariableSupplier.TemplateVariableInfoBackedMakeVariableSupplier;
 import com.google.devtools.build.lib.analysis.config.BuildConfigurationValue;
 import com.google.devtools.build.lib.analysis.stringtemplate.ExpansionException;
 import com.google.devtools.build.lib.analysis.stringtemplate.TemplateContext;
 import com.google.devtools.build.lib.packages.Package;
-import java.util.List;
-import java.util.stream.Collectors;
 import net.starlark.java.eval.Dict;
 
 /**
@@ -34,64 +31,19 @@ import net.starlark.java.eval.Dict;
  */
 public class ConfigurationMakeVariableContext implements TemplateContext {
 
-  private static ImmutableList<TemplateVariableInfo> getRuleTemplateVariableProviders(
-      RuleContext ruleContext, Iterable<String> attributeNames) {
-
-    ImmutableList.Builder<TemplateVariableInfo> providers = new ImmutableList.Builder<>();
-
-    // Get template variable providers from the attributes.
-    List<TemplateVariableInfo> fromAttributes =
-        Streams.stream(attributeNames)
-            // Only process this attribute it if is present in the rule.
-            .filter(attrName -> ruleContext.attributes().has(attrName))
-            // Get the TemplateVariableInfo providers from this attribute.
-            .flatMap(
-                attrName ->
-                    ruleContext.getPrerequisites(attrName, TemplateVariableInfo.PROVIDER).stream())
-            .collect(Collectors.toList());
-    providers.addAll(fromAttributes);
-
-    // Also collect template variable providers from any resolved toolchains.
-    if (ruleContext.getToolchainContexts() != null) {
-      ruleContext
-          .getToolchainContexts()
-          .getContextMap()
-          .values()
-          .forEach(context -> providers.addAll(context.templateVariableProviders()));
-    }
-
-    return providers.build();
-  }
-
   private final ImmutableList<? extends MakeVariableSupplier> allMakeVariableSuppliers;
 
-  // TODO(b/37567440): Remove when Starlark callers can be updated to get this from
-  // CcToolchainProvider. We should use CcCommon.CC_TOOLCHAIN_ATTRIBUTE_NAME, but we didn't want to
-  // pollute core with C++ specific constant.
-  protected static final ImmutableList<String> DEFAULT_MAKE_VARIABLE_ATTRIBUTES =
-      ImmutableList.of("toolchains", ":cc_toolchain", "$toolchains", "$cc_toolchain");
-
   public ConfigurationMakeVariableContext(
-      RuleContext ruleContext, Package pkg, BuildConfigurationValue configuration) {
-    this(ruleContext, pkg, configuration, ImmutableList.<MakeVariableSupplier>of());
-  }
-
-  public ConfigurationMakeVariableContext(
-      RuleContext ruleContext,
       Package pkg,
       BuildConfigurationValue configuration,
-      Iterable<? extends MakeVariableSupplier> makeVariableSuppliers) {
-    this(
-        getRuleTemplateVariableProviders(ruleContext, DEFAULT_MAKE_VARIABLE_ATTRIBUTES),
-        pkg,
-        configuration,
-        makeVariableSuppliers);
+      ImmutableList<TemplateVariableInfo> ruleTemplateVariableProviders) {
+    this(pkg, configuration, ruleTemplateVariableProviders, ImmutableList.of());
   }
 
-  private ConfigurationMakeVariableContext(
+  public ConfigurationMakeVariableContext(
+      Package pkg,
+      BuildConfigurationValue configuration,
       ImmutableList<TemplateVariableInfo> ruleTemplateVariableProviders,
-      Package pkg,
-      BuildConfigurationValue configuration,
       Iterable<? extends MakeVariableSupplier> extraMakeVariableSuppliers) {
     this.allMakeVariableSuppliers =
         ImmutableList.<MakeVariableSupplier>builder()
@@ -110,7 +62,7 @@ public class ConfigurationMakeVariableContext implements TemplateContext {
   }
 
   @Override
-  public String lookupVariable(String name) throws ExpansionException, InterruptedException {
+  public String lookupVariable(String name) throws ExpansionException {
     for (MakeVariableSupplier supplier : allMakeVariableSuppliers) {
       String variableValue = supplier.getMakeVariable(name);
       if (variableValue != null) {
@@ -120,8 +72,7 @@ public class ConfigurationMakeVariableContext implements TemplateContext {
     throw new ExpansionException(String.format("$(%s) not defined", name));
   }
 
-  public Dict.Builder<String, String> collectMakeVariables()
-      throws ExpansionException, InterruptedException {
+  public Dict.Builder<String, String> collectMakeVariables() throws ExpansionException {
     Dict.Builder<String, String> map = Dict.builder();
     // Collect variables in the reverse order as in lookupMakeVariable
     // because each update is overwriting.

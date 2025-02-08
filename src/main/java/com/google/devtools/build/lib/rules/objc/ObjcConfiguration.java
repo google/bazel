@@ -63,6 +63,7 @@ public class ObjcConfiguration extends Fragment implements ObjcConfigurationApi 
   private final boolean disallowSdkFrameworksAttributes;
   private final boolean alwayslinkByDefault;
   private final boolean stripExecutableSafely;
+  private final boolean builtinObjcStripAction;
 
   public ObjcConfiguration(BuildOptions buildOptions) {
     CoreOptions options = buildOptions.get(CoreOptions.class);
@@ -81,6 +82,7 @@ public class ObjcConfiguration extends Fragment implements ObjcConfigurationApi 
     this.disallowSdkFrameworksAttributes = objcOptions.incompatibleDisallowSdkFrameworksAttributes;
     this.alwayslinkByDefault = objcOptions.incompatibleObjcAlwayslinkByDefault;
     this.stripExecutableSafely = objcOptions.incompatibleStripExecutableSafely;
+    this.builtinObjcStripAction = objcOptions.incompatibleBuiltinObjcStripAction;
   }
 
   /**
@@ -190,5 +192,11 @@ public class ObjcConfiguration extends Fragment implements ObjcConfigurationApi 
   @Override
   public boolean stripExecutableSafely() {
     return stripExecutableSafely;
+  }
+
+  /** Returns whether to emit a strip action as part of objc linking. */
+  @Override
+  public boolean builtinObjcStripAction() {
+    return builtinObjcStripAction;
   }
 }

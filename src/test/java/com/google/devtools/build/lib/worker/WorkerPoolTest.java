@@ -33,31 +33,19 @@ import com.google.devtools.build.lib.vfs.FileSystem;
 import com.google.devtools.build.lib.vfs.Path;
 import com.google.devtools.build.lib.vfs.inmemoryfs.InMemoryFileSystem;
 import com.google.devtools.build.lib.worker.WorkerProcessStatus.Status;
-import java.io.IOException;
-import java.util.Arrays;
-import java.util.List;
-import java.util.function.Supplier;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
-import org.junit.runners.Parameterized.Parameter;
-import org.junit.runners.Parameterized.Parameters;
+import org.junit.runners.JUnit4;
 
 /** Tests WorkerPool. */
-@RunWith(Parameterized.class)
+@RunWith(JUnit4.class)
 public class WorkerPoolTest {
 
   public static final FileSystem fileSystem =
       new InMemoryFileSystem(BlazeClock.instance(), DigestHashFunction.SHA256);
 
   private int workerIds = 1;
-
-  @Parameter(0)
-  public WorkerPoolSupplier workerPoolSupplier;
-
-  @Parameter(1)
-  public Supplier<WorkerFactory> workerFactorySupplier;
 
   private WorkerPool workerPool;
   private WorkerFactory factoryMock;
@@ -71,48 +59,16 @@ public class WorkerPoolTest {
     }
   }
 
-  private interface WorkerPoolSupplier {
-    WorkerPool get(WorkerFactory factory);
-  }
-
-  @Parameters
-  public static List<Object[]> data() throws IOException {
-    Supplier<WorkerFactory> workerFactorySupplier =
-        () -> spy(new WorkerFactory(fileSystem.getPath("/outputbase/bazel-workers"), options));
-
-    return Arrays.asList(
-        new Object[][] {
-          {
-            (WorkerPoolSupplier)
-                (factory) ->
-                    new WorkerPoolImplLegacy(
-                        factory,
-                        new WorkerPoolConfig(
-                            /* workerMaxInstances= */ ImmutableList.of(
-                                Maps.immutableEntry("mnem", 2), Maps.immutableEntry("", 1)),
-                            /* workerMaxMultiplexInstances= */ ImmutableList.of(
-                                Maps.immutableEntry("mnem", 2), Maps.immutableEntry("", 1)))),
-            workerFactorySupplier,
-          },
-          {
-            (WorkerPoolSupplier)
-                (factory) ->
-                    new WorkerPoolImpl(
-                        factory,
-                        new WorkerPoolConfig(
-                            /* workerMaxInstances= */ ImmutableList.of(
-                                Maps.immutableEntry("mnem", 2)),
-                            /* workerMaxMultiplexInstances= */ ImmutableList.of(
-                                Maps.immutableEntry("mnem", 2)))),
-            workerFactorySupplier,
-          }
-        });
-  }
-
   @Before
   public void setUp() throws Exception {
-    factoryMock = workerFactorySupplier.get();
-    workerPool = workerPoolSupplier.get(factoryMock);
+    factoryMock = spy(new WorkerFactory(fileSystem.getPath("/outputbase/bazel-workers"), options));
+    workerPool =
+        new WorkerPoolImpl(
+            factoryMock,
+            new WorkerPoolConfig(
+                /* workerMaxInstances= */ ImmutableList.of(Maps.immutableEntry("mnem", 2)),
+                /* workerMaxMultiplexInstances= */ ImmutableList.of(
+                    Maps.immutableEntry("mnem", 2))));
     doAnswer(
             arg ->
                 new TestWorker(
@@ -143,8 +99,8 @@ public class WorkerPoolTest {
   @Test
   public void testBorrow_createsWhenNeeded() throws Exception {
     WorkerKey workerKey = createWorkerKey(fileSystem, "mnem", false);
-    Worker worker1 = workerPool.borrowObject(workerKey);
-    Worker worker2 = workerPool.borrowObject(workerKey);
+    Worker worker1 = workerPool.borrowWorker(workerKey);
+    Worker worker2 = workerPool.borrowWorker(workerKey);
     assertThat(worker1.getWorkerId()).isEqualTo(1);
     assertThat(worker2.getWorkerId()).isEqualTo(2);
     verify(factoryMock, times(2)).create(workerKey);
@@ -153,9 +109,9 @@ public class WorkerPoolTest {
   @Test
   public void testBorrow_reusesWhenPossible() throws Exception {
     WorkerKey workerKey = createWorkerKey(fileSystem, "mnem", false);
-    Worker worker1 = workerPool.borrowObject(workerKey);
-    workerPool.returnObject(workerKey, worker1);
-    Worker worker2 = workerPool.borrowObject(workerKey);
+    Worker worker1 = workerPool.borrowWorker(workerKey);
+    workerPool.returnWorker(workerKey, worker1);
+    Worker worker2 = workerPool.borrowWorker(workerKey);
     assertThat(worker1).isSameInstanceAs(worker2);
     verify(factoryMock).create(workerKey);
   }
@@ -163,12 +119,12 @@ public class WorkerPoolTest {
   @Test
   public void testBorrow_nonSpecifiedKey() throws Exception {
     WorkerKey workerKey1 = createWorkerKey(fileSystem, "mnem", false);
-    Worker worker1 = workerPool.borrowObject(workerKey1);
-    Worker worker1a = workerPool.borrowObject(workerKey1);
+    Worker worker1 = workerPool.borrowWorker(workerKey1);
+    Worker worker1a = workerPool.borrowWorker(workerKey1);
     assertThat(worker1.getWorkerId()).isEqualTo(1);
     assertThat(worker1a.getWorkerId()).isEqualTo(2);
     WorkerKey workerKey2 = createWorkerKey(fileSystem, "other", false);
-    Worker worker2 = workerPool.borrowObject(workerKey2);
+    Worker worker2 = workerPool.borrowWorker(workerKey2);
     assertThat(worker2.getWorkerId()).isEqualTo(3);
     verify(factoryMock, times(2)).create(workerKey1);
     verify(factoryMock).create(workerKey2);
@@ -177,12 +133,12 @@ public class WorkerPoolTest {
   @Test
   public void testBorrow_pooledByKey() throws Exception {
     WorkerKey workerKey1 = createWorkerKey(fileSystem, "mnem", false);
-    Worker worker1 = workerPool.borrowObject(workerKey1);
-    Worker worker1a = workerPool.borrowObject(workerKey1);
+    Worker worker1 = workerPool.borrowWorker(workerKey1);
+    Worker worker1a = workerPool.borrowWorker(workerKey1);
     assertThat(worker1.getWorkerId()).isEqualTo(1);
     assertThat(worker1a.getWorkerId()).isEqualTo(2);
     WorkerKey workerKey2 = createWorkerKey(fileSystem, "mnem", false, "arg1");
-    Worker worker2 = workerPool.borrowObject(workerKey2);
+    Worker worker2 = workerPool.borrowWorker(workerKey2);
     assertThat(worker2.getWorkerId()).isEqualTo(3);
     verify(factoryMock, times(2)).create(workerKey1);
     verify(factoryMock).create(workerKey2);
@@ -191,14 +147,14 @@ public class WorkerPoolTest {
   @Test
   public void testBorrow_separateMultiplexWorkers() throws Exception {
     WorkerKey workerKey = createWorkerKey(fileSystem, "mnem", false);
-    Worker worker1 = workerPool.borrowObject(workerKey);
+    Worker worker1 = workerPool.borrowWorker(workerKey);
     assertThat(worker1.getWorkerId()).isEqualTo(1);
-    workerPool.returnObject(workerKey, worker1);
+    workerPool.returnWorker(workerKey, worker1);
 
     WorkerKey multiplexKey = createWorkerKey(fileSystem, "mnem", true);
-    Worker multiplexWorker1 = workerPool.borrowObject(multiplexKey);
-    Worker multiplexWorker2 = workerPool.borrowObject(multiplexKey);
-    Worker worker1a = workerPool.borrowObject(workerKey);
+    Worker multiplexWorker1 = workerPool.borrowWorker(multiplexKey);
+    Worker multiplexWorker2 = workerPool.borrowWorker(multiplexKey);
+    Worker worker1a = workerPool.borrowWorker(workerKey);
 
     assertThat(multiplexWorker1.getWorkerId()).isEqualTo(2);
     assertThat(multiplexWorker2.getWorkerId()).isEqualTo(3);
@@ -211,15 +167,15 @@ public class WorkerPoolTest {
   @Test
   public void testBorrow_doomedWorkers() throws Exception {
     WorkerKey workerKey = createWorkerKey(fileSystem, "mnem", false);
-    Worker worker1 = workerPool.borrowObject(workerKey);
-    Worker worker2 = workerPool.borrowObject(workerKey);
+    Worker worker1 = workerPool.borrowWorker(workerKey);
+    Worker worker2 = workerPool.borrowWorker(workerKey);
 
     worker1.getStatus().maybeUpdateStatus(Status.PENDING_KILL_DUE_TO_MEMORY_PRESSURE);
 
     assertThat(worker1.getStatus().isKilled()).isFalse();
     assertThat(worker2.getStatus().isKilled()).isFalse();
 
-    workerPool.returnObject(workerKey, worker1);
+    workerPool.returnWorker(workerKey, worker1);
 
     assertThat(worker1.getStatus().isKilled()).isTrue();
     assertThat(worker2.getStatus().isKilled()).isFalse();
@@ -228,12 +184,12 @@ public class WorkerPoolTest {
   @Test
   public void testBorrow_blocksWhenUnavailable() throws Exception {
     WorkerKey workerKey = createWorkerKey(fileSystem, "mnem", false);
-    Worker unused1 = workerPool.borrowObject(workerKey);
-    Worker unused2 = workerPool.borrowObject(workerKey);
+    Worker unused1 = workerPool.borrowWorker(workerKey);
+    Worker unused2 = workerPool.borrowWorker(workerKey);
     TestThread blockedBorrowThread =
         new TestThread(
             () -> {
-              Worker unused = workerPool.borrowObject(workerKey);
+              Worker unused = workerPool.borrowWorker(workerKey);
             });
     blockedBorrowThread.start();
 
@@ -246,20 +202,20 @@ public class WorkerPoolTest {
   @Test
   public void testBorrow_blockedThread_getsReturnedWorker() throws Exception {
     WorkerKey workerKey = createWorkerKey(fileSystem, "mnem", false);
-    Worker worker1 = workerPool.borrowObject(workerKey);
-    Worker unused2 = workerPool.borrowObject(workerKey);
+    Worker worker1 = workerPool.borrowWorker(workerKey);
+    Worker unused2 = workerPool.borrowWorker(workerKey);
     TestThread blockedBorrowThread =
         new TestThread(
             () -> {
               // This blocks until worker1 returns its object.
-              Worker worker = workerPool.borrowObject(workerKey);
+              Worker worker = workerPool.borrowWorker(workerKey);
               assertThat(worker).isSameInstanceAs(worker1);
             });
     blockedBorrowThread.start();
 
     // We want to 3rd borrow to be blocked for some time.
     Thread.sleep(500);
-    workerPool.returnObject(worker1.getWorkerKey(), worker1);
+    workerPool.returnWorker(worker1.getWorkerKey(), worker1);
 
     blockedBorrowThread.joinAndAssertState(10000);
     assertThat(workerPool.getNumActive(workerKey)).isEqualTo(2);
@@ -268,12 +224,12 @@ public class WorkerPoolTest {
   @Test
   public void testBorrow_blockedThread_createsWorkerWhenInvalidated() throws Exception {
     WorkerKey workerKey = createWorkerKey(fileSystem, "mnem", false);
-    Worker worker1 = workerPool.borrowObject(workerKey);
-    Worker unused2 = workerPool.borrowObject(workerKey);
+    Worker worker1 = workerPool.borrowWorker(workerKey);
+    Worker unused2 = workerPool.borrowWorker(workerKey);
     TestThread blockedBorrowThread =
         new TestThread(
             () -> {
-              Worker worker = workerPool.borrowObject(workerKey);
+              Worker worker = workerPool.borrowWorker(workerKey);
               // Create a new worker instead.
               assertThat(worker.getWorkerId()).isEqualTo(3);
             });
@@ -281,7 +237,7 @@ public class WorkerPoolTest {
 
     // We want to 3rd borrow to be blocked for some time.
     Thread.sleep(500);
-    workerPool.invalidateObject(worker1.getWorkerKey(), worker1);
+    workerPool.invalidateWorker(worker1);
 
     blockedBorrowThread.joinAndAssertState(10000);
     assertThat(workerPool.getNumActive(workerKey)).isEqualTo(2);
@@ -289,16 +245,14 @@ public class WorkerPoolTest {
 
   @Test
   public void testBorrow_blockedThread_remainsBlockedWhenInvalidatedAndShrunk() throws Exception {
-    // This is meant solely for WorkerPoolImpl; WorkerPoolImplLegacy will block only after some
-    // time because GenericKeyedObjectPool only implements some
     assumeTrue(workerPool instanceof WorkerPoolImpl);
     WorkerKey workerKey = createWorkerKey(fileSystem, "mnem", false);
-    Worker worker1 = workerPool.borrowObject(workerKey);
-    Worker unused2 = workerPool.borrowObject(workerKey);
+    Worker worker1 = workerPool.borrowWorker(workerKey);
+    Worker unused2 = workerPool.borrowWorker(workerKey);
     TestThread blockedBorrowThread =
         new TestThread(
             () -> {
-              Worker unused = workerPool.borrowObject(workerKey);
+              Worker unused = workerPool.borrowWorker(workerKey);
             });
     blockedBorrowThread.start();
 
@@ -306,7 +260,7 @@ public class WorkerPoolTest {
     // before or after the 3rd #borrowObject, the pool would not have the quota and borrowing will
     // still get blocked.
     worker1.getStatus().maybeUpdateStatus(Status.PENDING_KILL_DUE_TO_MEMORY_PRESSURE);
-    workerPool.invalidateObject(worker1.getWorkerKey(), worker1);
+    workerPool.invalidateWorker(worker1);
 
     AssertionError e =
         assertThrows(AssertionError.class, () -> blockedBorrowThread.joinAndAssertState(1000));
@@ -317,10 +271,10 @@ public class WorkerPoolTest {
   @Test
   public void testEvict_evictsIdleWorkers() throws Exception {
     WorkerKey workerKey = createWorkerKey(fileSystem, "mnem", false);
-    Worker worker1 = workerPool.borrowObject(workerKey);
-    Worker worker2 = workerPool.borrowObject(workerKey);
-    workerPool.returnObject(workerKey, worker1);
-    workerPool.returnObject(workerKey, worker2);
+    Worker worker1 = workerPool.borrowWorker(workerKey);
+    Worker worker2 = workerPool.borrowWorker(workerKey);
+    workerPool.returnWorker(workerKey, worker1);
+    workerPool.returnWorker(workerKey, worker2);
     ImmutableSet<Integer> evicted =
         workerPool.evictWorkers(ImmutableSet.of(worker1.getWorkerId(), worker2.getWorkerId()));
     assertThat(evicted).containsExactly(worker1.getWorkerId(), worker2.getWorkerId());
@@ -330,9 +284,9 @@ public class WorkerPoolTest {
   @Test
   public void testEvict_doesNotEvictActiveWorkers() throws Exception {
     WorkerKey workerKey = createWorkerKey(fileSystem, "mnem", false);
-    Worker worker1 = workerPool.borrowObject(workerKey);
-    Worker worker2 = workerPool.borrowObject(workerKey);
-    workerPool.returnObject(workerKey, worker1);
+    Worker worker1 = workerPool.borrowWorker(workerKey);
+    Worker worker2 = workerPool.borrowWorker(workerKey);
+    workerPool.returnWorker(workerKey, worker1);
     ImmutableSet<Integer> evicted =
         workerPool.evictWorkers(ImmutableSet.of(worker1.getWorkerId(), worker2.getWorkerId()));
     // Worker2 does not get evicted because it is still active.
@@ -343,12 +297,12 @@ public class WorkerPoolTest {
   @Test
   public void testGetIdleWorkers() throws Exception {
     WorkerKey workerKey = createWorkerKey(fileSystem, "mnem", false);
-    Worker worker1 = workerPool.borrowObject(workerKey);
-    Worker worker2 = workerPool.borrowObject(workerKey);
+    Worker worker1 = workerPool.borrowWorker(workerKey);
+    Worker worker2 = workerPool.borrowWorker(workerKey);
 
     assertThat(workerPool.getIdleWorkers()).isEmpty();
-    workerPool.returnObject(workerKey, worker1);
-    workerPool.returnObject(workerKey, worker2);
+    workerPool.returnWorker(workerKey, worker1);
+    workerPool.returnWorker(workerKey, worker2);
 
     assertThat(workerPool.getIdleWorkers())
         .containsExactly(worker1.getWorkerId(), worker2.getWorkerId());
@@ -360,16 +314,16 @@ public class WorkerPoolTest {
     WorkerKey workerKey = createWorkerKey(fileSystem, "mnem", false);
     assertThat(workerPool.getMaxTotalPerKey(workerKey)).isEqualTo(2);
 
-    Worker worker1 = workerPool.borrowObject(workerKey);
+    Worker worker1 = workerPool.borrowWorker(workerKey);
     // Shrink the worker pool by 1.
     worker1.getStatus().maybeUpdateStatus(Status.PENDING_KILL_DUE_TO_MEMORY_PRESSURE);
-    workerPool.returnObject(workerKey, worker1);
+    workerPool.returnWorker(workerKey, worker1);
     assertThat(workerPool.getMaxTotalPerKey(workerKey)).isEqualTo(1);
 
-    Worker worker2 = workerPool.borrowObject(workerKey);
+    Worker worker2 = workerPool.borrowWorker(workerKey);
     // Attempt to shrink the pool again.
     worker2.getStatus().maybeUpdateStatus(Status.PENDING_KILL_DUE_TO_MEMORY_PRESSURE);
-    workerPool.returnObject(workerKey, worker2);
+    workerPool.returnWorker(workerKey, worker2);
     // It should not be shrunk below 1.
     assertThat(workerPool.getMaxTotalPerKey(workerKey)).isEqualTo(1);
     assertThat(workerPool.getNumActive(workerKey)).isEqualTo(0);
@@ -379,11 +333,11 @@ public class WorkerPoolTest {
   public void testGetNumActive() throws Exception {
     WorkerKey workerKey = createWorkerKey(fileSystem, "mnem", false);
     assertThat(workerPool.getNumActive(workerKey)).isEqualTo(0);
-    Worker worker1 = workerPool.borrowObject(workerKey);
-    Worker worker2 = workerPool.borrowObject(workerKey);
+    Worker worker1 = workerPool.borrowWorker(workerKey);
+    Worker worker2 = workerPool.borrowWorker(workerKey);
     assertThat(workerPool.getNumActive(workerKey)).isEqualTo(2);
-    workerPool.returnObject(workerKey, worker1);
-    workerPool.returnObject(workerKey, worker2);
+    workerPool.returnWorker(workerKey, worker1);
+    workerPool.returnWorker(workerKey, worker2);
     assertThat(workerPool.getNumActive(workerKey)).isEqualTo(0);
   }
 
@@ -392,10 +346,10 @@ public class WorkerPoolTest {
     WorkerKey workerKey = createWorkerKey(fileSystem, "mnem", false);
     assertThat(workerPool.getMaxTotalPerKey(workerKey)).isEqualTo(2);
 
-    Worker worker1 = workerPool.borrowObject(workerKey);
+    Worker worker1 = workerPool.borrowWorker(workerKey);
     // Shrink the worker pool by 1.
     worker1.getStatus().maybeUpdateStatus(Status.PENDING_KILL_DUE_TO_MEMORY_PRESSURE);
-    workerPool.returnObject(workerKey, worker1);
+    workerPool.returnWorker(workerKey, worker1);
     assertThat(workerPool.getMaxTotalPerKey(workerKey)).isEqualTo(1);
 
     workerPool.reset();
@@ -405,10 +359,10 @@ public class WorkerPoolTest {
   @Test
   public void testClose_destroysWorkers() throws Exception {
     WorkerKey workerKey = createWorkerKey(fileSystem, "mnem", false);
-    Worker worker1 = workerPool.borrowObject(workerKey);
-    Worker worker2 = workerPool.borrowObject(workerKey);
-    workerPool.returnObject(workerKey, worker1);
-    workerPool.returnObject(workerKey, worker2);
+    Worker worker1 = workerPool.borrowWorker(workerKey);
+    Worker worker2 = workerPool.borrowWorker(workerKey);
+    workerPool.returnWorker(workerKey, worker1);
+    workerPool.returnWorker(workerKey, worker2);
     workerPool.close();
     verify(factoryMock).destroyWorker(workerKey, worker1);
     verify(factoryMock).destroyWorker(workerKey, worker2);

@@ -24,6 +24,7 @@ In addition to the documentation, you can find helpful information by searching:
 There are recordings of Bazel talks at various conferences, such as:
 
 * Bazel’s annual conference, BazelCon:
+  * [BazelCon 2024](https://www.youtube.com/playlist?list=PLbzoR-pLrL6ptKfAQNZ5RS4HMdmeilBcw){: .external}
   * [BazelCon 2023](https://www.youtube.com/playlist?list=PLxNYxgaZ8Rsefrwb_ySGRi_bvQejpO_Tj){: .external}
   * [BazelCon 2022](https://youtube.com/playlist?list=PLxNYxgaZ8RsdH4GCIZ69dzxQCOPyuNlpF){: .external}
   * [BazelCon 2021](https://www.youtube.com/playlist?list=PLxNYxgaZ8Rsc3auKhtfIB4qXAYf7whEux){: .external}

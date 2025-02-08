@@ -90,8 +90,6 @@ The list of <code>.a</code> files provided to Objective-C targets that
 depend on this target."""),
         },
         common_attrs.ALWAYSLINK_RULE,
-        # TODO(b/288421584): necessary because IDE aspect can't see toolchains
-        common_attrs.CC_TOOLCHAIN_RULE,
         common_attrs.COMPILE_DEPENDENCY_RULE,
         common_attrs.LICENSES,
         common_attrs.SDK_FRAMEWORK_DEPENDER_RULE,

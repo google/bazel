@@ -14,7 +14,9 @@
 
 package com.google.devtools.build.lib.analysis.actions;
 
-import com.google.auto.value.AutoValue;
+import static java.util.Objects.requireNonNull;
+
+import com.google.auto.value.AutoBuilder;
 import com.google.common.collect.ImmutableList;
 import com.google.devtools.build.lib.actions.AbstractAction;
 import com.google.devtools.build.lib.actions.ActionContext;
@@ -27,22 +29,23 @@ import net.starlark.java.eval.EvalException;
 /** The action context for {@link TemplateExpansionAction} instances */
 public interface TemplateExpansionContext extends ActionContext {
   /** Placeholder for metadata associated with a template. */
-  @AutoValue
-  public abstract static class TemplateMetadata {
-    public abstract Template template();
-
-    public abstract Artifact primaryOutput();
-
-    public abstract ImmutableList<Substitution> substitutions();
-
-    public abstract boolean makeExecutable();
+  public record TemplateMetadata(
+      Template template,
+      Artifact primaryOutput,
+      ImmutableList<Substitution> substitutions,
+      boolean makeExecutable) {
+    public TemplateMetadata {
+      requireNonNull(template, "template");
+      requireNonNull(primaryOutput, "primaryOutput");
+      requireNonNull(substitutions, "substitutions");
+    }
 
     public static Builder builder() {
-      return new AutoValue_TemplateExpansionContext_TemplateMetadata.Builder();
+      return new AutoBuilder_TemplateExpansionContext_TemplateMetadata_Builder();
     }
 
     /** Builder of {@link TemplateMetadata} instances. */
-    @AutoValue.Builder
+    @AutoBuilder
     public abstract static class Builder {
       public abstract Builder setTemplate(Template value);
 

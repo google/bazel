@@ -14,7 +14,9 @@
 
 package com.google.devtools.build.lib.shell;
 
-import com.google.auto.value.AutoValue;
+import static java.util.Objects.requireNonNull;
+
+import com.google.auto.value.AutoBuilder;
 import com.google.common.flogger.GoogleLogger;
 import com.google.common.flogger.LazyArgs;
 import com.google.errorprone.annotations.CanIgnoreReturnValue;
@@ -25,9 +27,33 @@ import java.util.Optional;
 /**
  * Encapsulates the results of a command execution, including exit status and output to stdout and
  * stderr.
+ *
+ * @param stdoutStream Returns the stdout {@link ByteArrayOutputStream}.
+ * @param stderrStream Returns the stderr {@link ByteArrayOutputStream}.
+ * @param terminationStatus Returns the termination status of the subprocess.
+ * @param wallExecutionTime Returns the wall execution time. the measurement, or empty in case of
+ *     execution errors or when the measurement is not implemented for the current platform
+ * @param userExecutionTime Returns the user execution time. the measurement, or empty in case of
+ *     execution errors or when the measurement is not implemented for the current platform
+ * @param systemExecutionTime Returns the system execution time. the measurement, or empty in case
+ *     of execution errors or when the measurement is not implemented for the current platform
  */
-@AutoValue
-public abstract class CommandResult {
+public record CommandResult(
+    ByteArrayOutputStream stdoutStream,
+    ByteArrayOutputStream stderrStream,
+    TerminationStatus terminationStatus,
+    Optional<Duration> wallExecutionTime,
+    Optional<Duration> userExecutionTime,
+    Optional<Duration> systemExecutionTime) {
+  public CommandResult {
+    requireNonNull(stdoutStream, "stdoutStream");
+    requireNonNull(stderrStream, "stderrStream");
+    requireNonNull(terminationStatus, "terminationStatus");
+    requireNonNull(wallExecutionTime, "wallExecutionTime");
+    requireNonNull(userExecutionTime, "userExecutionTime");
+    requireNonNull(systemExecutionTime, "systemExecutionTime");
+  }
+
   private static final GoogleLogger logger = GoogleLogger.forEnclosingClass();
 
   private static final byte[] NO_BYTES = new byte[0];
@@ -50,12 +76,6 @@ public abstract class CommandResult {
       }
   };
 
-  /** Returns the stdout {@link ByteArrayOutputStream}. */
-  public abstract ByteArrayOutputStream getStdoutStream();
-
-  /** Returns the stderr {@link ByteArrayOutputStream}. */
-  public abstract ByteArrayOutputStream getStderrStream();
-
   /**
    * Returns the stdout as a byte array.
    *
@@ -64,7 +84,7 @@ public abstract class CommandResult {
    * @throws IllegalStateException if output was not collected
    */
   public byte[] getStdout() {
-    return getStdoutStream().toByteArray();
+    return stdoutStream().toByteArray();
   }
 
   /**
@@ -75,40 +95,13 @@ public abstract class CommandResult {
    * @throws IllegalStateException if output was not collected
    */
   public byte[] getStderr() {
-    return getStderrStream().toByteArray();
+    return stderrStream().toByteArray();
   }
 
-  /** Returns the termination status of the subprocess. */
-  public abstract TerminationStatus getTerminationStatus();
-
-  /**
-   * Returns the wall execution time.
-   *
-   * @return the measurement, or empty in case of execution errors or when the measurement is not
-   *     implemented for the current platform
-   */
-  public abstract Optional<Duration> getWallExecutionTime();
-
-  /**
-   * Returns the user execution time.
-   *
-   * @return the measurement, or empty in case of execution errors or when the measurement is not
-   *     implemented for the current platform
-   */
-  public abstract Optional<Duration> getUserExecutionTime();
-
-  /**
-   * Returns the system execution time.
-   *
-   * @return the measurement, or empty in case of execution errors or when the measurement is not
-   *     implemented for the current platform
-   */
-  public abstract Optional<Duration> getSystemExecutionTime();
-
   void logThis() {
-    logger.atFiner().log("%s", LazyArgs.lazy(() -> getTerminationStatus()));
+    logger.atFiner().log("%s", LazyArgs.lazy(() -> terminationStatus()));
 
-    if (getStdoutStream() == NO_OUTPUT_COLLECTED) {
+    if (stdoutStream() == NO_OUTPUT_COLLECTED) {
       return;
     }
     logger.atFiner().log("Stdout: %s", LazyArgs.lazy(() -> LogUtil.toTruncatedString(getStdout())));
@@ -117,11 +110,11 @@ public abstract class CommandResult {
 
   /** Returns a new {@link CommandResult.Builder}. */
   public static Builder builder() {
-    return new AutoValue_CommandResult.Builder();
+    return new AutoBuilder_CommandResult_Builder();
   }
 
   /** A builder for {@link CommandResult}s. */
-  @AutoValue.Builder
+  @AutoBuilder
   public abstract static class Builder {
     /** Sets the stdout output for the command. */
     public abstract Builder setStdoutStream(ByteArrayOutputStream stdout);

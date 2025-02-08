@@ -14,9 +14,10 @@
 
 """Helper functions for Bzlmod build"""
 
-load(":blazel_utils.bzl", _get_canonical_repo_name = "get_canonical_repo_name")
+load(":blazel_utils.bzl", _get_canonical_repo_name = "get_canonical_repo_name", _get_repo_root = "get_repo_root")
 
 get_canonical_repo_name = _get_canonical_repo_name
+get_repo_root = _get_repo_root
 
 def extract_url(attributes):
     """Extracts the url from the given attributes.
@@ -92,9 +93,9 @@ def parse_http_artifacts(ctx, lockfile_path, required_repos):
             extensions.append(extension_per_platform)
         for extension in extensions:
             for local_name, repo_spec in extension["generatedRepoSpecs"].items():
-                rule_class = repo_spec["ruleClassName"]
+                rule_class = repo_spec["ruleClassName"] if "ruleClassName" in repo_spec else repo_spec["repoRuleId"]
 
-                if rule_class == "http_archive" or rule_class == "http_file" or rule_class == "http_jar":
+                if rule_class.endswith("http_archive") or rule_class.endswith("http_file") or rule_class.endswith("http_jar"):
                     attributes = repo_spec["attributes"]
                     repo_name = repo_name_prefix + local_name
 

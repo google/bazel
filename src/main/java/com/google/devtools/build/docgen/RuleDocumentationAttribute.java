@@ -176,6 +176,8 @@ public class RuleDocumentationAttribute
       case LABEL_STRING_DICT -> BuildType.LABEL_KEYED_STRING_DICT;
       case STRING_DICT -> Types.STRING_DICT;
       case STRING_LIST_DICT -> Types.STRING_LIST_DICT;
+      case LABEL_DICT_UNARY -> BuildType.LABEL_DICT_UNARY;
+      case LABEL_LIST_DICT -> BuildType.LABEL_LIST_DICT;
       case OUTPUT -> BuildType.OUTPUT;
       case OUTPUT_LIST -> BuildType.OUTPUT_LIST;
       default ->

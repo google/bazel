@@ -51,7 +51,9 @@ java_library(
         "StarlarkInt.java",
         "StarlarkIterable.java",
         "StarlarkList.java",
+        "StarlarkMembershipTestable.java",
         "StarlarkSemantics.java",
+        "StarlarkSet.java",
         "StarlarkThread.java",
         "StarlarkValue.java",
         "StringModule.java",
@@ -110,5 +112,5 @@ cc_binary(
         "//conditions:default": ["cpu_profiler_unimpl.cc"],
     }),
     linkshared = 1,
-    deps = ["@bazel_tools//tools/jdk:jni"],
+    deps = ["@rules_java//toolchains:jni"],
 )

@@ -354,8 +354,7 @@ public abstract class Type<T> {
     @Override
     public StarlarkInt convert(Object x, Object what, LabelConverter labelConverter)
         throws ConversionException {
-      if (x instanceof StarlarkInt) {
-        StarlarkInt i = (StarlarkInt) x;
+      if (x instanceof StarlarkInt i) {
         try {
           i.toIntUnchecked(); // assert signed 32-bit
         } catch (

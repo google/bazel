@@ -15,9 +15,11 @@
 
 package com.google.devtools.build.lib.bazel.bzlmod;
 
-import com.google.auto.value.AutoValue;
+import static java.util.Objects.requireNonNull;
+
 import com.google.common.collect.ImmutableList;
 import com.google.devtools.build.lib.cmdline.Label;
+import com.google.devtools.build.lib.skyframe.serialization.autocodec.AutoCodec;
 
 /**
  * Specifies that the module should:
@@ -27,9 +29,33 @@ import com.google.devtools.build.lib.cmdline.Label;
  *   <li>and/or come from a specific registry (instead of the default list),
  *   <li>and/or use some local patches.
  * </ul>
+ *
+ * @param version The version to pin the module to. Can be empty if it shouldn't be pinned (in which
+ *     case it will still participate in version resolution).
+ * @param patches The labels of patches to apply after retrieving per the registry.
+ * @param patchCmds The patch commands to execute after retrieving per the registry. Should be a
+ *     list of commands.
+ * @param patchStrip The number of path segments to strip from the paths in the supplied patches.
  */
-@AutoValue
-public abstract class SingleVersionOverride implements RegistryOverride {
+@AutoCodec
+public record SingleVersionOverride(
+    Version version,
+    @Override String registry,
+    ImmutableList<Label> patches,
+    ImmutableList<String> patchCmds,
+    int patchStrip)
+    implements RegistryOverride {
+  public SingleVersionOverride {
+    requireNonNull(version, "version");
+    requireNonNull(registry, "registry");
+    requireNonNull(patches, "patches");
+    requireNonNull(patchCmds, "patchCmds");
+  }
+
+  @Override
+  public String getRegistry() {
+    return registry();
+  }
 
   public static SingleVersionOverride create(
       Version version,
@@ -37,26 +63,7 @@ public abstract class SingleVersionOverride implements RegistryOverride {
       ImmutableList<Label> patches,
       ImmutableList<String> patchCmds,
       int patchStrip) {
-    return new AutoValue_SingleVersionOverride(version, registry, patches, patchCmds, patchStrip);
+    return new SingleVersionOverride(version, registry, patches, patchCmds, patchStrip);
   }
 
-  /**
-   * The version to pin the module to. Can be empty if it shouldn't be pinned (in which case it will
-   * still participate in version resolution).
-   */
-  public abstract Version getVersion();
-
-  @Override
-  public abstract String getRegistry();
-
-  /** The labels of patches to apply after retrieving per the registry. */
-  public abstract ImmutableList<Label> getPatches();
-
-  /**
-   * The patch commands to execute after retrieving per the registry. Should be a list of commands.
-   */
-  public abstract ImmutableList<String> getPatchCmds();
-
-  /** The number of path segments to strip from the paths in the supplied patches. */
-  public abstract int getPatchStrip();
 }

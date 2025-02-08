@@ -13,28 +13,31 @@
 // limitations under the License.
 package com.google.devtools.build.lib.actions;
 
+import static java.util.Objects.requireNonNull;
+
 import build.bazel.remote.execution.v2.Digest;
-import com.google.auto.value.AutoValue;
 import com.google.devtools.build.lib.events.ExtendedEventHandler.Postable;
 import com.google.devtools.build.lib.remote.Store;
 
 /**
  * The event fired when a resource is about to be uploaded to a remote or disk cache upon completion
  * of a local action.
+ *
+ * @param action Returns the associated action.
+ * @param store Returns the store that the resource belongs to.
+ * @param digest Returns the digest that uniquely identifies the resource.
  */
-@AutoValue
-public abstract class ActionUploadStartedEvent implements Postable {
-  public static ActionUploadStartedEvent create(
-      ActionExecutionMetadata action, Store store, Digest digest) {
-    return new AutoValue_ActionUploadStartedEvent(action, store, digest);
+public record ActionUploadStartedEvent(ActionExecutionMetadata action, Store store, Digest digest)
+    implements Postable {
+  public ActionUploadStartedEvent {
+    requireNonNull(action, "action");
+    requireNonNull(store, "store");
+    requireNonNull(digest, "digest");
   }
 
-  /** Returns the associated action. */
-  public abstract ActionExecutionMetadata action();
+  public static ActionUploadStartedEvent create(
+      ActionExecutionMetadata action, Store store, Digest digest) {
+    return new ActionUploadStartedEvent(action, store, digest);
+  }
 
-  /** Returns the store that the resource belongs to. */
-  public abstract Store store();
-
-  /** Returns the digest that uniquely identifies the resource. */
-  public abstract Digest digest();
 }

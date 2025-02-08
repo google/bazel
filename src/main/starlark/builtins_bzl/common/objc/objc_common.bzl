@@ -18,7 +18,6 @@ load(":common/cc/cc_info.bzl", "CcInfo")
 load(":common/objc/apple_toolchain.bzl", "apple_toolchain")
 load(":common/objc/objc_compilation_context_info.bzl", "ObjcCompilationContextInfo")
 load(":common/objc/objc_info.bzl", "ObjcInfo")
-load(":common/objc/providers.bzl", "J2ObjcEntryClassInfo", "J2ObjcMappingFileInfo")
 
 objc_internal = _builtins.internal.objc_internal
 cc_internal = _builtins.internal.cc_internal
@@ -65,8 +64,7 @@ def _create_context_and_provider(
         implementation_deps,
         attr_linkopts,
         direct_cc_compilation_contexts = [],
-        includes = [],
-        is_aspect = False):
+        includes = []):
     objc_providers = []
     cc_compilation_contexts = []
     cc_linking_contexts = []
@@ -142,11 +140,6 @@ def _create_context_and_provider(
     if compilation_artifacts != None:
         all_sources = _filter_out_by_extension(compilation_artifacts.srcs, OBJECT_FILE_SOURCES) + \
                       compilation_artifacts.non_arc_srcs
-
-        if compilation_artifacts.archive != None:
-            if is_aspect:
-                if ctx.rule.kind in ["j2objc_library", "java_library", "java_import", "java_proto_library"]:
-                    objc_provider_kwargs["j2objc_library"] = [compilation_artifacts.archive]
 
         objc_provider_kwargs["source"].extend(all_sources)
 
@@ -246,40 +239,7 @@ def _is_apple_platform(cpu):
            cpu in ios_cpus.CATALYST_TARGET_CPUS or \
            cpu in ios_cpus.MACOS_TARGET_CPUS
 
-# TODO(bazel-team): Delete this function when MultiArchBinarySupport is starlarkified.
-def _j2objc_mapping_file_info_union(providers):
-    transitive_header_mapping_files = []
-    transitive_class_mapping_files = []
-    transitive_dependency_mapping_files = []
-    transitive_archive_source_mapping_files = []
-
-    for provider in providers:
-        transitive_header_mapping_files.append(provider.header_mapping_files)
-        transitive_class_mapping_files.append(provider.class_mapping_files)
-        transitive_dependency_mapping_files.append(provider.dependency_mapping_files)
-        transitive_archive_source_mapping_files.append(provider.archive_source_mapping_files)
-
-    return J2ObjcMappingFileInfo(
-        header_mapping_files = depset([], transitive = transitive_header_mapping_files),
-        class_mapping_files = depset([], transitive = transitive_class_mapping_files),
-        dependency_mapping_files = depset([], transitive = transitive_dependency_mapping_files),
-        archive_source_mapping_files = depset([], transitive = transitive_archive_source_mapping_files),
-    )
-
-# TODO(bazel-team): Delete this function when MultiArchBinarySupport is starlarkified.
-def _j2objc_entry_class_info_union(providers):
-    transitive_entry_classes = []
-
-    for provider in providers:
-        transitive_entry_classes.append(provider.entry_classes)
-
-    return J2ObjcEntryClassInfo(
-        entry_classes = depset([], transitive = transitive_entry_classes),
-    )
-
 objc_common = struct(
     create_context_and_provider = _create_context_and_provider,
     is_apple_platform = _is_apple_platform,
-    j2objc_mapping_file_info_union = _j2objc_mapping_file_info_union,
-    j2objc_entry_class_info_union = _j2objc_entry_class_info_union,
 )

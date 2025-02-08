@@ -18,6 +18,8 @@ import static com.google.devtools.build.lib.buildeventstream.BuildEventIdUtil.co
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Iterables;
+import com.google.devtools.build.lib.actions.Artifact;
 import com.google.devtools.build.lib.actions.CompletionContext;
 import com.google.devtools.build.lib.actions.EventReportingArtifacts;
 import com.google.devtools.build.lib.analysis.TopLevelArtifactHelper.ArtifactsInOutputGroup;
@@ -46,12 +48,14 @@ public final class AspectCompleteEvent
   private final Collection<BuildEventId> postedAfter;
   private final CompletionContext completionContext;
   private final ImmutableMap<String, ArtifactsInOutputGroup> artifactOutputGroups;
+  private final boolean printToMasterLog;
 
   private AspectCompleteEvent(
       AspectKey aspectKey,
       NestedSet<Cause> rootCauses,
       CompletionContext completionContext,
-      ImmutableMap<String, ArtifactsInOutputGroup> artifactOutputGroups) {
+      ImmutableMap<String, ArtifactsInOutputGroup> artifactOutputGroups,
+      boolean printToMasterLog) {
     this.aspectKey = aspectKey;
     this.rootCauses =
         (rootCauses == null) ? NestedSetBuilder.emptySet(Order.STABLE_ORDER) : rootCauses;
@@ -62,14 +66,16 @@ public final class AspectCompleteEvent
     this.postedAfter = postedAfterBuilder.build();
     this.completionContext = completionContext;
     this.artifactOutputGroups = artifactOutputGroups;
+    this.printToMasterLog = printToMasterLog;
   }
 
   /** Construct a successful target completion event. */
   public static AspectCompleteEvent createSuccessful(
       AspectKey key,
       CompletionContext completionContext,
-      ImmutableMap<String, ArtifactsInOutputGroup> artifacts) {
-    return new AspectCompleteEvent(key, null, completionContext, artifacts);
+      ImmutableMap<String, ArtifactsInOutputGroup> artifacts,
+      boolean printToMasterLog) {
+    return new AspectCompleteEvent(key, null, completionContext, artifacts, printToMasterLog);
   }
 
   /**
@@ -79,9 +85,10 @@ public final class AspectCompleteEvent
       AspectKey key,
       CompletionContext ctx,
       NestedSet<Cause> rootCauses,
-      ImmutableMap<String, ArtifactsInOutputGroup> outputs) {
+      ImmutableMap<String, ArtifactsInOutputGroup> outputs,
+      boolean printToMasterLog) {
     Preconditions.checkArgument(!rootCauses.isEmpty());
-    return new AspectCompleteEvent(key, rootCauses, ctx, outputs);
+    return new AspectCompleteEvent(key, rootCauses, ctx, outputs, printToMasterLog);
   }
 
   /** Returns the key of the completed aspect. */
@@ -116,6 +123,20 @@ public final class AspectCompleteEvent
 
   public CompletionContext getCompletionContext() {
     return completionContext;
+  }
+
+  public Iterable<Artifact> getLegacyFilteredImportantArtifacts() {
+    if (!printToMasterLog) {
+      return ImmutableList.of();
+    }
+    NestedSetBuilder<Artifact> builder = NestedSetBuilder.stableOrder();
+    for (ArtifactsInOutputGroup artifactsInOutputGroup : artifactOutputGroups.values()) {
+      if (artifactsInOutputGroup.areImportant()) {
+        builder.addTransitive(artifactsInOutputGroup.getArtifacts());
+      }
+    }
+    // An aspect could potentially return a source artifact if it added it to its provider.
+    return Iterables.filter(builder.build().toList(), (artifact) -> !artifact.isSourceArtifact());
   }
 
   @Override

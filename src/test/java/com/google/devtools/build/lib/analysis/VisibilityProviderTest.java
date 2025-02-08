@@ -200,7 +200,6 @@ public final class VisibilityProviderTest extends BuildViewTestCase {
     // Check the provider of an alias target declared in a BUILD file referencing an actual target
     // in a macro, and vice versa.
     defineSimpleRule();
-    scratch.file("lib/BUILD");
     scratch.file(
         // Put the .bzl in //pkg so we don't have to declare //pkg:__pkg__ in visibility.
         "pkg/macro.bzl",

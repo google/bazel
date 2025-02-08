@@ -112,6 +112,9 @@ public final class RecursiveFilesystemTraversalFunction implements SkyFunction {
 
       /** The filesystem threw a {@link DetailedIOException}. */
       DETAILED_IO_EXCEPTION,
+
+      /** A traversal of a source directory was requested. */
+      CANNOT_TRAVERSE_SOURCE_DIRECTORY,
     }
 
     private final RecursiveFilesystemTraversalException.Type type;

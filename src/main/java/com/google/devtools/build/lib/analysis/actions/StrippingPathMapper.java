@@ -200,7 +200,7 @@ public final class StrippingPathMapper implements PathMapper {
       // The mapped root's path does not depend on the artifact, so we can share an instance.
       return strippedOutputArtifactRoot;
     }
-    // Fall back for source roots as well as middleman artifacts, which should be very rare.
+    // Fall back for source roots as well as runfiles tree artifacts, which should be very rare.
     return PathMapper.super.mapRoot(artifact);
   }
 

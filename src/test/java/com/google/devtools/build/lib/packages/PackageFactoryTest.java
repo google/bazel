@@ -1644,17 +1644,15 @@ public final class PackageFactoryTest extends PackageLoadingTestCase {
   // many macros overall, for both eager and deferred evaluation.
 
   /**
-   * Asserts that the target's RuleVisibility contains exactly the given labels.
-   *
-   * <p>For rule targets, this is effectively its visibility attribute, as possibly modified by the
-   * munging to include the declaration location.
+   * Asserts that the target's {@link Target#getActualVisibility actual visibility} contains exactly
+   * the given labels.
    */
   private void assertVisibilityIs(Target target, String... visibilityLabels) {
     ImmutableList.Builder<Label> labels = ImmutableList.builder();
     for (String item : visibilityLabels) {
       labels.add(Label.parseCanonicalUnchecked(item));
     }
-    assertThat(target.getVisibility().getDeclaredLabels())
+    assertThat(target.getActualVisibility().getDeclaredLabels())
         // Values are sorted by virtue of visibility being a label_list.
         .containsExactlyElementsIn(labels.build());
   }
@@ -1665,7 +1663,8 @@ public final class PackageFactoryTest extends PackageLoadingTestCase {
   }
 
   @Test
-  public void testDeclarationVisibilityUnioning_onlyOccursWithinMacros() throws Exception {
+  public void testDeclarationVisibilityUnioning_occursBothInsideAndOutsideMacros()
+      throws Exception {
     enableMacrosAndUsePrivateVisibility();
     scratch.file("lib/BUILD");
     scratch.file(
@@ -1691,7 +1690,7 @@ public final class PackageFactoryTest extends PackageLoadingTestCase {
         """);
 
     Package pkg = loadPackageAndAssertSuccess("pkg");
-    assertVisibilityIs(pkg.getTarget("foo"), "//other_pkg:__pkg__");
+    assertVisibilityIs(pkg.getTarget("foo"), "//other_pkg:__pkg__", "//pkg:__pkg__");
     assertVisibilityIs(pkg.getTarget("bar"), "//other_pkg:__pkg__", "//lib:__pkg__");
   }
 
@@ -1753,7 +1752,8 @@ public final class PackageFactoryTest extends PackageLoadingTestCase {
         """);
 
     Package pkg = loadPackageAndAssertSuccess("pkg");
-    assertVisibilityIs(pkg.getTarget("foo"), "//other_pkg:__pkg__");
+    assertVisibilityIs(pkg.getTarget("foo"), "//other_pkg:__pkg__", "//pkg:__pkg__");
+    // other_pkg doesn't propagate to bar, it only has its own instantiation location.
     assertVisibilityIs(pkg.getTarget("bar"), "//lib:__pkg__");
   }
 

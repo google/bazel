@@ -87,6 +87,9 @@ public class ModuleThreadContext extends StarlarkThreadContext {
       String extensionName,
       ImmutableList<StarlarkThread.CallStackEntry> stack) {
     Location location() {
+      if (stack.size() < 2) {
+        return Location.BUILTIN;
+      }
       // Skip over the override_repo builtin frame.
       return stack.reverse().get(1).location;
     }
@@ -94,6 +97,9 @@ public class ModuleThreadContext extends StarlarkThreadContext {
 
   record RepoNameUsage(String how, ImmutableList<StarlarkThread.CallStackEntry> stack) {
     Location location() {
+      if (stack.size() < 2) {
+        return Location.BUILTIN;
+      }
       // Skip over the override_repo builtin frame.
       return stack.reverse().get(1).location;
     }

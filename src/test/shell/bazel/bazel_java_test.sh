@@ -87,6 +87,10 @@ function tear_down() {
   rm -rf "$(bazel info bazel-bin)/java"
 }
 
+function set_up() {
+  add_rules_java MODULE.bazel
+}
+
 function write_hello_library_files() {
   mkdir -p java/main
   cat >java/main/BUILD <<EOF
@@ -229,6 +233,7 @@ EOF
 
 function write_java_custom_rule() {
   cat > java/com/google/sandwich/java_custom_library.bzl << EOF
+load("@rules_java//java/common:java_common.bzl", "java_common")
 def _impl(ctx):
   deps = [dep[java_common.provider] for dep in ctx.attr.deps]
   exports = [export[java_common.provider] for export in ctx.attr.exports]
@@ -414,6 +419,7 @@ java_custom_library(
 EOF
 
   cat >g/java_custom_library.bzl << EOF
+load("@rules_java//java/common:java_common.bzl", "java_common")
 def _impl(ctx):
   output_jar = ctx.actions.declare_file("lib" + ctx.label.name + ".jar")
 
@@ -484,6 +490,7 @@ java_custom_library(
 EOF
 
   cat >g/java_custom_library.bzl << EOF
+load("@rules_java//java/common:java_common.bzl", "java_common")
 def _impl(ctx):
   output_jar = ctx.actions.declare_file("lib" + ctx.label.name + ".jar")
 
@@ -1387,6 +1394,8 @@ class A {
 EOF
 
   cat > java/com/google/sandwich/java_custom_library.bzl << EOF
+load("@rules_java//java/common:java_common.bzl", "java_common")
+load("@rules_java//java/common:java_info.bzl", "JavaInfo")
 def _impl(ctx):
   compiled_jar = ctx.actions.declare_file("lib" + ctx.label.name + ".jar")
   imported_jar = ctx.files.jar[0];
@@ -1441,6 +1450,8 @@ my_rule(
 EOF
 
   cat > java/com/google/foo/my_rule.bzl << EOF
+load("@rules_java//java/common:java_common.bzl", "java_common")
+load("@rules_java//java/common:java_info.bzl", "JavaInfo")
 result = provider()
 def _impl(ctx):
   compile_jar = java_common.run_ijar(
@@ -1562,13 +1573,69 @@ EOF
 # Build and run a java_binary that calls a C++ function through JNI.
 # This test exercises the built-in @bazel_tools//tools/jdk:jni target.
 #
-# The java_binary wrapper script specifies -Djava.library.path=$runfiles/test,
+# The java_binary wrapper script specifies -Djava.library.path=$runfiles/jni,
 # and the Java program expects to find a DSO there---except on MS Windows,
 # which lacks support for symbolic links. Really there needs to
 # be a cleaner mechanism for finding and loading the JNI library (and better
 # hygiene around the library namespace). By contrast, Blaze links all the
 # native code and the JVM into a single executable, which is an elegant solution.
 #
+function setup_jni_targets() {
+  repo="${1:-.}"
+  if [ "$repo" != "." ]; then
+    mkdir $repo
+    touch $repo/REPO.bazel
+    cat > $(setup_module_dot_bazel) <<EOF
+local_repository = use_repo_rule("@bazel_tools//tools/build_defs/repo:local.bzl", "local_repository")
+local_repository(
+  name="$repo",
+  path="./$repo",
+)
+EOF
+  fi
+  mkdir -p ${repo}/jni
+  cat > $repo/jni/BUILD <<EOF
+java_library(
+  name = "lib",
+  srcs = ["App.java"],
+  deps = [":libnative.so"],
+  visibility = ["//visibility:public"],
+)
+cc_binary(
+  name = "libnative.so",
+  srcs = ["native.cc"],
+  linkshared = 1,
+  deps = ["@bazel_tools//tools/jdk:jni"],
+)
+EOF
+  cat > ${repo}/jni/App.java <<'EOF'
+package foo;
+
+public class App {
+  static { System.loadLibrary("native"); }
+  public static void main(String[] args) { f(123); }
+  private static native void f(int x);
+}
+EOF
+  cat > ${repo}/jni/native.cc <<'EOF'
+#include <jni.h>
+#include <stdio.h>
+
+extern "C" JNIEXPORT void JNICALL Java_foo_App_f(JNIEnv *env, jclass clazz, jint x) {
+  printf("hello %d\n", x);
+}
+EOF
+
+  mkdir -p test/
+  cat > test/BUILD <<EOF
+java_binary(
+  name = "app",
+  main_class = 'foo.App',
+  runtime_deps = ["@$1//jni:lib"],
+)
+EOF
+}
+
 function test_jni() {
   # Skip on MS Windows, as Bazel does not create a runfiles symlink tree.
   # (MSYS_NT is the system name reported by MinGW uname.)
@@ -1580,40 +1647,39 @@ function test_jni() {
   # TODO(adonovan): make this just work.
   uname -s | grep -q Darwin && return
 
-  mkdir -p test/
-  cat > test/BUILD <<'EOF'
-java_binary(
-  name = "app",
-  srcs = ["App.java"],
-  main_class = 'foo.App',
-  data = [":libnative.so"],
-  jvm_flags = ["-Djava.library.path=test"],
-)
-cc_binary(
-  name = "libnative.so",
-  srcs = ["native.cc"],
-  linkshared = 1,
-  deps = ["@bazel_tools//tools/jdk:jni"],
-)
-EOF
-  cat > test/App.java <<'EOF'
-package foo;
+  setup_jni_targets ""
 
-public class App {
-  static { System.loadLibrary("native"); }
-  public static void main(String[] args) { f(123); }
-  private static native void f(int x);
+  bazel run //test:app >> $TEST_log || {
+    find bazel-bin/ | native # helpful for debugging
+    fail "bazel run command failed"
+  }
+  expect_log "hello 123"
 }
-EOF
-  cat > test/native.cc <<'EOF'
-#include <jni.h>
-#include <stdio.h>
 
-extern "C" JNIEXPORT void JNICALL Java_foo_App_f(JNIEnv *env, jclass clazz, jint x) {
-  printf("hello %d\n", x);
+function test_jni_external_repo_legacy_external_runfiles() {
+  # Skip on MS Windows, see details in test_jni
+  uname -s | grep -q MSYS_NT && return
+  # Skip on Darwin, see details in test_jni
+  uname -s | grep -q Darwin && return
+
+  setup_jni_targets "my_other_repo"
+
+  bazel run --legacy_external_runfiles //test:app >> $TEST_log || {
+    find bazel-bin/ | native # helpful for debugging
+    fail "bazel run command failed"
+  }
+  expect_log "hello 123"
 }
-EOF
-  bazel run //test:app > $TEST_log || {
+
+function test_jni_external_repo_no_legacy_external_runfiles() {
+  # Skip on MS Windows, see details in test_jni
+  uname -s | grep -q MSYS_NT && return
+  # Skip on Darwin, see details in test_jni
+  uname -s | grep -q Darwin && return
+
+  setup_jni_targets "my_other_repo"
+
+  bazel run --nolegacy_external_runfiles //test:app >> $TEST_log || {
     find bazel-bin/ | native # helpful for debugging
     fail "bazel run command failed"
   }
@@ -1734,7 +1800,7 @@ EOF
 java_library(
   name = "library",
   srcs = ["Library.java"],
-  deps = ["@bazel_tools//tools/java/runfiles"],
+  deps = ["@rules_java//java/runfiles"],
   visibility = ["//visibility:public"],
 )
 
@@ -1744,7 +1810,7 @@ java_binary(
   main_class = "com.example.Binary",
   deps = [
     ":library",
-    "@bazel_tools//tools/java/runfiles",
+    "@rules_java//java/runfiles",
   ],
 )
 
@@ -1755,7 +1821,7 @@ java_test(
   use_testrunner = False,
   deps = [
     ":library",
-    "@bazel_tools//tools/java/runfiles",
+    "@rules_java//java/runfiles",
   ],
 )
 EOF
@@ -1817,7 +1883,7 @@ EOF
 java_library(
   name = "library2",
   srcs = ["Library2.java"],
-  deps = ["@bazel_tools//tools/java/runfiles"],
+  deps = ["@rules_java//java/runfiles"],
 )
 
 java_binary(
@@ -1827,7 +1893,7 @@ java_binary(
   deps = [
     ":library2",
     "@//pkg:library",
-    "@bazel_tools//tools/java/runfiles",
+    "@rules_java//java/runfiles",
   ],
 )
 java_test(
@@ -1838,7 +1904,7 @@ java_test(
   deps = [
     ":library2",
     "@//pkg:library",
-    "@bazel_tools//tools/java/runfiles",
+    "@rules_java//java/runfiles",
   ],
 )
 EOF
@@ -1923,6 +1989,48 @@ EOF
   bazel build //pkg:a >& $TEST_log || fail "build failed"
 }
 
+function test_header_compiler_direct_supports_unicode() {
+  if [[ "${JAVA_TOOLS_ZIP}" == released ]]; then
+      # TODO: Enable test after the next java_tools release.
+      return 0
+  fi
+
+  if "$is_windows"; then
+    # GraalVM native images on Windows use the same active code page they have been built
+    # with, which in the case of Bazel CI is 1252 (not UTF-8). Even with -H:+AddAllCharsets
+    # InvalidPathExceptions are still thrown when accessing a Unicode file path, indicating a
+    # problem within GraalVM's path encoding handling.
+    # https://github.com/oracle/graal/issues/10237
+    # TODO: Fix this by building java_tools binaries on a machine with system code page set to
+    #  UTF-8.
+    echo "Skipping test on Windows"
+    return 0
+  elif [[ "$(uname -s)" == "Linux" ]]; then
+    export LC_ALL=C.UTF-8
+    if [[ $(locale charmap) != "UTF-8" ]]; then
+      echo "Skipping test due to missing UTF-8 locale"
+      return 0
+    fi
+    local -r unicode="äöüÄÖÜß🌱"
+  else
+    # JVMs on macOS always support UTF-8 since JEP 400.
+    local -r unicode="äöüÄÖÜß🌱"
+  fi
+  mkdir -p pkg
+  cat << EOF > pkg/BUILD
+java_library(name = "a", srcs = ["A.java"], deps = [":b"])
+java_library(name = "b", srcs = ["${unicode}.java"])
+EOF
+  cat << 'EOF' > pkg/A.java
+public class A extends B {}
+EOF
+  cat << 'EOF' > "pkg/${unicode}.java"
+class B {}
+EOF
+
+  bazel build //pkg:a //pkg:b >& $TEST_log || fail "build failed"
+}
+
 function test_sandboxed_multiplexing() {
   mkdir -p pkg
   cat << 'EOF' > pkg/BUILD
@@ -1951,11 +2059,6 @@ EOF
 }
 
 function test_sandboxed_multiplexing_hermetic_paths_in_diagnostics() {
-  if [[ "${JAVA_TOOLS_ZIP}" == released ]]; then
-    # TODO: Enable test after the next java_tools release.
-    return 0
-  fi
-
   mkdir -p pkg
   cat << 'EOF' > pkg/BUILD
 load("@bazel_tools//tools/jdk:default_java_toolchain.bzl", "default_java_toolchain")
@@ -2167,11 +2270,6 @@ EOF
 }
 
 function test_one_version_allowlist() {
-  if [[ "${JAVA_TOOLS_ZIP}" == released ]]; then
-      # TODO: Enable test after the next java_tools release.
-      return 0
-  fi
-
   mkdir -p pkg
   cat << 'EOF' > pkg/BUILD
 load("@bazel_tools//tools/jdk:default_java_toolchain.bzl", "default_java_toolchain")
@@ -2251,6 +2349,26 @@ EOF
     --java_language_version=17 \
     --extra_toolchains=//pkg:java_toolchain_definition \
     >& $TEST_log || fail "build should have succeeded"
+}
+
+
+function test_single_jar_does_not_create_empty_log4JPlugins_file() {
+  mkdir -p pkg
+  cat << 'EOF' > pkg/BUILD
+java_library(
+    name = "b",
+    resources = ["foo.txt"],
+    visibility = ["//visibility:public"],
+)
+EOF
+  echo > pkg/foo.txt
+
+  bazel build //pkg:b \
+    >& $TEST_log || fail "build should have succeeded"
+  zipinfo -1 ${PRODUCT_NAME}-bin/pkg/libb.jar >& $TEST_log \
+       || fail "Failed to zipinfo ${PRODUCT_NAME}-bin/pkg/libb.jar"
+  expect_not_log "Log4j2Plugins.dat"
+  expect_log "foo.txt"
 }
 
 run_suite "Java integration tests"

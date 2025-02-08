@@ -76,7 +76,6 @@ public final class BazelMockCcSupport extends MockCcSupport {
         "alias(name='host_xcodes',actual='@local_config_xcode//:host_xcodes')");
 
     // Copies rules_cc from real @rules_cc
-    config.create("third_party/bazel_rules/rules_cc/WORKSPACE");
     config.create("third_party/bazel_rules/rules_cc/MODULE.bazel", "module(name='rules_cc')");
     Runfiles runfiles = Runfiles.preload().withSourceRepository("");
     PathFragment path = PathFragment.create(runfiles.rlocation("rules_cc/cc/defs.bzl"));

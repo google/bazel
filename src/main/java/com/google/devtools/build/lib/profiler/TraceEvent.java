@@ -14,7 +14,8 @@
 
 package com.google.devtools.build.lib.profiler;
 
-import com.google.auto.value.AutoValue;
+import static java.util.Objects.requireNonNull;
+
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.gson.stream.JsonReader;
@@ -31,8 +32,23 @@ import javax.annotation.Nullable;
  * <p>Format is documented in
  * https://docs.google.com/document/d/1CvAClvFfyA5R-PhYUmn5OOQtYMH4h6I0nSsKchNAySU/preview
  */
-@AutoValue
-public abstract class TraceEvent {
+public record TraceEvent(
+    @Nullable String category,
+    String name,
+    @Nullable String type,
+    @Nullable Duration timestamp,
+    @Nullable Duration duration,
+    long processId,
+    long threadId,
+    @Nullable ImmutableMap<String, Object> args,
+    @Nullable String primaryOutputPath,
+    @Nullable String targetLabel,
+    @Nullable String mnemonic,
+    @Nullable String configuration) {
+  public TraceEvent {
+    requireNonNull(name, "name");
+  }
+
   public static TraceEvent create(
       @Nullable String category,
       String name,
@@ -46,7 +62,7 @@ public abstract class TraceEvent {
       @Nullable String targetLabel,
       @Nullable String mnemonic,
       @Nullable String configuration) {
-    return new AutoValue_TraceEvent(
+    return new TraceEvent(
         category,
         name,
         type,
@@ -61,39 +77,7 @@ public abstract class TraceEvent {
         configuration);
   }
 
-  @Nullable
-  public abstract String category();
-
-  public abstract String name();
-
-  @Nullable
-  public abstract String type();
-
-  @Nullable
-  public abstract Duration timestamp();
-
-  @Nullable
-  public abstract Duration duration();
-
-  public abstract long processId();
-
-  public abstract long threadId();
-
-  @Nullable
-  public abstract ImmutableMap<String, Object> args();
-
   // Only applicable to action-related TraceEvents.
-  @Nullable
-  public abstract String primaryOutputPath();
-
-  @Nullable
-  public abstract String targetLabel();
-
-  @Nullable
-  public abstract String mnemonic();
-
-  @Nullable
-  public abstract String configuration();
 
   private static TraceEvent createFromJsonReader(JsonReader reader) throws IOException {
     String category = null;

@@ -55,6 +55,10 @@ msys*)
   ;;
 esac
 
+function set_up() {
+  add_rules_java MODULE.bazel
+}
+
 #### TESTS #############################################################
 
 function test_passing_test_is_reported_correctly() {
@@ -150,6 +154,7 @@ function test_process_spawned_by_test_doesnt_block_test_from_completing() {
   mkdir -p $pkg || fail "mkdir -p $pkg failed"
 
   cat > $pkg/BUILD <<'EOF'
+load("@rules_java//java:java_test.bzl", "java_test")
 java_test(
     name = "my_test",
     main_class = "test.MyTest",

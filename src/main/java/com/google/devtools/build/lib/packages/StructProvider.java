@@ -17,8 +17,6 @@ package com.google.devtools.build.lib.packages;
 import com.google.devtools.build.lib.starlarkbuildapi.core.StructApi;
 import java.util.Map;
 import net.starlark.java.eval.Dict;
-import net.starlark.java.eval.EvalException;
-import net.starlark.java.eval.Starlark;
 import net.starlark.java.eval.StarlarkThread;
 
 /**
@@ -38,14 +36,7 @@ public final class StructProvider extends BuiltinProvider<StarlarkInfo>
 
   /** Implementation of {@code struct(**kwargs)} function exposed to Starlark. */
   @Override
-  public StructImpl createStruct(Dict<String, Object> kwargs, StarlarkThread thread)
-      throws EvalException {
-    if (kwargs.containsKey("to_json")) {
-      throw Starlark.errorf("cannot override built-in struct function 'to_json'");
-    }
-    if (kwargs.containsKey("to_proto")) {
-      throw Starlark.errorf("cannot override built-in struct function 'to_proto'");
-    }
+  public StructImpl createStruct(Dict<String, Object> kwargs, StarlarkThread thread) {
     return StarlarkInfo.create(this, kwargs, thread.getCallerLocation());
   }
 

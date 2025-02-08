@@ -102,7 +102,7 @@ final class ConfiguredAspectProducer
 
     var configuredAspects = new ArrayList<ConfiguredAspect>(usedAspects.size());
     for (AspectCollection.AspectDeps depAspect : usedAspects) {
-      var value = aspectValues.get(depAspect.getAspect());
+      var value = aspectValues.get(depAspect.aspect());
       if (value == ConfiguredAspect.NonApplicableAspect.INSTANCE) {
         continue;
       }

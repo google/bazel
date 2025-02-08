@@ -21,7 +21,6 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.google.devtools.build.lib.actions.ActionEnvironment;
-import com.google.devtools.build.lib.analysis.BaseRuleClasses;
 import com.google.devtools.build.lib.analysis.ConfiguredRuleClassProvider;
 import com.google.devtools.build.lib.analysis.ConfiguredRuleClassProvider.RuleSet;
 import com.google.devtools.build.lib.analysis.PackageSpecificationProvider;
@@ -55,10 +54,7 @@ import com.google.devtools.build.lib.rules.repository.NewLocalRepositoryRule;
 import com.google.devtools.build.lib.rules.test.TestingSupportRules;
 import com.google.devtools.build.lib.starlarkbuildapi.android.AndroidBootstrap;
 import com.google.devtools.build.lib.starlarkbuildapi.core.ContextGuardedValue;
-import com.google.devtools.build.lib.starlarkbuildapi.proto.ProtoBootstrap;
 import com.google.devtools.build.lib.starlarkbuildapi.python.PyBootstrap;
-import com.google.devtools.build.lib.starlarkbuildapi.stubs.ProviderStub;
-import com.google.devtools.build.lib.starlarkbuildapi.stubs.StarlarkAspectStub;
 import com.google.devtools.build.lib.util.OS;
 import com.google.devtools.build.lib.util.ResourceFileLoader;
 import com.google.devtools.build.lib.vfs.PathFragment;
@@ -250,30 +246,12 @@ public class BazelRuleClassProvider {
         @Override
         public void init(ConfiguredRuleClassProvider.Builder builder) {
           builder.addConfigurationFragment(ProtoConfiguration.class);
-
-          ProtoBootstrap bootstrap =
-              new ProtoBootstrap(
-                  BazelProtoCommon.INSTANCE, new StarlarkAspectStub(), new ProviderStub());
-          builder.addStarlarkBootstrap(bootstrap);
+          builder.addBzlToplevel("proto_common_do_not_use", BazelProtoCommon.INSTANCE);
         }
 
         @Override
         public ImmutableList<RuleSet> requires() {
           return ImmutableList.of(CoreRules.INSTANCE);
-        }
-      };
-
-  public static final RuleSet JAVA_PROTO_RULES =
-      new RuleSet() {
-        @Override
-        public void init(ConfiguredRuleClassProvider.Builder builder) {
-          builder.addRuleDefinition(new BaseRuleClasses.EmptyRule("java_proto_library") {});
-          builder.addRuleDefinition(new BaseRuleClasses.EmptyRule("java_lite_proto_library") {});
-        }
-
-        @Override
-        public ImmutableList<RuleSet> requires() {
-          return ImmutableList.of(CoreRules.INSTANCE, JavaRules.INSTANCE);
         }
       };
 
@@ -315,7 +293,6 @@ public class BazelRuleClassProvider {
               ContextGuardedValue.onlyInAllowedRepos(
                   Starlark.NONE, PyBootstrap.allowedRepositories));
           builder.addStarlarkBuiltinsInternal(BazelPyBuiltins.NAME, new BazelPyBuiltins());
-          builder.addStarlarkBootstrap(new PyBootstrap());
 
           try {
             builder.addWorkspaceFileSuffix(

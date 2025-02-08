@@ -375,35 +375,10 @@ EOF
   diff -u ${TEST_TMPDIR}/MANIFEST_sorted ${TEST_TMPDIR}/MANIFEST2_sorted
 }
 
-function test_workspace_name_change() {
-  # TODO(b/174761497): Re-enable the test outside of Bazel.
-  [[ "${PRODUCT_NAME}" != bazel ]] && return 0
-
-  echo 'workspace(name = "foo")' > WORKSPACE
-
-  cat > BUILD <<EOF
-cc_binary(
-    name = "thing",
-    srcs = ["thing.cc"],
-    data = ["BUILD"],
-)
-EOF
-  cat > thing.cc <<EOF
-int main() { return 0; }
-EOF
-  bazel $EXTRA_STARTUP_FLAGS build --noenable_bzlmod --enable_workspace //:thing $EXTRA_BUILD_FLAGS &> $TEST_log || fail "Build failed"
-  [[ -d ${PRODUCT_NAME}-bin/thing${EXT}.runfiles/foo ]] || fail "foo not found"
-
-  # Change workspace name to bar.
-  sed -ie 's,workspace(.*,workspace(name = "bar"),' WORKSPACE
-  bazel $EXTRA_STARTUP_FLAGS build --noenable_bzlmod --enable_workspace //:thing $EXTRA_BUILD_FLAGS &> $TEST_log || fail "Build failed"
-  [[ -d ${PRODUCT_NAME}-bin/thing${EXT}.runfiles/bar ]] || fail "bar not found"
-  [[ ! -d ${PRODUCT_NAME}-bin/thing${EXT}.runfiles/foo ]] \
-    || fail "Old foo still found"
-}
-
 # regression test for b/237547165
-function test_fail_on_middleman_in_transitive_runfiles_for_executable() {
+function test_fail_on_runfiles_tree_in_transitive_runfiles_for_executable() {
+  local exit_code
+
   cat > rule.bzl <<EOF
 def _impl(ctx):
     exe = ctx.actions.declare_file(ctx.label.name + '.out')
@@ -428,8 +403,11 @@ EOF
   cat > thing.cc <<EOF
 int main() { return 0; }
 EOF
-  bazel build //:test &> $TEST_log && fail "Expected build to fail but it succeeded"
-  expect_log_once "Runfiles must not contain middleman artifacts"
+  bazel build //:test &> $TEST_log || exit_code=$?
+  if [[ $exit_code -ne 1 ]]; then
+    fail "Expected regular build failure but instead got exit code $exit_code"
+  fi
+  expect_log_once "Runfiles must not contain runfiles tree artifacts"
 }
 
 function test_manifest_action_reruns_on_output_base_change() {

@@ -53,6 +53,7 @@ import com.google.devtools.build.lib.packages.RuleFactory;
 import com.google.devtools.build.lib.packages.RuleTransitionData;
 import com.google.devtools.build.lib.packages.WorkspaceFactory;
 import com.google.devtools.build.lib.starlarkbuildapi.core.Bootstrap;
+import com.google.devtools.build.lib.unsafe.StringUnsafe;
 import com.google.devtools.build.lib.vfs.DigestHashFunction;
 import com.google.devtools.build.lib.vfs.Path;
 import com.google.devtools.build.lib.vfs.PathFragment;
@@ -65,7 +66,7 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.lang.reflect.Constructor;
 import java.util.ArrayList;
-import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -131,7 +132,10 @@ public /*final*/ class ConfiguredRuleClassProvider
 
     @Override
     protected synchronized byte[] getDigest(PathFragment path) {
-      return getDigestFunction().getHashFunction().hashString(path.toString(), UTF_8).asBytes();
+      return getDigestFunction()
+          .getHashFunction()
+          .hashBytes(StringUnsafe.getInstance().getInternalStringBytes(path.getPathString()))
+          .asBytes();
     }
   }
 
@@ -148,10 +152,10 @@ public /*final*/ class ConfiguredRuleClassProvider
     private final List<Class<? extends Fragment>> configurationFragmentClasses = new ArrayList<>();
     private final List<Class<? extends FragmentOptions>> configurationOptions = new ArrayList<>();
 
-    private final Map<String, RuleClass> ruleClassMap = new HashMap<>();
-    private final Map<String, RuleDefinition> ruleDefinitionMap = new HashMap<>();
-    private final Map<String, NativeAspectClass> nativeAspectClassMap = new HashMap<>();
-    private final Map<Class<? extends RuleDefinition>, RuleClass> ruleMap = new HashMap<>();
+    private final Map<String, RuleClass> ruleClassMap = new LinkedHashMap<>();
+    private final Map<String, RuleDefinition> ruleDefinitionMap = new LinkedHashMap<>();
+    private final Map<String, NativeAspectClass> nativeAspectClassMap = new LinkedHashMap<>();
+    private final Map<Class<? extends RuleDefinition>, RuleClass> ruleMap = new LinkedHashMap<>();
     private final Digraph<Class<? extends RuleDefinition>> dependencyGraph = new Digraph<>();
     private final List<Class<? extends Fragment>> universalFragments = new ArrayList<>();
     @Nullable private TransitionFactory<RuleTransitionData> trimmingTransitionFactory = null;
@@ -183,22 +187,8 @@ public /*final*/ class ConfiguredRuleClassProvider
     }
 
     @CanIgnoreReturnValue
-    @VisibleForTesting
-    public Builder clearWorkspaceFilePrefixForTesting() {
-      defaultWorkspaceFilePrefix.delete(0, defaultWorkspaceFilePrefix.length());
-      return this;
-    }
-
-    @CanIgnoreReturnValue
     public Builder addWorkspaceFileSuffix(String contents) {
       defaultWorkspaceFileSuffix.append(contents);
-      return this;
-    }
-
-    @CanIgnoreReturnValue
-    @VisibleForTesting
-    public Builder clearWorkspaceFileSuffixForTesting() {
-      defaultWorkspaceFileSuffix.delete(0, defaultWorkspaceFileSuffix.length());
       return this;
     }
 

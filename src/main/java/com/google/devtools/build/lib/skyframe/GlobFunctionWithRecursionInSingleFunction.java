@@ -83,13 +83,12 @@ public class GlobFunctionWithRecursionInSingleFunction extends GlobFunction {
 
     if (state.ignoredSubdirectories == null) {
       RepositoryName repositoryName = glob.getPackageId().getRepository();
-      IgnoredPackagePrefixesValue ignoredPackagePrefixes =
-          (IgnoredPackagePrefixesValue)
-              env.getValue(IgnoredPackagePrefixesValue.key(repositoryName));
+      IgnoredSubdirectoriesValue ignoredSubDirectories =
+          (IgnoredSubdirectoriesValue) env.getValue(IgnoredSubdirectoriesValue.key(repositoryName));
       if (env.valuesMissing()) {
         return null;
       }
-      state.ignoredSubdirectories = ignoredPackagePrefixes.asIgnoredSubdirectories();
+      state.ignoredSubdirectories = ignoredSubDirectories.asIgnoredSubdirectories();
     }
 
     if (state.globComputationDriver == null) {

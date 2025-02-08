@@ -68,7 +68,7 @@ import com.google.devtools.build.lib.skyframe.ExternalFilesHelper.ExternalFileAc
 import com.google.devtools.build.lib.skyframe.ExternalPackageFunction;
 import com.google.devtools.build.lib.skyframe.FileFunction;
 import com.google.devtools.build.lib.skyframe.FileStateFunction;
-import com.google.devtools.build.lib.skyframe.IgnoredPackagePrefixesFunction;
+import com.google.devtools.build.lib.skyframe.IgnoredSubdirectoriesFunction;
 import com.google.devtools.build.lib.skyframe.PackageFunction;
 import com.google.devtools.build.lib.skyframe.PackageFunction.ActionOnIOExceptionReadingBuildFile;
 import com.google.devtools.build.lib.skyframe.PackageFunction.GlobbingStrategy;
@@ -444,7 +444,7 @@ public abstract class AbstractPackageLoader implements PackageLoader {
       RepositoryMappingValue mainRepositoryMappingValue = evalResult.get(key);
       // We always set up a repository mapping function
       checkState(evalResult.getError(key) == null && mainRepositoryMappingValue != null);
-      return mainRepositoryMappingValue.getRepositoryMapping();
+      return mainRepositoryMappingValue.repositoryMapping();
     }
 
     private static StarlarkModuleLoadingException starlarkModuleLoadingExceptionFromErrorInfo(
@@ -559,7 +559,7 @@ public abstract class AbstractPackageLoader implements PackageLoader {
                 getCrossRepositoryLabelViolationStrategy(),
                 getBuildFilesByPriority(),
                 getExternalPackageHelper()))
-        .put(SkyFunctions.IGNORED_PACKAGE_PREFIXES, IgnoredPackagePrefixesFunction.NOOP)
+        .put(SkyFunctions.IGNORED_SUBDIRECTORIES, IgnoredSubdirectoriesFunction.NOOP)
         .put(SkyFunctions.CONTAINING_PACKAGE_LOOKUP, new ContainingPackageLookupFunction())
         .put(
             SkyFunctions.BZL_COMPILE,

@@ -38,7 +38,6 @@ import com.google.devtools.build.lib.analysis.actions.AbstractFileWriteAction;
 import com.google.devtools.build.lib.analysis.actions.DeterministicWriter;
 import com.google.devtools.build.lib.cmdline.Label;
 import com.google.devtools.build.lib.cmdline.PackageIdentifier;
-import com.google.devtools.build.lib.cmdline.RepositoryName;
 import com.google.devtools.build.lib.cmdline.ResolvedTargets;
 import com.google.devtools.build.lib.cmdline.SignedTargetPattern;
 import com.google.devtools.build.lib.cmdline.TargetParsingException;
@@ -50,7 +49,6 @@ import com.google.devtools.build.lib.collect.nestedset.Order;
 import com.google.devtools.build.lib.concurrent.ThreadSafety.Immutable;
 import com.google.devtools.build.lib.events.ExtendedEventHandler;
 import com.google.devtools.build.lib.packages.BuildType;
-import com.google.devtools.build.lib.packages.LabelPrinter;
 import com.google.devtools.build.lib.packages.NoSuchPackageException;
 import com.google.devtools.build.lib.packages.NoSuchTargetException;
 import com.google.devtools.build.lib.packages.Package;
@@ -82,8 +80,6 @@ import com.google.devtools.build.lib.rules.genquery.GenQueryOutputStream.GenQuer
 import com.google.devtools.build.lib.runtime.KeepGoingOption;
 import com.google.devtools.build.lib.server.FailureDetails.TargetPatterns;
 import com.google.devtools.build.lib.skyframe.PackageValue;
-import com.google.devtools.build.lib.skyframe.RepositoryMappingValue;
-import com.google.devtools.build.lib.skyframe.RepositoryMappingValue.RepositoryMappingResolutionException;
 import com.google.devtools.build.lib.skyframe.TargetPatternValue;
 import com.google.devtools.build.lib.skyframe.TargetPatternValue.TargetPatternKey;
 import com.google.devtools.build.lib.util.Fingerprint;
@@ -125,6 +121,10 @@ public class GenQuery implements RuleConfiguredTargetFactory {
         OptionsParser.builder()
             .optionsClasses(QueryOptions.class, KeepGoingOption.class)
             .allowResidue(false)
+            .withConversionContext(
+                Label.RepoContext.of(
+                    ruleContext.getRepository(),
+                    ruleContext.getRule().getPackage().getRepositoryMapping()))
             .build();
     try {
       optionsParser.parse(ruleContext.attributes().get("opts", Types.STRING_LIST));
@@ -292,16 +292,6 @@ public class GenQuery implements RuleConfiguredTargetFactory {
         queryOptions.orderOutput = OrderOutput.FULL;
       }
 
-      RepositoryMappingValue repositoryMappingValue =
-          (RepositoryMappingValue)
-              ruleContext
-                  .getAnalysisEnvironment()
-                  .getSkyframeEnv()
-                  .getValueOrThrow(
-                      RepositoryMappingValue.key(RepositoryName.MAIN),
-                      RepositoryMappingResolutionException.class);
-      Preconditions.checkNotNull(repositoryMappingValue);
-
       queryEnvironment =
           QUERY_ENVIRONMENT_FACTORY.create(
               /* queryTransitivePackagePreloader= */ null,
@@ -311,8 +301,8 @@ public class GenQuery implements RuleConfiguredTargetFactory {
               preloader,
               new TargetPattern.Parser(
                   PathFragment.EMPTY_FRAGMENT,
-                  RepositoryName.MAIN,
-                  repositoryMappingValue.getRepositoryMapping()),
+                  ruleContext.getRepository(),
+                  ruleContext.getRule().getPackage().getRepositoryMapping()),
               PathFragment.EMPTY_FRAGMENT,
               /* keepGoing= */ false,
               ruleContext.attributes().get("strict", Type.BOOLEAN),
@@ -328,7 +318,8 @@ public class GenQuery implements RuleConfiguredTargetFactory {
               /* extraFunctions= */ ImmutableList.of(),
               /* packagePath= */ null,
               /* useGraphlessQuery= */ graphlessQuery,
-              LabelPrinter.legacy());
+              queryOptions.getLabelPrinterLegacy(
+                  ruleContext.getAnalysisEnvironment().getStarlarkSemantics()));
       QueryExpression expr = QueryExpression.parse(query, queryEnvironment);
       formatter.verifyCompatible(queryEnvironment, expr);
       targets =
@@ -343,7 +334,7 @@ public class GenQuery implements RuleConfiguredTargetFactory {
     } catch (QuerySyntaxException e) {
       ruleContext.ruleError("query syntax error: " + e.getMessage());
       return null;
-    } catch (QueryException | RepositoryMappingResolutionException e) {
+    } catch (QueryException e) {
       ruleContext.ruleError("query failed: " + e.getMessage());
       return null;
     } catch (IOException e) {
@@ -420,27 +411,22 @@ public class GenQuery implements RuleConfiguredTargetFactory {
     @Override
     public Map<String, Collection<Target>> preloadTargetPatterns(
         ExtendedEventHandler eventHandler,
-        TargetPattern.Parser mainRepoTargetParser,
+        TargetPattern.Parser targetParser,
         Collection<String> patterns,
         boolean keepGoing)
         throws TargetParsingException, InterruptedException {
       Preconditions.checkArgument(!keepGoing);
-      Preconditions.checkArgument(mainRepoTargetParser.getRelativeDirectory().isEmpty());
+      Preconditions.checkArgument(targetParser.getRelativeDirectory().isEmpty());
       boolean ok = true;
       Map<String, Collection<Target>> preloadedPatterns =
           Maps.newHashMapWithExpectedSize(patterns.size());
       ImmutableMap.Builder<TargetPatternKey, String> targetBuilder =
           ImmutableMap.builderWithExpectedSize(patterns.size());
-      TargetPattern.Parser parser =
-          new TargetPattern.Parser(
-              PathFragment.EMPTY_FRAGMENT,
-              RepositoryName.MAIN,
-              mainRepoTargetParser.getRepoMapping());
       for (String pattern : patterns) {
-        checkValidPatternType(pattern, parser);
+        checkValidPatternType(pattern, targetParser);
         targetBuilder.put(
             TargetPatternValue.key(
-                SignedTargetPattern.parse(pattern, parser), FilteringPolicies.NO_FILTER),
+                SignedTargetPattern.parse(pattern, targetParser), FilteringPolicies.NO_FILTER),
             pattern);
       }
       ImmutableMap<TargetPatternKey, String> patternKeys = targetBuilder.buildOrThrow();

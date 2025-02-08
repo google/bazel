@@ -14,7 +14,9 @@
 
 package com.google.devtools.build.lib.bazel.bzlmod;
 
-import com.google.auto.value.AutoValue;
+import static java.util.Objects.requireNonNull;
+
+import com.google.auto.value.AutoBuilder;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.devtools.build.lib.cmdline.Label;
@@ -25,38 +27,38 @@ import net.starlark.java.syntax.Location;
 
 /**
  * A module extension object, which can be used to perform arbitrary logic in order to create repos.
+ *
+ * @param definingBzlFileLabel The .bzl file where the module extension object was originally
+ *     defined.
+ *     <p>Note that if the extension object was then loaded and re-exported by a different .bzl file
+ *     before being used in a MODULE.bazel file, the output of this function may differ from the
+ *     corresponding ModuleExtensionUsage#getExtensionBzlFile and ModuleExtensionId#getBzlFileLabel.
  */
-@AutoValue
-public abstract class ModuleExtension implements StarlarkValue {
-  public abstract StarlarkCallable getImplementation();
-
-  public abstract ImmutableMap<String, TagClass> getTagClasses();
-
-  public abstract Optional<String> getDoc();
-
-  /**
-   * The .bzl file where the module extension object was originally defined.
-   *
-   * <p>Note that if the extension object was then loaded and re-exported by a different .bzl file
-   * before being used in a MODULE.bazel file, the output of this function may differ from the
-   * corresponding ModuleExtensionUsage#getExtensionBzlFile and ModuleExtensionId#getBzlFileLabel.
-   */
-  public abstract Label getDefiningBzlFileLabel();
-
-  public abstract Location getLocation();
-
-  public abstract ImmutableList<String> getEnvVariables();
-
-  public abstract boolean getOsDependent();
-
-  public abstract boolean getArchDependent();
+public record ModuleExtension(
+    StarlarkCallable implementation,
+    ImmutableMap<String, TagClass> tagClasses,
+    Optional<String> doc,
+    Label definingBzlFileLabel,
+    Location location,
+    ImmutableList<String> envVariables,
+    boolean osDependent,
+    boolean archDependent)
+    implements StarlarkValue {
+  public ModuleExtension {
+    requireNonNull(implementation, "implementation");
+    requireNonNull(tagClasses, "tagClasses");
+    requireNonNull(doc, "doc");
+    requireNonNull(definingBzlFileLabel, "definingBzlFileLabel");
+    requireNonNull(location, "location");
+    requireNonNull(envVariables, "envVariables");
+  }
 
   public static Builder builder() {
-    return new AutoValue_ModuleExtension.Builder();
+    return new AutoBuilder_ModuleExtension_Builder();
   }
 
   /** Builder for {@link ModuleExtension}. */
-  @AutoValue.Builder
+  @AutoBuilder
   public abstract static class Builder {
     public abstract Builder setDoc(Optional<String> value);
 

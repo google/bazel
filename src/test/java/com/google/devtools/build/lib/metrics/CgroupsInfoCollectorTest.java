@@ -55,7 +55,7 @@ public class CgroupsInfoCollectorTest {
         CgroupsInfoCollector.instance()
             .collectResourceUsage(
                 ImmutableMap.of(1L, cgroupsInfo1, 2L, cgroupsInfo2, 3L, cgroupsInfo3), clock);
-    assertThat(snapshot.getPidToMemoryInKb()).containsExactly(1L, 1000, 3L, 3000);
+    assertThat(snapshot.pidToMemoryInKb()).containsExactly(1L, 1000, 3L, 3000);
   }
 
   @Test
@@ -78,6 +78,6 @@ public class CgroupsInfoCollectorTest {
         CgroupsInfoCollector.instance().collectResourceUsage(pidToCgroups.buildOrThrow(), clock);
 
     // Results from cgroups 2 should not be in the snapshot since it doesn't exist.
-    assertThat(snapshot.getPidToMemoryInKb()).containsExactly(1L, 1000, 3L, 3000);
+    assertThat(snapshot.pidToMemoryInKb()).containsExactly(1L, 1000, 3L, 3000);
   }
 }

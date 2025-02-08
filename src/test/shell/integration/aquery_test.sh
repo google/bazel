@@ -45,6 +45,10 @@ esac
 
 add_to_bazelrc "build --package_path=%workspace%"
 
+function set_up() {
+  add_rules_java MODULE.bazel
+}
+
 function has_iso_8859_1_locale() {
   charmap="$(LC_ALL=en_US.ISO-8859-1 locale charmap 2>/dev/null)"
   [[ "${charmap}" == "ISO-8859-1" ]]
@@ -643,6 +647,7 @@ function test_aquery_all_filters_only_match_foo() {
   local pkg="${FUNCNAME[0]}"
   mkdir -p "$pkg" || fail "mkdir -p $pkg"
   cat > "$pkg/BUILD" <<'EOF'
+load("@rules_java//java:java_library.bzl", "java_library")
 genrule(
     name = "foo",
     srcs = ["foo_matching_in.java"],
@@ -749,6 +754,7 @@ function test_aquery_mnemonic_filter_only_mach_foo() {
   local pkg="${FUNCNAME[0]}"
   mkdir -p "$pkg" || fail "mkdir -p $pkg"
   cat > "$pkg/BUILD" <<'EOF'
+load("@rules_java//java:java_library.bzl", "java_library")
 genrule(
     name = "foo",
     srcs = ["foo_matching_in.java"],
@@ -840,6 +846,7 @@ function test_aquery_mnemonic_filter_exact_mnemonic_only_mach_foo() {
   local pkg="${FUNCNAME[0]}"
   mkdir -p "$pkg" || fail "mkdir -p $pkg"
   cat > "$pkg/BUILD" <<'EOF'
+load("@rules_java//java:java_library.bzl", "java_library")
 genrule(
     name = "foo",
     srcs = ["foo_matching_in.java"],
@@ -890,6 +897,7 @@ function test_aquery_filters_chain_inputs_only_match_one() {
   local pkg="${FUNCNAME[0]}"
   mkdir -p "$pkg" || fail "mkdir -p $pkg"
   cat > "$pkg/BUILD" <<'EOF'
+load("@rules_java//java:java_library.bzl", "java_library")
 genrule(
     name='foo',
     srcs=['foo_matching_in.java'],
@@ -964,6 +972,7 @@ function test_aquery_filters_chain_mnemonic_only_match_one() {
   local pkg="${FUNCNAME[0]}"
   mkdir -p "$pkg" || fail "mkdir -p $pkg"
   cat > "$pkg/BUILD" <<'EOF'
+load("@rules_java//java:java_library.bzl", "java_library")
 java_library(
     name='foo',
     srcs=['Foo.java']
@@ -2006,7 +2015,8 @@ EOF
   # Verify file contents if we can decode base64-encoded data.
   if which base64 >/dev/null; then
     sed -nr 's/^ *FileWriteContents: \[(.*)\]/echo \1 | base64 -d/p' output | \
-       sh | tee -a "$TEST_log"  | assert_contains "$pkg/foo\.sh" -
+       sh | tee -a "$TEST_log"  > contents
+    assert_contains "$pkg/foo\.sh" contents
   fi
 }
 

@@ -58,9 +58,8 @@ public abstract class LockFileModuleExtension implements Postable {
   public abstract ImmutableTable<RepositoryName, String, RepositoryName>
       getRecordedRepoMappingEntries();
 
-  public boolean shouldLockExtension() {
-    return getModuleExtensionMetadata().isEmpty()
-        || !getModuleExtensionMetadata().get().getReproducible();
+  public boolean isReproducible() {
+    return getModuleExtensionMetadata().map(ModuleExtensionMetadata::getReproducible).orElse(false);
   }
 
   /** Builder type for {@link LockFileModuleExtension}. */

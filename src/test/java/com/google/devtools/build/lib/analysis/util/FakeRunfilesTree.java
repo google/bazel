@@ -17,6 +17,7 @@ package com.google.devtools.build.lib.analysis.util;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 
+import com.google.devtools.build.lib.actions.ActionKeyContext;
 import com.google.devtools.build.lib.actions.Artifact;
 import com.google.devtools.build.lib.actions.RunfilesTree;
 import com.google.devtools.build.lib.analysis.Runfiles;
@@ -24,6 +25,7 @@ import com.google.devtools.build.lib.analysis.SymlinkEntry;
 import com.google.devtools.build.lib.analysis.config.BuildConfigurationValue.RunfileSymlinksMode;
 import com.google.devtools.build.lib.collect.nestedset.NestedSet;
 import com.google.devtools.build.lib.skyframe.serialization.autocodec.AutoCodec;
+import com.google.devtools.build.lib.util.Fingerprint;
 import com.google.devtools.build.lib.vfs.PathFragment;
 import java.util.Map;
 import javax.annotation.Nullable;
@@ -73,8 +75,7 @@ public final class FakeRunfilesTree implements RunfilesTree {
 
   @Override
   public Map<PathFragment, Artifact> getMapping() {
-    return runfiles.getRunfilesInputs(
-        /* eventHandler= */ null, /* location= */ null, repoMappingManifest);
+    return runfiles.getRunfilesInputs(repoMappingManifest);
   }
 
   @Override
@@ -126,5 +127,11 @@ public final class FakeRunfilesTree implements RunfilesTree {
   @Override
   public boolean isMappingCached() {
     return false;
+  }
+
+  @Override
+  public void fingerprint(
+      ActionKeyContext actionKeyContext, Fingerprint fp, boolean digestAbsolutePaths) {
+    runfiles.fingerprint(actionKeyContext, fp, digestAbsolutePaths);
   }
 }

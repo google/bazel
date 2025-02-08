@@ -14,11 +14,11 @@
 package com.google.devtools.build.lib.skyframe;
 
 import static com.google.common.truth.Truth.assertThat;
+import static java.util.Objects.requireNonNull;
 import static org.junit.Assert.assertThrows;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.spy;
 
-import com.google.auto.value.AutoValue;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Maps;
 import com.google.devtools.build.lib.actions.Artifact.ArchivedTreeArtifact;
@@ -28,7 +28,6 @@ import com.google.devtools.build.lib.actions.Artifact.TreeFileArtifact;
 import com.google.devtools.build.lib.actions.ArtifactRoot;
 import com.google.devtools.build.lib.actions.ArtifactRoot.RootType;
 import com.google.devtools.build.lib.actions.FileArtifactValue;
-import com.google.devtools.build.lib.actions.FileArtifactValue.RemoteFileArtifactValue;
 import com.google.devtools.build.lib.actions.util.ActionsTestUtil;
 import com.google.devtools.build.lib.skyframe.TreeArtifactValue.ArchivedRepresentation;
 import com.google.devtools.build.lib.testutil.Scratch;
@@ -60,18 +59,16 @@ public final class TreeArtifactValueTest {
       ArtifactRoot.asDerivedRoot(
           scratch.resolve("root"), RootType.Output, PathFragment.create("bin"));
 
-  @AutoValue
-  abstract static class VisitTreeArgs {
-    abstract PathFragment getParentRelativePath();
-
-    abstract Dirent.Type getType();
-
-    abstract boolean getTraversedSymlink();
+  record VisitTreeArgs(
+      PathFragment parentRelativePath, Dirent.Type type, boolean traversedSymlink) {
+    VisitTreeArgs {
+      requireNonNull(parentRelativePath, "parentRelativePath");
+      requireNonNull(type, "type");
+    }
 
     static VisitTreeArgs of(
         PathFragment parentRelativePath, Dirent.Type type, boolean traversedSymlink) {
-      return new AutoValue_TreeArtifactValueTest_VisitTreeArgs(
-          parentRelativePath, type, traversedSymlink);
+      return new VisitTreeArgs(parentRelativePath, type, traversedSymlink);
     }
   }
 
@@ -126,15 +123,15 @@ public final class TreeArtifactValueTest {
   }
 
   @Test
-  public void createsCorrectValueWithmaterializationExecPath() {
-    PathFragment targetPath = PathFragment.create("some/target/path");
+  public void createsCorrectValueWithResolvedPath() {
+    PathFragment targetPath = PathFragment.create("/some/target/path");
     SpecialArtifact parent = createTreeArtifact("bin/tree");
 
     TreeArtifactValue tree =
-        TreeArtifactValue.newBuilder(parent).setMaterializationExecPath(targetPath).build();
+        TreeArtifactValue.newBuilder(parent).setResolvedPath(targetPath).build();
 
-    assertThat(tree.getMaterializationExecPath()).hasValue(targetPath);
-    assertThat(tree.getMetadata().getMaterializationExecPath()).hasValue(targetPath);
+    assertThat(tree.getResolvedPath()).hasValue(targetPath);
+    assertThat(tree.getMetadata().getResolvedPath()).isEqualTo(targetPath);
   }
 
   @Test
@@ -834,8 +831,7 @@ public final class TreeArtifactValueTest {
   }
 
   private static FileArtifactValue metadataWithId(int id) {
-    return RemoteFileArtifactValue.create(
-        new byte[] {(byte) id}, id, id, /* expireAtEpochMilli= */ -1);
+    return FileArtifactValue.createForRemoteFile(new byte[] {(byte) id}, id, id);
   }
 
   private static FileArtifactValue metadataWithIdNoDigest(int id) {

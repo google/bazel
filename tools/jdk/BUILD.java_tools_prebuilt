@@ -2,39 +2,46 @@ package(default_visibility = ["//visibility:public"])
 
 licenses(["notice"])  # Apache 2.0
 
-config_setting(
-    name = "windows",
-    constraint_values = ["@platforms//os:windows"],
-)
-
 filegroup(
     name = "prebuilt_one_version",
-    srcs = select({
-        ":windows": ["java_tools/src/tools/one_version/one_version_main.exe"],
-        "//conditions:default": ["java_tools/src/tools/one_version/one_version_main"],
-    }),
+    srcs = glob(
+        [
+            "java_tools/src/tools/one_version/one_version_main",
+            "java_tools/src/tools/one_version/one_version_main.exe",
+        ],
+        allow_empty = True,
+    ) or fail("No one_version binary found"),
 )
 
 filegroup(
     name = "prebuilt_singlejar",
-    srcs = select({
-        ":windows": ["java_tools/src/tools/singlejar/singlejar_local.exe"],
-        "//conditions:default": ["java_tools/src/tools/singlejar/singlejar_local"],
-    }),
+    srcs = glob(
+        [
+            "java_tools/src/tools/singlejar/singlejar_local",
+            "java_tools/src/tools/singlejar/singlejar_local.exe",
+        ],
+        allow_empty = True,
+    ) or fail("No singlejar binary found"),
 )
 
 filegroup(
     name = "ijar_prebuilt_binary",
-    srcs = select({
-        ":windows": ["java_tools/ijar/ijar.exe"],
-        "//conditions:default": ["java_tools/ijar/ijar"],
-    }),
+    srcs = glob(
+        [
+            "java_tools/ijar/ijar",
+            "java_tools/ijar/ijar.exe",
+        ],
+        allow_empty = True,
+    ) or fail("No ijar binary found"),
 )
 
 filegroup(
-   name = "turbine_direct_graal",
-   srcs = select({
-       ":windows": ["java_tools/turbine_direct_graal.exe"],
-       "//conditions:default": ["java_tools/turbine_direct_graal"],
-   }),
+    name = "turbine_direct_graal",
+    srcs = glob(
+        [
+            "java_tools/turbine_direct_graal",
+            "java_tools/turbine_direct_graal.exe",
+        ],
+        allow_empty = True,
+    ) or fail("No turbine_direct_graal binary found"),
 )

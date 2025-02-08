@@ -23,6 +23,7 @@ import com.google.devtools.build.lib.events.EventHandler;
 import com.google.devtools.build.lib.profiler.Profiler;
 import com.google.devtools.build.lib.profiler.SilentCloseable;
 import com.google.devtools.build.lib.skyframe.DiffAwareness.View;
+import com.google.devtools.build.lib.vfs.FileSystem;
 import com.google.devtools.build.lib.vfs.ModifiedFileSet;
 import com.google.devtools.build.lib.vfs.Root;
 import com.google.devtools.common.options.OptionsProvider;
@@ -71,6 +72,24 @@ public final class DiffAwarenessManager {
     private DiffAwarenessState(DiffAwareness diffAwareness, @Nullable View baselineView) {
       this.diffAwareness = diffAwareness;
       this.baselineView = baselineView;
+    }
+  }
+
+  public ModifiedFileSet getDiffFromEvaluatingVersion(
+      FileSystem fileSystem,
+      Root pathEntry,
+      IgnoredSubdirectories ignoredPaths,
+      OptionsProvider options) {
+    DiffAwarenessState diffAwarenessState =
+        maybeGetDiffAwarenessState(pathEntry, ignoredPaths, options);
+    if (diffAwarenessState == null) {
+      return ModifiedFileSet.EVERYTHING_MODIFIED;
+    }
+
+    try {
+      return diffAwarenessState.diffAwareness.getDiffFromEvaluatingVersion(options, fileSystem);
+    } catch (BrokenDiffAwarenessException e) {
+      return ModifiedFileSet.EVERYTHING_MODIFIED;
     }
   }
 

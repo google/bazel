@@ -37,7 +37,7 @@ public class SerializationModule extends BlazeModule {
     // expensive AutoRegistry.get call on clients that don't require it.
     builder.setAnalysisCodecRegistrySupplier(
         SerializationRegistrySetupHelpers.createAnalysisCodecRegistrySupplier(
-            runtime,
+            runtime.getRuleClassProvider(),
             SerializationRegistrySetupHelpers.makeReferenceConstants(
                 directories,
                 runtime.getRuleClassProvider(),

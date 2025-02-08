@@ -535,11 +535,6 @@ public abstract class AbstractAction extends ActionKeyComputer implements Action
       }
     }
   }
-    
-  @Override
-  public MiddlemanType getActionType() {
-    return MiddlemanType.NORMAL;
-  }
 
   @Override
   public void prepare(

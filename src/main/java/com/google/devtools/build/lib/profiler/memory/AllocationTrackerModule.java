@@ -18,8 +18,10 @@ import com.google.devtools.build.lib.analysis.BlazeDirectories;
 import com.google.devtools.build.lib.analysis.BlazeVersionInfo;
 import com.google.devtools.build.lib.analysis.ServerDirectories;
 import com.google.devtools.build.lib.clock.Clock;
+import com.google.devtools.build.lib.events.Event;
 import com.google.devtools.build.lib.runtime.BlazeModule;
 import com.google.devtools.build.lib.runtime.BlazeRuntime;
+import com.google.devtools.build.lib.runtime.CommandEnvironment;
 import com.google.devtools.build.lib.runtime.WorkspaceBuilder;
 import com.google.devtools.build.lib.vfs.FileSystem;
 import com.google.devtools.common.options.OptionsParsingResult;
@@ -36,7 +38,7 @@ import net.starlark.java.eval.Debug;
  *   <li>--host_jvm_args=-javaagent:(path to Google's java agent jar)
  *       <ul>
  *         <li>For Bazel use <a
- *             href="https://github.com/bazelbuild/bazel/tree/master/third_party/allocation_instrumenter">java-allocation-instrumenter-3.3.0.jar</a>
+ *             href="https://github.com/bazelbuild/bazel/tree/master/third_party/allocation_instrumenter">java-allocation-instrumenter-3.3.4.jar</a>
  *       </ul>
  *   <li>--host_jvm_args=-DRULE_MEMORY_TRACKER=1
  * </ol>
@@ -55,7 +57,9 @@ public class AllocationTrackerModule extends BlazeModule {
   private static final int VARIANCE = 100;
 
   private boolean enabled;
-  private AllocationTracker tracker = null;
+  // Always AllocationTracker, but we don't refer to the type as it is supplied manually via a Java
+  // agent.
+  private Object tracker = null;
 
   @Override
   public void blazeStartup(
@@ -65,13 +69,18 @@ public class AllocationTrackerModule extends BlazeModule {
       FileSystem fileSystem,
       ServerDirectories directories,
       Clock clock) {
-    String memoryTrackerPropery = System.getProperty("RULE_MEMORY_TRACKER");
-    enabled = memoryTrackerPropery != null && memoryTrackerPropery.equals("1");
+    enabled = isRequested();
     if (enabled) {
+      try {
+        Class.forName("com.google.monitoring.runtime.instrumentation.Sampler");
+      } catch (ClassNotFoundException e) {
+        enabled = false;
+        return;
+      }
       tracker = new AllocationTracker(SAMPLE_SIZE, VARIANCE);
-      Debug.setThreadHook(tracker);
+      Debug.setThreadHook((AllocationTracker) tracker);
       CurrentRuleTracker.setEnabled(true);
-      AllocationTrackerInstaller.installAllocationTracker(tracker);
+      AllocationTrackerInstaller.installAllocationTracker((AllocationTracker) tracker);
     }
   }
 
@@ -79,7 +88,24 @@ public class AllocationTrackerModule extends BlazeModule {
   public void workspaceInit(
       BlazeRuntime runtime, BlazeDirectories directories, WorkspaceBuilder builder) {
     if (enabled) {
-      builder.setAllocationTracker(tracker);
+      builder.setAllocationTracker((AllocationTracker) tracker);
     }
+  }
+
+  @Override
+  public void beforeCommand(CommandEnvironment env) {
+    if (!enabled && isRequested()) {
+      env.getReporter()
+          .handle(
+              Event.error(
+                  "Failed to enable memory tracking, ensure that you set"
+                      + " --host_jvm_args=-javaagent:<path to"
+                      + " java-allocation-instrumenter-3.3.4.jar>"));
+    }
+  }
+
+  private static boolean isRequested() {
+    String memoryTrackerProperty = System.getProperty("RULE_MEMORY_TRACKER");
+    return memoryTrackerProperty != null && memoryTrackerProperty.equals("1");
   }
 }

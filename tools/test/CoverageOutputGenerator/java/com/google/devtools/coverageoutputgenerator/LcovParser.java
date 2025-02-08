@@ -156,17 +156,22 @@ class LcovParser {
     return true;
   }
 
-  // FN:<line number of function start>,<function name>
+  // FN:<line number of function start>,[<line number of function end>,]<function name>
   private boolean parseFNLine(String line) {
     String lineContent = line.substring(FN_MARKER.length());
     String[] funcData = lineContent.split(DELIMITER, -1);
-    if (funcData.length != 2 || funcData[0].isEmpty() || funcData[1].isEmpty()) {
+    if (funcData.length < 2
+        || funcData.length > 3
+        || (funcData.length == 3 && funcData[2].isEmpty())
+        || funcData[0].isEmpty()
+        || funcData[1].isEmpty()) {
       logger.log(Level.WARNING, "Tracefile contains invalid FN line " + line);
       return false;
     }
     try {
       int lineNrFunctionStart = Integer.parseInt(funcData[0]);
-      String functionName = funcData[1];
+      // Line number of function end is optional and not used.
+      String functionName = funcData[funcData.length - 1];
       currentSourceFileCoverage.addLineNumber(functionName, lineNrFunctionStart);
     } catch (NumberFormatException e) {
       logger.log(Level.WARNING, "Tracefile contains invalid line number on FN line " + line);

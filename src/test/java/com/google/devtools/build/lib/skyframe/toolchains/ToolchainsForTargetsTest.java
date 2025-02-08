@@ -18,6 +18,7 @@ import static com.google.common.truth.Truth.assertThat;
 import static com.google.devtools.build.lib.analysis.testing.ToolchainCollectionSubject.assertThat;
 import static com.google.devtools.build.lib.analysis.testing.ToolchainContextSubject.assertThat;
 import static com.google.devtools.build.lib.skyframe.DependencyResolver.getDependencyContext;
+import static java.util.Objects.requireNonNull;
 
 import com.google.auto.value.AutoValue;
 import com.google.common.collect.ImmutableList;
@@ -29,6 +30,7 @@ import com.google.devtools.build.lib.actions.Action;
 import com.google.devtools.build.lib.analysis.AnalysisResult;
 import com.google.devtools.build.lib.analysis.BlazeDirectories;
 import com.google.devtools.build.lib.analysis.ConfiguredTarget;
+import com.google.devtools.build.lib.analysis.ExecGroupCollection;
 import com.google.devtools.build.lib.analysis.TargetAndConfiguration;
 import com.google.devtools.build.lib.analysis.ToolchainCollection;
 import com.google.devtools.build.lib.analysis.ToolchainContext;
@@ -36,17 +38,16 @@ import com.google.devtools.build.lib.analysis.config.DependencyEvaluationExcepti
 import com.google.devtools.build.lib.analysis.configuredtargets.RuleConfiguredTarget;
 import com.google.devtools.build.lib.analysis.constraints.IncompatibleTargetChecker.IncompatibleTargetException;
 import com.google.devtools.build.lib.analysis.producers.DependencyContext;
-import com.google.devtools.build.lib.analysis.producers.DependencyContextProducer;
 import com.google.devtools.build.lib.analysis.test.BaselineCoverageAction;
 import com.google.devtools.build.lib.analysis.util.AnalysisMock;
 import com.google.devtools.build.lib.analysis.util.AnalysisTestCase;
 import com.google.devtools.build.lib.cmdline.Label;
 import com.google.devtools.build.lib.packages.RuleClassProvider;
 import com.google.devtools.build.lib.packages.util.Crosstool.CcToolchainConfig;
-import com.google.devtools.build.lib.skyframe.ConfiguredTargetFunction;
 import com.google.devtools.build.lib.skyframe.ConfiguredTargetKey;
 import com.google.devtools.build.lib.skyframe.ConfiguredValueCreationException;
 import com.google.devtools.build.lib.skyframe.DependencyResolver;
+import com.google.devtools.build.lib.skyframe.serialization.autocodec.AutoCodec;
 import com.google.devtools.build.lib.skyframe.util.SkyframeExecutorTestUtils;
 import com.google.devtools.build.skyframe.EvaluationResult;
 import com.google.devtools.build.skyframe.SkyFunction;
@@ -102,12 +103,15 @@ public final class ToolchainsForTargetsTest extends AnalysisTestCase {
    * Returns a {@link ToolchainCollection< UnloadedToolchainContext >} as the result of {@link
    * DependencyResolver#getDependencyContext}.
    */
-  @AutoValue
-  abstract static class Value implements SkyValue {
-    abstract ToolchainCollection<UnloadedToolchainContext> getToolchainCollection();
+  @AutoCodec
+  record Value(ToolchainCollection<UnloadedToolchainContext> toolchainCollection)
+      implements SkyValue {
+    Value {
+      requireNonNull(toolchainCollection, "toolchainCollection");
+    }
 
     static Value create(ToolchainCollection<UnloadedToolchainContext> toolchainCollection) {
-      return new AutoValue_ToolchainsForTargetsTest_Value(toolchainCollection);
+      return new Value(toolchainCollection);
     }
   }
 
@@ -145,7 +149,8 @@ public final class ToolchainsForTargetsTest extends AnalysisTestCase {
       } catch (ToolchainException
           | ConfiguredValueCreationException
           | IncompatibleTargetException
-          | DependencyEvaluationException e) {
+          | DependencyEvaluationException
+          | ExecGroupCollection.InvalidExecGroupException e) {
         throw new ComputeUnloadedToolchainContextsException(e);
       }
       if (!state.transitiveRootCauses().isEmpty()) {
@@ -223,7 +228,7 @@ public final class ToolchainsForTargetsTest extends AnalysisTestCase {
         SkyframeExecutorTestUtils.evaluate(skyframeExecutor, key, /*keepGoing=*/ false, reporter);
     // Test call has finished, to reset the state.
     skyframeExecutor.getSkyframeBuildView().enableAnalysis(false);
-    return evalResult.get(key).getToolchainCollection();
+    return evalResult.get(key).toolchainCollection();
   }
 
   public ToolchainCollection<UnloadedToolchainContext> getToolchainCollection(String targetLabel)

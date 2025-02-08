@@ -14,9 +14,11 @@
 
 package com.google.devtools.build.lib.analysis;
 
-import com.google.auto.value.AutoValue;
+import static java.util.Objects.requireNonNull;
+
 import com.google.devtools.build.lib.cmdline.Label;
 import com.google.devtools.build.lib.packages.Target;
+import com.google.devtools.build.lib.skyframe.serialization.autocodec.AutoCodec;
 import net.starlark.java.syntax.Location;
 
 /**
@@ -25,13 +27,14 @@ import net.starlark.java.syntax.Location;
  * since {@link Location} can be quite heavy on its own and each of these wrapper objects costs 24
  * bytes over an existing {@link Target}.
  */
-@AutoValue
-public abstract class LabelAndLocation {
-  public static LabelAndLocation of(Target target) {
-    return new AutoValue_LabelAndLocation(target.getLabel(), target.getLocation());
+@AutoCodec
+public record LabelAndLocation(Label label, Location location) {
+  public LabelAndLocation {
+    requireNonNull(label, "label");
+    requireNonNull(location, "location");
   }
 
-  public abstract Label getLabel();
-
-  public abstract Location getLocation();
+  public static LabelAndLocation of(Target target) {
+    return new LabelAndLocation(target.getLabel(), target.getLocation());
+  }
 }

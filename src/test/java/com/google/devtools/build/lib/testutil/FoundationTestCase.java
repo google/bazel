@@ -80,7 +80,6 @@ public abstract class FoundationTestCase {
     scratch = new Scratch(fileSystem, "/workspace");
     outputBase = scratch.dir("/usr/local/google/_blaze_jrluser/FAKEMD5/");
     rootDirectory = scratch.dir("/workspace");
-    scratch.file(rootDirectory.getRelative("WORKSPACE").getPathString());
     scratch.file(rootDirectory.getRelative("MODULE.bazel").getPathString());
     root = Root.fromPath(rootDirectory);
 

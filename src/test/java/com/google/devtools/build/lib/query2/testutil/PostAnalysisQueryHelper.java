@@ -138,7 +138,7 @@ public abstract class PostAnalysisQueryHelper<T> extends AbstractQueryHelper<T> 
   }
 
   @Override
-  public PathFragment getIgnoredPackagePrefixesFile() {
+  public PathFragment getIgnoredSubdirectoriesFile() {
     return PathFragment.EMPTY_FRAGMENT;
   }
 
@@ -162,7 +162,9 @@ public abstract class PostAnalysisQueryHelper<T> extends AbstractQueryHelper<T> 
 
   @Override
   public void writeFile(String fileName, String... lines) throws IOException {
-    analysisHelper.getScratch().file(fileName, lines);
+    analysisHelper
+        .getScratch()
+        .file(getRootDirectory().getRelative(fileName).getPathString(), lines);
   }
 
   public Scratch getScratch() {
@@ -175,7 +177,9 @@ public abstract class PostAnalysisQueryHelper<T> extends AbstractQueryHelper<T> 
 
   @Override
   public void overwriteFile(String fileName, String... lines) throws IOException {
-    analysisHelper.getScratch().overwriteFile(fileName, lines);
+    analysisHelper
+        .getScratch()
+        .overwriteFile(getRootDirectory().getRelative(fileName).getPathString(), lines);
   }
 
   @Override

@@ -29,6 +29,9 @@
 #endif
 
 #include <windows.h>
+#include <processenv.h>
+#include <shellapi.h>
+#include <winbase.h>
 
 #include <memory>
 #include <string>
@@ -63,6 +66,24 @@ static std::wstring GetExecutableFileName() {
   }
   return buffer.substr(0, length);
 }
+
+#if defined(__MINGW32__) && not defined(BAZEL_MINGW_UNICODE)
+// MinGW requires linkopt=-municode to use wmain as entry point.
+// The below allows fallback to main when BAZEL_MINGW_UNICODE is not defined.
+// Otherwise, to use wmain directly, one needs to use both linkopt=-municode and
+// copt=-DBAZEL_MINGW_UNICODE.
+int wmain(int argc, wchar_t* argv[]);
+int main() {
+  int argc = 0;
+  wchar_t** argv = CommandLineToArgvW(GetCommandLineW(), &argc);
+  if (argv == nullptr) {
+    die(L"CommandLineToArgvW failed.");
+  }
+  int result = wmain(argc, argv);
+  LocalFree(argv);
+  return result;
+}
+#endif
 
 int wmain(int argc, wchar_t* argv[]) {
   // In case the given binary path is a shortened Windows 8dot3 path, we convert

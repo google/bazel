@@ -14,6 +14,9 @@
 
 package com.google.devtools.build.lib.authandtls.credentialhelper;
 
+import static java.util.Objects.requireNonNull;
+
+import com.google.auto.value.AutoBuilder;
 import com.google.auto.value.AutoValue;
 import com.google.common.base.Preconditions;
 import com.google.errorprone.annotations.Immutable;
@@ -31,22 +34,24 @@ import java.util.Locale;
  * Request for the {@code get} command of the <a
  * href="https://github.com/bazelbuild/proposals/blob/main/designs/2022-06-07-bazel-credential-helpers.md#proposal">Credential
  * Helper Protocol</a>.
+ *
+ * @param uri Returns the {@link URI} this request is for.
  */
-@AutoValue
 @AutoValue.CopyAnnotations
 @Immutable
 @JsonAdapter(GetCredentialsRequest.GsonTypeAdapter.class)
-public abstract class GetCredentialsRequest {
-  /** Returns the {@link URI} this request is for. */
-  public abstract URI getUri();
+public record GetCredentialsRequest(URI uri) {
+  public GetCredentialsRequest {
+    requireNonNull(uri, "uri");
+  }
 
   /** Returns a new builder for {@link GetCredentialsRequest}. */
   public static Builder newBuilder() {
-    return new AutoValue_GetCredentialsRequest.Builder();
+    return new AutoBuilder_GetCredentialsRequest_Builder();
   }
 
   /** Builder for {@link GetCredentialsRequest}. */
-  @AutoValue.Builder
+  @AutoBuilder
   public abstract static class Builder {
     /** Sets the {@link URI} this request is for. */
     public abstract Builder setUri(URI uri);
@@ -63,7 +68,7 @@ public abstract class GetCredentialsRequest {
       Preconditions.checkNotNull(value);
 
       writer.beginObject();
-      writer.name("uri").value(value.getUri().toString());
+      writer.name("uri").value(value.uri().toString());
       writer.endObject();
     }
 

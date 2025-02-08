@@ -42,7 +42,6 @@ class ModCommandTest(test_base.TestBase):
         [
             # In ipv6 only network, this has to be enabled.
             # 'startup --host_jvm_args=-Djava.net.preferIPv6Addresses=true',
-            'mod --noenable_workspace',
             'mod --registry=' + self.main_registry.getURL(),
             # We need to have BCR here to make sure built-in modules like
             # bazel_tools can work.
@@ -120,6 +119,8 @@ class ModCommandTest(test_base.TestBase):
         ')',
         'def _ext_impl(ctx):',
         '  deps = {dep.name: 1 for mod in ctx.modules for dep in mod.tags.dep}',
+        '  if "fail" in deps:',
+        '    fail("ext failed")',
         '  for dep in deps:',
         '    data_repo(name=dep, data="requested repo")',
         'ext=module_extension(_ext_impl,',
@@ -137,16 +138,6 @@ class ModCommandTest(test_base.TestBase):
   def tearDown(self):
     self.main_registry.stop()
     test_base.TestBase.tearDown(self)
-
-  def testFailWithoutBzlmod(self):
-    _, _, stderr = self.RunBazel(
-        ['mod', 'graph', '--noenable_bzlmod'], allow_failure=True
-    )
-    self.assertIn(
-        'ERROR: Bzlmod has to be enabled for mod command to work, run with '
-        "--enable_bzlmod. Type 'bazel help mod' for syntax and help.",
-        stderr,
-    )
 
   def testGraph(self):
     _, stdout, _ = self.RunBazel(['mod', 'graph'], rstrip=True)
@@ -237,6 +228,57 @@ class ModCommandTest(test_base.TestBase):
             '',
         ],
         'wrong output in graph query with extension filter specified',
+    )
+
+  def testGraphWithFailingExtensions(self):
+    # Force ext2 to fail.
+    with open(self.Path('MODULE.bazel'), 'a+') as f:
+      f.write("ext2.dep(name = 'repo2')\n")
+      f.write("ext2.dep(name = 'fail')\n")
+
+    exit_code, stdout, stderr = self.RunBazel(
+        ['mod', 'graph', '--extension_info=all'],
+        rstrip=True,
+        allow_failure=True,
+    )
+    self.AssertNotExitCode(exit_code, 0, stderr)
+    self.assertIn(
+        'ERROR: Results may be incomplete as 1 extension failed.', stderr
+    )
+    self.assertIn('\t\tfail("ext failed")', stderr)
+    self.assertIn('Error in fail: ext failed', stderr)
+    self.assertListEqual(
+        stdout,
+        [
+            '<root> (my_project@1.0)',
+            '|___$@@ext+//:ext.bzl%ext',
+            '|   |___repo1',
+            '|   |...repo2',
+            '|   |...repo5',
+            '|___$@@ext2+//:ext.bzl%ext',
+            '|   |___repo1',
+            '|___ext@1.0',
+            '|___ext2@1.0',
+            '|___foo@1.0',
+            '|   |___$@@ext+//:ext.bzl%ext ...',
+            '|   |   |___repo1',
+            '|   |___ext@1.0 (*)',
+            '|   |___bar@2.0',
+            '|       |___$@@ext+//:ext.bzl%ext ...',
+            '|       |   |___repo3',
+            '|       |___$@@ext2+//:ext.bzl%ext ...',
+            '|       |   |___repo3',
+            '|       |___ext@1.0 (*)',
+            '|       |___ext2@1.0 (*)',
+            '|___foo@2.0',
+            '    |___$@@ext+//:ext.bzl%ext ...',
+            '    |   |___repo3',
+            '    |   |___repo4',
+            '    |___bar@2.0 (*)',
+            '    |___ext@1.0 (*)',
+            '',
+        ],
+        'wrong output in graph with extensions query',
     )
 
   def testShowExtensionAllUsages(self):
@@ -413,14 +455,16 @@ class ModCommandTest(test_base.TestBase):
     self.assertRegex(stdout.pop(4), r'^  urls = \[".*"\],$')
     self.assertRegex(stdout.pop(4), r'^  integrity = ".*",$')
     self.assertRegex(stdout.pop(19), r'^  path = ".*",$')
-    # lines after 'Rule data_repo defined at (most recent call last):'
-    stdout.pop(32)
-    stdout.pop(42)
-    self.assertRegex(stdout.pop(47), r'^  urls = \[".*"\],$')
-    self.assertRegex(stdout.pop(47), r'^  integrity = ".*",$')
+    # lines after '# Rule local_repository defined at (most recent call last):'
+    stdout.pop(23)
+    # lines after '# Rule data_repo defined at (most recent call last):'
+    stdout.pop(34)
+    stdout.pop(45)
+    self.assertRegex(stdout.pop(50), r'^  urls = \[".*"\],$')
+    self.assertRegex(stdout.pop(50), r'^  integrity = ".*",$')
     # lines after '# Rule http_archive defined at (most recent call last):'
     stdout.pop(13)
-    stdout.pop(55)
+    stdout.pop(58)
     self.assertListEqual(
         stdout,
         [
@@ -449,35 +493,39 @@ class ModCommandTest(test_base.TestBase):
             ')',
             '# Rule ext+ instantiated at (most recent call last):',
             '#   <builtin> in <toplevel>',
+            '# Rule local_repository defined at (most recent call last):',
+            # pop(23)
             '',
             '## @my_repo3:',
             '# <builtin>',
             'data_repo(',
             '  name = "ext++ext+repo3",',
+            '  _original_name = "repo3",',
             '  data = "requested repo",',
             ')',
             '# Rule ext++ext+repo3 instantiated at (most recent call last):',
             '#   <builtin> in <toplevel>',
             '# Rule data_repo defined at (most recent call last):',
-            # pop(32)
+            # pop(34)
             '',
             '## @my_repo4:',
             '# <builtin>',
             'data_repo(',
             '  name = "ext++ext+repo4",',
+            '  _original_name = "repo4",',
             '  data = "requested repo",',
             ')',
             '# Rule ext++ext+repo4 instantiated at (most recent call last):',
             '#   <builtin> in <toplevel>',
             '# Rule data_repo defined at (most recent call last):',
-            # pop(42)
+            # pop(45)
             '',
             '## bar@2.0:',
             '# <builtin>',
             'http_archive(',
             '  name = "bar+",',
-            # pop(47) -- urls=[...]
-            # pop(47) -- integrity=...
+            # pop(50) -- urls=[...]
+            # pop(50) -- integrity=...
             '  strip_prefix = "",',
             '  remote_file_urls = {},',
             '  remote_file_integrity = {},',
@@ -487,7 +535,7 @@ class ModCommandTest(test_base.TestBase):
             '# Rule bar+ instantiated at (most recent call last):',
             '#   <builtin> in <toplevel>',
             '# Rule http_archive defined at (most recent call last):',
-            # pop(55)
+            # pop(58)
             '',
         ],
         'wrong output in the show query for module and extension-generated'
@@ -682,13 +730,13 @@ class ModCommandTest(test_base.TestBase):
     # The extensions should not be reevaluated by the command.
     self.assertNotIn('ext1 is being evaluated', stderr)
     self.assertNotIn('ext2 is being evaluated', stderr)
-    # The fixup warnings should be shown again due to Skyframe replaying.
-    self.assertIn(
+    # bazel mod tidy doesn't show fixup warnings.
+    self.assertNotIn(
         'Not imported, but reported as direct dependencies by the extension'
         ' (may cause the build to fail):\nmissing_dep',
         stderr,
     )
-    self.assertIn(
+    self.assertNotIn(
         'Imported, but reported as indirect dependencies by the'
         ' extension:\nindirect_dep',
         stderr,
@@ -935,7 +983,7 @@ class ModCommandTest(test_base.TestBase):
     # Verify that bazel mod tidy fails if an extension fails to execute.
     exit_code, _, stderr = self.RunBazel(['mod', 'tidy'], allow_failure=True)
 
-    self.assertNotEqual(0, exit_code)
+    self.AssertNotExitCode(exit_code, 0, stderr)
     stderr = '\n'.join(stderr)
     self.assertIn('//:extension.bzl', stderr)
     self.assertIn('Error: index out of range', stderr)
@@ -946,6 +994,147 @@ class ModCommandTest(test_base.TestBase):
           [
               'ext = use_extension("//:extension.bzl", "ext")',
               'use_repo(ext, "dep")',
+              '',
+          ],
+          module_file.read().split('\n'),
+      )
+
+  def testModTidyKeepGoing(self):
+    self.ScratchFile(
+        'MODULE.bazel',
+        [
+            'ext1 = use_extension("//:extension.bzl", "ext1")',
+            'use_repo(ext1, "dep", "indirect_dep")',
+            'ext2 = use_extension("//:extension.bzl", "ext2")',
+            'use_repo(ext2, "other_dep", "other_indirect_dep")',
+        ],
+    )
+    self.ScratchFile('BUILD.bazel')
+    self.ScratchFile(
+        'extension.bzl',
+        [
+            'def _repo_rule_impl(ctx):',
+            '    ctx.file("WORKSPACE")',
+            '    ctx.file("BUILD", "filegroup(name=\'lala\')")',
+            '',
+            'repo_rule = repository_rule(implementation=_repo_rule_impl)',
+            '',
+            'def _ext1_impl(ctx):',
+            '    print("ext1 is being evaluated")',
+            '    repo_rule(name="dep")',
+            '    repo_rule(name="missing_dep")',
+            '    repo_rule(name="indirect_dep")',
+            '    return ctx.extension_metadata(',
+            '        root_module_direct_deps=["dep", "missing_dep"],',
+            '        root_module_direct_dev_deps=[],',
+            '    )',
+            '',
+            'ext1 = module_extension(implementation=_ext1_impl)',
+            '',
+            'def _ext2_impl(ctx):',
+            '    print("ext2 is being evaluated")',
+            '    fail("ext2 failed")',
+            '',
+            'ext2 = module_extension(implementation=_ext2_impl)',
+        ],
+    )
+
+    # Create a lockfile and let the extension evaluations emit fixup warnings.
+    exit_code, _, stderr = self.RunBazel(
+        [
+            'mod',
+            'deps',
+            '--lockfile_mode=update',
+        ],
+        allow_failure=True,
+    )
+    self.AssertNotExitCode(exit_code, 0, stderr)
+    stderr = '\n'.join(stderr)
+    self.assertIn('ext1 is being evaluated', stderr)
+    self.assertIn('ext2 is being evaluated', stderr)
+    self.assertIn('Error in fail: ext2 failed', stderr)
+    self.assertIn(
+        'Not imported, but reported as direct dependencies by the extension'
+        ' (may cause the build to fail):\nmissing_dep',
+        stderr,
+    )
+    self.assertIn(
+        'Imported, but reported as indirect dependencies by the'
+        ' extension:\nindirect_dep',
+        stderr,
+    )
+
+    # Run bazel mod tidy to fix the imports.
+    exit_code, stdout, stderr = self.RunBazel(
+        [
+            'mod',
+            'tidy',
+            '--lockfile_mode=update',
+        ],
+        allow_failure=True,
+    )
+    self.AssertNotExitCode(exit_code, 0, stderr)
+    self.assertEqual([], stdout)
+    self.assertIn('ERROR: Failed to process 1 extension due to errors.', stderr)
+    stderr = '\n'.join(stderr)
+    # The passing extension should not be reevaluated by the command.
+    self.assertNotIn('ext1 is being evaluated', stderr)
+    self.assertIn('ext2 is being evaluated', stderr)
+    # baze mod tidy doesn't show fixup warnings.
+    self.assertNotIn(
+        'Not imported, but reported as direct dependencies by the extension'
+        ' (may cause the build to fail):\nmissing_dep',
+        stderr,
+    )
+    self.assertNotIn(
+        'Imported, but reported as indirect dependencies by the'
+        ' extension:\nindirect_dep',
+        stderr,
+    )
+    # Fixes are reported.
+    self.assertIn(
+        'INFO: Updated use_repo calls for @//:extension.bzl%ext1', stderr
+    )
+    self.assertNotIn(
+        'INFO: Updated use_repo calls for @//:extension.bzl%ext2', stderr
+    )
+
+    # Rerun bazel mod deps to check that the fixup warnings are gone
+    # and the lockfile is up-to-date.
+    exit_code, _, stderr = self.RunBazel(
+        [
+            'mod',
+            'deps',
+            '--lockfile_mode=error',
+        ],
+        allow_failure=True,
+    )
+    self.AssertNotExitCode(exit_code, 0, stderr)
+    # The exit code if the build fails due to a lockfile that is not up-to-date.
+    self.AssertNotExitCode(exit_code, 48, stderr)
+    stderr = '\n'.join(stderr)
+    self.assertNotIn('ext1 is being evaluated', stderr)
+    self.assertIn('ext2 is being evaluated', stderr)
+    self.assertNotIn(
+        'Not imported, but reported as direct dependencies by the extension'
+        ' (may cause the build to fail):\nmissing_dep',
+        stderr,
+    )
+    self.assertNotIn(
+        'Imported, but reported as indirect dependencies by the'
+        ' extension:\nindirect_dep',
+        stderr,
+    )
+
+    # Verify that use_repo statements have been updated.
+    with open('MODULE.bazel', 'r') as module_file:
+      self.assertEqual(
+          [
+              'ext1 = use_extension("//:extension.bzl", "ext1")',
+              'use_repo(ext1, "dep", "missing_dep")',
+              '',
+              'ext2 = use_extension("//:extension.bzl", "ext2")',
+              'use_repo(ext2, "other_dep", "other_indirect_dep")',
               '',
           ],
           module_file.read().split('\n'),
@@ -984,10 +1173,6 @@ class ModCommandTest(test_base.TestBase):
     # extension fails after evaluation.
     _, _, stderr = self.RunBazel(['mod', 'tidy'])
     stderr = '\n'.join(stderr)
-    self.assertIn(
-        'ext defined in @//:extension.bzl reported incorrect imports', stderr
-    )
-    self.assertIn('invalid_dep', stderr)
     self.assertIn(
         'INFO: Updated use_repo calls for @//:extension.bzl%ext', stderr
     )

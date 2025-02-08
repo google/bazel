@@ -16,6 +16,7 @@ package com.google.devtools.build.lib.concurrent;
 import static com.google.devtools.build.lib.unsafe.UnsafeProvider.unsafe;
 
 import com.google.common.annotations.VisibleForTesting;
+
 import sun.misc.Unsafe;
 
 /** This class encapsulates creating padded addresses for 8-byte values. */
@@ -42,6 +43,7 @@ final class PaddedAddresses {
    *
    * @param count allocates a buffer large enough to accommodate this many aligned blocks.
    */
+  // TODO: b/386384684 - remove Unsafe usage
   static long createPaddedBaseAddress(int count) {
     return unsafe().allocateMemory(count * ALIGNMENT + PADDING_WIDTH);
   }

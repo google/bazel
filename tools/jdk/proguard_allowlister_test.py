@@ -15,8 +15,6 @@
 import os
 import unittest
 
-# Do not edit this line. Copybara replaces it with PY2 migration helper.
-
 from tools.jdk import proguard_allowlister
 
 

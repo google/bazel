@@ -209,7 +209,6 @@
       entries, this expands to the package's root directory in the
       <code>genfiles</code> tree, <i>even if all output files are in the same
       subdirectory</i>!
-      <!-- (as a consequence of the "middleman" implementation) -->
     </p>
     <p>
       <b>Note:</b> Use <code>RULEDIR</code> over <code>@D</code> because
@@ -470,8 +469,8 @@ instead.
 <p>
   The following are defined in Java toolchain rules and available to any rule
   that sets <code>toolchains =
-["@bazel_tools//tools/jdk:current_java_runtime"]</code> (or
-  <code>"@bazel_tools//tools/jdk:current_host_java_runtime"</code>
+["@rules_java//toolchains:current_java_runtime"]</code> (or
+  <code>"@rules_java//toolchains:current_host_java_runtime"</code>
   for the host toolchain equivalent).
 </p>
 

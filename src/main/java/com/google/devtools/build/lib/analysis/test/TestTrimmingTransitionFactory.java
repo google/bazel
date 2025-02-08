@@ -21,9 +21,7 @@ import com.google.common.collect.ImmutableSet;
 import com.google.devtools.build.lib.analysis.AliasProvider;
 import com.google.devtools.build.lib.analysis.BaseRuleClasses;
 import com.google.devtools.build.lib.analysis.config.BuildOptions;
-import com.google.devtools.build.lib.analysis.config.BuildOptionsCache;
 import com.google.devtools.build.lib.analysis.config.BuildOptionsView;
-import com.google.devtools.build.lib.analysis.config.CoreOptions;
 import com.google.devtools.build.lib.analysis.config.FragmentOptions;
 import com.google.devtools.build.lib.analysis.config.transitions.NoTransition;
 import com.google.devtools.build.lib.analysis.config.transitions.PatchTransition;
@@ -37,7 +35,8 @@ import com.google.devtools.build.lib.packages.RuleTransitionData;
 import com.google.devtools.common.options.Options;
 
 /**
- * Trimming transition factory which removes the test config fragment when entering a non-test rule.
+ * Trimming transition factory which removes the test config fragment and certain options that are
+ * only relevant for tests when entering a non-test rule.
  */
 public final class TestTrimmingTransitionFactory implements TransitionFactory<RuleTransitionData> {
 
@@ -67,24 +66,9 @@ public final class TestTrimmingTransitionFactory implements TransitionFactory<Ru
       this.testonly = testonly;
     }
 
-    // This cache is to prevent major slowdowns when using --trim_test_configuration. This
-    // transition is always invoked on every target in the top-level invocation. Thus, a wide
-    // invocation, like //..., will cause the transition to be invoked on a large number of targets
-    // leading to significant performance degradation. (Notably, the transition itself is somewhat
-    // fast; however, the post-processing of the BuildOptions into the actual
-    // BuildConfigurationValue
-    // takes a significant amount of time).
-    //
-    // Test any caching changes for performance impact in a longwide scenario with
-    // --trim_test_configuration on versus off.
-    private static final BuildOptionsCache<Boolean> cache =
-        new BuildOptionsCache<>(
-            (options, unused, unusedNonEventHandler) ->
-                options.underlying().toBuilder().removeFragmentOptions(TestOptions.class).build());
-
     @Override
     public ImmutableSet<Class<? extends FragmentOptions>> requiresOptionFragments() {
-      return ImmutableSet.of(TestOptions.class, CoreOptions.class);
+      return TestTrimmingLogic.REQUIRED_FRAGMENTS;
     }
 
     @Override
@@ -101,7 +85,7 @@ public final class TestTrimmingTransitionFactory implements TransitionFactory<Ru
         return originalOptions.underlying();
       }
       // No context needed, use the constant Boolean.TRUE.
-      return cache.applyTransition(originalOptions, Boolean.TRUE, null);
+      return TestTrimmingLogic.trim(originalOptions);
     }
   }
 

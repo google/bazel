@@ -65,7 +65,6 @@ abstract class ArtifactFunctionTestCase {
   protected RecordingDifferencer differencer = new SequencedRecordingDifferencer();
   protected MemoizingEvaluator evaluator;
   protected Path root;
-  protected Path middlemanPath;
   protected final ActionKeyContext actionKeyContext = new ActionKeyContext();
 
   /**
@@ -151,8 +150,6 @@ abstract class ArtifactFunctionTestCase {
     root = tmpDir.getChild("root");
     root.createDirectoryAndParents();
     FileSystemUtils.createEmptyFile(root.getRelative("WORKSPACE"));
-    middlemanPath = tmpDir.getChild("middlemanRoot");
-    middlemanPath.createDirectoryAndParents();
   }
 
   protected static void writeFile(Path path, String contents) throws IOException {

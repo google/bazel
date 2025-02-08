@@ -29,7 +29,7 @@ if [ -n "${EMBED_LABEL}" ]; then
     EMBED_LABEL_ARG=(--stamp --embed_label "${EMBED_LABEL}")
 fi
 
-: ${JAVA_VERSION:="11"}
+: ${JAVA_VERSION:="21"}
 
 # TODO: remove `--repo_env=BAZEL_HTTP_RULES_URLS_AS_DEFAULT_CANONICAL_ID=0` once all dependencies are
 #  mirrored. See https://github.com/bazelbuild/bazel/pull/19549 for more context.
@@ -40,11 +40,15 @@ _BAZEL_ARGS="--spawn_strategy=standalone \
       --repository_cache=derived/repository_cache \
       --repo_env=BAZEL_HTTP_RULES_URLS_AS_DEFAULT_CANONICAL_ID=0 \
       --extra_toolchains=//scripts/bootstrap:all \
-      --extra_toolchains=@bazel_tools//tools/python:autodetecting_toolchain \
+      --extra_toolchains=@rules_python//python/runtime_env_toolchains:all \
       --enable_bzlmod \
       --check_direct_dependencies=error \
       --lockfile_mode=update \
       --override_repository=$(cat derived/maven/MAVEN_CANONICAL_REPO_NAME)=derived/maven \
+      --java_runtime_version=${JAVA_VERSION} \
+      --java_language_version=${JAVA_VERSION} \
+      --tool_java_runtime_version=${JAVA_VERSION} \
+      --tool_java_language_version=${JAVA_VERSION} \
       ${DIST_BOOTSTRAP_ARGS:-} \
       ${EXTRA_BAZEL_ARGS:-}"
 
@@ -56,7 +60,7 @@ if [ -z "${BAZEL-}" ]; then
     shift
     run_bazel_jar $command \
         ${_BAZEL_ARGS} --verbose_failures \
-        --javacopt="-g -source ${JAVA_VERSION} -target ${JAVA_VERSION}" "${@}"
+        --javacopt="-g" "${@}"
   }
 else
   function _run_bootstrapping_bazel() {
@@ -64,7 +68,7 @@ else
     shift
     ${BAZEL} --bazelrc=${BAZELRC} ${BAZEL_DIR_STARTUP_OPTIONS} $command \
         ${_BAZEL_ARGS} --verbose_failures \
-        --javacopt="-g -source ${JAVA_VERSION} -target ${JAVA_VERSION}" "${@}"
+        --javacopt="-g" "${@}"
   }
 fi
 

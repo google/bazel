@@ -13,6 +13,7 @@
 // limitations under the License.
 package com.google.devtools.build.lib.analysis.util;
 
+import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.google.common.collect.MoreCollectors.onlyElement;
 import static com.google.common.truth.Truth.assertThat;
@@ -58,10 +59,10 @@ import com.google.devtools.build.lib.actions.DiscoveredModulesPruner;
 import com.google.devtools.build.lib.actions.Executor;
 import com.google.devtools.build.lib.actions.InputMetadataProvider;
 import com.google.devtools.build.lib.actions.MapBasedActionGraph;
-import com.google.devtools.build.lib.actions.MiddlemanAction;
 import com.google.devtools.build.lib.actions.MutableActionGraph;
 import com.google.devtools.build.lib.actions.ParameterFile;
 import com.google.devtools.build.lib.actions.RunfilesTree;
+import com.google.devtools.build.lib.actions.RunfilesTreeAction;
 import com.google.devtools.build.lib.actions.ThreadStateReceiver;
 import com.google.devtools.build.lib.actions.util.ActionsTestUtil;
 import com.google.devtools.build.lib.actions.util.DummyExecutor;
@@ -131,7 +132,9 @@ import com.google.devtools.build.lib.packages.PackageOverheadEstimator;
 import com.google.devtools.build.lib.packages.PackageValidator;
 import com.google.devtools.build.lib.packages.RawAttributeMapper;
 import com.google.devtools.build.lib.packages.Rule;
+import com.google.devtools.build.lib.packages.RuleClass;
 import com.google.devtools.build.lib.packages.RuleClassProvider;
+import com.google.devtools.build.lib.packages.RuleClassUtils;
 import com.google.devtools.build.lib.packages.StarlarkInfo;
 import com.google.devtools.build.lib.packages.StarlarkProvider;
 import com.google.devtools.build.lib.packages.Target;
@@ -186,6 +189,7 @@ import com.google.errorprone.annotations.CanIgnoreReturnValue;
 import com.google.errorprone.annotations.ForOverride;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -200,7 +204,6 @@ import java.util.Set;
 import java.util.TreeMap;
 import java.util.UUID;
 import java.util.function.Predicate;
-import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import javax.annotation.Nullable;
 import net.starlark.java.eval.StarlarkSemantics;
@@ -414,7 +417,6 @@ public abstract class BuildViewTestCase extends FoundationTestCase {
 
   protected void initializeMockClient() throws IOException {
     analysisMock.setupMockClient(mockToolsConfig);
-    analysisMock.setupMockWorkspaceFiles(directories.getEmbeddedBinariesRoot());
     analysisMock.setupPrelude(mockToolsConfig);
   }
 
@@ -453,7 +455,7 @@ public abstract class BuildViewTestCase extends FoundationTestCase {
 
     // This is being done outside of BuildView, potentially even before the BuildView was
     // constructed and thus cannot rely on BuildView having injected this for us.
-    skyframeExecutor.setBaselineConfiguration(buildOptions);
+    skyframeExecutor.setBaselineConfiguration(buildOptions, reporter);
     return skyframeExecutor.createConfiguration(reporter, buildOptions, false);
   }
 
@@ -464,7 +466,9 @@ public abstract class BuildViewTestCase extends FoundationTestCase {
   }
 
   protected Target getTarget(String label)
-      throws NoSuchPackageException, NoSuchTargetException, LabelSyntaxException,
+      throws NoSuchPackageException,
+          NoSuchTargetException,
+          LabelSyntaxException,
           InterruptedException {
     return getTarget(Label.parseCanonical(label));
   }
@@ -559,7 +563,6 @@ public abstract class BuildViewTestCase extends FoundationTestCase {
   protected List<String> getDefaultBuildLanguageOptions() throws Exception {
     ImmutableList.Builder<String> ans = ImmutableList.builder();
     ans.addAll(TestConstants.PRODUCT_SPECIFIC_BUILD_LANG_OPTIONS);
-    ans.add("--enable_bzlmod");
     return ans.build();
   }
 
@@ -652,7 +655,8 @@ public abstract class BuildViewTestCase extends FoundationTestCase {
    * Creates BuildView using current execConfig/targetConfig values. Ensures that execConfig is
    * either identical to the targetConfig or {@code isExecConfiguration()} is true.
    */
-  protected final void createBuildView() {
+  protected final void createBuildView()
+      throws InvalidConfigurationException, InterruptedException {
     Preconditions.checkNotNull(targetConfig);
     Preconditions.checkState(
         getExecConfiguration().equals(getTargetConfiguration())
@@ -663,6 +667,7 @@ public abstract class BuildViewTestCase extends FoundationTestCase {
         getTargetConfiguration());
 
     skyframeExecutor.handleAnalysisInvalidatingChange();
+    skyframeExecutor.setBaselineConfiguration(targetConfig.getOptions(), reporter);
 
     view = new BuildViewForTesting(directories, ruleClassProvider, skyframeExecutor, null);
     view.setConfigurationForTesting(targetConfig);
@@ -696,11 +701,26 @@ public abstract class BuildViewTestCase extends FoundationTestCase {
             return null;
           }
         },
-        /*extendedSanityChecks=*/ false,
-        /*allowAnalysisFailures=*/ false,
+        /* extendedSanityChecks= */ false,
+        /* allowAnalysisFailures= */ false,
         reporter,
         env,
         starlarkBuiltinsValue);
+  }
+
+  /**
+   * Returns the sorted list of all rule classes available in builtins, following the logic of
+   * {@code bazel info build-language}.
+   *
+   * @param includeMacroWrappedRules if true, include rule classes for rules wrapped in macros.
+   */
+  protected ImmutableList<RuleClass> getBuiltinRuleClasses(boolean includeMacroWrappedRules)
+      throws Exception {
+    SkyFunction.Environment env = new SkyFunctionEnvironmentForTesting(reporter, skyframeExecutor);
+    StarlarkBuiltinsValue builtins =
+        (StarlarkBuiltinsValue) checkNotNull(env.getValue(StarlarkBuiltinsValue.key()));
+    return RuleClassUtils.getBuiltinRuleClasses(
+        builtins, ruleClassProvider, includeMacroWrappedRules);
   }
 
   /**
@@ -772,7 +792,7 @@ public abstract class BuildViewTestCase extends FoundationTestCase {
 
   protected static void assertConfigurationsEqual(
       BuildConfigurationValue config1, BuildConfigurationValue config2) {
-    assertConfigurationsEqual(config1, config2, /*excludeFragmentOptions=*/ ImmutableSet.of());
+    assertConfigurationsEqual(config1, config2, /* excludeFragmentOptions= */ ImmutableSet.of());
   }
 
   /**
@@ -919,11 +939,8 @@ public abstract class BuildViewTestCase extends FoundationTestCase {
         if (pair.paramFileInfo != null) {
           ByteArrayOutputStream out = new ByteArrayOutputStream();
           ParameterFile.writeParameterFile(
-              out,
-              pair.commandLine.arguments(),
-              pair.paramFileInfo.getFileType(),
-              pair.paramFileInfo.getCharset());
-          return out.toString(pair.paramFileInfo.getCharset());
+              out, pair.commandLine.arguments(), pair.paramFileInfo.getFileType());
+          return out.toString(StandardCharsets.ISO_8859_1);
         }
       }
     }
@@ -982,16 +999,16 @@ public abstract class BuildViewTestCase extends FoundationTestCase {
   }
 
   protected RunfilesTree runfilesTreeFor(TestRunnerAction testRunnerAction) throws Exception {
-    Artifact middleman = testRunnerAction.getRunfilesMiddleman();
-    MiddlemanAction middlemanAction = (MiddlemanAction) getGeneratingAction(middleman);
-    return middlemanAction.getRunfilesTree();
+    Artifact runfilesTreeArtifact = testRunnerAction.getRunfilesTree();
+    RunfilesTreeAction runfilesTreeAction =
+        (RunfilesTreeAction) getGeneratingAction(runfilesTreeArtifact);
+    return runfilesTreeAction.getRunfilesTree();
   }
 
   protected FakeActionInputFileCache inputMetadataFor(TestRunnerAction testRunnerAction)
       throws Exception {
     FakeActionInputFileCache result = new FakeActionInputFileCache();
-    result.putRunfilesTree(
-        testRunnerAction.getRunfilesMiddleman(), runfilesTreeFor(testRunnerAction));
+    result.putRunfilesTree(testRunnerAction.getRunfilesTree(), runfilesTreeFor(testRunnerAction));
     return result;
   }
 
@@ -1094,7 +1111,8 @@ public abstract class BuildViewTestCase extends FoundationTestCase {
    */
   protected ConfiguredTargetAndData getConfiguredTargetAndData(
       Label label, BuildConfigurationValue config)
-      throws StarlarkTransition.TransitionException, InvalidConfigurationException,
+      throws StarlarkTransition.TransitionException,
+          InvalidConfigurationException,
           InterruptedException {
     return view.getConfiguredTargetAndDataForTesting(reporter, label, config);
   }
@@ -1105,8 +1123,10 @@ public abstract class BuildViewTestCase extends FoundationTestCase {
    * config in the ConfiguredTargetAndData's ConfiguredTarget.
    */
   public ConfiguredTargetAndData getConfiguredTargetAndData(String label)
-      throws LabelSyntaxException, StarlarkTransition.TransitionException,
-          InvalidConfigurationException, InterruptedException {
+      throws LabelSyntaxException,
+          StarlarkTransition.TransitionException,
+          InvalidConfigurationException,
+          InterruptedException {
     return getConfiguredTargetAndData(Label.parseCanonical(label), targetConfig);
   }
 
@@ -1178,22 +1198,6 @@ public abstract class BuildViewTestCase extends FoundationTestCase {
                     && ((AspectKey) e.getKey()).getAspectName().equals(label))
         .map(e -> (AspectValue) e.getValue())
         .collect(onlyElement());
-  }
-
-  /**
-   * Rewrites the WORKSPACE to have the required boilerplate and the given lines of content.
-   *
-   * <p>Triggers Skyframe to reinitialize everything.
-   */
-  public void rewriteWorkspace(String... lines) throws Exception {
-    scratch.overwriteFile(
-        "WORKSPACE",
-        new ImmutableList.Builder<String>()
-            .addAll(analysisMock.getWorkspaceContents(mockToolsConfig))
-            .addAll(ImmutableList.copyOf(lines))
-            .build());
-
-    invalidatePackages();
   }
 
   /**
@@ -1934,7 +1938,7 @@ public abstract class BuildViewTestCase extends FoundationTestCase {
     return update(
         ImmutableList.of(target),
         ImmutableList.of(),
-        /*keepGoing=*/ true, // value doesn't matter since we have only one target.
+        /* keepGoing= */ true, // value doesn't matter since we have only one target.
         loadingPhaseThreads,
         doAnalysis,
         new EventBus());
@@ -1975,7 +1979,7 @@ public abstract class BuildViewTestCase extends FoundationTestCase {
             loadingOptions,
             loadingPhaseThreads,
             keepGoing,
-            /*determineTests=*/ false);
+            /* determineTests= */ false);
     if (!doAnalysis) {
       // TODO(bazel-team): What's supposed to happen in this case?
       return null;
@@ -1983,9 +1987,9 @@ public abstract class BuildViewTestCase extends FoundationTestCase {
     return view.update(
         loadingResult,
         targetConfig.getOptions(),
-        /*explicitTargetPatterns=*/ ImmutableSet.of(),
+        /* explicitTargetPatterns= */ ImmutableSet.of(),
         aspects,
-        /*aspectsParameters=*/ ImmutableMap.of(),
+        /* aspectsParameters= */ ImmutableMap.of(),
         viewOptions,
         keepGoing,
         loadingPhaseThreads,
@@ -2351,31 +2355,8 @@ public abstract class BuildViewTestCase extends FoundationTestCase {
     return getBinArtifact(getImplicitOutputPath(target, outputFunction), target);
   }
 
-  static final Pattern WORKSPACE_NAME_PATTERN =
-      Pattern.compile(
-          "workspace\\(\\s*name\\s*=\\s*(?:'|\")(\\w+)(?:'|\")\\s*\\)", Pattern.MULTILINE);
-
-  private String findWorkspaceName() {
-    // HACK -- we have to somehow get the workspace name here. But running skyframe itself is too
-    // demanding (and who knows what might go wrong if we run skyframe mid-setup); so we fall back
-    // to just reading out the WORKSPACE file ourselves and doing a simple parse. This function
-    // crudely reproduces the logic of WorkspaceNameFunction.
-    if (buildLanguageOptions.enableBzlmod) {
-      return ruleClassProvider.getRunfilesPrefix();
-    }
-    try {
-      Matcher matcher = WORKSPACE_NAME_PATTERN.matcher(scratch.readFile("WORKSPACE"));
-      if (matcher.find()) {
-        return matcher.group(1);
-      }
-      return "__main__";
-    } catch (IOException e) {
-      throw new RuntimeException(e);
-    }
-  }
-
   public Path getExecRoot() {
-    return directories.getExecRoot(findWorkspaceName());
+    return directories.getExecRoot(ruleClassProvider.getRunfilesPrefix());
   }
 
   /** Returns true iff commandLine contains the option --flagName followed by arg. */

@@ -14,6 +14,7 @@
 package com.google.devtools.build.lib.analysis.starlark;
 
 import static com.google.devtools.build.lib.packages.ExecGroup.DEFAULT_EXEC_GROUP_NAME;
+import static java.util.Objects.requireNonNull;
 
 import com.google.auto.value.AutoValue;
 import com.google.common.annotations.VisibleForTesting;
@@ -43,7 +44,7 @@ public abstract class StarlarkExecGroupCollection implements ExecGroupCollection
    * Empty collection of exec groups to be used when exec groups are not valid in the current
    * context.
    */
-  public static final ExecGroupCollectionApi EXEC_GRPOUP_COLLECTION_NOT_VALID =
+  public static final ExecGroupCollectionApi EXEC_GROUP_COLLECTION_NOT_VALID =
       new ExecGroupCollectionApi() {
         @Override
         public boolean containsKey(StarlarkSemantics semantics, Object key) {
@@ -71,7 +72,7 @@ public abstract class StarlarkExecGroupCollection implements ExecGroupCollection
   @VisibleForTesting
   public ImmutableMap<String, ? extends ResolvedToolchainsDataInterface<?>>
       getToolchainCollectionForTesting() {
-    return toolchainCollection().getContextMap();
+    return toolchainCollection().contextMap();
   }
 
   public static boolean isValidGroupName(String execGroupName) {
@@ -104,8 +105,7 @@ public abstract class StarlarkExecGroupCollection implements ExecGroupCollection
 
     var toolchainContext = toolchainCollection().getToolchainContext(execGroup);
     if (toolchainContext == null) {
-      return new AutoValue_StarlarkExecGroupCollection_StarlarkExecGroupContext(
-          StarlarkToolchainContext.TOOLCHAINS_NOT_VALID);
+      return new StarlarkExecGroupContext(StarlarkToolchainContext.TOOLCHAINS_NOT_VALID);
     }
 
     ToolchainContextApi starlarkToolchainContext =
@@ -115,8 +115,7 @@ public abstract class StarlarkExecGroupCollection implements ExecGroupCollection
             /* resolvedToolchainTypeLabels= */ toolchainContext
                 .requestedToolchainTypeLabels()
                 .keySet());
-    return new AutoValue_StarlarkExecGroupCollection_StarlarkExecGroupContext(
-        starlarkToolchainContext);
+    return new StarlarkExecGroupContext(starlarkToolchainContext);
   }
 
   private static String castGroupName(Object key) throws EvalException {
@@ -147,10 +146,11 @@ public abstract class StarlarkExecGroupCollection implements ExecGroupCollection
    * The starlark object that is returned by ctx.exec_groups[<name>]. Gives information about that
    * exec group.
    */
-  @AutoValue
-  public abstract static class StarlarkExecGroupContext implements ExecGroupContextApi {
-    @Override
-    public abstract ToolchainContextApi toolchains();
+  public record StarlarkExecGroupContext(@Override ToolchainContextApi toolchains)
+      implements ExecGroupContextApi {
+    public StarlarkExecGroupContext {
+      requireNonNull(toolchains, "toolchains");
+    }
 
     @Override
     public void repr(Printer printer) {

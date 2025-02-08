@@ -14,7 +14,8 @@
 
 package com.google.devtools.build.lib.skyframe;
 
-import com.google.auto.value.AutoValue;
+import static java.util.Objects.requireNonNull;
+
 import com.google.devtools.build.lib.vfs.RootedPath;
 import com.google.devtools.build.skyframe.AbstractSkyKey;
 import com.google.devtools.build.skyframe.SkyFunctionName;
@@ -24,12 +25,13 @@ import com.google.devtools.build.skyframe.SkyValue;
  * Contains information about the recursive digest of a directory tree, including all transitive
  * descendant files and their contents.
  */
-@AutoValue
-public abstract class DirectoryTreeDigestValue implements SkyValue {
-  public abstract String hexDigest();
+public record DirectoryTreeDigestValue(String hexDigest) implements SkyValue {
+  public DirectoryTreeDigestValue {
+    requireNonNull(hexDigest, "hexDigest");
+  }
 
   public static DirectoryTreeDigestValue of(String hexDigest) {
-    return new AutoValue_DirectoryTreeDigestValue(hexDigest);
+    return new DirectoryTreeDigestValue(hexDigest);
   }
 
   public static Key key(RootedPath path) {

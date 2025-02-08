@@ -43,7 +43,7 @@ import com.google.devtools.build.lib.analysis.ShToolchain;
 import com.google.devtools.build.lib.analysis.config.BuildConfigurationValue;
 import com.google.devtools.build.lib.analysis.config.CoreOptions;
 import com.google.devtools.build.lib.analysis.config.RunUnder;
-import com.google.devtools.build.lib.analysis.test.TestConfiguration;
+import com.google.devtools.build.lib.analysis.config.RunUnder.LabelRunUnder;
 import com.google.devtools.build.lib.analysis.test.TestProvider;
 import com.google.devtools.build.lib.analysis.test.TestRunnerAction;
 import com.google.devtools.build.lib.analysis.test.TestStrategy;
@@ -101,7 +101,6 @@ import com.google.devtools.common.options.OptionsParser;
 import com.google.devtools.common.options.OptionsParsingResult;
 import com.google.protobuf.ByteString;
 import java.io.IOException;
-import java.time.Duration;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
@@ -269,7 +268,9 @@ public class RunCommand implements BlazeCommand {
         ImmutableList.copyOf(targetAndArgs.subList(1, targetAndArgs.size()));
     RunCommandLine runCommandLine;
     try {
-      runCommandLine = getCommandLineInfo(env, builtTargets, options, argsFromResidue, testPolicy);
+      runCommandLine =
+          getCommandLineInfo(
+              env, builtTargets, options, argsFromResidue, runOptions.runEnvironment, testPolicy);
     } catch (RunCommandException e) {
       return e.result;
     }
@@ -283,10 +284,6 @@ public class RunCommand implements BlazeCommand {
       // In --batch, prioritize original client env-var values over those added by the c++ launcher.
       // Only necessary in --batch since the command runs as a subprocess of the java server.
       finalRunEnv.putAll(env.getClientEnv());
-    }
-
-    for (Map.Entry<String, String> entry : runOptions.runEnvironment) {
-      finalRunEnv.put(entry.getKey(), entry.getValue());
     }
 
     ExecRequest.Builder execRequest;
@@ -350,8 +347,8 @@ public class RunCommand implements BlazeCommand {
       @Nullable RunUnder runUnder)
       throws RunCommandException {
     ImmutableList<String> targetsToBuild =
-        (runUnder != null) && (runUnder.getLabel() != null)
-            ? ImmutableList.of(targetString, runUnder.getLabel().toString())
+        runUnder instanceof LabelRunUnder runUnderLabel
+            ? ImmutableList.of(targetString, runUnderLabel.label().toString())
             : ImmutableList.of(targetString);
     BuildRequest request =
         BuildRequest.builder()
@@ -370,7 +367,8 @@ public class RunCommand implements BlazeCommand {
                 request,
                 (Collection<Target> tgts, boolean keepGoing) ->
                     validateTargets(
-                        env.getReporter(), request.getTargets(), tgts, runUnder, keepGoing));
+                        env.getReporter(), request.getTargets(), tgts, runUnder, keepGoing),
+                options);
     if (!buildResult.getSuccess()) {
       env.getReporter().handle(Event.error("Build failed. Not running target"));
       throw new RunCommandException(
@@ -394,7 +392,7 @@ public class RunCommand implements BlazeCommand {
       // Make sure that we have exactly 1 built target (excluding --run_under) and that it is
       // executable. These checks should only fail if keepGoing is true, because we already did
       // validation before the build began in validateTargets().
-      int maxTargets = runUnder != null && runUnder.getLabel() != null ? 2 : 1;
+      int maxTargets = runUnder instanceof LabelRunUnder ? 2 : 1;
       if (topLevelTargets.size() > maxTargets) {
         throw new RunCommandException(
             reportAndCreateFailureResult(
@@ -411,7 +409,8 @@ public class RunCommand implements BlazeCommand {
         if (!targetValidationResult.isSuccess()) {
           throw new RunCommandException(targetValidationResult, result.getStopTime());
         }
-        if (runUnder != null && target.getOriginalLabel().equals(runUnder.getLabel())) {
+        if (runUnder instanceof LabelRunUnder labelRunUnder
+            && target.getOriginalLabel().equals(labelRunUnder.label())) {
           if (runUnderTarget != null) {
             throw new RunCommandException(
                 reportAndCreateFailureResult(
@@ -547,7 +546,7 @@ public class RunCommand implements BlazeCommand {
 
   private static ImmutableList<PathToReplace> getPathsToReplace(
       CommandEnvironment env, String testLogDir, boolean isTestTarget) {
-    ImmutableList<PathToReplace> pathsToReplace = ExecRequestUtils.getPathsToReplace(env);
+    ImmutableList<PathToReplace> pathsToReplace = PathToReplaceUtils.getPathsToReplace(env);
     if (isTestTarget) {
       return ImmutableList.<PathToReplace>builder()
           .addAll(pathsToReplace)
@@ -597,7 +596,7 @@ public class RunCommand implements BlazeCommand {
     return args.stream().map(s -> ByteString.copyFrom(s, ISO_8859_1)).collect(toImmutableList());
   }
 
-  private BlazeCommandResult handleScriptPath(
+  private static BlazeCommandResult handleScriptPath(
       RunOptions runOptions,
       ExecRequest.Builder execRequest,
       RunCommandLine runCommandLine,
@@ -637,6 +636,7 @@ public class RunCommand implements BlazeCommand {
       BuiltTargets builtTargets,
       OptionsParsingResult options,
       ImmutableList<String> argsFromResidue,
+      List<Map.Entry<String, String>> extraRunEnvironment,
       TestPolicy testPolicy)
       throws RunCommandException {
     if (builtTargets.targetToRun.getProvider(TestProvider.class) != null) {
@@ -657,6 +657,9 @@ public class RunCommand implements BlazeCommand {
     }
     TreeMap<String, String> runEnvironment = makeMutableRunEnvironment(env);
     actionEnvironment.resolve(runEnvironment, env.getClientEnv());
+    for (var entry : extraRunEnvironment) {
+      runEnvironment.put(entry.getKey(), entry.getValue());
+    }
 
     ImmutableList<String> argsFromBinary;
     try {
@@ -720,18 +723,11 @@ public class RunCommand implements BlazeCommand {
         tmpDirRoot.startsWith(env.getExecRoot())
             ? tmpDirRoot.relativeTo(env.getExecRoot())
             : tmpDirRoot.asFragment();
-    Duration timeout =
-        builtTargets
-            .configuration
-            .getFragment(TestConfiguration.class)
-            .getTestTimeout()
-            .get(testAction.getTestProperties().getTimeout());
     TreeMap<String, String> runEnvironment = makeMutableRunEnvironment(env);
     runEnvironment.putAll(
         testPolicy.computeTestEnvironment(
             testAction,
             env.getClientEnv(),
-            timeout,
             settings.getRunfilesDir().relativeTo(env.getExecRoot()),
             maybeRelativeTmpDir.getRelative(TestStrategy.getTmpDirName(testAction))));
 
@@ -790,6 +786,8 @@ public class RunCommand implements BlazeCommand {
     TreeMap<String, String> result = new TreeMap<>();
     result.put("BUILD_WORKSPACE_DIRECTORY", env.getWorkspace().getPathString());
     result.put("BUILD_WORKING_DIRECTORY", env.getWorkingDirectory().getPathString());
+    result.put("BUILD_EXECROOT", env.getExecRoot().getPathString());
+    result.put("BUILD_ID", env.getCommandId().toString());
     return result;
   }
 
@@ -826,9 +824,9 @@ public class RunCommand implements BlazeCommand {
                 .getProvider(FilesToRunProvider.class)
                 .getExecutable()
                 .getPath();
-        runCommandLine.setRunUnderTarget(runUnderPath, runUnder.getOptions(), prettyPrinter);
+        runCommandLine.setRunUnderTarget(runUnderPath, runUnder.options(), prettyPrinter);
       } else {
-        runCommandLine.setRunUnderPrefix(runUnder.getValue());
+        runCommandLine.setRunUnderPrefix(runUnder.value());
       }
     }
 
@@ -988,7 +986,7 @@ public class RunCommand implements BlazeCommand {
     Target runUnderTarget = null;
 
     boolean singleTargetWarningWasOutput = false;
-    int maxTargets = runUnder != null && runUnder.getLabel() != null ? 2 : 1;
+    int maxTargets = runUnder instanceof LabelRunUnder ? 2 : 1;
     if (targets.size() > maxTargets) {
       warningOrException(
           reporter,
@@ -1005,7 +1003,8 @@ public class RunCommand implements BlazeCommand {
             reporter, notExecutableError(target), keepGoing, Code.TARGET_NOT_EXECUTABLE);
       }
 
-      if (runUnder != null && target.getLabel().equals(runUnder.getLabel())) {
+      if (runUnder instanceof LabelRunUnder labelRunUnder
+          && target.getLabel().equals(labelRunUnder.label())) {
         // It's impossible to have two targets with the same label.
         Preconditions.checkState(runUnderTarget == null);
         runUnderTarget = target;

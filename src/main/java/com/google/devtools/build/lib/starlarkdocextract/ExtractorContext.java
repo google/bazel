@@ -28,7 +28,7 @@ import com.google.devtools.build.lib.packages.StarlarkProviderIdentifier;
 public record ExtractorContext(
     LabelRenderer labelRenderer,
     ImmutableMap<StarlarkProvider.Key, String> providerQualifiedNames,
-    boolean extractNonStarlarkAttrs) {
+    boolean extractNativelyDefinedAttrs) {
 
   public ExtractorContext {
     checkNotNull(labelRenderer, "labelRenderer cannot be null.");
@@ -39,7 +39,14 @@ public record ExtractorContext(
   public static Builder builder() {
     return new AutoBuilder_ExtractorContext_Builder()
         .providerQualifiedNames(ImmutableMap.of())
-        .extractNonStarlarkAttrs(false);
+        .extractNativelyDefinedAttrs(false);
+  }
+
+  public Builder toBuilder() {
+    return builder()
+        .labelRenderer(labelRenderer)
+        .providerQualifiedNames(providerQualifiedNames)
+        .extractNativelyDefinedAttrs(extractNativelyDefinedAttrs);
   }
 
   /** Builder for {@link ExtractorContext}. */
@@ -50,7 +57,7 @@ public record ExtractorContext(
     Builder providerQualifiedNames(
         ImmutableMap<StarlarkProvider.Key, String> providerQualifiedNames);
 
-    Builder extractNonStarlarkAttrs(boolean extractNonStarlarkAttrs);
+    Builder extractNativelyDefinedAttrs(boolean extractNativelyDefinedAttrs);
 
     ExtractorContext build();
   }

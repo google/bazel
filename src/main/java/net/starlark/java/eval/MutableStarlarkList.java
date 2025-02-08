@@ -146,15 +146,13 @@ final class MutableStarlarkList<E> extends StarlarkList<E> {
   @Override
   public void addElements(Iterable<? extends E> elements) throws EvalException {
     Starlark.checkMutable(this);
-    if (elements instanceof MutableStarlarkList) {
-      MutableStarlarkList<?> that = (MutableStarlarkList) elements;
+    if (elements instanceof MutableStarlarkList<?> that) {
       // (safe even if this == that)
       growAdditional(that.size);
       System.arraycopy(that.elems, 0, this.elems, this.size, that.size);
       this.size += that.size;
-    } else if (elements instanceof Collection) {
+    } else if (elements instanceof Collection<?> that) {
       // collection of known size
-      Collection<?> that = (Collection) elements;
       growAdditional(that.size());
       for (Object x : that) {
         elems[size++] = x;

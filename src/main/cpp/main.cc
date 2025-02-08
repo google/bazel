@@ -19,16 +19,37 @@
 #include "src/main/cpp/blaze_util_platform.h"
 #include "src/main/cpp/option_processor.h"
 #include "src/main/cpp/startup_options.h"
+#include "src/main/cpp/util/strings.h"
 #include "src/main/cpp/workspace_layout.h"
 
-int main(int argc, char **argv) {
+int main_impl(int argc, char **argv) {
   uint64_t start_time = blaze::GetMillisecondsMonotonic();
-  std::unique_ptr<blaze::WorkspaceLayout> workspace_layout(
-      new blaze::WorkspaceLayout());
+  std::unique_ptr<blaze::WorkspaceLayout> workspace_layout =
+      std::make_unique<blaze::WorkspaceLayout>();
   std::unique_ptr<blaze::StartupOptions> startup_options(
-      new blaze::BazelStartupOptions(workspace_layout.get()));
+      std::make_unique<blaze::BazelStartupOptions>());
   return blaze::Main(argc, argv, workspace_layout.get(),
                      new blaze::OptionProcessor(workspace_layout.get(),
                                                 std::move(startup_options)),
                      start_time);
 }
+
+#ifdef _WIN32
+// Define wmain to support Unicode command line arguments on Windows
+// regardless of the current code page.
+int wmain(int argc, wchar_t **argv) {
+  std::vector<std::string> args;
+  for (int i = 0; i < argc; ++i) {
+    args.push_back(blaze_util::WstringToCstring(argv[i]));
+  }
+  std::vector<char *> c_args;
+  for (const std::string &arg : args) {
+    c_args.push_back(const_cast<char *>(arg.c_str()));
+  }
+  c_args.push_back(nullptr);
+  // Account for the null terminator.
+  return main_impl(c_args.size() - 1, c_args.data());
+}
+#else
+int main(int argc, char **argv) { return main_impl(argc, argv); }
+#endif

@@ -27,7 +27,7 @@
 #include "gtest/gtest.h"
 #include "src/main/cpp/util/path.h"
 #include "src/main/native/windows/util.h"
-#include "tools/cpp/runfiles/runfiles.h"
+#include "rules_cc/cc/runfiles/runfiles.h"
 
 namespace {
 
@@ -49,8 +49,8 @@ void AssertSubprocessReceivesArgsAsIntended(
 
   // Create a Runfiles object.
   std::string error;
-  std::unique_ptr<bazel::tools::cpp::runfiles::Runfiles> runfiles(
-      bazel::tools::cpp::runfiles::Runfiles::CreateForTest(&error));
+  std::unique_ptr<rules_cc::cc::runfiles::Runfiles> runfiles(
+      rules_cc::cc::runfiles::Runfiles::CreateForTest(&error));
   ASSERT_NE(runfiles.get(), nullptr) << error;
 
   // Look up the path of the printarg.exe utility.

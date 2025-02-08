@@ -217,7 +217,7 @@ public final class ParsedFlagsValue implements SkyValue {
       updateStarlarkFlag(builder, starlarkOption.getKey(), starlarkOption.getValue());
     }
 
-    return BuildConfigurationKey.create(builder.build());
+    return BuildConfigurationKey.create(builder.addScopeTypeMap(source.getScopeTypeMap()).build());
   }
 
   private static void updateOptionValue(
@@ -236,7 +236,7 @@ public final class ParsedFlagsValue implements SkyValue {
     Label flagName = Label.parseCanonicalUnchecked(rawFlagName);
     // If the known default value is the same as the new value, unset it.
     if (isStarlarkFlagSetToDefault(rawFlagName, rawFlagValue)) {
-      builder.removeStarklarkOption(flagName);
+      builder.removeStarlarkOption(flagName);
     } else {
       builder.addStarlarkOption(flagName, rawFlagValue);
     }

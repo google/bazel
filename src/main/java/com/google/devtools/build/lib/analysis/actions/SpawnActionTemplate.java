@@ -34,7 +34,6 @@ import com.google.devtools.build.lib.actions.CommandLine;
 import com.google.devtools.build.lib.actions.CommandLineExpansionException;
 import com.google.devtools.build.lib.actions.CommandLineLimits;
 import com.google.devtools.build.lib.actions.CommandLines;
-import com.google.devtools.build.lib.actions.MiddlemanType;
 import com.google.devtools.build.lib.actions.ResourceSetOrBuilder;
 import com.google.devtools.build.lib.analysis.FilesToRunProvider;
 import com.google.devtools.build.lib.analysis.config.BuildConfigurationValue;
@@ -235,11 +234,6 @@ public final class SpawnActionTemplate extends ActionKeyComputer
   @Override
   public Collection<String> getClientEnvironmentVariables() {
     return spawnActionBuilder.buildForActionTemplate(actionOwner).getClientEnvironmentVariables();
-  }
-
-  @Override
-  public MiddlemanType getActionType() {
-    return MiddlemanType.NORMAL;
   }
 
   @Override

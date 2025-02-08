@@ -15,7 +15,7 @@
 package com.google.devtools.build.lib.rules.java;
 
 import static com.google.devtools.build.lib.packages.BuildType.LABEL;
-import static com.google.devtools.build.lib.skyframe.BzlLoadValue.keyForBuiltins;
+import static com.google.devtools.build.lib.skyframe.BzlLoadValue.keyForBuild;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableList;
@@ -34,6 +34,7 @@ import com.google.devtools.build.lib.packages.StarlarkInfoWithSchema;
 import com.google.devtools.build.lib.packages.StarlarkProviderWrapper;
 import com.google.devtools.build.lib.rules.cpp.CcInfo;
 import com.google.devtools.build.lib.rules.cpp.LibraryToLink;
+import com.google.devtools.build.lib.skyframe.BzlLoadValue;
 import com.google.devtools.build.lib.vfs.PathFragment;
 import javax.annotation.Nullable;
 import net.starlark.java.eval.EvalException;
@@ -44,6 +45,10 @@ import net.starlark.java.eval.StarlarkInt;
 @Immutable
 public final class JavaRuntimeInfo extends StarlarkInfoWrapper {
 
+  public static final StarlarkProviderWrapper<JavaRuntimeInfo> RULES_JAVA_PROVIDER =
+      new RulesJavaProvider();
+  public static final StarlarkProviderWrapper<JavaRuntimeInfo> WORKSPACE_PROVIDER =
+      new WorkspaceProvider();
   public static final StarlarkProviderWrapper<JavaRuntimeInfo> PROVIDER = new Provider();
 
   // Helper methods to access an instance of JavaRuntimeInfo.
@@ -75,7 +80,7 @@ public final class JavaRuntimeInfo extends StarlarkInfoWrapper {
   private static JavaRuntimeInfo from(RuleContext ruleContext, ToolchainInfo toolchainInfo) {
     if (toolchainInfo != null) {
       try {
-        JavaRuntimeInfo result = PROVIDER.wrap(toolchainInfo.getValue("java_runtime", Info.class));
+        JavaRuntimeInfo result = wrap(toolchainInfo.getValue("java_runtime", Info.class));
         if (result != null) {
           return result;
         }
@@ -90,6 +95,19 @@ public final class JavaRuntimeInfo extends StarlarkInfoWrapper {
 
   private JavaRuntimeInfo(StarlarkInfo underlying) {
     super(underlying);
+  }
+
+  public static JavaRuntimeInfo wrap(Info info) throws RuleErrorException {
+    com.google.devtools.build.lib.packages.Provider.Key key = info.getProvider().getKey();
+    if (key.equals(PROVIDER.getKey())) {
+      return PROVIDER.wrap(info);
+    } else if (key.equals(RULES_JAVA_PROVIDER.getKey())) {
+      return RULES_JAVA_PROVIDER.wrap(info);
+    } else if (key.equals(WORKSPACE_PROVIDER.getKey())) {
+      return WORKSPACE_PROVIDER.wrap(info);
+    } else {
+      throw new RuleErrorException("expected JavaRuntimeInfo, got: " + key);
+    }
   }
 
   /** All input artifacts in the javabase. */
@@ -127,13 +145,32 @@ public final class JavaRuntimeInfo extends StarlarkInfoWrapper {
     return getUnderlyingValue("version", StarlarkInt.class).toIntUnchecked();
   }
 
+  private static class RulesJavaProvider extends Provider {
+    private RulesJavaProvider() {
+      super(keyForBuild(Label.parseCanonicalUnchecked("//java/common/rules:java_runtime.bzl")));
+    }
+  }
+
+  private static class WorkspaceProvider extends Provider {
+    private WorkspaceProvider() {
+      super(
+          keyForBuild(
+              Label.parseCanonicalUnchecked("@@rules_java//java/common/rules:java_runtime.bzl")));
+    }
+  }
+
   private static class Provider extends StarlarkProviderWrapper<JavaRuntimeInfo> {
 
     private Provider() {
-      super(
-          keyForBuiltins(
-              Label.parseCanonicalUnchecked("@_builtins//:common/java/java_runtime.bzl")),
-          "JavaRuntimeInfo");
+      this(
+          keyForBuild(
+              Label.parseCanonicalUnchecked(
+                  JavaSemantics.RULES_JAVA_PROVIDER_LABELS_PREFIX
+                      + "java/common/rules:java_runtime.bzl")));
+    }
+
+    private Provider(BzlLoadValue.Key key) {
+      super(key, "JavaRuntimeInfo");
     }
 
     @Override

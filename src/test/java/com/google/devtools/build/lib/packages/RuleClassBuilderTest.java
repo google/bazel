@@ -205,13 +205,11 @@ public class RuleClassBuilderTest extends PackageLoadingTestCase {
         ExecGroup.builder()
             .addToolchainType(ToolchainTypeRequirement.create(mockToolchainType))
             .execCompatibleWith(ImmutableSet.of(mockConstraint))
-            .copyFrom(null)
             .build();
     ExecGroup childGroup =
         ExecGroup.builder()
             .toolchainTypes(ImmutableSet.of())
             .execCompatibleWith(ImmutableSet.of())
-            .copyFrom(null)
             .build();
     RuleClass parent =
         new RuleClass.Builder("$parent", RuleClassType.ABSTRACT, false)
@@ -233,7 +231,7 @@ public class RuleClassBuilderTest extends PackageLoadingTestCase {
     RuleClass a =
         new RuleClass.Builder("ruleA", RuleClassType.NORMAL, false)
             .factory(DUMMY_CONFIGURED_TARGET_FACTORY)
-            .addExecGroups(ImmutableMap.of("blueberry", ExecGroup.copyFromDefault()))
+            .addExecGroups(ImmutableMap.of("blueberry", ExecGroup.COPY_FROM_DEFAULT))
             .add(attr("tags", STRING_LIST))
             .addToolchainTypes(
                 ToolchainTypeRequirement.create(Label.parseCanonicalUnchecked("//some/toolchain")))
@@ -241,7 +239,7 @@ public class RuleClassBuilderTest extends PackageLoadingTestCase {
     RuleClass b =
         new RuleClass.Builder("ruleB", RuleClassType.NORMAL, false)
             .factory(DUMMY_CONFIGURED_TARGET_FACTORY)
-            .addExecGroups(ImmutableMap.of("blueberry", ExecGroup.copyFromDefault()))
+            .addExecGroups(ImmutableMap.of("blueberry", ExecGroup.COPY_FROM_DEFAULT))
             .add(attr("tags", STRING_LIST))
             .addToolchainTypes(
                 ToolchainTypeRequirement.create(
@@ -271,7 +269,6 @@ public class RuleClassBuilderTest extends PackageLoadingTestCase {
                             ToolchainTypeRequirement.create(
                                 Label.parseCanonicalUnchecked("//some/toolchain")))
                         .execCompatibleWith(ImmutableSet.of())
-                        .copyFrom(null)
                         .build()))
             .add(attr("tags", STRING_LIST))
             .build();
@@ -284,7 +281,6 @@ public class RuleClassBuilderTest extends PackageLoadingTestCase {
                     ExecGroup.builder()
                         .toolchainTypes(ImmutableSet.of())
                         .execCompatibleWith(ImmutableSet.of())
-                        .copyFrom(null)
                         .build()))
             .add(attr("tags", STRING_LIST))
             .build();

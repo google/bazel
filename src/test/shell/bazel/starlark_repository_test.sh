@@ -56,6 +56,14 @@ msys*)
   ;;
 esac
 
+if $is_windows; then
+  export LC_ALL=C.utf8
+elif [[ "$(uname -s)" == "Linux" ]]; then
+  export LC_ALL=C.UTF-8
+else
+  export LC_ALL=en_US.UTF-8
+fi
+
 source "$(rlocation "io_bazel/src/test/shell/bazel/remote_helpers.sh")" \
   || { echo "remote_helpers.sh not found!" >&2; exit 1; }
 
@@ -146,166 +154,6 @@ EOF
 
   bazel build //zoo:ball-pit >& $TEST_log || fail "Failed to build"
   expect_not_log "Tra-la-la!"  # No invalidation
-}
-
-function test_load_from_symlink_to_outside_of_workspace() {
-  OTHER=$TEST_TMPDIR/other
-
-  cat > WORKSPACE <<EOF
-load("//a/b:c.bzl", "c")
-EOF
-
-  mkdir -p $OTHER/a/b
-  touch $OTHER/a/b/BUILD
-  cat > $OTHER/a/b/c.bzl <<EOF
-def c():
-  pass
-EOF
-
-  touch BUILD
-  ln -s $TEST_TMPDIR/other/a a
-  bazel build --enable_workspace //:BUILD || fail "Failed to build"
-  rm -fr $TEST_TMPDIR/other
-}
-
-# Test load from repository.
-function test_external_load_from_workspace() {
-  create_new_workspace
-  repo2=$new_workspace_dir
-
-  mkdir -p carnivore
-  cat > carnivore/BUILD <<'EOF'
-genrule(
-    name = "mongoose",
-    cmd = "echo 'Tra-la-la!' | tee $@",
-    outs = ["moogoose.txt"],
-    visibility = ["//visibility:public"],
-)
-EOF
-
-  create_new_workspace
-  repo3=$new_workspace_dir
-  # Our macro
-  cat >WORKSPACE
-  cat >test.bzl <<EOF
-load("@bazel_tools//tools/build_defs/repo:local.bzl", "local_repository")
-def macro(path):
-  print('bleh')
-  local_repository(name='endangered', path=path)
-EOF
-  cat >BUILD <<'EOF'
-exports_files(["test.bzl"])
-EOF
-
-  cd ${WORKSPACE_DIR}
-  cat >> WORKSPACE <<EOF
-load("@bazel_tools//tools/build_defs/repo:local.bzl", "local_repository")
-local_repository(name='proxy', path='$repo3')
-load('@proxy//:test.bzl', 'macro')
-macro('$repo2')
-EOF
-
-  bazel build --enable_workspace @endangered//carnivore:mongoose >& $TEST_log \
-    || fail "Failed to build"
-  expect_log "bleh"
-}
-
-# Test loading a repository with a load statement in the WORKSPACE file
-function test_load_repository_with_load() {
-  create_new_workspace
-  repo2=$new_workspace_dir
-
-  echo "Tra-la!" > data.txt
-  cat <<'EOF' >BUILD
-exports_files(["data.txt"])
-EOF
-
-  cat <<'EOF' >ext.bzl
-def macro():
-  print('bleh')
-EOF
-
-  cat <<'EOF' >WORKSPACE
-workspace(name = "foo")
-load("//:ext.bzl", "macro")
-macro()
-EOF
-
-  cd ${WORKSPACE_DIR}
-  cat >> WORKSPACE <<EOF
-load("@bazel_tools//tools/build_defs/repo:local.bzl", "local_repository")
-local_repository(name='foo', path='$repo2')
-load("@foo//:ext.bzl", "macro")
-macro()
-EOF
-
-  cat > BUILD <<'EOF'
-genrule(name = "foo", srcs=["@foo//:data.txt"], outs=["foo.txt"], cmd = "cat $< | tee $@")
-EOF
-
-  bazel build --enable_workspace //:foo >& $TEST_log || fail "Failed to build"
-  expect_log "bleh"
-  expect_log "Tra-la!"
-}
-
-# Test cycle when loading a repository with a load statement in the WORKSPACE file that is not
-# yet defined.
-function test_cycle_load_repository() {
-  create_new_workspace
-  repo2=$new_workspace_dir
-
-  echo "Tra-la!" > data.txt
-  cat <<'EOF' >BUILD
-exports_files(["data.txt"])
-EOF
-
-  cat <<'EOF' >ext.bzl
-def macro():
-  print('bleh')
-EOF
-
-  cat >WORKSPACE
-
-  cd ${WORKSPACE_DIR}
-  cat > WORKSPACE <<EOF
-load("@foo//:ext.bzl", "macro")
-load("@bazel_tools//tools/build_defs/repo:local.bzl", "local_repository")
-macro()
-local_repository(name='foo', path='$repo2')
-EOF
-
-  local exitCode=0
-  bazel build --enable_workspace @foo//:data.txt >& $TEST_log || exitCode=$?
-  [ $exitCode != 0 ] || fail "building @foo//:data.txt succeed while expected failure"
-
-  expect_not_log "PACKAGE"
-  expect_log "Failed to load Starlark extension '@@foo//:ext.bzl'"
-}
-
-function test_load_nonexistent_with_subworkspace() {
-  mkdir ws2
-  cat >ws2/WORKSPACE
-
-  cat <<'EOF' >WORKSPACE
-load("@does_not_exist//:random.bzl", "random")
-EOF
-  cat >BUILD
-
-  # Test build //...
-  bazel clean --expunge
-  bazel build --enable_workspace //... >& $TEST_log || exitCode=$?
-  [ $exitCode != 0 ] || fail "building //... succeed while expected failure"
-
-  expect_not_log "PACKAGE"
-  expect_log "Failed to load Starlark extension '@@does_not_exist//:random.bzl'"
-
-  # Retest with query //...
-  bazel clean --expunge
-  bazel query --enable_workspace //... >& $TEST_log || exitCode=$?
-  [ $exitCode != 0 ] || fail "querying //... succeed while expected failure"
-
-  expect_not_log "PACKAGE"
-  expect_log "Failed to load Starlark extension '@@does_not_exist//:random.bzl'"
 }
 
 function test_starlark_local_repository() {
@@ -468,6 +316,84 @@ EOF
     repo2="$(cygpath $repo2)"
   fi
   expect_log "PWD=$repo2 TOTO=titi"
+}
+
+function test_starlark_repository_unicode() {
+  setup_starlark_repository
+
+  if "$is_windows"; then
+    # äöüÄÖÜß in UTF-8
+    local unicode=$(echo -e '\xC3\xA4\xC3\xB6\xC3\xBC\xC3\x84\xC3\x96\xC3\x9C\xC3\x9F')
+  else
+    # äöüÄÖÜß🌱 in UTF-8
+    local unicode=$(echo -e '\xC3\xA4\xC3\xB6\xC3\xBC\xC3\x84\xC3\x96\xC3\x9C\xC3\x9F\xF0\x9F\x8C\xB1')
+  fi
+
+  tmpdir="$(mktemp -d ${TEST_TMPDIR}/test.XXXXXXXX)"
+  input_file="${tmpdir}/input$unicode"
+  echo -n "$unicode" > "${input_file}"
+
+  cat >test.bzl <<EOF
+UNICODE = "$unicode"
+
+def _impl(repository_ctx):
+  repository_ctx.file("BUILD", "filegroup(name='bar', srcs=[])")
+
+  input_file = repository_ctx.getenv("INPUT_" + UNICODE)
+  if not input_file:
+    fail("INPUT_%s not found in environment" % UNICODE)
+  input_content = repository_ctx.read(input_file)
+  if input_content != UNICODE:
+    fail("Incorrect content in input file: %s != %s" % (input_content, UNICODE))
+
+  repository_ctx.template(
+      "template" + UNICODE + ".txt",
+      input_file,
+      substitutions = {
+        UNICODE: UNICODE + "_replaced_" + UNICODE,
+      },
+  )
+
+  repository_ctx.file("direct" + UNICODE + ".txt", UNICODE)
+
+  result = repository_ctx.execute(
+      [str(repository_ctx.which("bash")), "-c", "echo '%s' >indirect%s.txt" % (UNICODE, UNICODE)]
+  )
+  if result.return_code != 0:
+    fail("Incorrect return code from bash: %s != 0\n%s" % (result.return_code, result.stderr))
+
+  result = repository_ctx.execute([str(repository_ctx.which("bash")), "-c", "echo '%s'" % UNICODE])
+  if result.return_code != 0:
+    fail("Incorrect return code from bash: %s != 0\n%s" % (result.return_code, result.stderr))
+  if result.stdout.strip() != UNICODE:
+    fail("Incorrect output from bash: %s != %s\n%s" % (result.stdout.strip(), UNICODE, result.stderr))
+
+  result = repository_ctx.execute([str(repository_ctx.which("bash")), "-c", "echo '%s' && exit 123" % UNICODE])
+  if result.return_code != 123:
+    fail("Incorrect return code from bash: %s != 123\n%s" % (result.return_code, result.stderr))
+  if result.stdout.strip() != UNICODE:
+    fail("Incorrect output from bash: %s != %s\n%s" % (result.stdout.strip(), UNICODE, result.stderr))
+
+  repository_ctx.file("foo.txt", UNICODE)
+  read_content = repository_ctx.read("foo.txt")
+  if read_content != UNICODE:
+    fail("Incorrect content in foo.txt: %s != %s" % (read_content, UNICODE))
+
+  print("UNICODE = %s" % UNICODE)
+repo = repository_rule(implementation=_impl)
+EOF
+
+  bazel build "--repo_env=INPUT_$unicode=${input_file}" @foo//:bar >& $TEST_log || fail "Failed to build"
+  expect_log "UNICODE = $unicode"
+  output_base="$(bazel info output_base)"
+  assert_contains "$unicode" "$output_base/external/+_repo_rules+foo/direct${unicode}.txt"
+  assert_contains "$unicode" "$output_base/external/+_repo_rules+foo/indirect${unicode}.txt"
+  assert_contains "${unicode}_replaced_${unicode}" "$output_base/external/+_repo_rules+foo/template${unicode}.txt"
+
+  # The repo rule should not be re-run on server restart
+  bazel shutdown
+  bazel build "--repo_env=INPUT_${unicode}=${input_file}" @foo//:bar >& $TEST_log || fail "Failed to build"
+  expect_not_log "UNICODE"
 }
 
 function test_starlark_repository_environ() {
@@ -1060,7 +986,7 @@ function test_starlark_repository_executable_flag() {
   cat >test.bzl <<EOF
 def _impl(repository_ctx):
   repository_ctx.file("test.sh", "exit 0")
-  repository_ctx.file("BUILD", "sh_binary(name='bar',srcs=['test.sh'])", False)
+  repository_ctx.file("BUILD", "genrule(name='bar',cmd='touch \$@',outs=['bar'],executable=True)", False)
   repository_ctx.template("test2", Label("//:bar"), {}, False)
   repository_ctx.template("test2.sh", Label("//:bar"), {}, True)
 repo = repository_rule(implementation=_impl, local=True)
@@ -1340,149 +1266,6 @@ EOF
     || fail "download_and_extract3.tar.gz was not extracted successfully"
 }
 
-# Test native.bazel_version
-function test_bazel_version() {
-  cat > MODULE.bazel
-  create_new_workspace
-  repo2=$new_workspace_dir
-
-  cat > BUILD <<'EOF'
-genrule(
-    name = "test",
-    cmd = "echo 'Tra-la!' | tee $@",
-    outs = ["test.txt"],
-    visibility = ["//visibility:public"],
-)
-EOF
-
-  cd ${WORKSPACE_DIR}
-  cat >> WORKSPACE <<EOF
-load('//:test.bzl', 'macro')
-
-macro('$repo2')
-EOF
-
-  # Empty package for the .bzl file
-  echo -n >BUILD
-
-  # Our macro
-  cat >test.bzl <<EOF
-load("@bazel_tools//tools/build_defs/repo:local.bzl", "local_repository")
-def macro(path):
-  print(native.bazel_version)
-  local_repository(name='test', path=path)
-EOF
-
-  local version="$(bazel info release)"
-  # On release, Bazel binary get stamped, else we might run with an unstamped version.
-  if [ "$version" == "development version" ]; then
-    version=""
-  else
-    version="${version#* }"
-  fi
-  bazel build --enable_workspace @test//:test >& $TEST_log || fail "Failed to build"
-  expect_log ": ${version}."
-}
-
-
-# Test native.existing_rule(s), regression test for #1277
-function test_existing_rule() {
-  create_new_workspace
-  repo2=$new_workspace_dir
-
-  cat > BUILD
-
-  cat >> WORKSPACE <<EOF
-load("@bazel_tools//tools/build_defs/repo:local.bzl", "local_repository")
-local_repository(name = 'existing', path='$repo2')
-load('//:test.bzl', 'macro')
-
-macro()
-EOF
-
-  # Empty package for the .bzl file
-  echo -n >BUILD
-
-  # Our macro
-  cat >test.bzl <<EOF
-def test(s):
-  print("%s = %s,%s" % (s,
-                        native.existing_rule(s) != None,
-                        s in native.existing_rules()))
-def macro():
-  test("existing")
-  test("non_existing")
-EOF
-
-  # Remove tools directory set up by copy_tools_directory in testenv.sh
-  rm -rf tools
-
-  bazel query --enable_workspace //... >& $TEST_log || fail "Failed to build"
-  expect_log "existing = True,True"
-  expect_log "non_existing = False,False"
-}
-
-function test_configure_like_repos() {
-  cat > repos.bzl <<'EOF'
-def _impl(ctx):
-  print("Executing %s" % (ctx.attr.name,))
-  ref = ctx.path(ctx.attr.reference)
-  # Here we explicitly copy a file where we constructed the name
-  # completely outside any build interfaces, so it is not registered
-  # as a dependency of the external repository.
-  ctx.execute(["cp", "%s.shadow" % (ref,), ctx.path("it.txt")])
-  ctx.file("BUILD", "exports_files(['it.txt'])")
-
-source = repository_rule(
- implementation = _impl,
- attrs = {"reference" : attr.label()},
-)
-
-configure = repository_rule(
- implementation = _impl,
- attrs = {"reference" : attr.label()},
- configure = True,
-)
-
-EOF
-  cat > WORKSPACE <<'EOF'
-load("//:repos.bzl", "configure", "source")
-
-configure(name="configure", reference="@//:reference.txt")
-source(name="source", reference="@//:reference.txt")
-EOF
-  cat > BUILD <<'EOF'
-[ genrule(
-    name = name,
-    srcs = ["@%s//:it.txt" % (name,)],
-    outs = ["%s.txt" % (name,)],
-    cmd = "cp $< $@",
-  ) for name in ["source", "configure"] ]
-EOF
-  echo "Just to get the path" > reference.txt
-  echo "initial" > reference.txt.shadow
-
-  bazel build --enable_workspace //:source //:configure
-  grep 'initial' `bazel info bazel-bin`/source.txt \
-       || fail '//:source not generated properly'
-  grep 'initial' `bazel info bazel-bin`/configure.txt \
-       || fail '//:configure not generated properly'
-
-  echo "new value" > reference.txt.shadow
-  bazel sync --enable_workspace --configure --experimental_repository_resolved_file=resolved.bzl \
-        2>&1 || fail "Expected sync --configure to succeed"
-  grep -q 'name.*configure' resolved.bzl \
-      || fail "Expected 'configure' to be synced"
-  grep -q 'name.*source' resolved.bzl \
-      && fail "Expected 'source' not to be synced" || :
-
-  bazel build --enable_workspace //:source //:configure
-  grep -q 'initial' `bazel info bazel-bin`/source.txt \
-       || fail '//:source did not keep its old value'
-  grep -q 'new value' `bazel info bazel-bin`/configure.txt \
-       || fail '//:configure not synced properly'
-}
-
 
 function test_timeout_tunable() {
   cat >> $(setup_module_dot_bazel)  <<'EOF'
@@ -1508,229 +1291,6 @@ EOF
 
   bazel build @maytimeout//... \
       || fail "expected success after successful sync"
-}
-
-function test_sync_only() {
-  # Set up two repositories that count how often they are fetched
-  cat >environ.bzl <<'EOF'
-def environ(r_ctx, var):
-  return r_ctx.os.environ[var] if var in r_ctx.os.environ else "undefined"
-EOF
-  cat <<'EOF' >bar.tpl
-FOO=%{FOO} BAR=%{BAR} BAZ=%{BAZ}
-EOF
-  write_environ_starlark "${TEST_TMPDIR}/executionFOO" ""
-  mv test.bzl testfoo.bzl
-  write_environ_starlark "${TEST_TMPDIR}/executionBAR" ""
-  mv test.bzl testbar.bzl
-  cat > WORKSPACE <<'EOF'
-load("//:testfoo.bzl", foorepo="repo")
-load("//:testbar.bzl", barrepo="repo")
-foorepo(name="foo")
-barrepo(name="bar")
-EOF
-  touch BUILD
-  bazel clean --expunge
-  echo 0 > "${TEST_TMPDIR}/executionFOO"
-  echo 0 > "${TEST_TMPDIR}/executionBAR"
-
-  # Normal sync should hit both repositories
-  echo; echo bazel sync; echo
-  bazel sync --enable_workspace
-  assert_equals 1 $(cat "${TEST_TMPDIR}/executionFOO")
-  assert_equals 1 $(cat "${TEST_TMPDIR}/executionBAR")
-
-  # Only foo
-  echo; echo bazel sync --only foo; echo
-  bazel sync --enable_workspace --only foo
-  assert_equals 2 $(cat "${TEST_TMPDIR}/executionFOO")
-  assert_equals 1 $(cat "${TEST_TMPDIR}/executionBAR")
-
-  # Only bar
-  echo; echo bazel sync --only bar; echo
-  bazel sync --enable_workspace --only bar
-  assert_equals 2 $(cat "${TEST_TMPDIR}/executionFOO")
-  assert_equals 2 $(cat "${TEST_TMPDIR}/executionBAR")
-
-  # Only bar
-  echo; echo bazel sync --only bar; echo
-  bazel sync --enable_workspace --only bar
-  assert_equals 2 $(cat "${TEST_TMPDIR}/executionFOO")
-  assert_equals 3 $(cat "${TEST_TMPDIR}/executionBAR")
-}
-
-function test_download_failure_message() {
-  # Regression test for #7850
-  # Verify that the for a failed download, it is clearly indicated
-  # what was attempted to download and how it fails.
-  cat > BUILD <<'EOF'
-genrule(
-  name = "it",
-  outs = ["it.txt"],
-  srcs = ["@ext_foo//:data.txt"],
-  cmd = "cp $< $@",
-)
-EOF
-  cat > repo.bzl <<'EOF'
-def _impl(ctx):
-  ctx.file("BUILD", "exports_files(['data.txt'])")
-  ctx.symlink(ctx.attr.data, "data.txt")
-
-trivial_repo = repository_rule(
-  implementation = _impl,
-  attrs = { "data" : attr.label() },
-)
-EOF
-  cat > root.bzl <<'EOF'
-load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
-
-def root_cause():
-  http_archive(
-    name = "this_is_the_root_cause",
-    urls = ["http://does.not.exist.example.com/some/file.tar"],
-    sha256 = "aba1fcb7781eb26c854d13446a4b3e8a906cc03676371bbb69eb4430926f5969",
-  )
-
-EOF
-  cat > WORKSPACE <<'EOF'
-load("//:root.bzl", "root_cause")
-load("//:repo.bzl", "trivial_repo")
-
-root_cause()
-
-trivial_repo(
-  name = "ext_baz",
-  data = "@this_is_the_root_cause//:data.txt",
-)
-trivial_repo(
-  name = "ext_bar",
-  data = "@ext_baz//:data.txt",
-)
-
-trivial_repo(
-  name = "ext_foo",
-  data = "@ext_bar//:data.txt",
-)
-EOF
-
-  bazel build --enable_workspace //:it > "${TEST_log}" 2>&1 \
-      && fail "Expected failure" || :
-
-  # Extract the first error message printed
-  #
-  # ERROR: An error occurred during the fetch of repository 'this_is_the_root_cause':
-  #    Traceback (most recent call last):
-  # 	File ".../http.bzl", line 111, column 45, in _http_archive_impl
-  # 		download_info = ctx.download_and_extract(
-  # Error in download_and_extract: java.io.IOException: Error downloading \
-  #   [http://does.not.exist.example.com/some/file.tar] to ...file.tar: \
-  #   Unknown host: does.not.exist.example.com
-  awk '/^ERROR/ {on=1} on {print} /^Error/ {exit}' < "${TEST_log}" > firsterror.log
-  echo; echo "first error message which should focus on the root cause";
-  echo "=========="; cat firsterror.log; echo "=========="
-  # We expect it to contain the root cause, and the failure ...
-  grep -q 'this_is_the_root_cause' firsterror.log \
-      || fail "Root-cause repository not mentioned"
-  grep -q '[uU]nknown host.*does.not.exist.example.com' firsterror.log \
-      || fail "Failure reason not mentioned"
-  # ...but not be cluttered with information not related to the root cause
-  grep 'ext_foo' firsterror.log && fail "unrelated repo mentioned" || :
-  grep 'ext_bar' firsterror.log && fail "unrelated repo mentioned" || :
-  grep 'ext_baz' firsterror.log && fail "unrelated repo mentioned" || :
-  grep '//:it' firsterror.log && fail "unrelated target mentioned" || :
-
-  # Verify that the same is true, if the error is caused by a fail statement.
-  cat > root.bzl <<'EOF'
-def _impl(ctx):
-  fail("Here be dragons")
-
-repo = repository_rule(implementation=_impl, attrs = {})
-
-def root_cause():
-  repo(name = "this_is_the_root_cause")
-EOF
-  bazel build --enable_workspace //:it > "${TEST_log}" 2>&1 \
-      && fail "Expected failure" || :
-
-  # Extract the first error message printed (see previous awk command).
-  awk '/^ERROR/ {on=1} on {print} /^Error/ {exit}' < "${TEST_log}" > firsterror.log
-  echo "=========="; cat firsterror.log; echo "=========="
-  grep -q 'this_is_the_root_cause' firsterror.log \
-      || fail "Root-cause repository not mentioned"
-  grep -q 'Here be dragons' firsterror.log \
-      || fail "fail error message not shown"
-  grep 'ext_foo' firsterror.log && fail "unrelated repo mentioned" || :
-  grep 'ext_bar' firsterror.log && fail "unrelated repo mentioned" || :
-  grep 'ext_baz' firsterror.log && fail "unrelated repo mentioned" || :
-  grep '//:it' firsterror.log && fail "unrelated target mentioned" || :
-}
-
-function test_circular_load_error_message() {
-  cat > WORKSPACE <<'EOF'
-load("//:a.bzl", "total")
-EOF
-  touch BUILD
-  cat > a.bzl <<'EOF'
-load("//:b.bzl", "b")
-
-a = 10
-
-total = a + b
-EOF
-  cat > b.bzl <<'EOF'
-load("//:a.bzl", "a")
-
-b = 20
-
-difference = b - a
-EOF
-
-  bazel build --enable_workspace //... > "${TEST_log}" 2>&1 && fail "Expected failure" || :
-
-  expect_not_log "[iI]nternal [eE]rror"
-  expect_not_log "IllegalStateException"
-  expect_log "//:a.bzl"
-  expect_log "//:b.bzl"
-}
-
-function test_ciruclar_load_error_with_path_message() {
-  cat > WORKSPACE <<'EOF'
-load("//:x.bzl", "x")
-EOF
-  touch BUILD
-  cat > x.bzl <<'EOF'
-load("//:y.bzl", "y")
-x = y
-EOF
-  cat > y.bzl <<'EOF'
-load("//:a.bzl", "total")
-
-y = total
-EOF
-  cat > a.bzl <<'EOF'
-load("//:b.bzl", "b")
-
-a = 10
-
-total = a + b
-EOF
-  cat > b.bzl <<'EOF'
-load("//:a.bzl", "a")
-
-b = 20
-
-difference = b - a
-EOF
-
-  bazel build --enable_workspace //... > "${TEST_log}" 2>&1 && fail "Expected failure" || :
-
-  expect_not_log "[iI]nternal [eE]rror"
-  expect_not_log "IllegalStateException"
-  expect_log "WORKSPACE"
-  expect_log "//:x.bzl"
-  expect_log "//:y.bzl"
-  expect_log "//:a.bzl"
-  expect_log "//:b.bzl"
 }
 
 # Common setup logic for test_auth_*.
@@ -1947,7 +1507,7 @@ password foopass
 
 machine bar.example.org
 login barusername
-password passbar
+password passbar🌱
 
 # following lines mix tabs and spaces
 machine	  oauthlife.com
@@ -2012,7 +1572,7 @@ expected = {
     "https://bar.example.org/file3.tar" : {
       "type" : "basic",
       "login": "barusername",
-      "password" : "passbar",
+      "password" : "passbar🌱",
     },
     "https://oauthlife.com/fizz/buzz/file5.tar": {
       "type" : "pattern",
@@ -2328,68 +1888,6 @@ EOF
   expect_log "Failed to download repository @.*: download is disabled"
 }
 
-# The test is disabled because it downlaods rules_python, used in rules_suffix.WORKSPACE
-# while we can mock_rules_java_to_avoid_downloading, we can't rules_python
-function disabled_test_disable_download_should_allow_distdir() {
-  mkdir x
-  echo 'exports_files(["file.txt"])' > x/BUILD
-  echo 'Hello World' > x/file.txt
-  tar cvf x.tar x
-  sha256=$(sha256sum x.tar | head -c 64)
-
-  mkdir main
-  cp x.tar main
-  cd main
-  cat > WORKSPACE <<EOF
-load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
-http_archive(
-  name="ext",
-  url = "http://127.0.0.1/x.tar",
-  sha256="$sha256",
-)
-EOF
-  cat > BUILD <<'EOF'
-genrule(
-  name = "it",
-  srcs = ["@ext//x:file.txt"],
-  outs = ["it.txt"],
-  cmd = "cp $< $@",
-)
-EOF
-
-  # for some reason --repository_disable_download fails with bzlmod trying to download @platforms.
-  bazel build --distdir="." --repository_disable_download --repository_cache= --enable_workspace --noenable_bzlmod --incompatible_autoload_externally= //:it || fail "Failed to build"
-}
-
-# The test is disabled because it downlaods rules_python, used in rules_suffix.WORKSPACE
-# while we can mock_rules_java_to_avoid_downloading, we can't rules_python
-function disabled_test_disable_download_should_allow_local_repository() {
-  mkdir x
-  echo 'exports_files(["file.txt"])' > x/BUILD
-  echo 'Hello World' > x/file.txt
-  touch x/WORKSPACE
-
-  mkdir main
-  cd main
-  cat > WORKSPACE <<EOF
-load("@bazel_tools//tools/build_defs/repo:local.bzl", "local_repository")
-local_repository(
-  name="ext",
-  path="../x",
-)
-EOF
-  cat > BUILD <<'EOF'
-genrule(
-  name = "it",
-  srcs = ["@ext//:file.txt"],
-  outs = ["it.txt"],
-  cmd = "cp $< $@",
-)
-EOF
-  # for some reason --repository_disable_download fails with bzlmod trying to download @platforms.
-  bazel build --repository_disable_download --enable_workspace --noenable_bzlmod --incompatible_autoload_externally= //:it || fail "Failed to build"
-}
-
 function test_no_restarts_fetching_with_worker_thread() {
   setup_starlark_repository
 
@@ -2634,13 +2132,8 @@ def _r(rctx):
 r = repository_rule(_r)
 EOF
 
-  bazel query --noenable_workspace --output=build @r > output || fail "expected bazel to succeed"
+  bazel query --output=build @r > output || fail "expected bazel to succeed"
   assert_contains 'REPO.bazel' output
-  assert_not_contains 'WORKSPACE' output
-
-  bazel query --enable_workspace --output=build @r > output || fail "expected bazel to succeed"
-  assert_contains 'REPO.bazel' output
-  assert_contains 'WORKSPACE' output
 }
 
 function test_repo_mapping_change_in_rule_impl() {
@@ -3312,25 +2805,6 @@ EOF
   expect_log "I'm running!"
 }
 
-function test_unexported_rule() {
-  # alas, we still need to support this while WORKSPACE is around...
-  create_new_workspace
-  touch MODULE.bazel
-  touch BUILD
-  cat > r.bzl <<EOF
-def _impl(rctx):
-  rctx.file('BUILD', 'filegroup(name="r")')
-def r():
-  repository_rule(_impl)(name = "r")
-EOF
-  cat > WORKSPACE.bzlmod <<EOF
-load('//:r.bzl', 'r')
-r()
-EOF
-
-  bazel build --enable_workspace @r >& $TEST_log || fail "expected bazel to succeed"
-}
-
 # Regression test for https://github.com/bazelbuild/bazel/issues/21823.
 function test_repository_cache_concurrency() {
   sha=cd55a062e763b9349921f0f5db8c3933288dc8ba4f76dd9416aac68acee3cb94
@@ -3447,6 +2921,62 @@ EOF
     expect_log "main repo: //:foo @@//:foo"
     expect_log "my_first_repo: @my_first_repo//:foo @@+_repo_rules+my_first_repo//:foo"
     expect_log "my_second_repo: @my_first_repo//:foo @@+_repo_rules+my_first_repo//:foo"
+}
+
+function test_execute_environment_remove_vars() {
+  cat >> $(setup_module_dot_bazel)  <<'EOF'
+my_repo = use_repo_rule("//:repo.bzl", "my_repo")
+my_repo(name="repo")
+EOF
+  touch BUILD
+  cat > repo.bzl <<'EOF'
+def _impl(ctx):
+  st = ctx.execute(
+    ["env"],
+    environment = {
+      "CLIENT_ENV_REMOVED": None,
+      "REPO_ENV_REMOVED": None,
+    },
+  )
+  if st.return_code:
+    fail("Command did not succeed")
+  vars = {line.partition("=")[0]: line.partition("=")[-1] for line in st.stdout.split("\n")}
+  if "CLIENT_ENV_REMOVED" in vars:
+    fail("CLIENT_ENV_REMOVED should not be in the environment")
+  if "REPO_ENV_REMOVED" in vars:
+    fail("REPO_ENV_REMOVED should not be in the environment")
+  if vars.get("CLIENT_ENV_PRESENT") != "value1":
+    fail("CLIENT_ENV_PRESENT has wrong value: " + vars.get("CLIENT_ENV_PRESENT"))
+  if vars.get("REPO_ENV_PRESENT") != "value3":
+    fail("REPO_ENV_PRESENT has wrong value: " + vars.get("REPO_ENV_PRESENT"))
+
+  ctx.file("BUILD", "exports_files(['data.txt'])")
+
+my_repo = repository_rule(_impl)
+EOF
+
+  CLIENT_ENV_PRESENT=value1 CLIENT_ENV_REMOVED=value2 \
+   bazel build \
+    --repo_env=REPO_ENV_PRESENT=value3 --repo_env=REPO_ENV_REMOVED=value4 \
+    @repo//... &> $TEST_log || fail "expected Bazel to succeed"
+}
+
+function test_dependency_on_repo_with_invalid_name() {
+  cat >> $(setup_module_dot_bazel) <<'EOF'
+my_repo = use_repo_rule("//:repo.bzl", "my_repo")
+my_repo(name="repo")
+EOF
+  touch BUILD
+  cat > repo.bzl <<'EOF'
+def _impl(ctx):
+  ctx.read("../@invalid_name@/file")
+
+my_repo = repository_rule(_impl)
+EOF
+
+  bazel build @repo//... &> $TEST_log && fail "expected Bazel to fail"
+  expect_not_log "Unrecoverable error"
+  expect_log "attempted to watch path under external repository directory: invalid repository name '@invalid_name@'"
 }
 
 run_suite "local repository tests"

@@ -9,6 +9,10 @@ bazel_dep(name = "rules_license", version = "1.0.0")
 bazel_dep(name = "buildozer", version = "7.1.2")
 bazel_dep(name = "platforms", version = "0.0.10")
 bazel_dep(name = "zlib", version = "1.3.1.bcr.3")
+bazel_dep(name = "rules_proto", version = "7.0.2")
+
+# Enforce a minimal required version
+bazel_dep(name = "bazel_features", version = "1.21.0")
 
 xcode_configure = use_extension("//tools/osx:xcode_configure.bzl", "xcode_configure_extension")
 use_repo(xcode_configure, "local_config_xcode")
@@ -24,10 +28,6 @@ use_repo(
     "remote_java_tools_darwin_arm64",
 )
 
-sh_configure_extension = use_extension("//tools/sh:sh_configure.bzl", "sh_configure_extension")
-use_repo(sh_configure_extension, "local_config_sh")
-register_toolchains("@local_config_sh//:local_sh_toolchain")
-
 remote_coverage_tools_extension = use_extension("//tools/test:extensions.bzl", "remote_coverage_tools_extension")
 use_repo(remote_coverage_tools_extension, "remote_coverage_tools")
 
@@ -37,10 +37,10 @@ use_repo(buildozer_binary, "buildozer_binary")
 
 # Dependencies used to auto-load removed symbols and rules from Bazel (due to Starlarkification)
 # See also:  --incompatible_autoload_externally, AutoloadSymbols
-bazel_dep(name = "protobuf", version = "29.0-rc2")
-bazel_dep(name = "rules_java", version = "8.3.0")
-bazel_dep(name = "rules_cc", version = "0.0.13")
-bazel_dep(name = "rules_python", version = "0.36.0")
+bazel_dep(name = "protobuf", version = "29.0", repo_name = "com_google_protobuf")
+bazel_dep(name = "rules_java", version = "8.9.0")
+bazel_dep(name = "rules_cc", version = "0.0.17")
+bazel_dep(name = "rules_python", version = "0.40.0")
 bazel_dep(name = "rules_shell", version = "0.2.0")
 # add rules_android
 # add apple_support

@@ -62,8 +62,8 @@ public final class CommandUsingLinuxSandboxTest {
     Command command = new Command(commandArguments.toArray(new String[0]));
     CommandResult commandResult = command.execute();
 
-    assertThat(commandResult.getTerminationStatus().success()).isTrue();
-    assertThat(commandResult.getStdoutStream().toString()).contains("colorless green ideas");
+    assertThat(commandResult.terminationStatus().success()).isTrue();
+    assertThat(commandResult.stdoutStream().toString()).contains("colorless green ideas");
   }
 
   @Test
@@ -82,8 +82,8 @@ public final class CommandUsingLinuxSandboxTest {
     Command command = new Command(fullCommandLine.toArray(new String[0]));
     CommandResult commandResult = command.execute();
 
-    assertThat(commandResult.getTerminationStatus().success()).isTrue();
-    assertThat(commandResult.getStdoutStream().toString()).contains("sleep furiously");
+    assertThat(commandResult.terminationStatus().success()).isTrue();
+    assertThat(commandResult.stdoutStream().toString()).contains("sleep furiously");
   }
 
   private void checkLinuxSandboxStatistics(Duration userTimeToSpend, Duration systemTimeToSpend)
@@ -91,8 +91,8 @@ public final class CommandUsingLinuxSandboxTest {
     ImmutableList<String> commandArguments =
         ImmutableList.of(
             getCpuTimeSpenderPath().getPathString(),
-            Long.toString(userTimeToSpend.getSeconds()),
-            Long.toString(systemTimeToSpend.getSeconds()));
+            Long.toString(userTimeToSpend.toSeconds()),
+            Long.toString(systemTimeToSpend.toSeconds()));
 
     Path outputDir = TestUtils.createUniqueTmpDir(testFS);
     Path statisticsFilePath = outputDir.getRelative("stats.out");

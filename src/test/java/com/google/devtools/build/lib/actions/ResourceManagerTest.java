@@ -924,11 +924,6 @@ public final class ResourceManagerTest {
     }
 
     @Override
-    public MiddlemanType getActionType() {
-      throw new IllegalStateException();
-    }
-
-    @Override
     public ImmutableMap<String, String> getExecProperties() {
       throw new IllegalStateException();
     }

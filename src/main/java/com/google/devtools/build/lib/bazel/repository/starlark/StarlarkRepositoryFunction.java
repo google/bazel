@@ -17,7 +17,6 @@ package com.google.devtools.build.lib.bazel.repository.starlark;
 import static com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.common.base.Throwables;
-import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Maps;
@@ -25,9 +24,9 @@ import com.google.common.collect.Table;
 import com.google.devtools.build.lib.analysis.BlazeDirectories;
 import com.google.devtools.build.lib.analysis.RuleDefinition;
 import com.google.devtools.build.lib.bazel.bzlmod.NonRegistryOverride;
+import com.google.devtools.build.lib.bazel.bzlmod.RepoRuleId;
 import com.google.devtools.build.lib.bazel.repository.RepositoryResolvedEvent;
 import com.google.devtools.build.lib.bazel.repository.downloader.DownloadManager;
-import com.google.devtools.build.lib.cmdline.IgnoredSubdirectories;
 import com.google.devtools.build.lib.cmdline.Label;
 import com.google.devtools.build.lib.cmdline.LabelConstants;
 import com.google.devtools.build.lib.cmdline.RepositoryMapping;
@@ -48,7 +47,7 @@ import com.google.devtools.build.lib.rules.repository.RepositoryFunction;
 import com.google.devtools.build.lib.rules.repository.WorkspaceFileHelper;
 import com.google.devtools.build.lib.runtime.ProcessWrapper;
 import com.google.devtools.build.lib.runtime.RepositoryRemoteExecutor;
-import com.google.devtools.build.lib.skyframe.IgnoredPackagePrefixesValue;
+import com.google.devtools.build.lib.skyframe.IgnoredSubdirectoriesValue;
 import com.google.devtools.build.lib.skyframe.PrecomputedValue;
 import com.google.devtools.build.lib.skyframe.RepositoryMappingValue;
 import com.google.devtools.build.lib.vfs.FileSystemUtils;
@@ -151,6 +150,7 @@ public final class StarlarkRepositoryFunction extends RepositoryFunction {
             });
       } catch (ExecutionException e) {
         Throwables.throwIfInstanceOf(e.getCause(), RepositoryFunctionException.class);
+        Throwables.throwIfInstanceOf(e.getCause(), InterruptedException.class);
         Throwables.throwIfUnchecked(e.getCause());
         throw new IllegalStateException(
             "unexpected exception type: " + e.getCause().getClass(), e.getCause());
@@ -197,12 +197,11 @@ public final class StarlarkRepositoryFunction extends RepositoryFunction {
     }
 
     boolean enableBzlmod = starlarkSemantics.getBool(BuildLanguageOptions.ENABLE_BZLMOD);
+    RepoRuleId repoRuleId =
+        new RepoRuleId(
+            rule.getRuleClassObject().getRuleDefinitionEnvironmentLabel(), rule.getRuleClass());
     @Nullable RepositoryMapping mainRepoMapping;
-    String ruleClass =
-        rule.getRuleClassObject().getRuleDefinitionEnvironmentLabel().getUnambiguousCanonicalForm()
-            + "%"
-            + rule.getRuleClass();
-    if (NonRegistryOverride.BOOTSTRAP_RULE_CLASSES.contains(ruleClass)) {
+    if (NonRegistryOverride.BOOTSTRAP_REPO_RULES.contains(repoRuleId)) {
       // Avoid a cycle.
       mainRepoMapping = null;
     } else if (enableBzlmod || !isWorkspaceRepo(rule)) {
@@ -212,18 +211,16 @@ public final class StarlarkRepositoryFunction extends RepositoryFunction {
       if (mainRepoMappingValue == null) {
         return null;
       }
-      mainRepoMapping = mainRepoMappingValue.getRepositoryMapping();
+      mainRepoMapping = mainRepoMappingValue.repositoryMapping();
     } else {
       mainRepoMapping = rule.getPackage().getRepositoryMapping();
     }
 
-    IgnoredPackagePrefixesValue ignoredPackagesValue =
-        (IgnoredPackagePrefixesValue) env.getValue(IgnoredPackagePrefixesValue.key());
+    IgnoredSubdirectoriesValue ignoredSubdirectories =
+        (IgnoredSubdirectoriesValue) env.getValue(IgnoredSubdirectoriesValue.key());
     if (env.valuesMissing()) {
       return null;
     }
-    IgnoredSubdirectories ignoredSubdirectories =
-        checkNotNull(ignoredPackagesValue).asIgnoredSubdirectories();
 
     Map<RepoRecordedInput, String> recordedInputValues = new LinkedHashMap<>();
     try (Mutability mu = Mutability.create("Starlark repository");
@@ -232,7 +229,7 @@ public final class StarlarkRepositoryFunction extends RepositoryFunction {
                 rule,
                 packageLocator,
                 outputDirectory,
-                ignoredSubdirectories,
+                ignoredSubdirectories.asIgnoredSubdirectories(),
                 env,
                 ImmutableMap.copyOf(clientEnvironment),
                 downloadManager,
@@ -276,12 +273,7 @@ public final class StarlarkRepositoryFunction extends RepositoryFunction {
       try (SilentCloseable c =
           Profiler.instance()
               .profile(ProfilerTask.STARLARK_REPOSITORY_FN, () -> rule.getLabel().toString())) {
-        result =
-            Starlark.call(
-                thread,
-                function,
-                /* args= */ ImmutableList.of(starlarkRepositoryContext),
-                /* kwargs= */ ImmutableMap.of());
+        result = Starlark.positionalOnlyCall(thread, function, starlarkRepositoryContext);
         starlarkRepositoryContext.markSuccessful();
       }
 

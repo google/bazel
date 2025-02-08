@@ -49,14 +49,23 @@ public class JavaRules implements RuleSet {
 
     builder.addRuleDefinition(new JavaToolchainBaseRule());
     builder.addRuleDefinition(new JavaRuntimeBaseRule());
-    builder.addRuleDefinition(new BaseRuleClasses.EmptyRule("java_binary") {});
-    builder.addRuleDefinition(new BaseRuleClasses.EmptyRule("java_library") {});
-    builder.addRuleDefinition(new BaseRuleClasses.EmptyRule("java_import") {});
-    builder.addRuleDefinition(new BaseRuleClasses.EmptyRule("java_test") {});
-    builder.addRuleDefinition(new BaseRuleClasses.EmptyRule("java_plugin") {});
-    builder.addRuleDefinition(new BaseRuleClasses.EmptyRule("java_toolchain") {});
-    builder.addRuleDefinition(new BaseRuleClasses.EmptyRule("java_package_configuration") {});
-    builder.addRuleDefinition(new BaseRuleClasses.EmptyRule("java_runtime") {});
+    builder.addRuleDefinition(
+        new BaseRuleClasses.EmptyRule("java_binary", coreBzlLabel("java_binary")) {});
+    builder.addRuleDefinition(
+        new BaseRuleClasses.EmptyRule("java_library", coreBzlLabel("java_library")) {});
+    builder.addRuleDefinition(
+        new BaseRuleClasses.EmptyRule("java_import", coreBzlLabel("java_import")) {});
+    builder.addRuleDefinition(
+        new BaseRuleClasses.EmptyRule("java_test", coreBzlLabel("java_test")) {});
+    builder.addRuleDefinition(
+        new BaseRuleClasses.EmptyRule("java_plugin", coreBzlLabel("java_plugin")) {});
+    builder.addRuleDefinition(
+        new BaseRuleClasses.EmptyRule("java_toolchain", toolchainBzlLabel("java_toolchain")) {});
+    builder.addRuleDefinition(
+        new BaseRuleClasses.EmptyRule(
+            "java_package_configuration", toolchainBzlLabel("java_package_configuration")) {});
+    builder.addRuleDefinition(
+        new BaseRuleClasses.EmptyRule("java_runtime", toolchainBzlLabel("java_runtime")) {});
     builder.addRuleDefinition(new JavaPluginsFlagAliasRule());
 
     builder.addRuleDefinition(new ExtraActionRule());
@@ -83,5 +92,13 @@ public class JavaRules implements RuleSet {
   @Override
   public ImmutableList<RuleSet> requires() {
     return ImmutableList.of(CoreRules.INSTANCE, CcRules.INSTANCE);
+  }
+
+  private static String coreBzlLabel(String ruleName) {
+    return "@rules_java//java" + ":" + ruleName + ".bzl";
+  }
+
+  private static String toolchainBzlLabel(String ruleName) {
+    return "@rules_java//java/toolchains" + ":" + ruleName + ".bzl";
   }
 }

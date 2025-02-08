@@ -31,11 +31,10 @@ public interface MakeVariableSupplier {
 
   /** Returns Make variable value or null if value is not supplied. */
   @Nullable
-  String getMakeVariable(String variableName) throws ExpansionException, InterruptedException;
+  String getMakeVariable(String variableName) throws ExpansionException;
 
   /** Returns all Make variables that it supplies */
-  ImmutableMap<String, String> getAllMakeVariables()
-      throws ExpansionException, InterruptedException;
+  ImmutableMap<String, String> getAllMakeVariables() throws ExpansionException;
 
   /**
    * {@link MakeVariableSupplier} that reads variables from a list of {@link TemplateVariableInfo}

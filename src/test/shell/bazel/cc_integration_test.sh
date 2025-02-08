@@ -1026,12 +1026,13 @@ EOF
 }
 
 function test_sibling_repository_layout_include_external_repo_output() {
+  add_rules_java MODULE.bazel
   mkdir test
   cat > test/BUILD <<'EOF'
 cc_library(
   name = "foo",
   srcs = ["foo.cc"],
-  deps = ["@bazel_tools//tools/jdk:jni"],
+  deps = ["@rules_java//toolchains:jni"],
 )
 EOF
   cat > test/foo.cc <<'EOF'
@@ -1968,32 +1969,6 @@ EOF
   expect_log "Compiling pkg/lib.h"
 }
 
-# Test for a very obscure case that is sadly used by protobuf: when the
-# WORKSPACE file contains a local_repository with the same name as the main
-# one. See HeaderDiscovery.runDiscovery() for more details.
-function test_inclusion_validation_with_overlapping_external_repo() {
-  cat >> WORKSPACE<<EOF
-local_repository(name="$WORKSPACE_NAME", path=".")
-EOF
-
-  mkdir -p a
-  cat > a/BUILD <<'EOF'
-cc_library(name="a", srcs=["a.cc"])
-EOF
-
-  cat > a/a.cc <<'EOF'
-int a() {
-  return 3;
-}
-EOF
-
-  bazel build \
-    --noenable_bzlmod \
-    --enable_workspace \
-    --experimental_sibling_repository_layout \
-    "@@$WORKSPACE_NAME//a:a" || fail "build failed"
-}
-
 function test_tree_artifact_sources_in_no_deps_library() {
   mkdir -p pkg
   cat > pkg/BUILD <<'EOF'
@@ -2077,6 +2052,47 @@ int main() {
 EOF
 
   bazel build //pkg:testCodegen &> "$TEST_log" || fail "Build failed"
+}
+
+function test_extend_cc_binary_with_dynamic_deps() {
+  mkdir -p pkg
+  cat >pkg/BUILD <<'EOF'
+load("my_cc_binary.bzl", "my_cc_binary")
+
+constraint_setting(name = "foo")
+constraint_value(name = "never_selected", constraint_setting = ":foo")
+
+my_cc_binary(
+    name = "hello",
+    srcs = ["main.cpp"],
+    # Ensure that the select has no effect but can't be simplified.
+    dynamic_deps = select({":never_selected": ["unused"], "//conditions:default": []}),
+)
+EOF
+
+  cat >pkg/my_cc_binary.bzl << 'EOF'
+def _my_cc_binary_impl(ctx):
+  print("Hello from my_cc_binary")
+  return ctx.super()
+
+my_cc_binary = rule(
+  implementation = _my_cc_binary_impl,
+  parent = native.cc_binary,
+)
+EOF
+
+  cat >pkg/main.cpp <<'EOF'
+#include <iostream>
+
+int main() {
+  std::cout << "Hello from main.cpp" << std::endl;
+  return 0;
+}
+EOF
+
+  bazel run //pkg:hello &> $TEST_log || fail "Expected success"
+  expect_log "Hello from my_cc_binary"
+  expect_log "Hello from main.cpp"
 }
 
 run_suite "cc_integration_test"

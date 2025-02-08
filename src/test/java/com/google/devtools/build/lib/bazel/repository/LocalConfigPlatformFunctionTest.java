@@ -22,9 +22,6 @@ import com.google.devtools.build.lib.analysis.platform.PlatformInfo;
 import com.google.devtools.build.lib.analysis.platform.PlatformProviderUtils;
 import com.google.devtools.build.lib.analysis.util.BuildViewTestCase;
 import com.google.devtools.build.lib.cmdline.Label;
-import com.google.devtools.build.lib.util.AbruptExitException;
-import java.io.IOException;
-import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -36,13 +33,6 @@ public class LocalConfigPlatformFunctionTest extends BuildViewTestCase {
       ConstraintSettingInfo.create(Label.parseCanonicalUnchecked("@platforms//cpu:cpu"));
   private static final ConstraintSettingInfo OS_CONSTRAINT =
       ConstraintSettingInfo.create(Label.parseCanonicalUnchecked("@platforms//os:os"));
-
-  @Before
-  public void addLocalConfigPlatform()
-      throws InterruptedException, IOException, AbruptExitException {
-    scratch.appendFile("WORKSPACE", "local_config_platform(name='local_config_platform_test')");
-    invalidatePackages();
-  }
 
   @Test
   public void generateConfigRepository() throws Exception {

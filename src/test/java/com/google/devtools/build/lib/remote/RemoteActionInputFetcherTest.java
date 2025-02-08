@@ -23,6 +23,7 @@ import com.google.common.eventbus.EventBus;
 import com.google.common.hash.HashCode;
 import com.google.devtools.build.lib.actions.ActionInput;
 import com.google.devtools.build.lib.actions.ActionInputPrefetcher.Priority;
+import com.google.devtools.build.lib.actions.ActionInputPrefetcher.Reason;
 import com.google.devtools.build.lib.actions.ActionOutputDirectoryHelper;
 import com.google.devtools.build.lib.actions.Artifact;
 import com.google.devtools.build.lib.actions.FileArtifactValue;
@@ -102,8 +103,12 @@ public class RemoteActionInputFetcherTest extends ActionInputPrefetcherTestBase 
 
     // act
     wait(
-        actionInputFetcher.prefetchFiles(
-            action, ImmutableList.of(a), (ActionInput unused) -> null, Priority.MEDIUM));
+        actionInputFetcher.prefetchFilesInterruptibly(
+            action,
+            ImmutableList.of(a),
+            (ActionInput unused) -> null,
+            Priority.MEDIUM,
+            Reason.INPUTS));
 
     // assert
     Path p = execRoot.getRelative(a.getExecPath());
@@ -131,11 +136,12 @@ public class RemoteActionInputFetcherTest extends ActionInputPrefetcherTestBase 
 
     // act
     wait(
-        actionInputFetcher.prefetchFiles(
+        actionInputFetcher.prefetchFilesInterruptibly(
             action,
             ImmutableList.of(VirtualActionInput.EMPTY_MARKER),
             (ActionInput unused) -> null,
-            Priority.MEDIUM));
+            Priority.MEDIUM,
+            Reason.INPUTS));
 
     // assert that nothing happened
     assertThat(actionInputFetcher.downloadedFiles()).isEmpty();
@@ -153,8 +159,12 @@ public class RemoteActionInputFetcherTest extends ActionInputPrefetcherTestBase 
             BulkTransferException.class,
             () ->
                 wait(
-                    prefetcher.prefetchFiles(
-                        action, ImmutableList.of(a), metadata::get, Priority.MEDIUM)));
+                    prefetcher.prefetchFilesInterruptibly(
+                        action,
+                        ImmutableList.of(a),
+                        metadata::get,
+                        Priority.MEDIUM,
+                        Reason.INPUTS)));
 
     assertThat(prefetcher.downloadedFiles()).isEmpty();
     assertThat(prefetcher.downloadsInProgress()).isEmpty();

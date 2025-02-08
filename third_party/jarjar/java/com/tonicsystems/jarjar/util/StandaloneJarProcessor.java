@@ -16,53 +16,84 @@
 
 package com.tonicsystems.jarjar.util;
 
-import java.io.*;
-import java.util.*;
+import java.io.File;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.Enumeration;
-import java.util.jar.JarEntry;
-import java.util.jar.JarFile;
-import java.util.jar.JarOutputStream;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipFile;
+import java.util.zip.ZipOutputStream;
 
-public class StandaloneJarProcessor {
+/** Util for transforming a JAR. */
+public final class StandaloneJarProcessor {
   public static void run(File from, File to, JarProcessor proc) throws IOException {
-    byte[] buf = new byte[0x2000];
+    ArrayList<EntryStruct> entries = new ArrayList<>();
 
-    JarFile in = new JarFile(from);
-    final File tmpTo = File.createTempFile("jarjar", ".jar");
-    JarOutputStream out = new JarOutputStream(new FileOutputStream(tmpTo));
-    Set<String> entries = new HashSet<String>();
-    try {
-      EntryStruct struct = new EntryStruct();
-      Enumeration<JarEntry> e = in.entries();
-      while (e.hasMoreElements()) {
-        JarEntry entry = e.nextElement();
-        struct.name = entry.getName();
-        struct.time = entry.getTime();
-        ByteArrayOutputStream baos = new ByteArrayOutputStream();
-        IoUtil.pipe(in.getInputStream(entry), baos, buf);
-        struct.data = baos.toByteArray();
-        if (proc.process(struct)) {
-          if (entries.add(struct.name)) {
-            entry = new JarEntry(struct.name);
-            entry.setTime(struct.time);
-            entry.setCompressedSize(-1);
-            out.putNextEntry(entry);
-            out.write(struct.data);
-          } else if (struct.name.endsWith("/")) {
-            // TODO(chrisn): log
-          } else {
-            throw new IllegalArgumentException("Duplicate jar entries: " + struct.name);
-          }
+    // Read and transform all the input entries
+    try (ZipFile inZip = new ZipFile(from)) {
+      for (Enumeration<? extends ZipEntry> e = inZip.entries(); e.hasMoreElements(); ) {
+        ZipEntry inEntry = e.nextElement();
+        EntryStruct outEntry = new EntryStruct();
+        outEntry.name = inEntry.getName();
+        outEntry.time = inEntry.getTime();
+        outEntry.data = inZip.getInputStream(inEntry).readAllBytes();
+
+        if (!proc.process(outEntry)) {
+          continue; // Skip any inputs dropped by the transformation rules
         }
-      }
 
-    } finally {
-      in.close();
-      out.close();
+        entries.add(outEntry);
+      }
     }
 
-    // delete the empty directories
-    IoUtil.copyZipWithoutEmptyDirectories(tmpTo, to);
-    tmpTo.delete();
+    // Sort the entries by their transformed names
+    // For determinism in the case of duplicate entry names, this must be a stable sort.
+    Collections.sort(entries, Comparator.comparing((x) -> x.name));
+
+    // Drop any empty directories and handle duplicate names
+    EntryStruct prevFile = null;
+    EntryStruct prevEntry = null;
+    for (int i = entries.size() - 1; i >= 0; i--) {
+      EntryStruct entry = entries.get(i);
+      boolean dropEntry = false;
+
+      if (prevEntry != null && prevEntry.name.equals(entry.name)) {
+        if (entry.isDir()) {
+          dropEntry = true; // TODO(nickreid): Report duplicate dirs
+        } else {
+          throw new IllegalArgumentException("Duplicate jar entries: " + entry.name);
+        }
+      } else if (entry.isDir()) {
+        // Is this dir a parent of the previous file?
+        dropEntry = (prevFile == null || !prevFile.name.startsWith(entry.name));
+      } else {
+        prevFile = entry;
+      }
+
+      if (dropEntry) {
+        entries.set(i, null); // Set to null, rather than shift the entire list
+      } else {
+        prevEntry = entry;
+      }
+    }
+
+    // Write all surviving entries
+    try (ZipOutputStream outZip = IoUtil.bufferedZipOutput(to)) {
+      for (EntryStruct entry : entries) {
+        if (entry == null) {
+          continue;
+        }
+
+        ZipEntry outEntry = new ZipEntry(entry.name);
+        outEntry.setTime(entry.time);
+        outEntry.setCompressedSize(-1);
+        outZip.putNextEntry(outEntry);
+        outZip.write(entry.data);
+      }
+    }
   }
+
+  private StandaloneJarProcessor() {}
 }

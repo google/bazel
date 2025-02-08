@@ -15,7 +15,6 @@
 
 package com.google.devtools.build.lib.analysis.actions;
 
-import static java.nio.charset.StandardCharsets.UTF_8;
 
 import com.google.common.collect.ImmutableSet;
 import com.google.devtools.build.lib.actions.ActionExecutionContext;
@@ -26,6 +25,7 @@ import com.google.devtools.build.lib.actions.ArtifactExpander;
 import com.google.devtools.build.lib.collect.nestedset.NestedSet;
 import com.google.devtools.build.lib.collect.nestedset.NestedSetBuilder;
 import com.google.devtools.build.lib.collect.nestedset.Order;
+import com.google.devtools.build.lib.unsafe.StringUnsafe;
 import com.google.devtools.build.lib.util.Fingerprint;
 import java.util.function.Function;
 import javax.annotation.Nullable;
@@ -71,7 +71,7 @@ public final class LazyWritePathsFileAction extends AbstractFileWriteAction {
 
   @Override
   public DeterministicWriter newDeterministicWriter(ActionExecutionContext ctx) {
-    return out -> out.write(getContents().getBytes(UTF_8));
+    return out -> out.write(StringUnsafe.getInstance().getInternalStringBytes(getContents()));
   }
 
   /** Computes the Action key for this action by computing the fingerprint for the file contents. */

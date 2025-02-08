@@ -541,6 +541,7 @@ message Filesystem {
     DEFAULT_DIGEST_HASH_FUNCTION_INVALID_VALUE = 6
         [(metadata) = { exit_code: 2 }];
     FILESYSTEM_JNI_NOT_AVAILABLE = 8 [(metadata) = { exit_code: 36 }];
+    FAILED_TO_LOCK_INSTALL_BASE = 12 [(metadata) = { exit_code: 36 }];
 
     reserved 7, 9, 10; // For internal use
   }
@@ -569,7 +570,7 @@ message ExecutionOptions {
     DYNAMIC_STRATEGY_NOT_SANDBOXED = 10 [(metadata) = { exit_code: 2 }];
     MULTIPLE_EXECUTION_LOG_FORMATS = 11 [(metadata) = { exit_code: 2 }];
 
-    reserved 1, 2; // For internal use
+    reserved 1, 2, 12, 13; // For internal use
   }
 
   Code code = 1;
@@ -1256,6 +1257,7 @@ message Analysis {
     INCOMPATIBLE_TARGET_REQUESTED = 19 [(metadata) = { exit_code: 1 }];
     ANALYSIS_FAILURE_PROPAGATION_FAILED = 20 [(metadata) = { exit_code: 1 }];
     ANALYSIS_CACHE_DISCARDED = 21 [(metadata) = { exit_code: 1 }];
+    INVALID_RUNFILES_TREE = 22 [(metadata) = { exit_code: 1 }];
   }
 
   Code code = 1;
@@ -1303,6 +1305,7 @@ message PackageLoading {
     SYMLINK_CYCLE_OR_INFINITE_EXPANSION = 30 [(metadata) = { exit_code: 1 }];
     OTHER_IO_EXCEPTION = 31 [(metadata) = { exit_code: 36 }];
     BAD_REPO_FILE = 32 [(metadata) = { exit_code: 1 }];
+    BAD_IGNORED_DIRECTORIES = 33 [(metadata) = { exit_code: 1 }];
   }
 
   Code code = 1;
@@ -1372,6 +1375,7 @@ message ModCommand {
     TOO_MANY_ARGUMENTS = 2 [(metadata) = { exit_code: 2 }];
     INVALID_ARGUMENTS = 3 [(metadata) = { exit_code: 2 }];
     BUILDOZER_FAILED = 4 [(metadata) = { exit_code: 2 }];
+    ERROR_DURING_GRAPH_INSPECTION = 5 [(metadata) = { exit_code: 2 }];
   }
 
   Code code = 1;

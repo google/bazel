@@ -32,6 +32,7 @@ set +o errexit
 TESTBED="${PWD}/$2"
 SUITE_PARAMETER="$3"
 SUITE_FLAG="-D${SUITE_PARAMETER}=com.google.testing.junit.runner.testbed.JUnit4TestbridgeExercises"
+OOM_SUITE_FLAG="-D${SUITE_PARAMETER}=com.google.testing.junit.runner.testbed.JUnit4TestbridgeOomExercises"
 XML_OUTPUT_FILE="${TEST_TMPDIR}/test.xml"
 
 shift 3
@@ -60,6 +61,46 @@ function test_Junit4() {
   # Finally, run the test once again without environment flag; it should fail.
   declare +x TESTBRIDGE_TEST_ONLY
   "${TESTBED}" --jvm_flag="${SUITE_FLAG}" >& "${TEST_log}" && fail "Expected failure again"
+  expect_log 'Failures: 2'
+
+  # Remove the XML output with failures, so it does not get picked up to
+  # indicate a failure.
+  rm -rf "${XML_OUTPUT_FILE}" || fail "failed to remove XML output"
+}
+
+# Test that the exit code reflects the success / failure reason.
+function test_Junit4ExitCodes() {
+  # only for Bazel
+  [[ "${SUITE_PARAMETER}" -eq "bazel.test_suite" ]] || return
+  cd "${TEST_TMPDIR}" || fail "Unexpected failure"
+
+  # Run the test without environment flag; it should fail.
+  declare +x TESTBRIDGE_TEST_ONLY
+  "${TESTBED}" --jvm_flag="${OOM_SUITE_FLAG}" >& "${TEST_log}"
+  assert_equals 137 $? || fail "Expected OOM failure"
+  expect_log 'Failures: 2'
+
+  # Run the test with environment flag and check the different expected exit codes.
+
+  declare -x TESTBRIDGE_TEST_ONLY="testFailAssertion"
+  "${TESTBED}" --jvm_flag="${OOM_SUITE_FLAG}" >& "${TEST_log}" && fail "Expected failure"
+  assert_equals 1 $? || fail "Expected non-OOM failure"
+  expect_log 'Failures: 1'
+
+  declare -x TESTBRIDGE_TEST_ONLY="testFailWithOom"
+  "${TESTBED}" --jvm_flag="${OOM_SUITE_FLAG}" >& "${TEST_log}" && fail "Expected failure"
+  assert_equals 137 $? || fail "Expected OOM failure on single test case"
+  expect_log 'Failures: 1'
+
+  declare -x TESTBRIDGE_TEST_ONLY="testPass"
+  "${TESTBED}" --jvm_flag="${OOM_SUITE_FLAG}" >& "${TEST_log}"
+  assert_equals 0 $? || fail "Expected success"
+  expect_log 'OK.*1 test'
+
+  # Finally, run the test once again without environment flag; it should fail.
+  declare +x TESTBRIDGE_TEST_ONLY
+  "${TESTBED}" --jvm_flag="${OOM_SUITE_FLAG}" >& "${TEST_log}"
+  assert_equals 137 $? || fail "Expected OOM failure again"
   expect_log 'Failures: 2'
 
   # Remove the XML output with failures, so it does not get picked up to

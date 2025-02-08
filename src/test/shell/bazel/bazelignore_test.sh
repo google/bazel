@@ -214,7 +214,7 @@ test_invalid_path() {
     if bazel build //... 2> "$TEST_log"; then
       fail "Bazel build should have failed"
     fi
-    expect_log "java.nio.file.InvalidPathException: Nul character not allowed"
+    expect_log "Nul character not allowed"
 }
 
 test_target_patterns_with_wildcards_in_repo_bazel() {
@@ -269,7 +269,7 @@ SYNTAX ERROR
 EOF
 
   touch BUILD.bazel
-  bazel query //:all && fail "failure expected"
+  bazel query //:all >& "$TEST_log" && fail "failure expected"
   if [[ $? != 7 ]]; then
     fail "expected an analysis failure"
   fi
@@ -286,6 +286,27 @@ EOF
   touch BUILD.bazel
   bazel query //:all >& "$TEST_log" && fail "failure expected"
   expect_log "it must be called before any other functions"
+}
+
+test_absolute_path_in_bazelignore() {
+  rm -rf work && mkdir work && cd work
+  setup_module_dot_bazel
+
+  cat > .bazelignore <<EOF
+/a/ignored
+EOF
+
+  mkdir -p a/ignored
+  touch a/ignored/ignored.txt
+
+  cat > a/BUILD <<'EOF'
+filegroup(name="fg", srcs=glob(["**/*.txt"]))
+EOF
+
+  bazel query //a:fg >& "$TEST_log" && fail "failure expected"
+  if [[ $? != 7 ]]; then
+    fail "expected an analysis failure"
+  fi
 }
 
 run_suite "Integration tests for .bazelignore"

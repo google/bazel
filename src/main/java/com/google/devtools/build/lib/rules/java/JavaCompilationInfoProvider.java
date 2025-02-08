@@ -14,7 +14,8 @@
 
 package com.google.devtools.build.lib.rules.java;
 
-import com.google.auto.value.AutoValue;
+import static java.util.Objects.requireNonNull;
+
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
@@ -27,6 +28,7 @@ import com.google.devtools.build.lib.concurrent.ThreadSafety.Immutable;
 import com.google.devtools.build.lib.packages.RuleClass.ConfiguredTargetFactory.RuleErrorException;
 import com.google.devtools.build.lib.packages.StructImpl;
 import com.google.devtools.build.lib.rules.java.JavaInfo.JavaInfoInternalProvider;
+import com.google.devtools.build.lib.skyframe.serialization.autocodec.AutoCodec;
 import com.google.devtools.build.lib.starlarkbuildapi.java.JavaCompilationInfoProviderApi;
 import com.google.errorprone.annotations.CanIgnoreReturnValue;
 import java.util.Objects;
@@ -40,9 +42,17 @@ import net.starlark.java.eval.Starlark;
  * A class that provides compilation information in Java rules, for perusal of aspects and tools.
  */
 @Immutable
-@AutoValue
-public abstract class JavaCompilationInfoProvider
+@AutoCodec
+public record JavaCompilationInfoProvider(
+    NestedSet<String> getJavacOpts,
+    @Nullable NestedSet<Artifact> runtimeClasspath,
+    @Nullable NestedSet<Artifact> compilationClasspath,
+    NestedSet<Artifact> bootClasspath)
     implements JavaInfoInternalProvider, JavaCompilationInfoProviderApi<Artifact> {
+  public JavaCompilationInfoProvider {
+    requireNonNull(getJavacOpts, "getJavacOpts");
+    requireNonNull(bootClasspath, "bootClasspath");
+  }
 
   /**
    * Transforms the {@code compilation_info} field from a {@link JavaInfo} into a native instance.
@@ -140,12 +150,10 @@ public abstract class JavaCompilationInfoProvider
     }
 
     public JavaCompilationInfoProvider build() throws RuleErrorException {
-      return new AutoValue_JavaCompilationInfoProvider(
+      return new JavaCompilationInfoProvider(
           javacOpts, runtimeClasspath, compilationClasspath, bootClasspath);
     }
   }
-
-  public abstract NestedSet<String> getJavacOpts();
 
   @Override
   public Depset getJavacOptsStarlark() {
@@ -157,17 +165,11 @@ public abstract class JavaCompilationInfoProvider
     return JavaHelper.tokenizeJavaOptions(getJavacOpts());
   }
 
-  @Nullable
-  public abstract NestedSet<Artifact> runtimeClasspath();
-
   @Override
   @Nullable
   public Depset /*<Artifact>*/ getRuntimeClasspath() {
     return runtimeClasspath() == null ? null : Depset.of(Artifact.class, runtimeClasspath());
   }
-
-  @Nullable
-  public abstract NestedSet<Artifact> compilationClasspath();
 
   @Override
   @Nullable
@@ -181,8 +183,6 @@ public abstract class JavaCompilationInfoProvider
   public ImmutableList<Artifact> getBootClasspathList() {
     return bootClasspath().toList();
   }
-
-  public abstract NestedSet<Artifact> bootClasspath();
 
   /*
    * Underrides the @Autovalue implementation.

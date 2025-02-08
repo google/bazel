@@ -13,24 +13,24 @@
 // limitations under the License.
 package com.google.devtools.build.lib.rules.cpp;
 
-import com.google.auto.value.AutoValue;
+import static java.util.Objects.requireNonNull;
+
 import com.google.common.collect.ImmutableSet;
 
-/**
- * Object encapsulating which additional toolchain features should be enabled and/or disabled.
- */
-@AutoValue
-public abstract class FeatureSpecification {
+/** Object encapsulating which additional toolchain features should be enabled and/or disabled. */
+public record FeatureSpecification(
+    ImmutableSet<String> requestedFeatures, ImmutableSet<String> unsupportedFeatures) {
+  public FeatureSpecification {
+    requireNonNull(requestedFeatures, "requestedFeatures");
+    requireNonNull(unsupportedFeatures, "unsupportedFeatures");
+  }
 
   public static final FeatureSpecification EMPTY =
       create(ImmutableSet.<String>of(), ImmutableSet.<String>of());
 
   public static final FeatureSpecification create(
       ImmutableSet<String> requestedFeatures, ImmutableSet<String> unsupportedFeatures) {
-    return new AutoValue_FeatureSpecification(requestedFeatures, unsupportedFeatures);
+    return new FeatureSpecification(requestedFeatures, unsupportedFeatures);
   }
 
-  public abstract ImmutableSet<String> getRequestedFeatures();
-
-  public abstract ImmutableSet<String> getUnsupportedFeatures();
 }

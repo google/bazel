@@ -882,7 +882,7 @@ public class BzlLoadFunction implements SkyFunction {
     // including the label and a reified copy of the load DAG.
     BazelModuleContext bazelModuleContext =
         BazelModuleContext.create(
-            label,
+            key,
             repoMapping,
             prog.getFilename(),
             ImmutableList.copyOf(loadMap.values()),
@@ -980,7 +980,7 @@ public class BzlLoadFunction implements SkyFunction {
       if (rootModuleMappingValue == null) {
         return null;
       }
-      return pureWorkspaceMapping.composeWith(rootModuleMappingValue.getRepositoryMapping());
+      return pureWorkspaceMapping.composeWith(rootModuleMappingValue.repositoryMapping());
     }
 
     if (key instanceof BzlLoadValue.KeyForBzlmod) {
@@ -1003,7 +1003,7 @@ public class BzlLoadFunction implements SkyFunction {
         if (repositoryMappingValue == null) {
           return null;
         }
-        return repositoryMappingValue.getRepositoryMapping();
+        return repositoryMappingValue.repositoryMapping();
       }
     }
 
@@ -1014,7 +1014,7 @@ public class BzlLoadFunction implements SkyFunction {
     if (repositoryMappingValue == null) {
       return null;
     }
-    return repositoryMappingValue.getRepositoryMapping();
+    return repositoryMappingValue.repositoryMapping();
   }
 
   @Nullable
@@ -1040,7 +1040,7 @@ public class BzlLoadFunction implements SkyFunction {
     if (mainRepositoryMappingValue == null) {
       return null;
     }
-    return mainRepositoryMappingValue.getRepositoryMapping();
+    return mainRepositoryMappingValue.repositoryMapping();
   }
 
   /**

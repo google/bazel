@@ -14,9 +14,21 @@
 
 #include "src/main/native/latin1_jni_path.h"
 
+#include <jni.h>
 #include <string.h>
 
 namespace blaze_jni {
+
+static void LogBadPath(JNIEnv *env, jstring jstr) {
+  static const jclass NativePosixFiles_class =
+      static_cast<jclass>(env->NewGlobalRef(env->FindClass(
+          "com/google/devtools/build/lib/unix/NativePosixFiles")));
+  static const jmethodID NativePosixFiles_logBadPath_method =
+      env->GetStaticMethodID(NativePosixFiles_class, "logBadPath",
+                             "(Ljava/lang/String;)V");
+  env->CallVoidMethod(NativePosixFiles_class,
+                      NativePosixFiles_logBadPath_method, jstr);
+}
 
 jstring NewStringLatin1(JNIEnv *env, const char *str) {
   int len = strlen(str);
@@ -39,53 +51,44 @@ jstring NewStringLatin1(JNIEnv *env, const char *str) {
   return result;
 }
 
-static jfieldID String_coder_field;
-static jfieldID String_value_field;
-
-static bool CompactStringsEnabled(JNIEnv *env) {
-  if (jclass klass = env->FindClass("java/lang/String")) {
-    if (jfieldID csf = env->GetStaticFieldID(klass, "COMPACT_STRINGS", "Z")) {
-      if (env->GetStaticBooleanField(klass, csf)) {
-        if ((String_coder_field = env->GetFieldID(klass, "coder", "B"))) {
-          if ((String_value_field = env->GetFieldID(klass, "value", "[B"))) {
-            return true;
-          }
-        }
-      }
-    }
-  }
-  env->ExceptionClear();
-  return false;
-}
-
 char *GetStringLatin1Chars(JNIEnv *env, jstring jstr) {
+  static jclass String_class = env->FindClass("java/lang/String");
+  static jfieldID String_coder_field =
+      env->GetFieldID(String_class, "coder", "B");
+  static jfieldID String_value_field =
+      env->GetFieldID(String_class, "value", "[B");
+
   jint len = env->GetStringLength(jstr);
 
-  // Fast path for latin1 strings.
-  static bool cs_enabled = CompactStringsEnabled(env);
-  const int LATIN1 = 0;
-  if (cs_enabled && env->GetByteField(jstr, String_coder_field) == LATIN1) {
+  // Fast path for strings with a Latin1 coder, which all well-formed path
+  // strings in Bazel ought to be.
+  if (env->GetByteField(jstr, String_coder_field) == 0) {
     char *result = new char[len + 1];
     if (jobject jvalue = env->GetObjectField(jstr, String_value_field)) {
       env->GetByteArrayRegion((jbyteArray)jvalue, 0, len, (jbyte *)result);
+    } else {
+      delete[] result;
+      return nullptr;
     }
     result[len] = 0;
     return result;
   }
 
+  // Fallback path for strings with a UTF-16 coder, which are not well-formed
+  // but must be tolerated until all occurrences at Google have been fixed.
+  // TODO(tjgq): Delete this fallback.
+  LogBadPath(env, jstr);
   const jchar *str = env->GetStringCritical(jstr, nullptr);
   if (str == nullptr) {
     return nullptr;
   }
-
   char *result = new char[len + 1];
   for (int i = 0; i < len; i++) {
     jchar unicode = str[i];  // (unsigned)
     result[i] = unicode <= 0x00ff ? unicode : '?';
   }
-
-  result[len] = 0;
   env->ReleaseStringCritical(jstr, str);
+  result[len] = 0;
   return result;
 }
 

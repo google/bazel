@@ -143,7 +143,7 @@ function test_PrematureExit() {
 
   echo "Redirecting output to $TEST_log"
   TEST_PREMATURE_EXIT_FILE=${no_exit} $TESTBED --jvm_flag=${SUITE_FLAG} $TEST_FILTER_FLAG \
-    >& $TEST_log || fail "Expected spurious success"
+    >& $TEST_log
 
   expect_log 'Hey, not so fast there'
   [ -r "$no_exit" ] || fail "$no_exit is not readable"

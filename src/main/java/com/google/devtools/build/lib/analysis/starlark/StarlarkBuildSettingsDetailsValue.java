@@ -14,7 +14,8 @@
 
 package com.google.devtools.build.lib.analysis.starlark;
 
-import com.google.auto.value.AutoValue;
+import static java.util.Objects.requireNonNull;
+
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.google.devtools.build.lib.cmdline.Label;
@@ -22,6 +23,7 @@ import com.google.devtools.build.lib.concurrent.ThreadSafety.Immutable;
 import com.google.devtools.build.lib.concurrent.ThreadSafety.ThreadSafe;
 import com.google.devtools.build.lib.packages.Type;
 import com.google.devtools.build.lib.skyframe.SkyFunctions;
+import com.google.devtools.build.lib.skyframe.serialization.autocodec.AutoCodec;
 import com.google.devtools.build.skyframe.SkyFunctionName;
 import com.google.devtools.build.skyframe.SkyKey;
 import com.google.devtools.build.skyframe.SkyValue;
@@ -37,12 +39,32 @@ import java.util.Set;
  * contain only actual build setting as keys.
  *
  * <p>Potentially aliased targets can be unaliased with aliasToActual().getWithDefault(raw, raw);
+ *
+ * @param buildSettingToDefault Map from each build option to its default value. Does not include
+ *     aliases.
+ * @param buildSettingToType Map from each build option to its type information. Does not include
+ *     aliases.
+ * @param buildSettingIsAllowsMultiple If build option is in this set, is an allows_multiple option.
+ *     Does not include aliases.
+ * @param aliasToActual Map from an alias Label to actual Label it points to.
  */
 @CheckReturnValue
 @Immutable
 @ThreadSafe
-@AutoValue
-public abstract class StarlarkBuildSettingsDetailsValue implements SkyValue {
+@AutoCodec
+public record StarlarkBuildSettingsDetailsValue(
+    ImmutableMap<Label, Object> buildSettingToDefault,
+    ImmutableMap<Label, Type<?>> buildSettingToType,
+    ImmutableSet<Label> buildSettingIsAllowsMultiple,
+    ImmutableMap<Label, Label> aliasToActual)
+    implements SkyValue {
+  public StarlarkBuildSettingsDetailsValue {
+    requireNonNull(buildSettingToDefault, "buildSettingToDefault");
+    requireNonNull(buildSettingToType, "buildSettingToType");
+    requireNonNull(buildSettingIsAllowsMultiple, "buildSettingIsAllowsMultiple");
+    requireNonNull(aliasToActual, "aliasToActual");
+  }
+
   /**
    * Create a single StarlarkBuildSettingsDetailsValue that can be quickly returned for transitions
    * that use no Starlark build settings
@@ -50,24 +72,12 @@ public abstract class StarlarkBuildSettingsDetailsValue implements SkyValue {
   public static final StarlarkBuildSettingsDetailsValue EMPTY =
       create(ImmutableMap.of(), ImmutableMap.of(), ImmutableSet.of(), ImmutableMap.of());
 
-  /** Map from each build option to its default value. Does not include aliases. */
-  public abstract ImmutableMap<Label, Object> buildSettingToDefault();
-
-  /** Map from each build option to its type information. Does not include aliases. */
-  public abstract ImmutableMap<Label, Type<?>> buildSettingToType();
-
-  /** If build option is in this set, is an allows_multiple option. Does not include aliases. */
-  public abstract ImmutableSet<Label> buildSettingIsAllowsMultiple();
-
-  /** Map from an alias Label to actual Label it points to. */
-  public abstract ImmutableMap<Label, Label> aliasToActual();
-
   public static StarlarkBuildSettingsDetailsValue create(
       Map<Label, Object> buildSettingDefaults,
       Map<Label, Type<?>> buildSettingToType,
       Set<Label> buildSettingIsAllowsMultiple,
       Map<Label, Label> aliasToActual) {
-    return new AutoValue_StarlarkBuildSettingsDetailsValue(
+    return new StarlarkBuildSettingsDetailsValue(
         ImmutableMap.copyOf(buildSettingDefaults),
         ImmutableMap.copyOf(buildSettingToType),
         ImmutableSet.copyOf(buildSettingIsAllowsMultiple),
@@ -82,9 +92,11 @@ public abstract class StarlarkBuildSettingsDetailsValue implements SkyValue {
   @CheckReturnValue
   @Immutable
   @ThreadSafe
-  @AutoValue
-  public abstract static class Key implements SkyKey {
-    public abstract ImmutableSet<Label> buildSettings();
+  @AutoCodec
+  public record Key(ImmutableSet<Label> buildSettings) implements SkyKey {
+    public Key {
+      requireNonNull(buildSettings, "buildSettings");
+    }
 
     @Override
     public SkyFunctionName functionName() {
@@ -92,7 +104,7 @@ public abstract class StarlarkBuildSettingsDetailsValue implements SkyValue {
     }
 
     static Key create(ImmutableSet<Label> buildSettings) {
-      return new AutoValue_StarlarkBuildSettingsDetailsValue_Key(buildSettings);
+      return new Key(buildSettings);
     }
   }
 }

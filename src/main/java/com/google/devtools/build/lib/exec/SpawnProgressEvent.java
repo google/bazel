@@ -13,28 +13,31 @@
 // limitations under the License.
 package com.google.devtools.build.lib.exec;
 
-import com.google.auto.value.AutoValue;
+import static java.util.Objects.requireNonNull;
+
 import com.google.devtools.build.lib.actions.ActionExecutionMetadata;
 import com.google.devtools.build.lib.actions.ActionProgressEvent;
 import com.google.devtools.build.lib.events.ExtendedEventHandler;
 import com.google.devtools.build.lib.exec.SpawnRunner.ProgressStatus;
 
-/** The {@link SpawnRunner} is making some progress. */
-@AutoValue
-public abstract class SpawnProgressEvent implements ProgressStatus {
-
-  public static SpawnProgressEvent create(String resourceId, String progress, boolean finished) {
-    return new AutoValue_SpawnProgressEvent(resourceId, progress, finished);
+/**
+ * The {@link SpawnRunner} is making some progress.
+ *
+ * @param progressId The id that uniquely determines the progress among all progress events for this
+ *     spawn.
+ * @param progress Human readable description of the progress.
+ * @param finished Whether the progress reported about is finished already.
+ */
+public record SpawnProgressEvent(String progressId, String progress, boolean finished)
+    implements ProgressStatus {
+  public SpawnProgressEvent {
+    requireNonNull(progressId, "progressId");
+    requireNonNull(progress, "progress");
   }
 
-  /** The id that uniquely determines the progress among all progress events for this spawn. */
-  public abstract String progressId();
-
-  /** Human readable description of the progress. */
-  public abstract String progress();
-
-  /** Whether the progress reported about is finished already. */
-  public abstract boolean finished();
+  public static SpawnProgressEvent create(String resourceId, String progress, boolean finished) {
+    return new SpawnProgressEvent(resourceId, progress, finished);
+  }
 
   @Override
   public void postTo(ExtendedEventHandler eventHandler, ActionExecutionMetadata action) {

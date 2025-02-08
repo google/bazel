@@ -14,22 +14,15 @@
 
 package com.google.devtools.build.lib.rules.cpp;
 
-import static com.google.devtools.build.lib.packages.BuildType.LABEL_LIST;
-
-import com.google.common.collect.ImmutableCollection;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.devtools.build.lib.actions.Artifact;
 import com.google.devtools.build.lib.actions.Artifact.SpecialArtifact;
 import com.google.devtools.build.lib.actions.FailAction;
 import com.google.devtools.build.lib.actions.PathMapper;
-import com.google.devtools.build.lib.analysis.AliasProvider;
 import com.google.devtools.build.lib.analysis.AnalysisUtils;
-import com.google.devtools.build.lib.analysis.Expander;
-import com.google.devtools.build.lib.analysis.FileProvider;
 import com.google.devtools.build.lib.analysis.RuleContext;
 import com.google.devtools.build.lib.analysis.RuleErrorConsumer;
-import com.google.devtools.build.lib.analysis.TransitiveInfoCollection;
 import com.google.devtools.build.lib.analysis.actions.ActionConstructionContext;
 import com.google.devtools.build.lib.analysis.config.BuildConfigurationValue;
 import com.google.devtools.build.lib.analysis.config.CompilationMode;
@@ -37,7 +30,6 @@ import com.google.devtools.build.lib.analysis.platform.ToolchainInfo;
 import com.google.devtools.build.lib.cmdline.Label;
 import com.google.devtools.build.lib.packages.Info;
 import com.google.devtools.build.lib.packages.RuleClass.ConfiguredTargetFactory.RuleErrorException;
-import com.google.devtools.build.lib.packages.Types;
 import com.google.devtools.build.lib.rules.cpp.CcToolchainFeatures.ExpansionException;
 import com.google.devtools.build.lib.rules.cpp.CcToolchainFeatures.FeatureConfiguration;
 import com.google.devtools.build.lib.rules.cpp.CppLinkActionBuilder.LinkActionConstruction;
@@ -45,8 +37,6 @@ import com.google.devtools.build.lib.rules.cpp.Link.LinkTargetType;
 import com.google.devtools.build.lib.server.FailureDetails.FailAction.Code;
 import com.google.devtools.build.lib.vfs.FileSystemUtils;
 import com.google.devtools.build.lib.vfs.PathFragment;
-import java.util.ArrayList;
-import java.util.List;
 import javax.annotation.Nullable;
 import net.starlark.java.eval.EvalException;
 
@@ -72,41 +62,6 @@ public class CppHelper {
 
   private CppHelper() {
     // prevents construction
-  }
-
-  /** Tokenizes and expands make variables. */
-  public static List<String> expandLinkopts(
-      RuleContext ruleContext, String attrName, Iterable<String> values)
-      throws InterruptedException {
-    List<String> result = new ArrayList<>();
-    ImmutableMap.Builder<Label, ImmutableCollection<Artifact>> builder = ImmutableMap.builder();
-
-    if (ruleContext.attributes().has("additional_linker_inputs", LABEL_LIST)) {
-      for (TransitiveInfoCollection current :
-          ruleContext.getPrerequisites("additional_linker_inputs")) {
-        builder.put(
-            AliasProvider.getDependencyLabel(current),
-            current.getProvider(FileProvider.class).getFilesToBuild().toList());
-      }
-    }
-
-    Expander expander = ruleContext.getExpander(builder.buildOrThrow()).withDataExecLocations();
-    for (String value : values) {
-      expander.tokenizeAndExpandMakeVars(result, attrName, value);
-    }
-    return result;
-  }
-
-  /** Returns the linkopts for the rule context. */
-  public static ImmutableList<String> getLinkopts(RuleContext ruleContext)
-      throws InterruptedException {
-    if (ruleContext.attributes().has("linkopts", Types.STRING_LIST)) {
-      Iterable<String> linkopts = ruleContext.attributes().get("linkopts", Types.STRING_LIST);
-      if (linkopts != null) {
-        return ImmutableList.copyOf(expandLinkopts(ruleContext, "linkopts", linkopts));
-      }
-    }
-    return ImmutableList.of();
   }
 
   /** Returns C++ toolchain, using toolchain resolution */

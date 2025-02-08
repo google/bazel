@@ -289,7 +289,7 @@ public final class JavaCompilationHelper {
     builder.setSourceFiles(sourceFiles);
     builder.setSourceJars(sourceJars);
     builder.setJavacOpts(javacopts);
-    builder.setUtf8Environment(semantics.utf8Environment());
+    builder.setUtf8Environment(semantics.utf8Environment(ruleContext.getExecutionPlatform()));
     builder.setJavacExecutionInfo(executionInfoInterner.intern(getExecutionInfo()));
     builder.setCompressJar(true);
     builder.setExtraData(JavaCommon.computePerPackageData(ruleContext, javaToolchain));
@@ -462,7 +462,7 @@ public final class JavaCompilationHelper {
     builder.setAdditionalInputs(additionalInputsForDatabinding);
     builder.setToolsJars(javaToolchain.getTools());
     builder.setExecGroup(execGroup);
-    builder.setUtf8Environment(semantics.utf8Environment());
+    builder.setUtf8Environment(semantics.utf8Environment(ruleContext.getExecutionPlatform()));
     return builder;
   }
 

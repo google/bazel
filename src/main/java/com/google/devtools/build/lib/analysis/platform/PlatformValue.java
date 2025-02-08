@@ -14,7 +14,8 @@
 
 package com.google.devtools.build.lib.analysis.platform;
 
-import com.google.auto.value.AutoValue;
+import static java.util.Objects.requireNonNull;
+
 import com.google.devtools.build.lib.cmdline.Label;
 import com.google.devtools.build.lib.skyframe.SkyFunctions;
 import com.google.devtools.build.lib.skyframe.config.ParsedFlagsValue;
@@ -24,23 +25,25 @@ import com.google.devtools.build.skyframe.SkyFunctionName;
 import com.google.devtools.build.skyframe.SkyValue;
 import java.util.Optional;
 
-/** A platform's {@link PlatformInfo} along with its parsed flags. */
-@AutoValue
-public abstract class PlatformValue implements SkyValue {
-
-  PlatformValue() {}
-
-  public abstract PlatformInfo platformInfo();
-
-  /** Only present if the platform specifies flags. */
-  public abstract Optional<ParsedFlagsValue> parsedFlags();
+/**
+ * A platform's {@link PlatformInfo} along with its parsed flags.
+ *
+ * @param parsedFlags Only present if the platform specifies flags.
+ */
+@AutoCodec
+public record PlatformValue(PlatformInfo platformInfo, Optional<ParsedFlagsValue> parsedFlags)
+    implements SkyValue {
+  public PlatformValue {
+    requireNonNull(platformInfo, "platformInfo");
+    requireNonNull(parsedFlags, "parsedFlags");
+  }
 
   static PlatformValue noFlags(PlatformInfo platformInfo) {
-    return new AutoValue_PlatformValue(platformInfo, /* parsedFlags= */ Optional.empty());
+    return new PlatformValue(platformInfo, /* parsedFlags= */ Optional.empty());
   }
 
   static PlatformValue withFlags(PlatformInfo platformInfo, ParsedFlagsValue parsedFlags) {
-    return new AutoValue_PlatformValue(platformInfo, Optional.of(parsedFlags));
+    return new PlatformValue(platformInfo, Optional.of(parsedFlags));
   }
 
   public static PlatformKey key(Label platformLabel) {

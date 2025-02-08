@@ -109,8 +109,7 @@ def create_docs_tree(
   try_extract(narrative_docs_path, release_dir)
   try_extract(reference_docs_path, release_dir)
 
-  buttons_dest_path = os.path.join(release_dir, "_buttons.html")
-  os.remove(buttons_dest_path)
+  buttons_dest_path = os.path.join(root_dir, "_buttons.html")
   shutil.copyfile(buttons_path, buttons_dest_path)
 
   return root_dir, toc_dest_path, release_dir

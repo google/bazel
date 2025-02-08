@@ -23,12 +23,13 @@ import com.google.devtools.build.lib.packages.util.PackageLoadingTestCase;
 import com.google.devtools.build.lib.query2.proto.proto2api.Build;
 import com.google.devtools.build.lib.query2.proto.proto2api.Build.Attribute.Discriminator;
 import com.google.devtools.build.lib.vfs.DigestHashFunction;
+import com.google.testing.junit.testparameterinjector.TestParameter;
+import com.google.testing.junit.testparameterinjector.TestParameterInjector;
 import org.junit.Test;
 import org.junit.runner.RunWith;
-import org.junit.runners.JUnit4;
 
 /** Tests for {@link SyntheticAttributeHashCalculator}. */
-@RunWith(JUnit4.class)
+@RunWith(TestParameterInjector.class)
 public class SyntheticAttributeHashCalculatorTest extends PackageLoadingTestCase {
 
   @Test
@@ -46,14 +47,16 @@ public class SyntheticAttributeHashCalculatorTest extends PackageLoadingTestCase
             /* serializedAttributes= */ ImmutableMap.of(),
             /* extraDataForAttrHash= */ "",
             DigestHashFunction.SHA256.getHashFunction(),
-            /* includeAttributeSourceAspects= */ false);
+            /* includeAttributeSourceAspects= */ false,
+            /* includeStarlarkRuleEnv= */ true);
     String hashAfter =
         SyntheticAttributeHashCalculator.compute(
             ruleAfter,
             /* serializedAttributes= */ ImmutableMap.of(),
             /* extraDataForAttrHash= */ "",
             DigestHashFunction.SHA256.getHashFunction(),
-            /* includeAttributeSourceAspects= */ false);
+            /* includeAttributeSourceAspects= */ false,
+            /* includeStarlarkRuleEnv= */ true);
 
     assertThat(hashBefore).isNotEqualTo(hashAfter);
   }
@@ -87,14 +90,16 @@ public class SyntheticAttributeHashCalculatorTest extends PackageLoadingTestCase
             /* serializedAttributes= */ ImmutableMap.of(),
             /* extraDataForAttrHash= */ "",
             DigestHashFunction.SHA256.getHashFunction(),
-            /* includeAttributeSourceAspects= */ false);
+            /* includeAttributeSourceAspects= */ false,
+            /* includeStarlarkRuleEnv= */ true);
     String hashAfter =
         SyntheticAttributeHashCalculator.compute(
             ruleAfter,
             /* serializedAttributes= */ ImmutableMap.of(),
             /* extraDataForAttrHash= */ "",
             DigestHashFunction.SHA256.getHashFunction(),
-            /* includeAttributeSourceAspects= */ false);
+            /* includeAttributeSourceAspects= */ false,
+            /* includeStarlarkRuleEnv= */ true);
 
     assertThat(hashBefore).isEqualTo(hashAfter);
   }
@@ -110,7 +115,8 @@ public class SyntheticAttributeHashCalculatorTest extends PackageLoadingTestCase
             /* serializedAttributes= */ ImmutableMap.of(),
             /* extraDataForAttrHash= */ "",
             DigestHashFunction.SHA256.getHashFunction(),
-            /* includeAttributeSourceAspects= */ false);
+            /* includeAttributeSourceAspects= */ false,
+            /* includeStarlarkRuleEnv= */ true);
 
     ImmutableMap<Attribute, Build.Attribute> serializedAttributes =
         ImmutableMap.of(
@@ -127,7 +133,8 @@ public class SyntheticAttributeHashCalculatorTest extends PackageLoadingTestCase
             serializedAttributes, /*extraDataForAttrHash*/
             "",
             DigestHashFunction.SHA256.getHashFunction(),
-            /* includeAttributeSourceAspects= */ false);
+            /* includeAttributeSourceAspects= */ false,
+            /* includeStarlarkRuleEnv= */ true);
 
     assertThat(hashBefore).isNotEqualTo(hashAfter);
   }
@@ -143,7 +150,8 @@ public class SyntheticAttributeHashCalculatorTest extends PackageLoadingTestCase
             /* serializedAttributes= */ ImmutableMap.of(),
             /* extraDataForAttrHash= */ "",
             DigestHashFunction.SHA256.getHashFunction(),
-            /* includeAttributeSourceAspects= */ false);
+            /* includeAttributeSourceAspects= */ false,
+            /* includeStarlarkRuleEnv= */ true);
 
     String hashAfter =
         SyntheticAttributeHashCalculator.compute(
@@ -151,7 +159,8 @@ public class SyntheticAttributeHashCalculatorTest extends PackageLoadingTestCase
             /* serializedAttributes= */ ImmutableMap.of(), /*extraDataForAttrHash*/
             "blahblaah",
             DigestHashFunction.SHA256.getHashFunction(),
-            /* includeAttributeSourceAspects= */ false);
+            /* includeAttributeSourceAspects= */ false,
+            /* includeStarlarkRuleEnv= */ true);
 
     assertThat(hashBefore).isNotEqualTo(hashAfter);
   }
@@ -184,14 +193,16 @@ public class SyntheticAttributeHashCalculatorTest extends PackageLoadingTestCase
             /* serializedAttributes= */ ImmutableMap.of(),
             /* extraDataForAttrHash= */ "",
             DigestHashFunction.SHA256.getHashFunction(),
-            /* includeAttributeSourceAspects= */ false);
+            /* includeAttributeSourceAspects= */ false,
+            /* includeStarlarkRuleEnv= */ true);
     String hashAfter =
         SyntheticAttributeHashCalculator.compute(
             ruleAfter,
             /* serializedAttributes= */ ImmutableMap.of(),
             /* extraDataForAttrHash= */ "",
             DigestHashFunction.SHA256.getHashFunction(),
-            /* includeAttributeSourceAspects= */ false);
+            /* includeAttributeSourceAspects= */ false,
+            /* includeStarlarkRuleEnv= */ true);
 
     assertThat(hashBefore).isNotEqualTo(hashAfter);
   }
@@ -243,7 +254,8 @@ public class SyntheticAttributeHashCalculatorTest extends PackageLoadingTestCase
             /* serializedAttributes= */ ImmutableMap.of(),
             /* extraDataForAttrHash= */ "",
             DigestHashFunction.SHA256.getHashFunction(),
-            /* includeAttributeSourceAspects= */ true);
+            /* includeAttributeSourceAspects= */ true,
+            /* includeStarlarkRuleEnv= */ true);
 
     String hashWithoutAttributeAspects =
         SyntheticAttributeHashCalculator.compute(
@@ -251,7 +263,68 @@ public class SyntheticAttributeHashCalculatorTest extends PackageLoadingTestCase
             /* serializedAttributes= */ ImmutableMap.of(),
             /* extraDataForAttrHash= */ "",
             DigestHashFunction.SHA256.getHashFunction(),
-            /* includeAttributeSourceAspects= */ false);
+            /* includeAttributeSourceAspects= */ false,
+            /* includeStarlarkRuleEnv= */ true);
     assertThat(hashWithAttributeAspects).isNotEqualTo(hashWithoutAttributeAspects);
+  }
+
+  @Test
+  public void testStarlarkRuleEnvChanges(@TestParameter boolean includeStarlarkRuleEnv)
+      throws Exception {
+    scratch.file(
+        "a/defs.bzl",
+        """
+        def _lib_impl(ctx):
+            return "old"
+
+        test_lib = rule(
+            implementation = _lib_impl,
+        )
+        """);
+    scratch.file(
+        "a/BUILD",
+        """
+        load("defs.bzl", "test_lib")
+
+        test_lib(name = "a")
+        """);
+    Rule ruleBefore = (Rule) getTarget("//a:a");
+
+    scratch.overwriteFile(
+        "a/defs.bzl",
+        """
+        def _lib_impl(ctx):
+            return "new"
+
+        test_lib = rule(
+            implementation = _lib_impl,
+        )
+        """);
+
+    invalidatePackages();
+    Rule ruleAfter = (Rule) getTarget("//a:a");
+
+    String hashBefore =
+        SyntheticAttributeHashCalculator.compute(
+            ruleBefore,
+            /* serializedAttributes= */ ImmutableMap.of(),
+            /* extraDataForAttrHash= */ "",
+            DigestHashFunction.SHA256.getHashFunction(),
+            /* includeAttributeSourceAspects= */ false,
+            includeStarlarkRuleEnv);
+
+    String hashAfter =
+        SyntheticAttributeHashCalculator.compute(
+            ruleAfter,
+            /* serializedAttributes= */ ImmutableMap.of(),
+            /* extraDataForAttrHash= */ "",
+            DigestHashFunction.SHA256.getHashFunction(),
+            /* includeAttributeSourceAspects= */ false,
+            includeStarlarkRuleEnv);
+    if (includeStarlarkRuleEnv) {
+      assertThat(hashBefore).isNotEqualTo(hashAfter);
+    } else {
+      assertThat(hashBefore).isEqualTo(hashAfter);
+    }
   }
 }

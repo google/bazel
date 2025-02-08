@@ -163,6 +163,14 @@ public class ExampleWorkerOptions extends OptionsBase {
       help = "Don't send a response until receiving a cancel request.")
   public boolean waitForCancel;
 
+  @Option(
+      name = "ignored_argument",
+      documentationCategory = OptionDocumentationCategory.UNCATEGORIZED,
+      effectTags = {OptionEffectTag.NO_OP},
+      defaultValue = "false",
+      help = "An argument that does nothing, but whose presence can be asserted in a test.")
+  public boolean ignoredArgument;
+
   /** Enum converter for --worker_protocol. */
   public static class WorkerProtocolEnumConverter
       extends EnumConverter<ExecutionRequirements.WorkerProtocolFormat> {

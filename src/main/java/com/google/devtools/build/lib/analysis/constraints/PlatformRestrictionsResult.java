@@ -14,26 +14,35 @@
 
 package com.google.devtools.build.lib.analysis.constraints;
 
-import com.google.auto.value.AutoValue;
+import static java.util.Objects.requireNonNull;
+
+import com.google.auto.value.AutoBuilder;
 import com.google.common.collect.ImmutableSet;
 import com.google.devtools.build.lib.analysis.ConfiguredTarget;
 
-/** Targets that have additional restrictions based on the current platform. */
-@AutoValue
-public abstract class PlatformRestrictionsResult {
-  /** Targets that need be skipped. */
-  public abstract ImmutableSet<ConfiguredTarget> targetsToSkip();
-  /** Targets that should be skipped, but were explicitly requested on the command line. */
-  public abstract ImmutableSet<ConfiguredTarget> targetsWithErrors();
+/**
+ * Targets that have additional restrictions based on the current platform.
+ *
+ * @param targetsToSkip Targets that need be skipped.
+ * @param targetsWithErrors Targets that should be skipped, but were explicitly requested on the
+ *     command line.
+ */
+public record PlatformRestrictionsResult(
+    ImmutableSet<ConfiguredTarget> targetsToSkip,
+    ImmutableSet<ConfiguredTarget> targetsWithErrors) {
+  public PlatformRestrictionsResult {
+    requireNonNull(targetsToSkip, "targetsToSkip");
+    requireNonNull(targetsWithErrors, "targetsWithErrors");
+  }
 
   public static Builder builder() {
-    return new AutoValue_PlatformRestrictionsResult.Builder()
+    return new AutoBuilder_PlatformRestrictionsResult_Builder()
         .targetsToSkip(ImmutableSet.of())
         .targetsWithErrors(ImmutableSet.of());
   }
 
   /** {@link PlatformRestrictionsResult}Builder. */
-  @AutoValue.Builder
+  @AutoBuilder
   public interface Builder {
     Builder targetsToSkip(ImmutableSet<ConfiguredTarget> targetsToSkip);
 

@@ -24,7 +24,8 @@ import com.google.devtools.build.skyframe.SkyKey;
 
 /** Key for {@link FileFunction}. */
 @AutoCodec
-public final class FileKey extends AbstractSkyKey<RootedPath> implements FileSystemOperationNode {
+public final class FileKey extends AbstractSkyKey<RootedPath>
+    implements FileOpNodeOrFuture.FileOpNode {
   private static final SkyKeyInterner<FileKey> interner = SkyKey.newInterner();
 
   public static FileKey create(RootedPath arg) {

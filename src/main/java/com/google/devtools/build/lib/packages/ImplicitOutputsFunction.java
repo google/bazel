@@ -14,8 +14,8 @@
 package com.google.devtools.build.lib.packages;
 
 import static com.google.common.collect.ImmutableSet.toImmutableSet;
+import static java.util.Objects.requireNonNull;
 
-import com.google.auto.value.AutoValue;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
@@ -458,13 +458,12 @@ public abstract class ImplicitOutputsFunction {
     return parsedTemplate.substituteAttributes(rule, attributeGetter);
   }
 
-  @AutoValue
-  abstract static class ParsedTemplate {
-    abstract String template();
-
-    abstract String formatStr();
-
-    abstract List<String> attributeNames();
+  record ParsedTemplate(String template, String formatStr, List<String> attributeNames) {
+    ParsedTemplate {
+      requireNonNull(template, "template");
+      requireNonNull(formatStr, "formatStr");
+      requireNonNull(attributeNames, "attributeNames");
+    }
 
     static ParsedTemplate parse(String rawTemplate) {
       List<String> placeholders = Lists.newArrayList();
@@ -472,8 +471,7 @@ public abstract class ImplicitOutputsFunction {
       if (placeholders.isEmpty()) {
         placeholders = ImmutableList.of();
       }
-      return new AutoValue_ImplicitOutputsFunction_ParsedTemplate(
-            rawTemplate, formatStr, placeholders);
+      return new ParsedTemplate(rawTemplate, formatStr, placeholders);
     }
 
     ImmutableList<String> substituteAttributes(

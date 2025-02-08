@@ -16,8 +16,8 @@ package com.google.devtools.build.lib.skyframe.toolchains;
 
 import static com.google.common.truth.Truth.assertThat;
 import static com.google.devtools.build.skyframe.EvaluationResultSubjectFactory.assertThatEvaluationResult;
+import static java.util.Objects.requireNonNull;
 
-import com.google.auto.value.AutoValue;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.devtools.build.lib.analysis.BlazeDirectories;
@@ -26,6 +26,7 @@ import com.google.devtools.build.lib.analysis.util.AnalysisMock;
 import com.google.devtools.build.lib.cmdline.Label;
 import com.google.devtools.build.lib.rules.platform.ToolchainTestCase;
 import com.google.devtools.build.lib.skyframe.ConfiguredTargetKey;
+import com.google.devtools.build.lib.skyframe.serialization.autocodec.AutoCodec;
 import com.google.devtools.build.lib.skyframe.toolchains.PlatformLookupUtil.InvalidPlatformException;
 import com.google.devtools.build.lib.skyframe.util.SkyframeExecutorTestUtils;
 import com.google.devtools.build.skyframe.EvaluationResult;
@@ -145,17 +146,19 @@ public class PlatformLookupUtilTest extends ToolchainTestCase {
   private static final SkyFunctionName GET_PLATFORM_INFO_FUNCTION =
       SkyFunctionName.createHermetic("GET_PLATFORM_INFO_FUNCTION");
 
-  @AutoValue
-  abstract static class GetPlatformInfoKey implements SkyKey {
+  @AutoCodec
+  record GetPlatformInfoKey(ImmutableList<ConfiguredTargetKey> platformKeys) implements SkyKey {
+    GetPlatformInfoKey {
+      requireNonNull(platformKeys, "platformKeys");
+    }
+
     @Override
     public SkyFunctionName functionName() {
       return GET_PLATFORM_INFO_FUNCTION;
     }
 
-    abstract ImmutableList<ConfiguredTargetKey> platformKeys();
-
     public static GetPlatformInfoKey create(ImmutableList<ConfiguredTargetKey> platformKeys) {
-      return new AutoValue_PlatformLookupUtilTest_GetPlatformInfoKey(platformKeys);
+      return new GetPlatformInfoKey(platformKeys);
     }
   }
 
@@ -171,12 +174,15 @@ public class PlatformLookupUtilTest extends ToolchainTestCase {
     }
   }
 
-  @AutoValue
-  abstract static class GetPlatformInfoValue implements SkyValue {
-    abstract Map<ConfiguredTargetKey, PlatformInfo> platforms();
+  @AutoCodec
+  record GetPlatformInfoValue(Map<ConfiguredTargetKey, PlatformInfo> platforms)
+      implements SkyValue {
+    GetPlatformInfoValue {
+      requireNonNull(platforms, "platforms");
+    }
 
     static GetPlatformInfoValue create(Map<ConfiguredTargetKey, PlatformInfo> platforms) {
-      return new AutoValue_PlatformLookupUtilTest_GetPlatformInfoValue(platforms);
+      return new GetPlatformInfoValue(platforms);
     }
   }
 

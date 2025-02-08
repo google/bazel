@@ -200,6 +200,10 @@ public class IncompatibleTargetChecker {
     }
   }
 
+  /** Rules where it doesn't make sense to check for platform compatibility. */
+  private static final ImmutableList<String> NO_COMPATIBILITY_CHECK_RULES =
+      ImmutableList.of("toolchain", "config_setting", "label_flag");
+
   /**
    * Creates an incompatible target if it is "indirectly incompatible".
    *
@@ -226,7 +230,7 @@ public class IncompatibleTargetChecker {
     Target target = targetAndConfiguration.getTarget();
     Rule rule = target.getAssociatedRule();
 
-    if (rule == null || rule.getRuleClass().equals("toolchain")) {
+    if (rule == null || NO_COMPATIBILITY_CHECK_RULES.contains(rule.getRuleClass())) {
       return Optional.empty();
     }
 

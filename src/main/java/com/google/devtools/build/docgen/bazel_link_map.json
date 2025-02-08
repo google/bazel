@@ -26,8 +26,10 @@
   "repoPathRewrites": {
     "@//": "https://github.com/bazelbuild/bazel/blob/master/",
     "@_builtins//": "https://github.com/bazelbuild/bazel/blob/master/src/main/starlark/builtins_bzl/",
-    "@rules_python//": "https://github.com/bazelbuild/rules_python/tree/0.36.0/",
+    "@rules_android//": "https://github.com/bazelbuild/rules_android/blob/main/",
+    "@rules_java//": "https://github.com/bazelbuild/rules_java/blob/master/",
+    "@rules_python//": "https://github.com/bazelbuild/rules_python/tree/0.40.0/",
     "@rules_shell//": "https://github.com/bazelbuild/rules_shell/tree/v0.2.0/",
-    "@protobuf//": "https://github.com/protocolbuffers/protobuf/tree/v29.0-rc2/"
+    "@com_google_protobuf//": "https://github.com/protocolbuffers/protobuf/tree/v29.0-rc2/"
   }
 }

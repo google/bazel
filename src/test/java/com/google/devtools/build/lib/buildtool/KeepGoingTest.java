@@ -293,7 +293,7 @@ public class KeepGoingTest extends BuildIntegrationTestCase {
   }
 
   @Test
-  public void testKeepGoingAfterSchedulingDependencyMiddlemanFailure() throws Exception {
+  public void testKeepGoingAfterSchedulingDependencyFailure() throws Exception {
     write("foo/foo.cc", "int main() { return 0; }");
     write(
         "foo/BUILD",

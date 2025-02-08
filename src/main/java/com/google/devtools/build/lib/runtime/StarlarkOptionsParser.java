@@ -40,6 +40,7 @@ import com.google.devtools.common.options.OptionsParsingException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -106,14 +107,17 @@ public class StarlarkOptionsParser {
   // Result of #parse, store the parsed options and their values.
   private final Map<String, Object> starlarkOptions = new TreeMap<>();
 
+  // Map of starlark options to their {@link Scope.ScopeType}.
+  private final Map<String, String> scopes = new TreeMap<>();
+
   // Map of parsed starlark options to their loaded BuildSetting objects (used for canonicalization)
-  private final Map<String, BuildSetting> parsedBuildSettings = new HashMap<>();
+  private final Map<String, BuildSetting> parsedBuildSettings = new LinkedHashMap<>();
 
   // Local cache of build settings so we don't repeatedly load them.
   private final Map<String, Target> buildSettings = new HashMap<>();
 
   // The default value for each build setting.
-  private final Map<String, Object> buildSettingDefaults = new HashMap<>();
+  private final Map<String, Object> buildSettingDefaults = new LinkedHashMap<>();
 
   // whether options explicitly set to their default values are added to {@code starlarkOptions}
   private final boolean includeDefaultValues;
@@ -210,6 +214,7 @@ public class StarlarkOptionsParser {
     }
 
     Map<String, Object> parsedOptions = new HashMap<>();
+    Map<String, String> scopeTypeMap = new HashMap<>();
     for (String buildSetting : buildSettingWithTargetAndValue.keySet()) {
       Pair<Target, Object> buildSettingAndFinalValue =
           buildSettingWithTargetAndValue.get(buildSetting);
@@ -236,9 +241,23 @@ public class StarlarkOptionsParser {
           parsedOptions.put(buildSetting, buildSettingAndFinalValue.getSecond());
         }
       }
+
+      // TODO: b/384058698 - use NonConfigurableAttributeMapper to get the scope type.
+      String scopeType =
+          buildSettingTarget.getAssociatedRule().getAttr("scope") == null
+              ? "universal"
+              : buildSettingTarget.getAssociatedRule().getAttr("scope", Type.STRING).toString();
+      if (scopeType != null) {
+        scopeTypeMap.put(buildSetting, scopeType);
+      } else {
+        scopeTypeMap.put(buildSetting, "universal");
+      }
+      nativeOptionsParser.setScopesAttributes(ImmutableMap.copyOf(scopeTypeMap));
     }
+
     nativeOptionsParser.setStarlarkOptions(ImmutableMap.copyOf(parsedOptions));
     this.starlarkOptions.putAll(parsedOptions);
+    this.scopes.putAll(scopeTypeMap);
     return true;
   }
 
@@ -382,6 +401,10 @@ public class StarlarkOptionsParser {
 
   public ImmutableMap<String, Object> getStarlarkOptions() {
     return ImmutableMap.copyOf(this.starlarkOptions);
+  }
+
+  public ImmutableMap<String, String> getScopesAttributes() {
+    return ImmutableMap.copyOf(this.scopes);
   }
 
   public ImmutableMap<String, Object> getDefaultValues() {

@@ -53,10 +53,10 @@ public class TargetPatternFunction implements SkyFunction {
         ((TargetPatternValue.TargetPatternKey) key.argument());
     TargetPattern parsedPattern = patternKey.getParsedPattern();
 
-    IgnoredPackagePrefixesValue ignoredPackagePrefixes =
-        (IgnoredPackagePrefixesValue)
-            env.getValue(IgnoredPackagePrefixesValue.key(parsedPattern.getRepository()));
-    if (ignoredPackagePrefixes == null) {
+    IgnoredSubdirectoriesValue ignoredSubdirectories =
+        (IgnoredSubdirectoriesValue)
+            env.getValue(IgnoredSubdirectoriesValue.key(parsedPattern.getRepository()));
+    if (ignoredSubdirectories == null) {
       return null;
     }
 
@@ -92,7 +92,7 @@ public class TargetPatternFunction implements SkyFunction {
       try {
         parsedPattern.eval(
             resolver,
-            () -> ignoredPackagePrefixes.asIgnoredSubdirectories(),
+            () -> ignoredSubdirectories.asIgnoredSubdirectories(),
             excludedSubdirectories,
             callback,
             QueryExceptionMarkerInterface.MarkerRuntimeException.class);

@@ -211,7 +211,7 @@ public class WorkerParser {
     ImmutableList.Builder<String> mnemonicFlags = ImmutableList.builder();
 
     workerOptions.workerExtraFlags.stream()
-        .filter(entry -> entry.getKey().equals(spawn.getMnemonic()))
+        .filter(entry -> entry.getKey().equals(Spawns.getWorkerKeyMnemonic(spawn)))
         .forEach(entry -> mnemonicFlags.add(entry.getValue()));
 
     return workerArgs.add("--persistent_worker").addAll(mnemonicFlags.build()).build();

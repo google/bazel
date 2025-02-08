@@ -13,6 +13,7 @@
 // limitations under the License.
 package com.google.devtools.build.lib.skyframe;
 
+import static java.util.Objects.requireNonNull;
 
 import com.google.auto.value.AutoValue;
 import com.google.devtools.build.lib.analysis.ConfiguredAspect;
@@ -41,12 +42,14 @@ public final class TopLevelStatusEvents {
    * An event that marks the successful analysis of a top-level target, including tests. A skipped
    * target is still considered analyzed and a TopLevelTargetAnalyzedEvent is expected for it.
    */
-  @AutoValue
-  public abstract static class TopLevelTargetAnalyzedEvent implements TopLevelStatusEventWithType {
-    public abstract ConfiguredTarget configuredTarget();
+  public record TopLevelTargetAnalyzedEvent(ConfiguredTarget configuredTarget)
+      implements TopLevelStatusEventWithType {
+    public TopLevelTargetAnalyzedEvent {
+      requireNonNull(configuredTarget, "configuredTarget");
+    }
 
     public static TopLevelTargetAnalyzedEvent create(ConfiguredTarget configuredTarget) {
-      return new AutoValue_TopLevelStatusEvents_TopLevelTargetAnalyzedEvent(configuredTarget);
+      return new TopLevelTargetAnalyzedEvent(configuredTarget);
     }
 
     @Override
@@ -62,15 +65,16 @@ public final class TopLevelStatusEvents {
    * <p>Should always be sent out before {@link TopLevelEntityAnalysisConcludedEvent} to ensure
    * consistency.
    */
-  @AutoValue
-  public abstract static class TopLevelTargetReadyForSymlinkPlanting
+  public record TopLevelTargetReadyForSymlinkPlanting(
+      NestedSet<Package> transitivePackagesForSymlinkPlanting)
       implements TopLevelStatusEventWithType {
-    public abstract NestedSet<Package> transitivePackagesForSymlinkPlanting();
+    public TopLevelTargetReadyForSymlinkPlanting {
+      requireNonNull(transitivePackagesForSymlinkPlanting, "transitivePackagesForSymlinkPlanting");
+    }
 
     public static TopLevelTargetReadyForSymlinkPlanting create(
         NestedSet<Package> transitivePackagesForSymlinkPlanting) {
-      return new AutoValue_TopLevelStatusEvents_TopLevelTargetReadyForSymlinkPlanting(
-          transitivePackagesForSymlinkPlanting);
+      return new TopLevelTargetReadyForSymlinkPlanting(transitivePackagesForSymlinkPlanting);
     }
 
     @Override
@@ -80,12 +84,14 @@ public final class TopLevelStatusEvents {
   }
 
   /** An event that marks the skipping of a top-level target, including skipped tests. */
-  @AutoValue
-  public abstract static class TopLevelTargetSkippedEvent implements TopLevelStatusEventWithType {
-    public abstract ConfiguredTarget configuredTarget();
+  public record TopLevelTargetSkippedEvent(ConfiguredTarget configuredTarget)
+      implements TopLevelStatusEventWithType {
+    public TopLevelTargetSkippedEvent {
+      requireNonNull(configuredTarget, "configuredTarget");
+    }
 
     public static TopLevelTargetSkippedEvent create(ConfiguredTarget configuredTarget) {
-      return new AutoValue_TopLevelStatusEvents_TopLevelTargetSkippedEvent(configuredTarget);
+      return new TopLevelTargetSkippedEvent(configuredTarget);
     }
 
     @Override
@@ -98,17 +104,15 @@ public final class TopLevelStatusEvents {
    * An event that marks the conclusion of the analysis of a top level target/aspect, successful or
    * otherwise.
    */
-  @AutoValue
-  public abstract static class TopLevelEntityAnalysisConcludedEvent
-      implements TopLevelStatusEventWithType {
-    public abstract SkyKey getAnalyzedTopLevelKey();
-
-    public abstract boolean succeeded();
+  public record TopLevelEntityAnalysisConcludedEvent(
+      SkyKey getAnalyzedTopLevelKey, boolean succeeded) implements TopLevelStatusEventWithType {
+    public TopLevelEntityAnalysisConcludedEvent {
+      requireNonNull(getAnalyzedTopLevelKey, "getAnalyzedTopLevelKey");
+    }
 
     public static TopLevelEntityAnalysisConcludedEvent create(
         SkyKey analyzedTopLevelKey, boolean succeeded) {
-      return new AutoValue_TopLevelStatusEvents_TopLevelEntityAnalysisConcludedEvent(
-          analyzedTopLevelKey, succeeded);
+      return new TopLevelEntityAnalysisConcludedEvent(analyzedTopLevelKey, succeeded);
     }
 
     @Override
@@ -121,17 +125,15 @@ public final class TopLevelStatusEvents {
    * An event that marks that a top-level target won't be skipped and is pending execution,
    * including test targets.
    */
-  @AutoValue
-  public abstract static class TopLevelTargetPendingExecutionEvent
-      implements TopLevelStatusEventWithType {
-    public abstract ConfiguredTarget configuredTarget();
-
-    public abstract boolean isTest();
+  public record TopLevelTargetPendingExecutionEvent(
+      ConfiguredTarget configuredTarget, boolean isTest) implements TopLevelStatusEventWithType {
+    public TopLevelTargetPendingExecutionEvent {
+      requireNonNull(configuredTarget, "configuredTarget");
+    }
 
     public static TopLevelTargetPendingExecutionEvent create(
         ConfiguredTarget configuredTarget, boolean isTest) {
-      return new AutoValue_TopLevelStatusEvents_TopLevelTargetPendingExecutionEvent(
-          configuredTarget, isTest);
+      return new TopLevelTargetPendingExecutionEvent(configuredTarget, isTest);
     }
 
     @Override
@@ -146,17 +148,15 @@ public final class TopLevelStatusEvents {
    * <p>Some special actions e.g. the WorkspaceStatusAction should be excluded from the execution
    * time.
    */
-  @AutoValue
-  public abstract static class SomeExecutionStartedEvent implements TopLevelStatusEventWithType {
+  public record SomeExecutionStartedEvent(boolean countedInExecutionTime)
+      implements TopLevelStatusEventWithType {
 
     public static SomeExecutionStartedEvent create() {
-      return new AutoValue_TopLevelStatusEvents_SomeExecutionStartedEvent(
-          /* countedInExecutionTime= */ true);
+      return new SomeExecutionStartedEvent(/* countedInExecutionTime= */ true);
     }
 
     public static SomeExecutionStartedEvent notCountedInExecutionTime() {
-      return new AutoValue_TopLevelStatusEvents_SomeExecutionStartedEvent(
-          /* countedInExecutionTime= */ false);
+      return new SomeExecutionStartedEvent(/* countedInExecutionTime= */ false);
     }
 
     @Override
@@ -164,8 +164,8 @@ public final class TopLevelStatusEvents {
       return Type.SOME_EXECUTION_STARTED;
     }
 
-    public abstract boolean countedInExecutionTime();
   }
+
   /** An event that marks the successful build of a top-level target, including tests. */
   @AutoValue
   public abstract static class TopLevelTargetBuiltEvent implements TopLevelStatusEventWithType {
@@ -182,20 +182,21 @@ public final class TopLevelStatusEvents {
   }
 
   /** An event that marks the successful analysis of a test target. */
-  @AutoValue
-  public abstract static class TestAnalyzedEvent implements TopLevelStatusEventWithType {
-    public abstract ConfiguredTarget configuredTarget();
-
-    public abstract BuildConfigurationValue buildConfigurationValue();
-
-    public abstract boolean isSkipped();
+  public record TestAnalyzedEvent(
+      ConfiguredTarget configuredTarget,
+      BuildConfigurationValue buildConfigurationValue,
+      boolean isSkipped)
+      implements TopLevelStatusEventWithType {
+    public TestAnalyzedEvent {
+      requireNonNull(configuredTarget, "configuredTarget");
+      requireNonNull(buildConfigurationValue, "buildConfigurationValue");
+    }
 
     public static TestAnalyzedEvent create(
         ConfiguredTarget configuredTarget,
         BuildConfigurationValue buildConfigurationValue,
         boolean isSkipped) {
-      return new AutoValue_TopLevelStatusEvents_TestAnalyzedEvent(
-          configuredTarget, buildConfigurationValue, isSkipped);
+      return new TestAnalyzedEvent(configuredTarget, buildConfigurationValue, isSkipped);
     }
 
     @Override

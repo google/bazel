@@ -46,9 +46,9 @@ java_library(
         "//third_party:netty",
         "//third_party:truth",
         "//third_party/grpc-java:grpc-jar",
+        "@com_google_protobuf//:protobuf_java",
+        "@com_google_protobuf//:protobuf_java_util",
         "@googleapis//google/devtools/build/v1:build_java_proto",
-        "@protobuf//:protobuf_java",
-        "@protobuf//:protobuf_java_util",
     ],
 )
 
@@ -68,10 +68,10 @@ java_test(
         "//third_party:junit4",
         "//third_party:truth",
         "//third_party/grpc-java:grpc-jar",
+        "@com_google_protobuf//:protobuf_java",
+        "@com_google_protobuf//:protobuf_java_util",
         "@googleapis//google/devtools/build/v1:build_java_grpc",
         "@googleapis//google/devtools/build/v1:build_java_proto",
-        "@protobuf//:protobuf_java",
-        "@protobuf//:protobuf_java_util",
     ],
 )
 
@@ -87,9 +87,9 @@ java_test(
         "//third_party:guava",
         "//third_party:junit4",
         "//third_party/grpc-java:grpc-jar",
+        "@com_google_protobuf//:protobuf_java",
         "@googleapis//google/devtools/build/v1:build_java_grpc",
         "@googleapis//google/devtools/build/v1:build_java_proto",
-        "@protobuf//:protobuf_java",
     ],
 )
 
@@ -116,6 +116,7 @@ java_test(
         "//src/main/java/com/google/devtools/build/lib/remote/util",
         "//src/main/java/com/google/devtools/build/lib/util:abrupt_exit_exception",
         "//src/main/java/com/google/devtools/build/lib/util:exit_code",
+        "//src/main/protobuf:command_line_java_proto",
         "//src/test/java/com/google/devtools/build/lib/analysis/util",
         "//src/test/java/com/google/devtools/build/lib/buildtool/util",
         "//src/test/java/com/google/devtools/build/lib/testutil:TestConstants",
@@ -125,10 +126,10 @@ java_test(
         "//third_party:junit4",
         "//third_party:truth",
         "//third_party/grpc-java:grpc-jar",
+        "@com_google_protobuf//:protobuf_java",
         "@googleapis//google/devtools/build/v1:build_java_grpc",
         "@googleapis//google/devtools/build/v1:build_java_proto",
         "@maven//:com_google_testparameterinjector_test_parameter_injector",
-        "@protobuf//:protobuf_java",
         "@remoteapis//:build_bazel_remote_execution_v2_remote_execution_java_proto",
     ],
 )

@@ -15,6 +15,7 @@ package com.google.devtools.build.lib.runtime.commands;
 
 import static com.google.devtools.build.lib.runtime.Command.BuildPhase.NONE;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Supplier;
 import com.google.common.base.Suppliers;
 import com.google.common.collect.ImmutableList;
@@ -45,6 +46,7 @@ import com.google.devtools.build.lib.runtime.commands.info.DefaultsPackageInfoIt
 import com.google.devtools.build.lib.runtime.commands.info.ExecutionRootInfoItem;
 import com.google.devtools.build.lib.runtime.commands.info.GcCountInfoItem;
 import com.google.devtools.build.lib.runtime.commands.info.GcTimeInfoItem;
+import com.google.devtools.build.lib.runtime.commands.info.InfoItemHandler;
 import com.google.devtools.build.lib.runtime.commands.info.InstallBaseInfoItem;
 import com.google.devtools.build.lib.runtime.commands.info.JavaHomeInfoItem;
 import com.google.devtools.build.lib.runtime.commands.info.JavaRuntimeInfoItem;
@@ -69,7 +71,6 @@ import com.google.devtools.build.lib.util.AbruptExitException;
 import com.google.devtools.build.lib.util.DetailedExitCode;
 import com.google.devtools.build.lib.util.ExitCode;
 import com.google.devtools.build.lib.util.InterruptedFailureDetails;
-import com.google.devtools.build.lib.util.io.OutErr;
 import com.google.devtools.common.options.Option;
 import com.google.devtools.common.options.OptionDocumentationCategory;
 import com.google.devtools.common.options.OptionEffectTag;
@@ -77,10 +78,10 @@ import com.google.devtools.common.options.OptionsBase;
 import com.google.devtools.common.options.OptionsParsingResult;
 import com.google.devtools.common.options.OptionsProvider;
 import java.io.IOException;
-import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 /** Implementation of 'blaze info'. */
@@ -131,13 +132,23 @@ public class InfoCommand implements BlazeCommand {
     }
   }
 
+  private final Function<CommandEnvironment, InfoItemHandler> infoItemHandlerFactory;
+
+  @VisibleForTesting
+  public InfoCommand(Function<CommandEnvironment, InfoItemHandler> infoItemHandlerFactory) {
+    this.infoItemHandlerFactory = infoItemHandlerFactory;
+  }
+
+  public InfoCommand() {
+    this.infoItemHandlerFactory = InfoItemHandler::create;
+  }
+
   @Override
   public BlazeCommandResult exec(
       final CommandEnvironment env, final OptionsParsingResult optionsParsingResult) {
     final BlazeRuntime runtime = env.getRuntime();
     env.getReporter().switchToAnsiAllowingHandler();
     Options infoOptions = optionsParsingResult.getOptions(Options.class);
-    OutErr outErr = env.getReporter().getOutErr();
     // Creating a BuildConfigurationValue is expensive and often unnecessary. Delay the creation
     // until
     // it is needed. We memoize so that it's cached intra-command (it's still created freshly on
@@ -153,7 +164,7 @@ public class InfoCommand implements BlazeCommand {
                 ensureSyncPackageLoading(env, optionsParsingResult);
                 // TODO(bazel-team): What if there are multiple configurations? [multi-config]
                 BuildOptions buildOptions = runtime.createBuildOptions(optionsParsingResult);
-                env.getSkyframeExecutor().setBaselineConfiguration(buildOptions);
+                env.getSkyframeExecutor().setBaselineConfiguration(buildOptions, env.getReporter());
                 return env.getSkyframeExecutor()
                     .getConfiguration(env.getReporter(), buildOptions, /* keepGoing= */ true);
               } catch (InvalidConfigurationException e) {
@@ -171,7 +182,7 @@ public class InfoCommand implements BlazeCommand {
 
     Map<String, InfoItem> items = getInfoItemMap(env, optionsParsingResult);
 
-    try {
+    try (InfoItemHandler infoItemHandler = infoItemHandlerFactory.apply(env)) {
       if (infoOptions.showMakeEnvironment) {
         Map<String, String> makeEnv = configurationSupplier.get().getMakeEnvironment();
         for (Map.Entry<String, String> entry : makeEnv.entrySet()) {
@@ -185,18 +196,14 @@ public class InfoCommand implements BlazeCommand {
       if (!residue.isEmpty()) {
         ImmutableSet.Builder<String> unknownKeysBuilder = ImmutableSet.builder();
         for (String key : residue) {
-          byte[] value;
           if (items.containsKey(key)) {
             try (SilentCloseable c = Profiler.instance().profile(key + ".infoItem")) {
               InfoItem infoItem = items.get(key);
               if (infoItem.needsSyncPackageLoading()) {
                 ensureSyncPackageLoading(env, optionsParsingResult);
               }
-              value = infoItem.get(configurationSupplier, env);
-              if (residue.size() > 1) {
-                outErr.getOutputStream().write((key + ": ").getBytes(StandardCharsets.UTF_8));
-              }
-              outErr.getOutputStream().write(value);
+              byte[] value = infoItem.get(configurationSupplier, env);
+              infoItemHandler.addInfoItem(key, value, /* printKey= */ residue.size() > 1);
             }
           } else {
             unknownKeysBuilder.add(key);
@@ -224,14 +231,12 @@ public class InfoCommand implements BlazeCommand {
           if (infoItem.needsSyncPackageLoading()) {
             ensureSyncPackageLoading(env, optionsParsingResult);
           }
-          outErr.getOutputStream().write(
-              (infoItem.getName() + ": ").getBytes(StandardCharsets.UTF_8));
           try (SilentCloseable c = Profiler.instance().profile(infoItem.getName() + ".infoItem")) {
-            outErr.getOutputStream().write(infoItem.get(configurationSupplier, env));
+            infoItemHandler.addInfoItem(
+                infoItem.getName(), infoItem.get(configurationSupplier, env), /* printKey= */ true);
           }
         }
       }
-      outErr.getOutputStream().flush();
     } catch (AbruptExitException e) {
       return BlazeCommandResult.detailedExitCode(e.getDetailedExitCode());
     } catch (AbruptExitRuntimeException e) {

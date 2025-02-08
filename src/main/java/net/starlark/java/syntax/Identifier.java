@@ -123,8 +123,7 @@ public final class Identifier extends Expression {
       result.add((Identifier) lhs);
       return;
     }
-    if (lhs instanceof ListExpression) {
-      ListExpression variables = (ListExpression) lhs;
+    if (lhs instanceof ListExpression variables) {
       for (Expression expression : variables.getElements()) {
         collectBoundIdentifiers(expression, result);
       }

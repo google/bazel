@@ -142,7 +142,7 @@ public class ModuleExtensionContext extends StarlarkBaseExternalContext {
       structField = true,
       enableOnlyWithFlag = "-experimental_isolated_extension_usages")
   public boolean isIsolated() {
-    return extensionId.getIsolationKey().isPresent();
+    return extensionId.isolationKey().isPresent();
   }
 
   @StarlarkMethod(

@@ -13,7 +13,8 @@
 // limitations under the License.
 package com.google.devtools.build.lib.exec;
 
-import com.google.auto.value.AutoValue;
+import static java.util.Objects.requireNonNull;
+
 import com.google.devtools.build.lib.actions.ActionExecutionMetadata;
 import com.google.devtools.build.lib.actions.RunningActionEvent;
 import com.google.devtools.build.lib.events.ExtendedEventHandler;
@@ -27,13 +28,14 @@ import com.google.devtools.build.lib.exec.SpawnRunner.ProgressStatus;
  * but may post this if cache lookup and execution happen within the same step, e.g. as part of a
  * single RPC call with no mechanism to report cache misses.
  */
-@AutoValue
-public abstract class SpawnExecutingEvent implements ProgressStatus {
-  public static SpawnExecutingEvent create(String name) {
-    return new AutoValue_SpawnExecutingEvent(name);
+public record SpawnExecutingEvent(String name) implements ProgressStatus {
+  public SpawnExecutingEvent {
+    requireNonNull(name, "name");
   }
 
-  public abstract String name();
+  public static SpawnExecutingEvent create(String name) {
+    return new SpawnExecutingEvent(name);
+  }
 
   @Override
   public void postTo(ExtendedEventHandler eventHandler, ActionExecutionMetadata action) {

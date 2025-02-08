@@ -169,23 +169,18 @@ public final class ModuleExtensionEvalStarlarkThreadContext extends StarlarkThre
             Maps.filterKeys(
                 Maps.transformEntries(repoRuleCall.kwargs, (k, v) -> rule.getAttr(k)),
                 k -> !k.equals("name"));
-        String bzlFile =
-            repoRuleCall
-                .ruleClass
-                .getRuleDefinitionEnvironmentLabel()
-                .getUnambiguousCanonicalForm();
         var attributesValue = AttributeValues.create(attributes);
         AttributeValues.validateAttrs(
             attributesValue,
-            String.format("in the extension '%s'", extensionId.asTargetString()),
+            String.format("in the extension '%s'", extensionId),
             String.format("%s '%s'", rule.getRuleClass(), name));
-        RepoSpec repoSpec =
-            RepoSpec.builder()
-                .setBzlFile(bzlFile)
-                .setRuleClassName(repoRuleCall.ruleClass.getName())
-                .setAttributes(attributesValue)
-                .build();
-        repoSpecs.put(name, repoSpec);
+        repoSpecs.put(
+            name,
+            new RepoSpec(
+                new RepoRuleId(
+                    repoRuleCall.ruleClass.getRuleDefinitionEnvironmentLabel(),
+                    repoRuleCall.ruleClass.getName()),
+                attributesValue));
       } catch (EvalException e) {
         throw e.withCallStack(repoRuleCall.callStack);
       } catch (InvalidRuleException | NoSuchPackageException e) {

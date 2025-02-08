@@ -31,7 +31,6 @@ import java.io.InterruptedIOException;
 import java.net.URISyntaxException;
 import java.net.URL;
 import java.net.URLConnection;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -139,7 +138,8 @@ final class HttpConnectorMultiplexer {
     Preconditions.checkNotNull(credentials);
 
     return url -> {
-      Map<String, List<String>> headers = new HashMap<>(baseHeaders);
+      ImmutableMap.Builder<String, List<String>> headers = new ImmutableMap.Builder<>();
+      headers.putAll(baseHeaders);
       try {
         headers.putAll(credentials.getRequestMetadata(url.toURI()));
       } catch (URISyntaxException | IOException e) {
@@ -149,7 +149,7 @@ final class HttpConnectorMultiplexer {
         eventHandler.handle(
             Event.warn("Error retrieving auth headers, continuing without: " + e.getMessage()));
       }
-      return ImmutableMap.copyOf(headers);
+      return headers.buildKeepingLast();
     };
   }
 }

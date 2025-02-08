@@ -15,9 +15,9 @@
 package com.google.devtools.build.lib.skyframe.serialization;
 
 import static com.google.common.truth.Truth.assertThat;
+import static java.util.Objects.requireNonNull;
 import static org.junit.Assert.assertThrows;
 
-import com.google.auto.value.AutoValue;
 import com.google.common.collect.ImmutableClassToInstanceMap;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.CodedInputStream;
@@ -36,12 +36,13 @@ public final class SerializationContextTest {
 
   private static final Object CONSTANT = new Object();
 
-  @AutoValue
-  abstract static class Example {
-    abstract String getDataToSerialize();
+  record Example(String dataToSerialize) {
+    Example {
+      requireNonNull(dataToSerialize, "dataToSerialize");
+    }
 
     static Example withData(String data) {
-      return new AutoValue_SerializationContextTest_Example(data);
+      return new Example(data);
     }
   }
 
@@ -56,7 +57,7 @@ public final class SerializationContextTest {
     public void serialize(SerializationContext context, Example obj, CodedOutputStream codedOut)
         throws IOException {
       exampleCodecSerializeCalls++;
-      codedOut.writeStringNoTag(obj.getDataToSerialize());
+      codedOut.writeStringNoTag(obj.dataToSerialize());
     }
 
     @Override
@@ -118,7 +119,7 @@ public final class SerializationContextTest {
 
     CodedInputStream codedIn = CodedInputStream.newInstance(bytes.toByteArray());
     assertThat(codedIn.readSInt32()).isEqualTo(registry.getCodecDescriptorForObject(obj).tag());
-    assertThat(codedIn.readString()).isEqualTo(obj.getDataToSerialize());
+    assertThat(codedIn.readString()).isEqualTo(obj.dataToSerialize());
     assertThat(codedIn.isAtEnd()).isTrue();
   }
 
@@ -135,7 +136,7 @@ public final class SerializationContextTest {
 
     CodedInputStream codedIn = CodedInputStream.newInstance(bytes.toByteArray());
     assertThat(codedIn.readSInt32()).isEqualTo(registry.getCodecDescriptorForObject(obj).tag());
-    assertThat(codedIn.readString()).isEqualTo(obj.getDataToSerialize());
+    assertThat(codedIn.readString()).isEqualTo(obj.dataToSerialize());
     assertThat(codedIn.isAtEnd()).isFalse();
     assertThat(exampleCodecSerializeCalls).isEqualTo(1);
   }

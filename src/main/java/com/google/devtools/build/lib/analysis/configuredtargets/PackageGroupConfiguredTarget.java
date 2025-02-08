@@ -24,6 +24,8 @@ import com.google.devtools.build.lib.concurrent.ThreadSafety.Immutable;
 import com.google.devtools.build.lib.packages.Info;
 import com.google.devtools.build.lib.packages.PackageGroup;
 import com.google.devtools.build.lib.packages.Provider;
+import com.google.devtools.build.lib.skyframe.serialization.VisibleForSerialization;
+import com.google.devtools.build.lib.skyframe.serialization.autocodec.AutoCodec;
 import javax.annotation.Nullable;
 
 /**
@@ -31,6 +33,7 @@ import javax.annotation.Nullable;
  * not really first-class Targets.
  */
 @Immutable
+@AutoCodec
 public class PackageGroupConfiguredTarget extends AbstractConfiguredTarget {
   private final PackageSpecificationProvider packageSpecificationProvider;
 
@@ -49,9 +52,16 @@ public class PackageGroupConfiguredTarget extends AbstractConfiguredTarget {
   public PackageGroupConfiguredTarget(
       ActionLookupKey actionLookupKey, TargetContext targetContext, PackageGroup packageGroup) {
     // Package groups are always public (see PackageGroup#getVisibility).
-    super(actionLookupKey, VisibilityProvider.PUBLIC_VISIBILITY);
-    this.packageSpecificationProvider =
-        PackageSpecificationProvider.create(targetContext, packageGroup);
+    this(actionLookupKey, PackageSpecificationProvider.create(targetContext, packageGroup));
+  }
+
+  @VisibleForSerialization
+  @AutoCodec.Instantiator
+  PackageGroupConfiguredTarget(
+      ActionLookupKey lookupKey, PackageSpecificationProvider packageSpecificationProvider) {
+    // Package groups are always public (see PackageGroup#getVisibility).
+    super(lookupKey, VisibilityProvider.PUBLIC_VISIBILITY);
+    this.packageSpecificationProvider = packageSpecificationProvider;
   }
 
   @Override

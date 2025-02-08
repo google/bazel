@@ -14,35 +14,42 @@
 
 package com.google.devtools.build.lib.bazel.repository;
 
-import com.google.auto.value.AutoValue;
+import static java.util.Objects.requireNonNull;
+
+import com.google.auto.value.AutoBuilder;
 import com.google.common.collect.ImmutableMap;
 import com.google.devtools.build.lib.vfs.Path;
 import java.util.Map;
 import java.util.Optional;
 
-/** Description of an archive to be decompressed. */
-@AutoValue
-public abstract class DecompressorDescriptor {
-
-  /** The context in which this decompression is happening. Should only be used for reporting. */
-  public abstract String context();
-
-  public abstract Path archivePath();
-
-  public abstract Path destinationPath();
-
-  public abstract Optional<String> prefix();
-
-  public abstract ImmutableMap<String, String> renameFiles();
+/**
+ * Description of an archive to be decompressed.
+ *
+ * @param context The context in which this decompression is happening. Should only be used for
+ *     reporting.
+ */
+public record DecompressorDescriptor(
+    String context,
+    Path archivePath,
+    Path destinationPath,
+    Optional<String> prefix,
+    ImmutableMap<String, String> renameFiles) {
+  public DecompressorDescriptor {
+    requireNonNull(context, "context");
+    requireNonNull(archivePath, "archivePath");
+    requireNonNull(destinationPath, "destinationPath");
+    requireNonNull(prefix, "prefix");
+    requireNonNull(renameFiles, "renameFiles");
+  }
 
   public static Builder builder() {
-    return new AutoValue_DecompressorDescriptor.Builder()
+    return new AutoBuilder_DecompressorDescriptor_Builder()
         .setContext("")
         .setRenameFiles(ImmutableMap.of());
   }
 
   /** Builder for describing the file to be decompressed. */
-  @AutoValue.Builder
+  @AutoBuilder
   public abstract static class Builder {
 
     public abstract Builder setContext(String context);

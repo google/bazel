@@ -27,8 +27,8 @@ import com.google.devtools.build.lib.buildtool.buildevent.ExecutionProgressRecei
 import com.google.devtools.build.lib.cmdline.RepositoryMapping;
 import com.google.devtools.build.lib.pkgcache.LoadingPhaseCompleteEvent;
 import com.google.devtools.build.lib.runtime.SkymeldUiStateTracker.BuildStatus;
+import com.google.devtools.build.lib.skyframe.AnalysisProgressReceiver;
 import com.google.devtools.build.lib.skyframe.ConfigurationPhaseStartedEvent;
-import com.google.devtools.build.lib.skyframe.ConfiguredTargetProgressReceiver;
 import com.google.devtools.build.lib.skyframe.LoadingPhaseStartedEvent;
 import com.google.devtools.build.lib.skyframe.PackageProgressReceiver;
 import com.google.devtools.build.lib.testutil.FoundationTestCase;
@@ -85,7 +85,7 @@ public class SkymeldUiStateTrackerTest extends FoundationTestCase {
     SkymeldUiStateTracker uiStateTracker = new SkymeldUiStateTracker(clock);
 
     uiStateTracker.configurationStarted(
-        new ConfigurationPhaseStartedEvent(mock(ConfiguredTargetProgressReceiver.class)));
+        new ConfigurationPhaseStartedEvent(mock(AnalysisProgressReceiver.class)));
 
     assertThat(uiStateTracker.getBuildStatus()).isEqualTo(BuildStatus.CONFIGURATION);
   }
@@ -104,9 +104,8 @@ public class SkymeldUiStateTrackerTest extends FoundationTestCase {
     uiStateTracker.packageProgressReceiver =
         mockPackageProgressReceiver(loadingState, loadingActivity);
 
-    String configuredTargetProgressString = "5 targets configured";
-    uiStateTracker.configuredTargetProgressReceiver =
-        mockConfiguredTargetProgressReceiver(configuredTargetProgressString);
+    String analysisProgressString = "5 targets and 0 aspects configured";
+    uiStateTracker.analysisProgressReceiver = mockAnalysisProgressReceiver(analysisProgressString);
 
     // Mock starting execution while configuring (before analysis complete).
     ExecutionProgressReceiver executionProgressReceiver = new ExecutionProgressReceiver(0, null);
@@ -123,7 +122,7 @@ public class SkymeldUiStateTrackerTest extends FoundationTestCase {
     assertThat(output).contains(additionalMessage);
     assertThat(output).contains(loadingState);
     assertThat(output).contains(loadingActivity);
-    assertThat(output).contains(configuredTargetProgressString);
+    assertThat(output).contains(analysisProgressString);
     assertThat(output).doesNotContain("[0 / 0]");
   }
 
@@ -184,7 +183,7 @@ public class SkymeldUiStateTrackerTest extends FoundationTestCase {
     String message = "message";
     String loadingState = "42 packages loaded";
     String loadingActivity = "currently loading //src/foo/bar and 17 more";
-    String configuredTargetProgressString = "5 targets configured";
+    String analysisProgressString = "5 targets and 0 aspects configured";
 
     // Mock starting loading.
     LoggingTerminalWriter terminalWriter = new LoggingTerminalWriter(/*discardHighlight=*/ false);
@@ -201,7 +200,7 @@ public class SkymeldUiStateTrackerTest extends FoundationTestCase {
     assertOutputContainsBaseProgress(loadingOutput, status, message, /*ok=*/ true);
     assertThat(loadingOutput).contains("(" + loadingState + ")");
     assertThat(loadingOutput).contains(loadingActivity);
-    assertThat(loadingOutput).doesNotContain(configuredTargetProgressString);
+    assertThat(loadingOutput).doesNotContain(analysisProgressString);
 
     terminalWriter.reset();
     // When there is an empty message (only happens during target pattern parsing).
@@ -217,7 +216,7 @@ public class SkymeldUiStateTrackerTest extends FoundationTestCase {
     assertThat(emptyMessageLoadingOutput).doesNotContain("(" + loadingState + ")");
     assertThat(emptyMessageLoadingOutput).contains(loadingState);
     assertThat(emptyMessageLoadingOutput).contains(loadingActivity);
-    assertThat(emptyMessageLoadingOutput).doesNotContain(configuredTargetProgressString);
+    assertThat(emptyMessageLoadingOutput).doesNotContain(analysisProgressString);
 
     terminalWriter.reset();
     // When writing as a short version.
@@ -231,12 +230,11 @@ public class SkymeldUiStateTrackerTest extends FoundationTestCase {
     // Output should only contain the loading state but not the activity.
     assertThat(shortVersionLoadingOutput).contains(loadingState);
     assertThat(shortVersionLoadingOutput).doesNotContain(loadingActivity);
-    assertThat(emptyMessageLoadingOutput).doesNotContain(configuredTargetProgressString);
+    assertThat(emptyMessageLoadingOutput).doesNotContain(analysisProgressString);
 
     terminalWriter.reset();
     // Mock starting configuration.
-    uiStateTracker.configuredTargetProgressReceiver =
-        mockConfiguredTargetProgressReceiver(configuredTargetProgressString);
+    uiStateTracker.analysisProgressReceiver = mockAnalysisProgressReceiver(analysisProgressString);
 
     // Output should contain both loading and analysis related output.
     uiStateTracker.writeLoadingAnalysisPhaseProgress(
@@ -248,7 +246,7 @@ public class SkymeldUiStateTrackerTest extends FoundationTestCase {
     assertOutputContainsBaseProgress(loadingAnalysisOutput, status, message, /*ok=*/ true);
     assertThat(loadingAnalysisOutput).contains(loadingState);
     assertThat(loadingAnalysisOutput).contains(loadingActivity);
-    assertThat(loadingAnalysisOutput).contains(configuredTargetProgressString);
+    assertThat(loadingAnalysisOutput).contains(analysisProgressString);
   }
 
   private static void assertOutputContainsBaseProgress(
@@ -265,11 +263,9 @@ public class SkymeldUiStateTrackerTest extends FoundationTestCase {
     return packageProgressReceiver;
   }
 
-  private static ConfiguredTargetProgressReceiver mockConfiguredTargetProgressReceiver(
-      String progress) {
-    ConfiguredTargetProgressReceiver configuredTargetProgressReceiver =
-        mock(ConfiguredTargetProgressReceiver.class);
-    when(configuredTargetProgressReceiver.getProgressString()).thenReturn(progress);
-    return configuredTargetProgressReceiver;
+  private static AnalysisProgressReceiver mockAnalysisProgressReceiver(String progress) {
+    AnalysisProgressReceiver analysisProgressReceiver = mock(AnalysisProgressReceiver.class);
+    when(analysisProgressReceiver.getProgressString()).thenReturn(progress);
+    return analysisProgressReceiver;
   }
 }

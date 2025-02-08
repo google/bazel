@@ -24,6 +24,8 @@ import java.util.concurrent.atomic.AtomicInteger;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.Immutable;
 import net.starlark.java.syntax.Location;
+import net.starlark.java.syntax.Resolver.Binding;
+import net.starlark.java.syntax.Resolver.ComprehensionBinding;
 
 /**
  * An StarlarkThread represents a Starlark thread.
@@ -136,7 +138,7 @@ public final class StarlarkThread {
     private Location loc;
 
     // Indicates that setErrorLocation has been called already and the error
-    // location (loc) should not be overrwritten.
+    // location (loc) should not be overwritten.
     private boolean errorLocationSet;
 
     // The locals of this frame, if fn is a StarlarkFunction, otherwise null.
@@ -187,15 +189,30 @@ public final class StarlarkThread {
       if (fn instanceof StarlarkFunction) {
         for (int i = 0; i < locals.length; i++) {
           Object local = locals[i];
+          if (local instanceof StarlarkFunction.Cell) {
+            local = ((StarlarkFunction.Cell) local).x;
+          }
           if (local != null) {
-            if (local instanceof StarlarkFunction.Cell) {
-              local = ((StarlarkFunction.Cell) local).x;
+            Binding binding = ((StarlarkFunction) fn).rfn.getLocals().get(i);
+            if (binding instanceof ComprehensionBinding comprehensionBinding
+                && !comprehensionBinding.inScope(loc)) {
+              // Ignore comprehension variables when outside their comprehension's lexical scope.
+              continue;
             }
-            env.put(((StarlarkFunction) fn).rfn.getLocals().get(i).getName(), local);
+            env.put(binding.getName(), local);
           }
         }
       }
-      return env.buildOrThrow();
+      // TODO(https://github.com/bazelbuild/bazel/issues/24931): comprehension variables are stored
+      // in their enclosing function's locals, and can shadow the function's proper local variables
+      // (as well as variables of their enclosing comprehension, since comprehensions can nest).
+      // When this happens, we emit only the last comprehension binding which has the frame's `loc`
+      // within its lexical scope (relying on the fact that when comprehensions are nested, the
+      // resolver places inner comprehensions' variables after outer comprehensions' variables in
+      // the function's locals list). However, this makes it impossible to examine the shadowed
+      // variables' values in the debugger. The real fix would be to push a new debugger frame when
+      // in a comprehension.
+      return env.buildKeepingLast();
     }
 
     @Override

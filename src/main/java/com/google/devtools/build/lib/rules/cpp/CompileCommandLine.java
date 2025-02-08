@@ -94,7 +94,13 @@ public final class CompileCommandLine {
     List<String> commandLine = new ArrayList<>();
 
     // first: The command name.
-    commandLine.add(getToolPath());
+    if (pathMapper.isNoop()) {
+      commandLine.add(getToolPath());
+    } else {
+      // getToolPath() ultimately returns a PathFragment's getSafePathString(), so its safe to
+      // reparse it here with no risk of e.g. altering a user-specified absolute path.
+      commandLine.add(pathMapper.map(PathFragment.create(getToolPath())).getSafePathString());
+    }
 
     // second: The compiler options.
     if (parameterFilePath != null) {

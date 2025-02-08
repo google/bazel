@@ -126,7 +126,7 @@ def _update(ctx, git_repo):
 
 def init(ctx, git_repo):
     cl = ["git", "init", str(git_repo.directory)]
-    st = ctx.execute(cl, environment = ctx.os.environ)
+    st = ctx.execute(cl, environment = ctx.os.environ | _GIT_LOCAL_ENV_VARS)
     if st.return_code != 0:
         _error(ctx.name, cl, st.stderr)
 
@@ -195,13 +195,35 @@ def _git_maybe_shallow(ctx, git_repo, command, *args):
             return st
     return _execute(ctx, git_repo, start + args_list)
 
+# List of variables to unset when calling `git` to ensure no interference of
+# operation. This is in the form of a dict that can be passed to `execute()`.
+# This list is taken from the output of `git rev-parse --local-env-vars`
+_GIT_LOCAL_ENV_VARS = {
+    "GIT_ALTERNATE_OBJECT_DIRECTORIES": None,
+    "GIT_CONFIG": None,
+    "GIT_CONFIG_PARAMETERS": None,
+    "GIT_CONFIG_COUNT": None,
+    "GIT_OBJECT_DIRECTORY": None,
+    "GIT_DIR": None,
+    "GIT_WORK_TREE": None,
+    "GIT_IMPLICIT_WORK_TREE": None,
+    "GIT_GRAFT_FILE": None,
+    "GIT_INDEX_FILE": None,
+    "GIT_NO_REPLACE_OBJECTS": None,
+    "GIT_REPLACE_REF_BASE": None,
+    "GIT_PREFIX": None,
+    "GIT_INTERNAL_SUPER_PREFIX": None,
+    "GIT_SHALLOW_FILE": None,
+    "GIT_COMMON_DIR": None,
+}
+
 def _execute(ctx, git_repo, args):
     # "core.fsmonitor=false" disables git from spawning a file system monitor which can cause hangs when cloning a lot.
     # See https://github.com/bazelbuild/bazel/issues/21438
     start = ["git", "-c", "core.fsmonitor=false"]
     return ctx.execute(
         start + args,
-        environment = ctx.os.environ,
+        environment = ctx.os.environ | _GIT_LOCAL_ENV_VARS,
         working_directory = str(git_repo.directory),
     )
 

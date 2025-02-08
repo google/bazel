@@ -77,8 +77,8 @@ import java.util.function.Supplier;
 import javax.annotation.Nullable;
 
 /**
- * Module that provides implementations of {@link CppIncludeExtractionContext},
- * {@link CppIncludeScanningContext}, and {@link SwigIncludeScanningContext}.
+ * Module that provides implementations of {@link CppIncludeExtractionContext}, {@link
+ * CppIncludeScanningContext}, and {@link SwigIncludeScanningContext}.
  */
 public class IncludeScanningModule extends BlazeModule {
   private static final GoogleLogger logger = GoogleLogger.forEnclosingClass();
@@ -159,9 +159,7 @@ public class IncludeScanningModule extends BlazeModule {
     return skyFunctions.buildOrThrow();
   }
 
-  /**
-   * Implementation of {@link CppIncludeExtractionContext}.
-   */
+  /** Implementation of {@link CppIncludeExtractionContext}. */
   public static final class CppIncludeExtractionContextImpl implements CppIncludeExtractionContext {
     private final CommandEnvironment env;
 
@@ -175,9 +173,7 @@ public class IncludeScanningModule extends BlazeModule {
     }
   }
 
-  /**
-   * SwigIncludeScanningContextImpl implements SwigIncludeScanningContext.
-   */
+  /** SwigIncludeScanningContextImpl implements SwigIncludeScanningContext. */
   public static final class SwigIncludeScanningContextImpl implements SwigIncludeScanningContext {
     private final CommandEnvironment env;
     private final Supplier<SpawnIncludeScanner> spawnScannerSupplier;
@@ -207,6 +203,7 @@ public class IncludeScanningModule extends BlazeModule {
       SwigIncludeScanner scanner =
           new SwigIncludeScanner(
               includePool.get(),
+              shouldShuffle(env),
               spawnScannerSupplier.get(),
               cache,
               swigIncludePaths,
@@ -329,10 +326,10 @@ public class IncludeScanningModule extends BlazeModule {
       }
     }
 
+    @SuppressWarnings("AllowVirtualThreads")
     @Override
     public void executorCreated() {
-      var buildRequestOptions = env.getOptions().getOptions(BuildRequestOptions.class);
-      var useAsyncExecution = buildRequestOptions != null && buildRequestOptions.useAsyncExecution;
+      var useAsyncExecution = useAsyncExecution(env);
       int threads = options.includeScanningParallelism;
       if (useAsyncExecution) {
         includePool =
@@ -362,6 +359,7 @@ public class IncludeScanningModule extends BlazeModule {
           new IncludeScannerSupplier(
               env.getDirectories(),
               includePool,
+              shouldShuffle(env),
               env.getSkyframeBuildView().getArtifactFactory(),
               spawnScannerSupplier,
               env.getExecRoot());
@@ -369,5 +367,16 @@ public class IncludeScanningModule extends BlazeModule {
       spawnScannerSupplier.get().setOutputService(env.getOutputService());
       spawnScannerSupplier.get().setInMemoryOutput(options.inMemoryIncludesFiles);
     }
+  }
+
+  private static boolean useAsyncExecution(CommandEnvironment env) {
+    var buildRequestOptions = env.getOptions().getOptions(BuildRequestOptions.class);
+    return buildRequestOptions != null && buildRequestOptions.useAsyncExecution;
+  }
+
+  private static boolean shouldShuffle(CommandEnvironment env) {
+    // Don't shuffle if using virtual threads, otherwise it introduces high CPU regression on
+    // machines with large number of cores.
+    return !useAsyncExecution(env);
   }
 }

@@ -60,12 +60,12 @@ if [[ $DEV_BUILD -eq 0 ]]; then
   bazel_label="$(\
     (grep '^build.label=' build-data.properties | cut -d'=' -f2- | tr -d '\n') \
         || echo -n 'no_version')"
-  echo -n "${bazel_label:-no_version}" > "${PACKAGE_DIR}/build-label.txt"
 
   cd "$WORKDIR"
 
   DEPLOY_JAR="$DEPLOY_UNCOMP"
 fi
+echo -n "${bazel_label:-no_version}" > "${PACKAGE_DIR}/build-label.txt"
 
 if [ -n "${EMBEDDED_TOOLS}" ]; then
   mkdir ${PACKAGE_DIR}/embedded_tools

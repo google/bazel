@@ -512,10 +512,9 @@ public interface StarlarkActionFactoryApi extends StarlarkValue {
                     + " action. The returned dictionary may contain the following entries, each of"
                     + " which may be a float or an int:<ul><li>\"cpu\": number of CPUs; default"
                     + " 1<li>\"memory\": in MB; default 250<li>\"local_test\": number of local"
-                    + " tests; default 1</ul><p>If this parameter is set to <code>None</code> or if"
-                    + " <code>--experimental_action_resource_set</code> is false, the default"
-                    + " values are used.<p>The callback must be top-level (lambda and nested"
-                    + " functions aren't allowed)."),
+                    + " tests; default 1</ul><p>If this parameter is set to <code>None</code> , the"
+                    + " default values are used.<p>The callback must be top-level (lambda and"
+                    + " nested functions aren't allowed)."),
         @Param(
             name = "toolchain",
             allowedTypes = {

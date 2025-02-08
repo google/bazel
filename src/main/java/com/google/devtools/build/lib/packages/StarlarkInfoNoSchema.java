@@ -18,12 +18,14 @@ import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableCollection;
 import com.google.common.collect.ImmutableList;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import javax.annotation.Nullable;
 import net.starlark.java.eval.EvalException;
 import net.starlark.java.eval.Starlark;
 import net.starlark.java.eval.StarlarkList;
+import net.starlark.java.eval.StarlarkThread;
 import net.starlark.java.syntax.Location;
 import net.starlark.java.syntax.TokenKind;
 
@@ -86,6 +88,11 @@ public class StarlarkInfoNoSchema extends StarlarkInfo {
     int n = values.size();
     Object[] table = new Object[n + n];
     int i = 0;
+    // TODO(b/380824219): Once fastcall and thus createFromNamedArgs is removed, consider whether
+    // we can wrap values.entrySet() in a SortedSet and avoid and remove sortPairs().
+    // Maybe an overloaded constructor StarlarkInfoNoSchema(Provider, SortedMap<>, Location)
+    // could also be useful in this context. Connection with b/380824219: StarlarkInfoFactory
+    // assembles values into a TreeMap and calls StarlarkInfoNoSchema(Provider, Map<>, Location).
     for (Map.Entry<String, Object> e : values.entrySet()) {
       table[i] = e.getKey();
       table[n + i] = Starlark.checkValid(e.getValue());
@@ -98,68 +105,45 @@ public class StarlarkInfoNoSchema extends StarlarkInfo {
     return table;
   }
 
+  static StarlarkProvider.StarlarkInfoFactory newStarlarkInfoFactory(
+      StarlarkProvider provider, StarlarkThread thread) {
+    return new StarlarkInfoFactory(provider, thread);
+  }
+
   /**
-   * Constructs a StarlarkInfo from an array of alternating key/value pairs as provided by
-   * Starlark.fastcall. Checks that each key is provided at most once. This optimized
-   * zero-allocation function exists solely for the StarlarkProvider constructor.
+   * Constructs a StarlarkInfo with calls forwarded from one of the StarlarkInfo ArgumentProcessor
+   * implementations. Checks that each key is provided at most once. This class exists solely for
+   * the StarlarkInfo ArgumentProcessors.
    */
-  static StarlarkInfo createFromNamedArgs(StarlarkProvider provider, Object[] table, Location loc)
-      throws EvalException {
-    // Permute fastcall form (k, v, ..., k, v) into table form (k, k, ..., v, v).
-    permute(table);
+  static class StarlarkInfoFactory extends StarlarkProvider.StarlarkInfoFactory {
+    private final Map<String, Object> namedArgMap;
 
-    int n = table.length >> 1; // number of K/V pairs
-
-    // Sort keys, permuting values in parallel.
-    if (n > 1) {
-      sortPairs(table, 0, n - 1);
+    StarlarkInfoFactory(StarlarkProvider provider, StarlarkThread thread) {
+      super(provider, thread);
+      this.namedArgMap = new HashMap<>();
     }
 
-    // Check for duplicate keys, which are now adjacent.
-    for (int i = 0; i < n - 1; i++) {
-      if (table[i].equals(table[i + 1])) {
+    @Override
+    public void addNamedArg(String name, Object value) throws EvalException {
+      // TODO(b/380824219): Evaluate whether we can know the number of named args here, and then
+      // place the args into the table directly.
+      Object oldValue = namedArgMap.put(name, value);
+      if (oldValue != null) {
         throw Starlark.errorf(
             "got multiple values for parameter %s in call to instantiate provider %s",
-            table[i], provider.getPrintableName());
+            name, provider.getPrintableName());
       }
     }
 
-    return new StarlarkInfoNoSchema(provider, table, loc);
-  }
-
-  // Permutes array elements from alternating keys/values form,
-  // (as used by fastcall's named array) into keys-then-corresponding-values form,
-  // as used by StarlarkInfo.table.
-  // The permutation preserves the key/value association but not the order of keys.
-  static void permute(Object[] named) {
-    int n = named.length >> 1; // number of K/V pairs
-
-    // Thanks to Murali Ganapathy for the algorithm.
-    // See https://play.golang.org/p/QOKnrj_bIwk.
-    //
-    // i and j are the indices bracketing successive pairs of cells,
-    // working from the outside to the middle.
-    //
-    //   i                  j
-    //   [KV]KVKVKVKVKVKV[KV]
-    //     i              j
-    //   KK[KV]KVKVKVKV[KV]VV
-    //       i          j
-    //   KKKK[KV]KVKV[KV]VVVV
-    //   etc...
-    for (int i = 0; i < n - 1; i += 2) {
-      int j = named.length - i;
-      // rotate two pairs [KV]...[kv] -> [Kk]...[vV]
-      Object tmp = named[i + 1];
-      named[i + 1] = named[j - 2];
-      named[j - 2] = named[j - 1];
-      named[j - 1] = tmp;
+    @Override
+    public StarlarkInfo createFromArgs(StarlarkThread thread) throws EvalException {
+      return new StarlarkInfoNoSchema(provider, namedArgMap, thread.getCallerLocation());
     }
-    // reverse lower half containing keys: [KkvV] -> [kKvV]
-    for (int i = 0; i < n >> 1; i++) {
-      Object tmp = named[n - 1 - i];
-      named[n - 1 - i] = named[i];
-      named[i] = tmp;
+
+    @Override
+    public StarlarkInfo createFromMap(Map<String, Object> map, StarlarkThread thread)
+        throws EvalException {
+      return new StarlarkInfoNoSchema(provider, map, thread.getCallerLocation());
     }
   }
 

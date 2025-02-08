@@ -15,11 +15,11 @@
  */
 package com.tonicsystems.jarjar;
 
+import org.objectweb.asm.Opcodes;
 import org.objectweb.asm.AnnotationVisitor;
 import org.objectweb.asm.ClassVisitor;
 import org.objectweb.asm.FieldVisitor;
 import org.objectweb.asm.MethodVisitor;
-import org.objectweb.asm.Opcodes;
 
 /**
  * An ASM3 EmptyVisitor replacement
@@ -29,23 +29,23 @@ import org.objectweb.asm.Opcodes;
 public class EmptyClassVisitor extends ClassVisitor {
 
   public EmptyClassVisitor() {
-    super(Opcodes.ASM7);
+    super(Opcodes.ASM9);
   }
 
   @Override
   public MethodVisitor visitMethod(
       int access, String name, String desc, String signature, String[] exceptions) {
-    return new MethodVisitor(Opcodes.ASM7) {};
+    return new MethodVisitor(Opcodes.ASM9) {};
   }
 
   @Override
   public AnnotationVisitor visitAnnotation(String desc, boolean visible) {
-    return new AnnotationVisitor(Opcodes.ASM7) {};
+    return new AnnotationVisitor(Opcodes.ASM9) {};
   }
 
   @Override
   public FieldVisitor visitField(
       int access, String name, String desc, String signature, Object value) {
-    return new FieldVisitor(Opcodes.ASM7) {};
+    return new FieldVisitor(Opcodes.ASM9) {};
   }
 }

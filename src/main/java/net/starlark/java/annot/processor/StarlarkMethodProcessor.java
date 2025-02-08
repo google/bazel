@@ -346,8 +346,7 @@ public class StarlarkMethodProcessor extends AbstractProcessor {
 
     // Reject generic types C<T> other than C<?>,
     // since reflective calls check only the toplevel class.
-    if (paramType instanceof DeclaredType) {
-      DeclaredType declaredType = (DeclaredType) paramType;
+    if (paramType instanceof DeclaredType declaredType) {
       for (TypeMirror typeArg : declaredType.getTypeArguments()) {
         if (!(typeArg instanceof WildcardType)) {
           errorf(

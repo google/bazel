@@ -18,9 +18,13 @@ package com.tonicsystems.jarjar;
 
 import java.io.IOException;
 
+/** DepHandler */
 public interface DepHandler {
-  public static final int LEVEL_CLASS = 0;
-  public static final int LEVEL_JAR = 1;
+  /** Level */
+  enum Level {
+    CLASS,
+    JAR
+  }
 
   void handleStart() throws IOException;
 

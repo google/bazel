@@ -90,12 +90,12 @@ public class LabelAndConfigurationOutputFormatterCallback extends CqueryThreadsa
     return ImmutableSortedSet.<String>naturalOrder()
         .addAll(
             Iterables.transform(
-                requiredFragments.getOptionsClasses(), ClassName::getSimpleNameWithOuter))
+                requiredFragments.optionsClasses(), ClassName::getSimpleNameWithOuter))
         .addAll(
             Iterables.transform(
-                requiredFragments.getFragmentClasses(), ClassName::getSimpleNameWithOuter))
-        .addAll(Iterables.transform(requiredFragments.getDefines(), define -> "--define:" + define))
-        .addAll(Iterables.transform(requiredFragments.getStarlarkOptions(), Label::toString))
+                requiredFragments.fragmentClasses(), ClassName::getSimpleNameWithOuter))
+        .addAll(Iterables.transform(requiredFragments.defines(), define -> "--define:" + define))
+        .addAll(Iterables.transform(requiredFragments.starlarkOptions(), Label::toString))
         .build();
   }
 }

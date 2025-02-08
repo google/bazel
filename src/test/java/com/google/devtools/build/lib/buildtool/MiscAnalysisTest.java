@@ -246,8 +246,7 @@ public class MiscAnalysisTest extends BuildIntegrationTestCase {
         )
         """);
     buildTarget("//sh:sh");
-    // We test with dep because target completion middleman actions keep references to the
-    // top-level configured targets.
+    // We test with dep because we may keep references to the top-level configured targets.
     ConfiguredTarget ct = getConfiguredTarget("//sh:dep");
     addOptions("--discard_analysis_cache");
     buildTarget("//sh:sh");
@@ -316,7 +315,7 @@ public class MiscAnalysisTest extends BuildIntegrationTestCase {
   public void testNoTestTargetsFoundMessageForBuildCommand() throws Exception {
     write("pkg/BUILD");
     for (String option : ImmutableList.of("", "--nobuild", "--noanalyze")) {
-      resetOptions();
+      setupOptions();
       addOptions(TestConstants.PRODUCT_SPECIFIC_BUILD_LANG_OPTIONS);
       addOptions(option);
       buildTarget("//pkg:all");

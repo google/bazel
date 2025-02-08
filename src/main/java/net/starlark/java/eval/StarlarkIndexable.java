@@ -17,19 +17,24 @@ package net.starlark.java.eval;
 /**
  * A Starlark value that support indexed access ({@code object[key]}) and membership tests ({@code
  * key in object}).
+ *
+ * <p>Implementations of this interface come in three flavors: map-like, sequence-like, and
+ * string-like.
+ *
+ * <ul>
+ *   <li>For map-like objects, 'x in y' should return True when 'y[x]' is valid; otherwise, it
+ *       should either be False or a failure. Examples: dict.
+ *   <li>For sequence-like objects, 'x in y' should return True when 'x == y[i]' for some integer
+ *       'i'; otherwise, it should either be False or a failure. Examples: list, tuple, and string
+ *       (which, notably, is not a {@link Sequence}).
+ *   <li>For string-like objects, 'x in y' should return True when 'x' is a substring of 'y', i.e.
+ *       'x[i] == y[i + n]' for some 'n' and all i in [0, len(x)). Examples: string.
+ * </ul>
  */
-public interface StarlarkIndexable extends StarlarkValue {
+public interface StarlarkIndexable extends StarlarkMembershipTestable {
 
   /** Returns the value associated with the given key. */
   Object getIndex(StarlarkSemantics semantics, Object key) throws EvalException;
-
-  /**
-   * Returns whether the key is in the object. New types should try to follow the semantics of dict:
-   * 'x in y' should return True when 'y[x]' is valid; otherwise, it should either be False or a
-   * failure. Note however that the builtin types string, list, and tuple do not follow this
-   * convention.
-   */
-  boolean containsKey(StarlarkSemantics semantics, Object key) throws EvalException;
 
   /**
    * A variant of {@link StarlarkIndexable} that also provides a StarlarkThread instance on method

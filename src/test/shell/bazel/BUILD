@@ -7,7 +7,6 @@ package(default_visibility = ["//visibility:private"])
 filegroup(
     name = "srcs",
     srcs = glob(["**"]) + [
-        "//src/test/shell/bazel/android:srcs",
         "//src/test/shell/bazel/apple:srcs",
         "//src/test/shell/bazel/remote:srcs",
         "//src/test/shell/bazel/testdata:srcs",
@@ -64,7 +63,7 @@ filegroup(
         "//third_party/ijar",
         "//tools:srcs",
         "@bazel_skylib//:test_deps",
-        "@bazel_tools//tools/jdk:current_java_runtime",
+        "@rules_java//toolchains:current_java_runtime",
     ],
     visibility = [
         "//src/test/shell:__subpackages__",
@@ -108,7 +107,7 @@ sh_test(
     tags = [
         "no_windows",
     ],
-    toolchains = ["@bazel_tools//tools/jdk:current_java_runtime"],
+    toolchains = ["@rules_java//toolchains:current_java_runtime"],
 )
 
 sh_test(
@@ -343,18 +342,6 @@ JAVA_VERSIONS_COVERAGE = ("11", "17", "21")
     )
     for java_version in JAVA_VERSIONS
 ]
-
-sh_test(
-    name = "bazel_android_tools_test",
-    size = "small",
-    srcs = ["bazel_android_tools_test.sh"],
-    data = [
-        ":test-deps",
-        "//tools/android/runtime_deps:android_tools.tar",
-        "@bazel_tools//tools/bash/runfiles",
-    ],
-    tags = ["no_windows"],
-)
 
 sh_test(
     name = "bazel_java_tools_test",
@@ -621,7 +608,25 @@ sh_test(
 sh_test(
     name = "bazel_coverage_starlark_test",
     srcs = ["bazel_coverage_starlark_test.sh"],
+    args = ["released"],
     data = [":test-deps"],
+    tags = [
+        "no_windows",
+    ],
+)
+
+sh_test(
+    name = "bazel_coverage_starlark_head_test",
+    srcs = ["bazel_coverage_starlark_test.sh"],
+    args = [
+        # WORKSPACE file of the coverage output generator repo to test
+        "$(rlocationpath //tools/test/CoverageOutputGenerator/java/com/google/devtools/coverageoutputgenerator:coverage_empty_workspace)",
+    ],
+    data = [
+        ":test-deps",
+        "//tools/test/CoverageOutputGenerator/java/com/google/devtools/coverageoutputgenerator:coverage_empty_workspace",
+        "//tools/test/CoverageOutputGenerator/java/com/google/devtools/coverageoutputgenerator:coverage_output_generator_repo_java8",
+    ],
     tags = [
         "no_windows",
     ],
@@ -841,14 +846,6 @@ sh_test(
 )
 
 sh_test(
-    name = "cross_repository_test",
-    size = "large",
-    srcs = ["cross_repository_test.sh"],
-    data = [":test-deps"],
-    tags = ["no_windows"],
-)
-
-sh_test(
     name = "external_starlark_load_test",
     size = "large",
     srcs = ["external_starlark_load_test.sh"],
@@ -874,6 +871,7 @@ sh_test(
     data = [
         ":test-deps",
         "@bazel_tools//tools/bash/runfiles",
+        "@local_jdk//:jdk",  # for remote_helpers setup_localjdk_javabase
     ],
     shard_count = 10,
     tags = [
@@ -967,35 +965,11 @@ sh_test(
 )
 
 sh_test(
-    name = "workspace_test",
-    size = "large",
-    srcs = ["workspace_test.sh"],
-    data = [":test-deps"],
-    shard_count = 5,
-    tags = ["no_windows"],
-)
-
-sh_test(
     name = "bazelignore_test",
     size = "medium",
     srcs = ["bazelignore_test.sh"],
     data = [":test-deps"],
     tags = ["no_windows"],
-)
-
-sh_test(
-    name = "workspace_resolved_test",
-    size = "large",
-    srcs = ["workspace_resolved_test.sh"],
-    data = [
-        ":test-deps",
-        "@bazel_tools//tools/bash/runfiles",
-    ],
-    shard_count = 22,
-    tags = [
-        "no_windows",
-        "requires-network",  # rules_python are needed and are hard to mock out
-    ],
 )
 
 sh_test(
@@ -1103,7 +1077,10 @@ sh_test(
     name = "client_test",
     size = "medium",
     srcs = ["client_test.sh"],
-    data = [":test-deps"],
+    data = [
+        ":test-deps",
+        "//src/test/java/com/google/devtools/build/lib/testutil:external_file_system_lock_helper",
+    ],
     tags = ["no_windows"],
 )
 
@@ -1151,7 +1128,7 @@ sh_test(
     tags = [
         "no_windows",
     ],
-    toolchains = ["@bazel_tools//tools/jdk:current_java_runtime"],
+    toolchains = ["@rules_java//toolchains:current_java_runtime"],
 )
 
 sh_test(
@@ -1248,7 +1225,7 @@ sh_test(
     tags = [
         "no_windows",
     ],
-    toolchains = ["@bazel_tools//tools/jdk:current_java_runtime"],
+    toolchains = ["@rules_java//toolchains:current_java_runtime"],
 )
 
 genquery(
@@ -1279,20 +1256,6 @@ sh_test(
 test_suite(
     name = "all_tests",
     visibility = ["//visibility:public"],
-)
-
-sh_test(
-    name = "bazel_workspaces_test",
-    srcs = ["bazel_workspaces_test.sh"],
-    data = [
-        ":test-deps",
-        "//src/tools/workspacelog:parser",
-    ],
-    shard_count = 3,
-    tags = [
-        "no_windows",
-        "requires-network",
-    ],
 )
 
 sh_test(
@@ -1370,6 +1333,7 @@ sh_test(
     data = [
         ":test-deps",
         "//src/tools/remote:worker",
+        "@local_jdk//:jdk",  # for remote_helpers
     ],
     tags = [
         "no_windows",

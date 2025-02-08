@@ -25,7 +25,7 @@ import com.google.devtools.build.skyframe.SkyKey;
 /** Key for {@link DirectoryListingFunction}. */
 @AutoCodec
 public final class DirectoryListingKey extends AbstractSkyKey<RootedPath>
-    implements FileSystemOperationNode {
+    implements FileOpNodeOrFuture.FileOpNode {
 
   private static final SkyKeyInterner<DirectoryListingKey> interner = SkyKey.newInterner();
 

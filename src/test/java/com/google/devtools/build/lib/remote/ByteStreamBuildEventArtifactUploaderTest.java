@@ -42,7 +42,6 @@ import com.google.devtools.build.lib.actions.Artifact;
 import com.google.devtools.build.lib.actions.ArtifactRoot;
 import com.google.devtools.build.lib.actions.ArtifactRoot.RootType;
 import com.google.devtools.build.lib.actions.FileArtifactValue;
-import com.google.devtools.build.lib.actions.FileArtifactValue.RemoteFileArtifactValue;
 import com.google.devtools.build.lib.actions.StaticInputMetadataProvider;
 import com.google.devtools.build.lib.actions.util.ActionsTestUtil;
 import com.google.devtools.build.lib.authandtls.CallCredentialsProvider;
@@ -530,8 +529,7 @@ public class ByteStreamBuildEventArtifactUploaderTest {
     byte[] b = contents.getBytes(StandardCharsets.UTF_8);
     HashCode h = HashCode.fromString(DIGEST_UTIL.compute(b).getHash());
     FileArtifactValue f =
-        RemoteFileArtifactValue.create(
-            h.asBytes(), b.length, /* locationIndex= */ 1, /* expireAtEpochMilli= */ -1);
+        FileArtifactValue.createForRemoteFile(h.asBytes(), b.length, /* locationIndex= */ 1);
     inputs.putWithNoDepOwner(a, f);
     return a;
   }

@@ -67,8 +67,7 @@ public final class LabelVisitationUtils {
       return;
     }
 
-    if (target instanceof Rule) {
-      Rule rule = (Rule) target;
+    if (target instanceof Rule rule) {
       visitRuleVisibility(rule, edgeFilter, labelProcessor);
       visitRule(rule, edgeFilter, labelProcessor);
       visitRuleToolchains(rule, edgeFilter, labelProcessor);

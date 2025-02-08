@@ -210,7 +210,7 @@ public final class ActionInputMap implements InputMetadataProvider, ActionInputM
   @Nullable
   @Override
   public FileArtifactValue getInputMetadataChecked(ActionInput input) {
-    if (isARunfilesMiddleman(input)) {
+    if (isRunfilesTree(input)) {
       RunfilesArtifactValue runfilesMetadata = getRunfilesMetadata(input);
       return runfilesMetadata == null ? null : runfilesMetadata.getMetadata();
     }
@@ -254,7 +254,7 @@ public final class ActionInputMap implements InputMetadataProvider, ActionInputM
   @Nullable
   @Override
   public RunfilesArtifactValue getRunfilesMetadata(ActionInput input) {
-    Preconditions.checkArgument(isARunfilesMiddleman(input));
+    Preconditions.checkArgument(isRunfilesTree(input));
 
     int index = getIndex(input.getExecPathString());
     if (index == -1) {
@@ -364,7 +364,7 @@ public final class ActionInputMap implements InputMetadataProvider, ActionInputM
   @Override
   public void putRunfilesMetadata(
       Artifact input, RunfilesArtifactValue metadata, @Nullable Artifact depOwner) {
-    checkArgument(isARunfilesMiddleman(input));
+    checkArgument(isRunfilesTree(input));
 
     int oldIndex = putIfAbsent(input, metadata);
     Preconditions.checkState(oldIndex == -1);
@@ -395,7 +395,7 @@ public final class ActionInputMap implements InputMetadataProvider, ActionInputM
         !isATreeArtifact(input),
         "Can't add tree artifact: %s using put -- please use putTreeArtifact for that",
         input);
-    checkArgument(!isARunfilesMiddleman(input));
+    checkArgument(!isRunfilesTree(input));
 
     int oldIndex = putIfAbsent(input, metadata);
     checkArgument(
@@ -481,7 +481,7 @@ public final class ActionInputMap implements InputMetadataProvider, ActionInputM
     return input instanceof SpecialArtifact && ((SpecialArtifact) input).isTreeArtifact();
   }
 
-  private static boolean isARunfilesMiddleman(ActionInput input) {
-    return input instanceof Artifact && ((Artifact) input).isMiddlemanArtifact();
+  private static boolean isRunfilesTree(ActionInput input) {
+    return input instanceof Artifact && ((Artifact) input).isRunfilesTree();
   }
 }

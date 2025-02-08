@@ -77,7 +77,7 @@ public class SubcommandEventTest extends BuildIntegrationTestCase {
     assertThat(
             new Command(new String[] {"/bin/sh", "-c", command})
                 .execute(new ByteArrayOutputStream(), new ByteArrayOutputStream())
-                .getTerminationStatus()
+                .terminationStatus()
                 .success())
         .isTrue();
     assertThat(helloOut.isFile()).isTrue();

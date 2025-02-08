@@ -13,13 +13,15 @@
 // limitations under the License.
 package com.google.devtools.build.lib.analysis.util;
 
-import com.google.auto.value.AutoValue;
+import static java.util.Objects.requireNonNull;
+
 import com.google.devtools.build.lib.analysis.config.BuildOptions;
 import com.google.devtools.build.lib.analysis.config.CoreOptionConverters.EmptyToNullLabelConverter;
 import com.google.devtools.build.lib.analysis.config.Fragment;
 import com.google.devtools.build.lib.analysis.config.FragmentOptions;
 import com.google.devtools.build.lib.analysis.config.RequiresOptions;
 import com.google.devtools.build.lib.cmdline.Label;
+import com.google.devtools.build.lib.skyframe.serialization.autocodec.AutoCodec;
 import com.google.devtools.common.options.Converter;
 import com.google.devtools.common.options.Converters.CommaSeparatedOptionListConverter;
 import com.google.devtools.common.options.Converters.OptionalAssignmentConverter;
@@ -128,12 +130,14 @@ public final class DummyTestFragment extends Fragment {
         help = "allowMultiple flag where the converter returns a list")
     public List<String> allowMultipleWithListConverter;
 
-    @AutoValue
-    public abstract static class UnreadableStringBox {
-      public abstract String value();
+    @AutoCodec
+    public record UnreadableStringBox(String value) {
+      public UnreadableStringBox {
+        requireNonNull(value, "value");
+      }
 
       public static UnreadableStringBox create(String value) {
-        return new AutoValue_DummyTestFragment_DummyTestOptions_UnreadableStringBox(value);
+        return new UnreadableStringBox(value);
       }
     }
 

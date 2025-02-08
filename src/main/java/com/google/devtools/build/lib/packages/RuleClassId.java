@@ -14,22 +14,23 @@
 
 package com.google.devtools.build.lib.packages;
 
-import com.google.auto.value.AutoValue;
+import static java.util.Objects.requireNonNull;
+
+import com.google.devtools.build.lib.skyframe.serialization.autocodec.AutoCodec;
 
 /**
  * Identifier for a RuleClass object including both the common ruleClass name and a unique
  * identifier for that ruleClass to disambiguate two Starlark rule classes with the same common
  * name.
- *
- * <p>TODO: b/331652164 - This should be a record
  */
-@AutoValue
-public abstract class RuleClassId {
-  public static RuleClassId create(String name, String key) {
-    return new AutoValue_RuleClassId(name, key);
+@AutoCodec
+public record RuleClassId(String name, String key) {
+  public RuleClassId {
+    requireNonNull(name, "name");
+    requireNonNull(key, "key");
   }
 
-  public abstract String name();
-
-  public abstract String key();
+  public static RuleClassId create(String name, String key) {
+    return new RuleClassId(name, key);
+  }
 }

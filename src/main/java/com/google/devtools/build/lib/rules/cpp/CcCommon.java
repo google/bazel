@@ -205,8 +205,7 @@ public final class CcCommon implements StarlarkValue {
 
     @Override
     @Nullable
-    public String getMakeVariable(String variableName)
-        throws ExpansionException, InterruptedException {
+    public String getMakeVariable(String variableName) throws ExpansionException {
       if (!variableName.equals(CppConfiguration.CC_FLAGS_MAKE_VARIABLE_NAME)) {
         return null;
       }
@@ -220,8 +219,7 @@ public final class CcCommon implements StarlarkValue {
     }
 
     @Override
-    public ImmutableMap<String, String> getAllMakeVariables()
-        throws ExpansionException, InterruptedException {
+    public ImmutableMap<String, String> getAllMakeVariables() throws ExpansionException {
       return ImmutableMap.of(
           CppConfiguration.CC_FLAGS_MAKE_VARIABLE_NAME,
           getMakeVariable(CppConfiguration.CC_FLAGS_MAKE_VARIABLE_NAME));
@@ -271,11 +269,11 @@ public final class CcCommon implements StarlarkValue {
    *
    * <p>But we require that the "defines" attribute consists of a single token.
    */
-  public List<String> getDefines() throws InterruptedException {
+  public List<String> getDefines() {
     return getDefinesFromAttribute(DEFINES_ATTRIBUTE);
   }
 
-  private List<String> getDefinesFromAttribute(String attr) throws InterruptedException {
+  private List<String> getDefinesFromAttribute(String attr) {
     List<String> defines = new ArrayList<>();
 
     // collect labels that can be substituted in defines
@@ -572,7 +570,7 @@ public final class CcCommon implements StarlarkValue {
    */
   public static String computeCcFlags(
       RuleContext ruleContext, CcToolchainProvider toolchainProvider)
-      throws RuleErrorException, InterruptedException, EvalException {
+      throws RuleErrorException, EvalException {
 
     // Determine the original value of CC_FLAGS.
     String originalCcFlags = toolchainProvider.getLegacyCcFlagsMakeVariable();
@@ -605,8 +603,7 @@ public final class CcCommon implements StarlarkValue {
   }
 
   private static List<String> computeCcFlagsFromFeatureConfig(
-      RuleContext ruleContext, CcToolchainProvider toolchainProvider)
-      throws RuleErrorException, InterruptedException {
+      RuleContext ruleContext, CcToolchainProvider toolchainProvider) throws RuleErrorException {
     FeatureConfiguration featureConfiguration = null;
     CppConfiguration cppConfiguration;
     cppConfiguration = ruleContext.getFragment(CppConfiguration.class);

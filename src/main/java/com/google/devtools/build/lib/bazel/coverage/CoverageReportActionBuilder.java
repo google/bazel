@@ -277,8 +277,8 @@ public final class CoverageReportActionBuilder {
                 coverageDir.getRelative("_coverage_report.dat"), root, args.artifactOwner());
     Artifact reportGeneratorExec = args.reportGenerator().getExecutable();
     RunfilesSupport runfilesSupport = args.reportGenerator().getRunfilesSupport();
-    Artifact runfilesMiddleman =
-        runfilesSupport != null ? runfilesSupport.getRunfilesMiddleman() : null;
+    Artifact runfilesTree =
+        runfilesSupport != null ? runfilesSupport.getRunfilesTreeArtifact() : null;
     args = CoverageArgs.createCopyWithCoverageDirAndLcovOutput(args, coverageDir, lcovOutput);
     ImmutableList<String> actionArgs = argsFunc.apply(args);
 
@@ -287,8 +287,8 @@ public final class CoverageReportActionBuilder {
             .addAll(args.coverageArtifacts())
             .add(reportGeneratorExec)
             .add(args.lcovArtifact());
-    if (runfilesMiddleman != null) {
-      inputsBuilder.add(runfilesMiddleman);
+    if (runfilesTree != null) {
+      inputsBuilder.add(runfilesTree);
     }
     return new CoverageReportAction(
         ACTION_OWNER,

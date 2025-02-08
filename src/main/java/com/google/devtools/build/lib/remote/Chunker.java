@@ -22,11 +22,8 @@ import static java.lang.Math.min;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.io.ByteStreams;
-import com.google.devtools.build.lib.actions.ActionInput;
-import com.google.devtools.build.lib.actions.ActionInputHelper;
-import com.google.devtools.build.lib.actions.cache.VirtualActionInput;
+import com.google.devtools.build.lib.remote.common.RemoteCacheClient.Blob;
 import com.google.devtools.build.lib.remote.zstd.ZstdCompressingInputStream;
-import com.google.devtools.build.lib.vfs.Path;
 import com.google.errorprone.annotations.CanIgnoreReturnValue;
 import com.google.protobuf.ByteString;
 import java.io.ByteArrayInputStream;
@@ -46,7 +43,7 @@ import java.util.Objects;
  *
  * <p>This class should not be extended - it's only non-final for testing.
  */
-public class Chunker {
+public class Chunker implements AutoCloseable {
 
   private static int defaultChunkSize = 1024 * 16;
 
@@ -100,12 +97,7 @@ public class Chunker {
     }
   }
 
-  /** A supplier that provide data as {@link InputStream}. */
-  public interface ChunkDataSupplier {
-    InputStream get() throws IOException;
-  }
-
-  private final ChunkDataSupplier dataSupplier;
+  private final Blob blob;
   private final long uncompressedSize;
   private final int chunkSize;
   private final Chunk emptyChunk;
@@ -120,9 +112,8 @@ public class Chunker {
   // lazily on the first call to next(), as opposed to opening it in the constructor or on reset().
   private boolean initialized;
 
-  Chunker(
-      ChunkDataSupplier dataSupplier, long uncompressedSize, int chunkSize, boolean compressed) {
-    this.dataSupplier = checkNotNull(dataSupplier);
+  Chunker(Blob blob, long uncompressedSize, int chunkSize, boolean compressed) {
+    this.blob = checkNotNull(blob);
     this.uncompressedSize = uncompressedSize;
     this.chunkSize = chunkSize;
     this.emptyChunk = new Chunk(ByteString.EMPTY, 0);
@@ -143,7 +134,7 @@ public class Chunker {
    * <p>Closes any open resources (file handles, ...).
    */
   public void reset() throws IOException {
-    close();
+    closeInput();
     offset = 0;
     initialized = false;
   }
@@ -168,7 +159,7 @@ public class Chunker {
       initialize(toOffset);
     }
     if (uncompressedSize > 0 && data.finished()) {
-      close();
+      closeInput();
     }
   }
 
@@ -180,12 +171,18 @@ public class Chunker {
   }
 
   /** Closes the input stream and reset chunk cache */
-  private void close() throws IOException {
+  private void closeInput() throws IOException {
     if (data != null) {
       data.close();
       data = null;
     }
     chunkCache = null;
+  }
+
+  @Override
+  public void close() throws IOException {
+    reset();
+    blob.close();
   }
 
   /** Attempts reading at most a full chunk and stores it in the chunkCache buffer */
@@ -217,7 +214,7 @@ public class Chunker {
     maybeInitialize();
 
     if (uncompressedSize == 0) {
-      close();
+      closeInput();
       return emptyChunk;
     }
 
@@ -249,7 +246,7 @@ public class Chunker {
     // or the guard in getActualSize won't work.
     offset += bytesRead;
     if (data.finished()) {
-      close();
+      closeInput();
     }
 
     return new Chunk(blob, offsetBefore);
@@ -268,7 +265,7 @@ public class Chunker {
     checkState(offset == 0);
     checkState(chunkCache == null);
     try {
-      var src = dataSupplier.get();
+      var src = blob.get();
       ByteStreams.skipFully(src, srcPos);
       data =
           compressed
@@ -294,49 +291,23 @@ public class Chunker {
     private int chunkSize = getDefaultChunkSize();
     protected long size;
     private boolean compressed;
-    protected ChunkDataSupplier inputStream;
+    protected Blob inputStream;
 
     @CanIgnoreReturnValue
-    public Builder setInput(byte[] data) {
-      checkState(inputStream == null);
-      size = data.length;
-      setInputSupplier(() -> new ByteArrayInputStream(data));
-      return this;
-    }
-
-    @CanIgnoreReturnValue
-    public Builder setInput(long size, InputStream in) {
+    public Builder setInput(long size, Blob in) {
       checkState(inputStream == null);
       checkNotNull(in);
       this.size = size;
-      inputStream = () -> in;
-      return this;
-    }
-
-    @CanIgnoreReturnValue
-    public Builder setInput(long size, Path file) {
-      checkState(inputStream == null);
-      this.size = size;
-      inputStream = file::getInputStream;
-      return this;
-    }
-
-    @CanIgnoreReturnValue
-    public Builder setInput(long size, ActionInput actionInput, Path execRoot) {
-      checkState(inputStream == null);
-      this.size = size;
-      if (actionInput instanceof VirtualActionInput virtualActionInput) {
-        inputStream = () -> virtualActionInput.getBytes().newInput();
-      } else {
-        inputStream = () -> ActionInputHelper.toInputPath(actionInput, execRoot).getInputStream();
-      }
+      inputStream = in;
       return this;
     }
 
     @CanIgnoreReturnValue
     @VisibleForTesting
-    protected final Builder setInputSupplier(ChunkDataSupplier inputStream) {
-      this.inputStream = inputStream;
+    public Builder setInput(byte[] data) {
+      checkState(inputStream == null);
+      size = data.length;
+      this.inputStream = () -> new ByteArrayInputStream(data);
       return this;
     }
 

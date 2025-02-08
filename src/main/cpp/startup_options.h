@@ -27,11 +27,9 @@
 #include <vector>
 
 #include "src/main/cpp/util/exit_code.h"
-#include "src/main/cpp/util/path.h"
+#include "src/main/cpp/util/path_platform.h"
 
 namespace blaze {
-
-class WorkspaceLayout;
 
 // A startup flag tagged with its origin, either an rc file or the empty
 // string for the ones specified in the command line.
@@ -41,8 +39,7 @@ class WorkspaceLayout;
 struct RcStartupFlag {
   const std::string source;
   const std::string value;
-  RcStartupFlag(const std::string& source_arg,
-                const std::string& value_arg)
+  RcStartupFlag(const std::string &source_arg, const std::string &value_arg)
       : source(source_arg), value(value_arg) {}
 };
 
@@ -65,8 +62,7 @@ class StartupOptions {
 
   // Process an ordered list of RcStartupFlags using ProcessArg.
   blaze_exit_code::ExitCode ProcessArgs(
-      const std::vector<RcStartupFlag>& rcstartup_flags,
-      std::string *error);
+      const std::vector<RcStartupFlag> &rcstartup_flags, std::string *error);
 
   // Adds any other options needed to result.
   //
@@ -124,7 +120,7 @@ class StartupOptions {
 
   // Checks whether the argument is a valid unary option.
   // E.g. --blazerc=foo, --blazerc foo.
-  bool IsUnary(const std::string& arg) const;
+  bool IsUnary(const std::string &arg) const;
 
   std::string GetLowercaseProductName() const;
 
@@ -139,21 +135,27 @@ class StartupOptions {
   // Otherwise a default path in the output base is used.
   blaze_util::Path failure_detail_out;
 
-  // Blaze's output base.  Everything is relative to this.  See
-  // the BlazeDirectories Java class for details.
+  // A directory suitable for storing cached files.
+  // This contains the default locations of the install and output bases, as
+  // well as the repository cache.
+  // Defaults to a system-dependent, user-specific directory.
+  // See UpdateConfiguration().
+  blaze_util::Path output_user_root;
+
+  // The directory where build outputs are placed.
+  // Defaults to a <md5(workspace)> subdirectory of output_user_root.
+  // See UpdateConfiguration().
   blaze_util::Path output_base;
 
-  // Installation base for a specific release installation.
-  std::string install_base;
+  // The directory where the decompressed Bazel server is installed.
+  // Defaults to an install/<md5(install)> subdirectory of output_user_root.
+  // See UpdateConfiguration().
+  blaze_util::Path install_base;
 
-  // The toplevel directory containing Blaze's output.  When Blaze is
-  // run by a test, we use TEST_TMPDIR, simplifying the correct
-  // hermetic invocation of Blaze from tests.
-  std::string output_root;
-
-  // Blaze's output_user_root. Used only for computing install_base and
-  // output_base.
-  std::string output_user_root;
+  // Whether the install base should be locked before use.
+  // Not user-settable, only used for client/server communication.
+  // Hardcoded to true for Bazel, false for Blaze.
+  bool lock_install_base;
 
   // Override more finegrained rc file flags and ignore them all.
   bool ignore_all_rc_files;
@@ -191,7 +193,9 @@ class StartupOptions {
 
   bool write_command_log;
 
-  // If true, Blaze will listen to OS-level file change notifications.
+  // No-op.
+  // TODO: b/375052752 - Remove this after the 6 month compatibility window ends
+  //   in April 2025.
   bool watchfs;
 
   // Temporary flag for enabling EventBus exceptions to be fatal.
@@ -227,6 +231,10 @@ class StartupOptions {
   // Returns the explicit value of the --server_javabase startup option or the
   // empty string if it was not specified on the command line.
   blaze_util::Path GetExplicitServerJavabase() const;
+
+  // Updates the parsed startup options to fill in defaults.
+  void UpdateConfiguration(const std::string &install_md5,
+                           const std::string &workspace, bool server_mode);
 
   // Port to start up the gRPC command server on. If 0, let the kernel choose.
   int command_port;
@@ -276,6 +284,10 @@ class StartupOptions {
 
 #ifdef __linux__
   std::string cgroup_parent;
+
+  // If enabled, the Bazel server will be run with systemd-run, and the user
+  // will own the cgroup.
+  bool run_in_user_cgroup;
 #endif
 
   // Whether to create symbolic links on Windows for files. Requires
@@ -284,15 +296,17 @@ class StartupOptions {
 
  protected:
   // Constructor for subclasses only so that site-specific extensions of this
-  // class can override the product name.  The product_name must be the
-  // capitalized version of the name, as in "Bazel".
-  StartupOptions(const std::string &product_name,
-                 const WorkspaceLayout *workspace_layout);
+  // class can override the product name. The product_name must be capitalized,
+  // as in "Bazel".
+  StartupOptions(const std::string &product_name, bool lock_install_base);
+
+  // Returns the default output root location.
+  virtual blaze_util::Path GetDefaultOutputRoot() const = 0;
 
   // Checks extra fields when processing arg.
   //
-  // Returns the exit code after processing the argument. "error" will contain
-  // a descriptive string for any return value other than
+  // Returns the exit code after processing the argument. "error" will
+  // contain a descriptive string for any return value other than
   // blaze_exit_code::SUCCESS.
   //
   // TODO(jmmv): Now that we support site-specific options via subclasses of
@@ -330,7 +344,7 @@ class StartupOptions {
 
   virtual std::string GetRcFileBaseName() const = 0;
 
-  void RegisterUnaryStartupFlag(const std::string& flag_name);
+  void RegisterUnaryStartupFlag(const std::string &flag_name);
 
   // Register a nullary startup flag.
   // Both '--flag_name' and '--noflag_name' will be registered as valid nullary
@@ -356,10 +370,10 @@ class StartupOptions {
   // Prevent copying and moving the object to avoid invalidating pointers to
   // members (in all_nullary_startup_flags_ for example).
   StartupOptions() = delete;
-  StartupOptions(const StartupOptions&) = delete;
-  StartupOptions& operator=(const StartupOptions&) = delete;
-  StartupOptions(StartupOptions&&) = delete;
-  StartupOptions& operator=(StartupOptions&&) = delete;
+  StartupOptions(const StartupOptions &) = delete;
+  StartupOptions &operator=(const StartupOptions &) = delete;
+  StartupOptions(StartupOptions &&) = delete;
+  StartupOptions &operator=(StartupOptions &&) = delete;
 
   // Parses a single argument, either from the command line or from the .blazerc
   // "startup" options.

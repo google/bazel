@@ -16,10 +16,8 @@ package com.google.testing.junit.runner.junit4;
 
 import static com.google.common.truth.Truth.assertThat;
 import static com.google.testing.junit.runner.junit4.JUnit4Config.JUNIT_API_VERSION_PROPERTY;
-import static com.google.testing.junit.runner.junit4.JUnit4Config.SHOULD_INSTALL_SECURITY_MANAGER_PROPERTY;
 import static org.junit.Assert.assertThrows;
 
-import com.google.testing.junit.runner.util.GoogleTestSecurityManager;
 import java.util.Properties;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -78,30 +76,5 @@ public class JUnit4ConfigTest {
   public void testGetJUnitRunnerApiVersion_oneIsValid() {
     JUnit4Config config = createConfigWithApiVersion("1");
     assertThat(config.getJUnitRunnerApiVersion()).isEqualTo(1);
-  }
-
-  @Test
-  public void testShouldInstallSecurityManager_defaultValue() {
-    GoogleTestSecurityManager.uninstallIfInstalled();
-
-    JUnit4Config config = createConfigWithProperties(new Properties());
-    assertThat(config.shouldInstallSecurityManager()).isTrue();
-  }
-
-  @Test
-  public void testShouldInstallSecurityManager_securityManagerPropertySet() {
-    Properties properties = new Properties();
-    properties.put("java.security.manager", "MySecurityManager");
-    properties.put(SHOULD_INSTALL_SECURITY_MANAGER_PROPERTY, "true");
-    JUnit4Config config = createConfigWithProperties(properties);
-    assertThat(config.shouldInstallSecurityManager()).isFalse();
-  }
-
-  @Test
-  public void testShouldInstallSecurityManager_shouldInstallSecurityManagerPropertySetToFalse() {
-    Properties properties = new Properties();
-    properties.put(SHOULD_INSTALL_SECURITY_MANAGER_PROPERTY, "false");
-    JUnit4Config config = createConfigWithProperties(properties);
-    assertThat(config.shouldInstallSecurityManager()).isFalse();
   }
 }

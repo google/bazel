@@ -55,13 +55,14 @@ import com.google.devtools.build.lib.cmdline.LabelSyntaxException;
 import com.google.devtools.build.lib.cmdline.RepositoryMapping;
 import com.google.devtools.build.lib.cmdline.RepositoryName;
 import com.google.devtools.build.lib.events.Event;
-import com.google.devtools.build.lib.packages.semantics.BuildLanguageOptions;
 import com.google.devtools.build.lib.pkgcache.PackageOptions;
+import com.google.devtools.build.lib.profiler.Profiler;
+import com.google.devtools.build.lib.profiler.ProfilerTask;
+import com.google.devtools.build.lib.profiler.SilentCloseable;
 import com.google.devtools.build.lib.runtime.BlazeCommand;
 import com.google.devtools.build.lib.runtime.BlazeCommandResult;
 import com.google.devtools.build.lib.runtime.Command;
 import com.google.devtools.build.lib.runtime.CommandEnvironment;
-import com.google.devtools.build.lib.runtime.KeepGoingOption;
 import com.google.devtools.build.lib.runtime.LoadingPhaseThreadsOption;
 import com.google.devtools.build.lib.server.FailureDetails;
 import com.google.devtools.build.lib.server.FailureDetails.FailureDetail;
@@ -100,11 +101,9 @@ import javax.annotation.Nullable;
 @Command(
     name = ModCommand.NAME,
     buildPhase = LOADS,
-    // TODO(andreisolo): figure out which extra options are really needed
     options = {
       ModOptions.class,
       PackageOptions.class,
-      KeepGoingOption.class,
       LoadingPhaseThreadsOption.class
     },
     help = "resource:mod.txt",
@@ -116,13 +115,6 @@ public final class ModCommand implements BlazeCommand {
 
   @Override
   public BlazeCommandResult exec(CommandEnvironment env, OptionsParsingResult options) {
-    if (!options.getOptions(BuildLanguageOptions.class).enableBzlmod) {
-      return reportAndCreateFailureResult(
-          env,
-          "Bzlmod has to be enabled for mod command to work, run with --enable_bzlmod",
-          Code.MISSING_ARGUMENTS);
-    }
-
     env.getEventBus()
         .post(
             new NoBuildEvent(
@@ -212,7 +204,7 @@ public final class ModCommand implements BlazeCommand {
 
       if (evaluationResult.hasError()) {
         Exception e = evaluationResult.getError().getException();
-        String message = "Unexpected error during repository rule evaluation.";
+        String message = "Unexpected error during module graph evaluation.";
         if (e != null) {
           message = e.getMessage();
         }
@@ -254,7 +246,8 @@ public final class ModCommand implements BlazeCommand {
         return reportAndCreateFailureResult(
             env, "Repositories not found: " + missingRepos, Code.INVALID_ARGUMENTS);
       }
-      try {
+      try (SilentCloseable c =
+          Profiler.instance().profile(ProfilerTask.BZLMOD, "execute mod " + subcommand)) {
         dumpRepoMappings(
             repoMappingValues,
             new OutputStreamWriter(
@@ -270,21 +263,24 @@ public final class ModCommand implements BlazeCommand {
         return reportAndCreateFailureResult(
             env, "the 'tidy' command doesn't take extra arguments", Code.TOO_MANY_ARGUMENTS);
       }
-      return runTidy(env, modTidyValue);
+      try (SilentCloseable c =
+          Profiler.instance().profile(ProfilerTask.BZLMOD, "execute mod " + subcommand)) {
+        return runTidy(env, modTidyValue);
+      }
     }
 
     // Extract and check the --base_module argument first to use it when parsing the other args.
     // Can only be a TargetModule or a repoName relative to the ROOT.
     ModuleKey baseModuleKey;
-    AugmentedModule rootModule = moduleInspector.getDepGraph().get(ModuleKey.ROOT);
+    AugmentedModule rootModule = moduleInspector.depGraph().get(ModuleKey.ROOT);
     try {
       ImmutableSet<ModuleKey> keys =
           modOptions.baseModule.resolveToModuleKeys(
-              moduleInspector.getModulesIndex(),
-              moduleInspector.getDepGraph(),
-              moduleInspector.getModuleKeyToCanonicalNames(),
-              rootModule.getDeps(),
-              rootModule.getUnusedDeps(),
+              moduleInspector.modulesIndex(),
+              moduleInspector.depGraph(),
+              moduleInspector.moduleKeyToCanonicalNames(),
+              rootModule.deps(),
+              rootModule.unusedDeps(),
               false,
               false);
       if (keys.size() > 1) {
@@ -312,7 +308,7 @@ public final class ModCommand implements BlazeCommand {
     ImmutableMap<String, RepositoryName> argsAsRepos = null;
 
     AugmentedModule baseModule =
-        Objects.requireNonNull(moduleInspector.getDepGraph().get(baseModuleKey));
+        Objects.requireNonNull(moduleInspector.depGraph().get(baseModuleKey));
     RepositoryMapping baseModuleMapping = depGraphValue.getFullRepoMapping(baseModuleKey);
     try {
       switch (subcommand) {
@@ -332,9 +328,9 @@ public final class ModCommand implements BlazeCommand {
                   ModuleArgConverter.INSTANCE
                       .convert(arg)
                       .resolveToRepoNames(
-                          moduleInspector.getModulesIndex(),
-                          moduleInspector.getDepGraph(),
-                          moduleInspector.getModuleKeyToCanonicalNames(),
+                          moduleInspector.modulesIndex(),
+                          moduleInspector.depGraph(),
+                          moduleInspector.moduleKeyToCanonicalNames(),
                           baseModuleMapping));
             } catch (InvalidArgumentException | OptionsParsingException e) {
               throw new InvalidArgumentException(
@@ -356,11 +352,11 @@ public final class ModCommand implements BlazeCommand {
                   ExtensionArgConverter.INSTANCE
                       .convert(arg)
                       .resolveToExtensionId(
-                          moduleInspector.getModulesIndex(),
-                          moduleInspector.getDepGraph(),
-                          moduleInspector.getModuleKeyToCanonicalNames(),
-                          baseModule.getDeps(),
-                          baseModule.getUnusedDeps()));
+                          moduleInspector.modulesIndex(),
+                          moduleInspector.depGraph(),
+                          moduleInspector.moduleKeyToCanonicalNames(),
+                          baseModule.deps(),
+                          baseModule.unusedDeps()));
             } catch (InvalidArgumentException | OptionsParsingException e) {
               throw new InvalidArgumentException(
                   String.format("In extension argument %s: %s", arg, e.getMessage()),
@@ -378,11 +374,11 @@ public final class ModCommand implements BlazeCommand {
                   ModuleArgConverter.INSTANCE
                       .convert(arg)
                       .resolveToModuleKeys(
-                          moduleInspector.getModulesIndex(),
-                          moduleInspector.getDepGraph(),
-                          moduleInspector.getModuleKeyToCanonicalNames(),
-                          baseModule.getDeps(),
-                          baseModule.getUnusedDeps(),
+                          moduleInspector.modulesIndex(),
+                          moduleInspector.depGraph(),
+                          moduleInspector.moduleKeyToCanonicalNames(),
+                          baseModule.deps(),
+                          baseModule.unusedDeps(),
                           modOptions.includeUnused,
                           /* warnUnused= */ true));
             } catch (InvalidArgumentException | OptionsParsingException e) {
@@ -404,11 +400,11 @@ public final class ModCommand implements BlazeCommand {
       fromKeys =
           moduleArgListToKeys(
               modOptions.modulesFrom,
-              moduleInspector.getModulesIndex(),
-              moduleInspector.getDepGraph(),
-              moduleInspector.getModuleKeyToCanonicalNames(),
-              baseModule.getDeps(),
-              baseModule.getUnusedDeps(),
+              moduleInspector.modulesIndex(),
+              moduleInspector.depGraph(),
+              moduleInspector.moduleKeyToCanonicalNames(),
+              baseModule.deps(),
+              baseModule.unusedDeps(),
               modOptions.includeUnused);
     } catch (InvalidArgumentException e) {
       return reportAndCreateFailureResult(
@@ -421,11 +417,11 @@ public final class ModCommand implements BlazeCommand {
       usageKeys =
           moduleArgListToKeys(
               modOptions.extensionUsages,
-              moduleInspector.getModulesIndex(),
-              moduleInspector.getDepGraph(),
-              moduleInspector.getModuleKeyToCanonicalNames(),
-              baseModule.getDeps(),
-              baseModule.getUnusedDeps(),
+              moduleInspector.modulesIndex(),
+              moduleInspector.depGraph(),
+              moduleInspector.moduleKeyToCanonicalNames(),
+              baseModule.deps(),
+              baseModule.unusedDeps(),
               modOptions.includeUnused);
     } catch (InvalidArgumentException e) {
       return reportAndCreateFailureResult(
@@ -449,11 +445,11 @@ public final class ModCommand implements BlazeCommand {
                   MaybeCompleteSet.copyOf(
                       extensionArgListToIds(
                           modOptions.extensionFilter,
-                          moduleInspector.getModulesIndex(),
-                          moduleInspector.getDepGraph(),
-                          moduleInspector.getModuleKeyToCanonicalNames(),
-                          baseModule.getDeps(),
-                          baseModule.getUnusedDeps())));
+                          moduleInspector.modulesIndex(),
+                          moduleInspector.depGraph(),
+                          moduleInspector.moduleKeyToCanonicalNames(),
+                          baseModule.deps(),
+                          baseModule.unusedDeps())));
         } catch (InvalidArgumentException e) {
           return reportAndCreateFailureResult(
               env,
@@ -518,16 +514,17 @@ public final class ModCommand implements BlazeCommand {
 
     ModExecutor modExecutor =
         new ModExecutor(
-            moduleInspector.getDepGraph(),
+            moduleInspector.depGraph(),
             depGraphValue.getExtensionUsagesTable(),
-            moduleInspector.getExtensionToRepoInternalNames(),
+            moduleInspector.extensionToRepoInternalNames(),
             filterExtensions,
             modOptions,
             new OutputStreamWriter(
                 env.getReporter().getOutErr().getOutputStream(),
                 modOptions.charset == UTF8 ? UTF_8 : US_ASCII));
 
-    try {
+    try (SilentCloseable c =
+        Profiler.instance().profile(ProfilerTask.BZLMOD, "execute mod " + subcommand)) {
       switch (subcommand) {
         case GRAPH -> modExecutor.graph(fromKeys);
         case DEPS -> modExecutor.graph(argsAsModules);
@@ -541,7 +538,16 @@ public final class ModCommand implements BlazeCommand {
       return reportAndCreateFailureResult(env, e.getMessage(), Code.INVALID_ARGUMENTS);
     }
 
-    return BlazeCommandResult.success();
+    if (moduleInspector.errors().isEmpty()) {
+      return BlazeCommandResult.success();
+    } else {
+      return reportAndCreateFailureResult(
+          env,
+          String.format(
+              "Results may be incomplete as %d extension%s failed.",
+              moduleInspector.errors().size(), moduleInspector.errors().size() == 1 ? "" : "s"),
+          Code.ERROR_DURING_GRAPH_INSPECTION);
+    }
   }
 
   private BlazeCommandResult runTidy(CommandEnvironment env, BazelModTidyValue modTidyValue) {
@@ -570,9 +576,9 @@ public final class ModCommand implements BlazeCommand {
     } catch (InterruptedException | CommandException | IOException e) {
       String suffix = "";
       if (e instanceof AbnormalTerminationException abnormalTerminationException) {
-        if (abnormalTerminationException.getResult().getTerminationStatus().getRawExitCode() == 3) {
+        if (abnormalTerminationException.getResult().terminationStatus().getRawExitCode() == 3) {
           // Buildozer exits with exit code 3 if it didn't make any changes.
-          return BlazeCommandResult.success();
+          return reportAndCreateTidyResult(env, modTidyValue);
         }
         suffix =
             ":\n" + new String(((AbnormalTerminationException) e).getResult().getStderr(), UTF_8);
@@ -587,7 +593,21 @@ public final class ModCommand implements BlazeCommand {
       env.getReporter().handle(Event.info(fixupEvent.getSuccessMessage()));
     }
 
-    return BlazeCommandResult.success();
+    return reportAndCreateTidyResult(env, modTidyValue);
+  }
+
+  private static BlazeCommandResult reportAndCreateTidyResult(
+      CommandEnvironment env, BazelModTidyValue modTidyValue) {
+    if (modTidyValue.errors().isEmpty()) {
+      return BlazeCommandResult.success();
+    } else {
+      return reportAndCreateFailureResult(
+          env,
+          String.format(
+              "Failed to process %d extension%s due to errors.",
+              modTidyValue.errors().size(), modTidyValue.errors().size() == 1 ? "" : "s"),
+          Code.ERROR_DURING_GRAPH_INSPECTION);
+    }
   }
 
   /** Collects a list of {@link ModuleArg} into a set of {@link ModuleKey}s. */
@@ -640,9 +660,13 @@ public final class ModCommand implements BlazeCommand {
   private static BlazeCommandResult reportAndCreateFailureResult(
       CommandEnvironment env, String message, Code detailedCode) {
     String fullMessage =
-        String.format(
-            "%s%s Type '%s help mod' for syntax and help.",
-            message, message.endsWith(".") ? "" : ".", env.getRuntime().getProductName());
+        switch (detailedCode) {
+          case MISSING_ARGUMENTS, TOO_MANY_ARGUMENTS, INVALID_ARGUMENTS ->
+              String.format(
+                  "%s%s Type '%s help mod' for syntax and help.",
+                  message, message.endsWith(".") ? "" : ".", env.getRuntime().getProductName());
+          default -> message;
+        };
     env.getReporter().handle(Event.error(fullMessage));
     return createFailureResult(fullMessage, detailedCode);
   }
@@ -663,7 +687,7 @@ public final class ModCommand implements BlazeCommand {
       JsonWriter jsonWriter = gson.newJsonWriter(writer);
       jsonWriter.beginObject();
       for (Entry<String, RepositoryName> entry :
-          repoMapping.getRepositoryMapping().entries().entrySet()) {
+          repoMapping.repositoryMapping().entries().entrySet()) {
         jsonWriter.name(entry.getKey());
         jsonWriter.value(entry.getValue().getName());
       }

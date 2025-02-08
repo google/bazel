@@ -15,7 +15,8 @@
 
 package com.google.devtools.build.lib.bazel.bzlmod;
 
-import com.google.auto.value.AutoValue;
+import static java.util.Objects.requireNonNull;
+
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
 import com.google.devtools.build.lib.skyframe.SkyFunctions;
@@ -26,26 +27,34 @@ import com.google.devtools.build.skyframe.SkyKey;
 import com.google.devtools.build.skyframe.SkyValue;
 import java.util.List;
 
-/** All Skyframe information required for the {@code bazel mod tidy} command. */
-@AutoValue
-public abstract class BazelModTidyValue implements SkyValue {
+/**
+ * All Skyframe information required for the {@code bazel mod tidy} command.
+ *
+ * @param fixups Buildozer fixups for incorrect use_repo declarations by the root module.
+ * @param buildozer The path of the buildozer binary provided by the "buildozer" module.
+ * @param moduleFilePaths The set of paths to the root MODULE.bazel file and all its includes.
+ * @param errors Errors encountered while evaluating prerequisites for {@code bazel mod tidy}.
+ */
+public record BazelModTidyValue(
+    ImmutableList<RootModuleFileFixup> fixups,
+    Path buildozer,
+    ImmutableSet<PathFragment> moduleFilePaths,
+    ImmutableList<ExternalDepsException> errors)
+    implements SkyValue {
+  public BazelModTidyValue {
+    requireNonNull(fixups, "fixups");
+    requireNonNull(buildozer, "buildozer");
+    requireNonNull(moduleFilePaths, "moduleFilePaths");
+    requireNonNull(errors, "errors");
+  }
 
   @SerializationConstant public static final SkyKey KEY = () -> SkyFunctions.BAZEL_MOD_TIDY;
-
-  /** Buildozer fixups for incorrect use_repo declarations by the root module. */
-  public abstract ImmutableList<RootModuleFileFixup> fixups();
-
-  /** The path of the buildozer binary provided by the "buildozer" module. */
-  public abstract Path buildozer();
-
-  /** The set of paths to the root MODULE.bazel file and all its includes. */
-  public abstract ImmutableSet<PathFragment> moduleFilePaths();
 
   static BazelModTidyValue create(
       List<RootModuleFileFixup> fixups,
       Path buildozer,
-      ImmutableSet<PathFragment> moduleFilePaths) {
-    return new AutoValue_BazelModTidyValue(
-        ImmutableList.copyOf(fixups), buildozer, moduleFilePaths);
+      ImmutableSet<PathFragment> moduleFilePaths,
+      ImmutableList<ExternalDepsException> errors) {
+    return new BazelModTidyValue(ImmutableList.copyOf(fixups), buildozer, moduleFilePaths, errors);
   }
 }

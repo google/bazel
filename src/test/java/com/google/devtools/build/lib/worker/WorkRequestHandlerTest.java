@@ -120,14 +120,14 @@ public class WorkRequestHandlerTest {
         new WorkRequestHandler(
             (args, err) -> {
               // Each call to this runs in its own thread.
+              synchronized (workerThreads) {
+                workerThreads.add(Thread.currentThread());
+              }
+              started.release();
               try {
-                synchronized (workerThreads) {
-                  workerThreads.add(Thread.currentThread());
-                }
-                started.release();
-                eternity.acquire(); // This blocks forever.
+                eternity.acquire(); // This blocks until the thread is interrupted at shutdown.
               } catch (InterruptedException e) {
-                throw new AssertionError("Unhandled exception", e);
+                Thread.currentThread().interrupt();
               }
               return 0;
             },
@@ -193,10 +193,15 @@ public class WorkRequestHandlerTest {
                 if (workerThreads.size() < 2) {
                   eternity.acquire(); // This blocks forever.
                 } else {
-                  throw new Error("Intentional death!");
+                  // This is triggered by the second WorkRequest. This causes the PipedInputStream
+                  // under the hood to throw an InterruptedIOException. This process helps us
+                  // simulate the situation when the infinite loop in the WorkRequestHandler catches
+                  // an IOException while calling messageProcess.readWorkRequest(). This exception
+                  // will then trigger the path we're testing to stop the worker.
+                  messageProcessor.interruptReader();
                 }
               } catch (InterruptedException e) {
-                throw new AssertionError("Unhandled exception", e);
+                Thread.currentThread().interrupt();
               }
               return 0;
             },
@@ -670,6 +675,10 @@ public class WorkRequestHandlerTest {
       if (readerThread != null) {
         readerThread.interrupt();
       }
+    }
+
+    public void interruptReader() {
+      readerThread.interrupt();
     }
   }
 }

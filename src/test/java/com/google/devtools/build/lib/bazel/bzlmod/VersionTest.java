@@ -77,14 +77,18 @@ public class VersionTest {
     assertThat(Version.parse("1.0-pre.99")).isLessThan(Version.parse("1.0-pre.2a"));
     assertThat(Version.parse("1.0-pre.patch.3")).isLessThan(Version.parse("1.0-pre.patch.4"));
     assertThat(Version.parse("1.0--")).isLessThan(Version.parse("1.0----"));
+    assertThat(Version.parse("2.1.1-develop.bcr.20250113215904"))
+        .isGreaterThan(Version.parse("2.1.1-develop.bcr.20250113215903"));
   }
 
   @Test
-  public void testParseException() throws Exception {
+  public void testParseException() {
     assertThrows(ParseException.class, () -> Version.parse("-abc"));
     assertThrows(ParseException.class, () -> Version.parse("1_2"));
     assertThrows(ParseException.class, () -> Version.parse("ßážëł"));
     assertThrows(ParseException.class, () -> Version.parse("1.0-pre?"));
+    assertThrows(
+        ParseException.class, () -> Version.parse("1.0-11111111111111111111111111111111111111111"));
     assertThrows(ParseException.class, () -> Version.parse("1.0-pre///"));
     assertThrows(ParseException.class, () -> Version.parse("1..0"));
     assertThrows(ParseException.class, () -> Version.parse("1.0-pre..erp"));

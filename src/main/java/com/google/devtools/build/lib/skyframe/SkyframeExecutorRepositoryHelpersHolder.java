@@ -14,17 +14,19 @@
 
 package com.google.devtools.build.lib.skyframe;
 
-import com.google.auto.value.AutoValue;
+import static java.util.Objects.requireNonNull;
+
 import com.google.devtools.build.lib.rules.repository.RepositoryDirectoryDirtinessChecker;
 
 /** Provides repository-related objects for use by {@link SequencedSkyframeExecutor}. */
-@AutoValue
-public abstract class SkyframeExecutorRepositoryHelpersHolder {
-  public abstract RepositoryDirectoryDirtinessChecker repositoryDirectoryDirtinessChecker();
+public record SkyframeExecutorRepositoryHelpersHolder(
+    RepositoryDirectoryDirtinessChecker repositoryDirectoryDirtinessChecker) {
+  public SkyframeExecutorRepositoryHelpersHolder {
+    requireNonNull(repositoryDirectoryDirtinessChecker, "repositoryDirectoryDirtinessChecker");
+  }
 
   public static SkyframeExecutorRepositoryHelpersHolder create(
       RepositoryDirectoryDirtinessChecker repositoryDirectoryDirtinessChecker) {
-    return new AutoValue_SkyframeExecutorRepositoryHelpersHolder(
-        repositoryDirectoryDirtinessChecker);
+    return new SkyframeExecutorRepositoryHelpersHolder(repositoryDirectoryDirtinessChecker);
   }
 }

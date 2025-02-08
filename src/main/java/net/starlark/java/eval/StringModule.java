@@ -532,15 +532,12 @@ final class StringModule implements StarlarkValue {
     long indices = substringIndices(self, start, end);
     int startpos = lo(indices);
     int endpos = hi(indices);
-    // Unfortunately Java forces us to allocate here in the general case, even
-    // though String has a private indexOf method that accepts indices.
-    // The common cases of a search of the full string or a forward search with
-    // a custom start position do not require allocations.
-    if (forward && endpos == self.length()) {
-      return self.indexOf(sub, startpos);
+    if (forward) {
+      return self.indexOf(sub, startpos, endpos);
     }
-    String substr = self.substring(startpos, endpos);
-    int subpos = forward ? substr.indexOf(sub) : substr.lastIndexOf(sub);
+    // String#lastIndexOf can't be used to implement rfind() because it only
+    // confines the start position of the substring, not the entire substring.
+    int subpos = self.substring(startpos, endpos).lastIndexOf(sub);
     return subpos < 0
         ? subpos //
         : subpos + startpos;

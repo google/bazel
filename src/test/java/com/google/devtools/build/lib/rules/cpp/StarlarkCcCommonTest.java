@@ -7468,7 +7468,6 @@ public class StarlarkCcCommonTest extends BuildViewTestCase {
     List<String> cppConfigurationOptions =
         ImmutableList.of(
             "strip_opts()",
-            "incompatible_enable_cc_test_feature()",
             "build_test_dwp()",
             "grte_top()",
             "experimental_cc_implementation_deps()",

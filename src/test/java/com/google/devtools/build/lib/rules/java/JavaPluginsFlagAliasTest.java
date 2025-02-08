@@ -45,7 +45,7 @@ public class JavaPluginsFlagAliasTest extends BuildViewTestCase {
     ConfiguredTarget target =
         getConfiguredTarget(TestConstants.TOOLS_REPOSITORY + "//tools/jdk:java_plugins_flag_alias");
 
-    assertThat(target.get(JavaPluginInfo.PROVIDER)).isEqualTo(JavaPluginInfo.empty());
+    assertThat(JavaPluginInfo.get(target)).isEqualTo(JavaPluginInfo.empty(JavaPluginInfo.PROVIDER));
   }
 
   /** Tests that a single plugin passed by a flag is returned by java_plugins_flag_alias. */
@@ -60,8 +60,7 @@ public class JavaPluginsFlagAliasTest extends BuildViewTestCase {
     ConfiguredTarget target =
         getConfiguredTarget(TestConstants.TOOLS_REPOSITORY + "//tools/jdk:java_plugins_flag_alias");
 
-    assertThat(target.get(JavaPluginInfo.PROVIDER).plugins().processorClasspath().toList())
-        .hasSize(1);
+    assertThat(JavaPluginInfo.get(target).plugins().processorClasspath().toList()).hasSize(1);
   }
 
   /** Tests that two plugins passed by flag are returned by java_plugins_flag_alias. */
@@ -86,8 +85,7 @@ public class JavaPluginsFlagAliasTest extends BuildViewTestCase {
     ConfiguredTarget target =
         getConfiguredTarget(TestConstants.TOOLS_REPOSITORY + "//tools/jdk:java_plugins_flag_alias");
 
-    assertThat(target.get(JavaPluginInfo.PROVIDER).plugins().processorClasspath().toList())
-        .hasSize(2);
+    assertThat(JavaPluginInfo.get(target).plugins().processorClasspath().toList()).hasSize(2);
   }
 
   /** Tests that passing a java_library to --plugin flag fails. */

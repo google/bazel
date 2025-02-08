@@ -15,6 +15,7 @@
 package com.google.devtools.build.lib.rules.python;
 
 import static com.google.common.truth.Truth.assertThat;
+import static com.google.devtools.build.lib.rules.python.PythonTestUtils.getPyLoad;
 
 import com.google.devtools.build.lib.actions.Artifact;
 import com.google.devtools.build.lib.analysis.util.BuildViewTestCase;
@@ -44,6 +45,7 @@ public class PyInfoTest extends BuildViewTestCase {
     }
     scratch.overwriteFile(
         "defs.bzl",
+        getPyLoad("PyInfo"),
         "def _impl(ctx):",
         "    dummy_file = ctx.file.dummy_file",
         "    info = PyInfo(",

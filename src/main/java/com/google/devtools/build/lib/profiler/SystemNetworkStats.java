@@ -14,8 +14,8 @@
 package com.google.devtools.build.lib.profiler;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
+import static java.util.Objects.requireNonNull;
 
-import com.google.auto.value.AutoValue;
 import com.google.common.base.Splitter;
 import com.google.devtools.build.lib.jni.JniLoader;
 import com.google.devtools.build.lib.util.OS;
@@ -37,26 +37,19 @@ public class SystemNetworkStats {
 
   private SystemNetworkStats() {}
 
-  /** Value class for network IO counters. */
-  @AutoValue
-  public abstract static class NetIoCounter {
+  /**
+   * Value class for network IO counters.
+   *
+   * @param bytesSent Number of bytes sent.
+   * @param bytesRecv Number of bytes received.
+   * @param packetsSent Number of packets sent.
+   * @param packetsRecv Number of packets received.
+   */
+  public record NetIoCounter(long bytesSent, long bytesRecv, long packetsSent, long packetsRecv) {
     public static NetIoCounter create(
         long bytesSent, long bytesRecv, long packetsSent, long packetsRecv) {
-      return new AutoValue_SystemNetworkStats_NetIoCounter(
-          bytesSent, bytesRecv, packetsSent, packetsRecv);
+      return new NetIoCounter(bytesSent, bytesRecv, packetsSent, packetsRecv);
     }
-
-    // Number of bytes sent.
-    public abstract long bytesSent();
-
-    // Number of bytes received.
-    public abstract long bytesRecv();
-
-    // Number of packets sent.
-    public abstract long packetsSent();
-
-    // Number of packets received.
-    public abstract long packetsRecv();
   }
 
   public static Map<String, NetIoCounter> getNetIoCounters() throws IOException {
@@ -94,9 +87,19 @@ public class SystemNetworkStats {
     }
   }
 
-  /** Value class for network interface address. */
-  @AutoValue
-  public abstract static class NetIfAddr {
+  /**
+   * Value class for network interface address.
+   *
+   * @param name Name of the interface.
+   * @param ipAddr IP address for this interface if the family is AF_INET or AF_INET6.
+   */
+  public record NetIfAddr(String name, Family family, String ipAddr) {
+    public NetIfAddr {
+      requireNonNull(name, "name");
+      requireNonNull(family, "family");
+      requireNonNull(ipAddr, "ipAddr");
+    }
+
     /** Address family for the address. */
     public enum Family {
       AF_INET,
@@ -105,16 +108,8 @@ public class SystemNetworkStats {
     }
 
     public static NetIfAddr create(String name, Family family, String ipAddr) {
-      return new AutoValue_SystemNetworkStats_NetIfAddr(name, family, ipAddr);
+      return new NetIfAddr(name, family, ipAddr);
     }
-
-    // Name of the interface.
-    public abstract String name();
-
-    public abstract Family family();
-
-    // IP address for this interface if the family is AF_INET or AF_INET6.
-    public abstract String ipAddr();
   }
 
   public static Map<String, List<NetIfAddr>> getNetIfAddrs() throws IOException {

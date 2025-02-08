@@ -19,6 +19,7 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
 import com.google.devtools.build.docgen.annot.DocCategory;
+import com.google.devtools.build.lib.cmdline.Label;
 import com.google.devtools.build.lib.cmdline.PackageIdentifier;
 import com.google.devtools.build.lib.cmdline.RepositoryMapping;
 import com.google.devtools.build.lib.packages.LabelConverter;
@@ -107,28 +108,30 @@ public class StarlarkBazelModule implements StarlarkValue {
       AbridgedModule module,
       ModuleExtension extension,
       RepositoryMapping repoMapping,
-      @Nullable ModuleExtensionUsage usage)
+      @Nullable ModuleExtensionUsage usage,
+      Label.RepoMappingRecorder repoMappingRecorder)
       throws ExternalDepsException {
     LabelConverter labelConverter =
         new LabelConverter(
             PackageIdentifier.create(repoMapping.ownerRepo(), PathFragment.EMPTY_FRAGMENT),
-            repoMapping);
+            repoMapping,
+            repoMappingRecorder);
     ImmutableList<Tag> tags = usage == null ? ImmutableList.of() : usage.getTags();
     HashMap<String, ArrayList<TypeCheckedTag>> typeCheckedTags = new HashMap<>();
-    for (String tagClassName : extension.getTagClasses().keySet()) {
+    for (String tagClassName : extension.tagClasses().keySet()) {
       typeCheckedTags.put(tagClassName, new ArrayList<>());
     }
     for (Tag tag : tags) {
-      TagClass tagClass = extension.getTagClasses().get(tag.getTagName());
+      TagClass tagClass = extension.tagClasses().get(tag.getTagName());
       if (tagClass == null) {
         throw ExternalDepsException.withMessage(
             Code.BAD_MODULE,
             "The module extension defined at %s does not have a tag class named %s, but its use is"
                 + " attempted at %s%s",
-            extension.getLocation(),
+            extension.location(),
             tag.getTagName(),
             tag.getLocation(),
-            SpellChecker.didYouMean(tag.getTagName(), extension.getTagClasses().keySet()));
+            SpellChecker.didYouMean(tag.getTagName(), extension.tagClasses().keySet()));
       }
 
       // Now we need to type-check the attribute values and convert them into "build language types"

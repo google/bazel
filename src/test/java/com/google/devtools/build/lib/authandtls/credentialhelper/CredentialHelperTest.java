@@ -80,14 +80,14 @@ public class CredentialHelperTest {
   @Test
   public void knownUriWithSingleHeader() throws Exception {
     GetCredentialsResponse response = getCredentialsFromHelper("https://singleheader.example.com");
-    assertThat(response.getHeaders()).containsExactly("header1", ImmutableList.of("value1"));
+    assertThat(response.headers()).containsExactly("header1", ImmutableList.of("value1"));
   }
 
   @Test
   public void knownUriWithMultipleHeaders() throws Exception {
     GetCredentialsResponse response =
         getCredentialsFromHelper("https://multipleheaders.example.com");
-    assertThat(response.getHeaders())
+    assertThat(response.headers())
         .containsExactly(
             "header1",
             ImmutableList.of("value1"),
@@ -120,13 +120,13 @@ public class CredentialHelperTest {
   @Test
   public void credentialHelperOutputsExtraFields() throws Exception {
     GetCredentialsResponse response = getCredentialsFromHelper("https://extrafields.example.com");
-    assertThat(response.getHeaders()).containsExactly("header1", ImmutableList.of("value1"));
+    assertThat(response.headers()).containsExactly("header1", ImmutableList.of("value1"));
   }
 
   @Test
   public void helperRunsInWorkspace() throws Exception {
     GetCredentialsResponse response = getCredentialsFromHelper("https://cwd.example.com");
-    ImmutableMap<String, ImmutableList<String>> headers = response.getHeaders();
+    ImmutableMap<String, ImmutableList<String>> headers = response.headers();
     assertThat(PathFragment.create(headers.get("cwd").get(0))).isEqualTo(TEST_WORKSPACE_PATH);
   }
 
@@ -135,7 +135,7 @@ public class CredentialHelperTest {
     GetCredentialsResponse response =
         getCredentialsFromHelper(
             "https://env.example.com", ImmutableMap.of("FOO", "BAR!", "BAR", "123"));
-    assertThat(response.getHeaders())
+    assertThat(response.headers())
         .containsExactly(
             "foo", ImmutableList.of("BAR!"),
             "bar", ImmutableList.of("123"));
@@ -177,7 +177,6 @@ public class CredentialHelperTest {
     // a deadlock and timeout. This verifies that the pipe is sufficiently large.
     // See https://github.com/bazelbuild/bazel/issues/21287.
     GetCredentialsResponse response = getCredentialsFromHelper("https://hugepayload.example.com");
-    assertThat(response.getHeaders())
-        .containsExactly("huge", ImmutableList.of("x".repeat(63 * 1024)));
+    assertThat(response.headers()).containsExactly("huge", ImmutableList.of("x".repeat(63 * 1024)));
   }
 }

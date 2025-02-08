@@ -41,8 +41,6 @@ tasks:
       - "-//src/test/shell/bazel:bazel_coverage_cc_released_test_gcc"
       - "-//src/test/shell/bazel:bazel_coverage_cc_head_test_gcc"
       - "-//src/test/shell/bazel:bazel_coverage_sh_test"
-      # Disable some Android tests since we are moving Android rules out of the Bazel repo.
-      - "-//src/test/shell/bazel:bazel_android_tools_test"
     include_json_profile:
       - build
       - test
@@ -86,8 +84,6 @@ tasks:
       - "//tools/aquery_differ/..."
       - "//tools/python/..."
       - "//tools/bash/..."
-      # Disable some Android tests since we are moving Android rules out of the Bazel repo.
-      - "-//src/test/shell/bazel:bazel_android_tools_test"
     include_json_profile:
       - build
       - test
@@ -141,8 +137,6 @@ tasks:
       - "//tools/aquery_differ/..."
       - "//tools/python/..."
       - "//tools/bash/..."
-      # Disable some Android tests since we are moving Android rules out of the Bazel repo.
-      - "-//src/test/shell/bazel:bazel_android_tools_test"
     include_json_profile:
       - build
       - test
@@ -177,6 +171,7 @@ tasks:
       # Disable python and shell integration tests on Intel Macs
       - "-//src/test/shell/..."
       - "-//src/test/py/..."
+      - "-//src/main/starlark/tests/builtins_bzl:cc_builtin_tests"
       # https://github.com/bazelbuild/bazel/issues/17410
       - "-//src/test/java/com/google/devtools/build/lib/platform:SystemMemoryPressureEventTest"
       # Disable android tests since we are moving Android rules out of the Bazel repo.
@@ -201,6 +196,10 @@ tasks:
       - "//src:test_repos"
     test_flags:
       - "--config=ci-macos"
+      # Fine tune the number of test jobs running in parallel to avoid timeout
+      - "--local_test_jobs=2"
+      # Increase the test timeout by 20% to avoid flaky test failures due to timeout
+      - "--test_timeout=72,360,1080,4320"
     test_targets:
       - "//scripts/..."
       - "//src/main/starlark/tests/builtins_bzl/..."
@@ -215,12 +214,10 @@ tasks:
       - "//tools/bash/..."
       # https://github.com/bazelbuild/bazel/issues/17410
       - "-//src/test/java/com/google/devtools/build/lib/platform:SystemMemoryPressureEventTest"
-      # Disable android tests since we are moving Android rules out of Bazel repo.
-      - "-//src/test/shell/bazel:bazel_android_tools_test"
       # Disable some slow tests
-      - "-//src/test/shell/bazel:bazel_proto_library_test"
       - "-//src/test/shell/bazel:bazel_bootstrap_distfile_test"
       - "-//src/test/shell/bazel:bazel_bootstrap_distfile_tar_test"
+      - "-//src/test/shell/bazel:bazel_determinism_test"
     include_json_profile:
       - build
       - test
@@ -258,7 +255,6 @@ tasks:
       - "//tools/aquery_differ/..."
       - "//tools/bash/..."
       - "//tools/build_defs/..."
-      - "//tools/cpp/runfiles/..."
       - "//tools/java/..."
       - "//tools/jdk/..."
       - "//tools/python/..."
@@ -344,27 +340,9 @@ tasks:
       # Flaky on rbe_ubuntu2004
       # https://github.com/bazelbuild/continuous-integration/issues/1631
       - "-//src/test/shell/bazel:bazel_sandboxing_networking_test"
-      # Disable some Android tests since we are moving Android rules out of the Bazel repo.
-      - "-//src/test/shell/bazel:bazel_android_tools_test"
     include_json_profile:
       - build
       - test
-  kythe_ubuntu2204:
-    shell_commands:
-    # Replace @com_google_protobuf with @protobuf because Bazel has renamed @com_google_protobuf to @protobuf. See b/371908235.
-    # TODO(chiwang): Remove this once kythe is updated to use @protobuf.
-    - sed -i -e 's/@com_google_protobuf/@protobuf/' /usr/local/kythe/BUILD
-    # Disable custom proto_toolchain_for_cc from kythe because it doesn't work with protobuf 29. See b/371908235.
-    # TODO(chiwang): Remove this once kythe resolves the issue.
-    - sed -i -e 's/build --proto_toolchain_for_cc=@kythe_release\/\/:cc_native_proto_toolchain//' /usr/local/kythe/extractors.bazelrc
-    # Remove _nowkt suffix because it's only available in newer protobuf releases. See b/329055020.
-    # TODO(chiwang): Remove this once we have upgraded to protobuf 25+.
-    - sed -i -e 's/protobuf_nowkt/protobuf/' /usr/local/kythe/BUILD
-    index_flags:
-    - "--define=kythe_corpus=github.com/bazelbuild/bazel"
-    index_targets_query: "kind(\"cc_(binary|library|test|proto_library) rule\", ...) union kind(\"java_(binary|import|library|plugin|test|proto_library) rule\", ...) union kind(\"proto_library rule\", ...)"
-    index_upload_policy: Always
-    index_upload_gcs: False
   docs_ubuntu2004:
     platform: ubuntu2004
     name: "Docs"

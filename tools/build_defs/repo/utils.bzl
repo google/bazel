@@ -181,6 +181,11 @@ def patch(ctx, patches = None, patch_cmds = None, patch_cmds_win = None, patch_t
     if patch_args == None:
         patch_args = []
 
+    if hasattr(ctx.attr, "patch_strip"):
+        new_patch_args = ["-p%s" % ctx.attr.patch_strip]
+        new_patch_args.extend(patch_args)
+        patch_args = new_patch_args
+
     if len(remote_patches) > 0 or len(patches) > 0 or len(patch_cmds) > 0:
         ctx.report_progress("Patching repository")
 

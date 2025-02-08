@@ -449,8 +449,8 @@ public abstract class SpawnLogContextTestBase {
   }
 
   @Test
-  public void testRunfilesNestedMiddleman() throws Exception {
-    Artifact runfilesMiddleman = ActionsTestUtil.createRunfilesArtifact(outputDir, "runfiles");
+  public void testToolInRunfilesTree() throws Exception {
+    Artifact runfilesTreeArtifact = ActionsTestUtil.createRunfilesArtifact(outputDir, "runfiles");
     Artifact runfilesInput = ActionsTestUtil.createArtifact(rootDir, "data.txt");
     writeFile(runfilesInput, "abc");
     Artifact toolFile1 = ActionsTestUtil.createArtifact(rootDir, "tool1");
@@ -466,7 +466,7 @@ public abstract class SpawnLogContextTestBase {
             .add(toolFile1)
             .addTransitive(
                 NestedSetBuilder.<ActionInput>stableOrder()
-                    .add(runfilesMiddleman)
+                    .add(runfilesTreeArtifact)
                     .add(toolFile2)
                     .build())
             .build();
@@ -477,7 +477,7 @@ public abstract class SpawnLogContextTestBase {
     context.logSpawn(
         spawn,
         createInputMetadataProvider(
-            runfilesTree, runfilesMiddleman, runfilesInput, toolFile1, toolFile2),
+            runfilesTree, runfilesTreeArtifact, runfilesInput, toolFile1, toolFile2),
         createInputMap(runfilesTree, toolFile1, toolFile2),
         fs,
         defaultTimeout(),
@@ -1378,7 +1378,7 @@ public abstract class SpawnLogContextTestBase {
     Artifact genFile = ActionsTestUtil.createArtifact(outputDir, "pkg/file.txt");
     writeFile(genFile, "gen");
 
-    Artifact runfilesMiddleman =
+    Artifact runfilesTreeArtifact =
         ActionsTestUtil.createRunfilesArtifact(outputDir, "tools/foo.runfiles");
 
     PathFragment runfilesRoot = outputDir.getExecPath().getRelative("tools/foo.runfiles");
@@ -1400,13 +1400,13 @@ public abstract class SpawnLogContextTestBase {
             /* legacyExternalRunfiles= */ false,
             artifacts);
 
-    Spawn spawn = defaultSpawnBuilder().withInput(runfilesMiddleman).build();
+    Spawn spawn = defaultSpawnBuilder().withInput(runfilesTreeArtifact).build();
 
     SpawnLogContext context = createSpawnLogContext();
 
     context.logSpawn(
         spawn,
-        createInputMetadataProvider(runfilesTree, runfilesMiddleman, sourceFile, genFile),
+        createInputMetadataProvider(runfilesTree, runfilesTreeArtifact, sourceFile, genFile),
         createInputMap(runfilesTree),
         fs,
         defaultTimeout(),
@@ -1434,7 +1434,7 @@ public abstract class SpawnLogContextTestBase {
     Artifact genFile = ActionsTestUtil.createArtifact(outputDir, "pkg/file.txt");
     writeFile(genFile, "gen");
 
-    Artifact runfilesMiddleman =
+    Artifact runfilesTreeArtifact =
         ActionsTestUtil.createRunfilesArtifact(outputDir, "tools/foo.runfiles");
 
     PathFragment runfilesRoot = outputDir.getExecPath().getRelative("tools/foo.runfiles");
@@ -1460,13 +1460,13 @@ public abstract class SpawnLogContextTestBase {
     RunfilesTree runfilesTree =
         new RunfilesSupport.RunfilesTreeImpl(runfilesRoot, runfiles.build());
 
-    Spawn spawn = defaultSpawnBuilder().withInput(runfilesMiddleman).build();
+    Spawn spawn = defaultSpawnBuilder().withInput(runfilesTreeArtifact).build();
 
     SpawnLogContext context = createSpawnLogContext();
 
     context.logSpawn(
         spawn,
-        createInputMetadataProvider(runfilesTree, runfilesMiddleman, sourceFile, genFile),
+        createInputMetadataProvider(runfilesTree, runfilesTreeArtifact, sourceFile, genFile),
         createInputMap(runfilesTree),
         fs,
         defaultTimeout(),
@@ -1494,7 +1494,7 @@ public abstract class SpawnLogContextTestBase {
     Artifact genFile = ActionsTestUtil.createArtifact(outputDir, "pkg/file.txt");
     writeFile(genFile, "gen");
 
-    Artifact runfilesMiddleman =
+    Artifact runfilesTreeArtifact =
         ActionsTestUtil.createRunfilesArtifact(outputDir, "tools/foo.runfiles");
 
     PathFragment runfilesRoot = outputDir.getExecPath().getRelative("tools/foo.runfiles");
@@ -1526,13 +1526,13 @@ public abstract class SpawnLogContextTestBase {
     RunfilesTree runfilesTree =
         new RunfilesSupport.RunfilesTreeImpl(runfilesRoot, runfiles.build());
 
-    Spawn spawn = defaultSpawnBuilder().withInput(runfilesMiddleman).build();
+    Spawn spawn = defaultSpawnBuilder().withInput(runfilesTreeArtifact).build();
 
     SpawnLogContext context = createSpawnLogContext();
 
     context.logSpawn(
         spawn,
-        createInputMetadataProvider(runfilesTree, runfilesMiddleman, sourceFile, genFile),
+        createInputMetadataProvider(runfilesTree, runfilesTreeArtifact, sourceFile, genFile),
         createInputMap(runfilesTree),
         fs,
         defaultTimeout(),
@@ -1757,8 +1757,7 @@ public abstract class SpawnLogContextTestBase {
         new ParamFileActionInput(
             PathFragment.create("foo.params"),
             ImmutableList.of("a", "b", "c"),
-            ParameterFileType.UNQUOTED,
-            UTF_8);
+            ParameterFileType.UNQUOTED);
 
     // Do not materialize the file on disk, which would be the case when running remotely.
     SpawnBuilder spawn = defaultSpawnBuilder().withInputs(paramFileInput);
@@ -2067,7 +2066,9 @@ public abstract class SpawnLogContextTestBase {
   @Test
   public void testSpawnPlatformProperties() throws Exception {
     Spawn spawn =
-        defaultSpawnBuilder().withExecProperties(ImmutableMap.of("a", "3", "c", "4")).build();
+        defaultSpawnBuilder()
+            .withCombinedExecProperties(ImmutableMap.of("a", "3", "c", "4"))
+            .build();
 
     SpawnLogContext context = createSpawnLogContext(ImmutableMap.of("a", "1", "b", "2"));
 
@@ -2320,7 +2321,7 @@ public abstract class SpawnLogContextTestBase {
         }
       } else if (artifact.isSymlink()) {
         builder.put(artifact, FileArtifactValue.createForUnresolvedSymlink(artifact));
-      } else if (artifact.isMiddlemanArtifact()) {
+      } else if (artifact.isRunfilesTree()) {
         builder.putRunfilesTree(artifact, runfilesTree);
       } else {
         builder.put(artifact, FileArtifactValue.createForTesting(artifact));

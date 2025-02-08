@@ -13,7 +13,7 @@
 // limitations under the License.
 package com.google.devtools.build.lib.rules.java;
 
-import static com.google.devtools.build.lib.skyframe.BzlLoadValue.keyForBuiltins;
+import static com.google.devtools.build.lib.skyframe.BzlLoadValue.keyForBuild;
 
 import com.google.devtools.build.lib.actions.Artifact;
 import com.google.devtools.build.lib.cmdline.Label;
@@ -27,6 +27,7 @@ import com.google.devtools.build.lib.packages.StarlarkInfo;
 import com.google.devtools.build.lib.packages.StarlarkInfoWithSchema;
 import com.google.devtools.build.lib.packages.StarlarkProviderWrapper;
 import com.google.devtools.build.lib.packages.StructImpl;
+import com.google.devtools.build.lib.skyframe.BzlLoadValue;
 import com.google.devtools.build.lib.vfs.PathFragment;
 import java.util.Optional;
 import net.starlark.java.eval.Starlark;
@@ -37,6 +38,10 @@ public class BootClassPathInfo extends StarlarkInfoWrapper {
 
   /** Provider singleton constant. */
   public static final StarlarkProviderWrapper<BootClassPathInfo> PROVIDER = new Provider();
+  public static final StarlarkProviderWrapper<BootClassPathInfo> RULES_JAVA_PROVIDER =
+      new RulesJavaProvider();
+  public static final StarlarkProviderWrapper<BootClassPathInfo> WORKSPACE_PROVIDER =
+      new WorkspaceProvider();
 
   private static final BootClassPathInfo EMPTY =
       new BootClassPathInfo(null) {
@@ -74,6 +79,19 @@ public class BootClassPathInfo extends StarlarkInfoWrapper {
     super(underlying);
   }
 
+  public static BootClassPathInfo wrap(Info info) throws RuleErrorException {
+    com.google.devtools.build.lib.packages.Provider.Key key = info.getProvider().getKey();
+    if (key.equals(PROVIDER.getKey())) {
+      return PROVIDER.wrap(info);
+    } else if (key.equals(RULES_JAVA_PROVIDER.getKey())) {
+      return RULES_JAVA_PROVIDER.wrap(info);
+    } else if (key.equals(WORKSPACE_PROVIDER.getKey())) {
+      return WORKSPACE_PROVIDER.wrap(info);
+    } else {
+      throw new RuleErrorException("expected BootClassPathInfo, got: " + key);
+    }
+  }
+
   /** The jar files containing classes for system APIs, i.e. a Java <= 8 bootclasspath. */
   public NestedSet<Artifact> bootclasspath() throws RuleErrorException {
     return getUnderlyingNestedSet("bootclasspath", Artifact.class);
@@ -105,12 +123,32 @@ public class BootClassPathInfo extends StarlarkInfoWrapper {
         && systemPath().isEmpty();
   }
 
+  private static class RulesJavaProvider extends Provider {
+    private RulesJavaProvider() {
+      super(keyForBuild(Label.parseCanonicalUnchecked("//java/private:boot_class_path_info.bzl")));
+    }
+  }
+
+  private static class WorkspaceProvider extends Provider {
+    private WorkspaceProvider() {
+      super(
+          keyForBuild(
+              Label.parseCanonicalUnchecked(
+                  "@@rules_java//java/private:boot_class_path_info.bzl")));
+    }
+  }
+
   private static class Provider extends StarlarkProviderWrapper<BootClassPathInfo> {
     private Provider() {
-      super(
-          keyForBuiltins(
-              Label.parseCanonicalUnchecked("@_builtins//:common/java/boot_class_path_info.bzl")),
-          "BootClassPathInfo");
+      this(
+          keyForBuild(
+              Label.parseCanonicalUnchecked(
+                  JavaSemantics.RULES_JAVA_PROVIDER_LABELS_PREFIX
+                      + "java/private:boot_class_path_info.bzl")));
+    }
+
+    private Provider(BzlLoadValue.Key key) {
+      super(key, "BootClassPathInfo");
     }
 
     @Override

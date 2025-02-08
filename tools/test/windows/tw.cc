@@ -21,14 +21,13 @@
 #ifndef WIN32_LEAN_AND_MEAN
 #define WIN32_LEAN_AND_MEAN
 #endif
-#include <windows.h>
-
 #include <errno.h>
 #include <limits.h>  // INT_MAX
 #include <lmcons.h>  // UNLEN
 #include <string.h>
 #include <sys/types.h>
 #include <wchar.h>
+#include <windows.h>
 
 #include <algorithm>
 #include <cstdio>
@@ -40,6 +39,7 @@
 #include <string>
 #include <vector>
 
+#include "rules_cc/cc/runfiles/runfiles.h"
 #include "src/main/cpp/util/file_platform.h"
 #include "src/main/cpp/util/path_platform.h"
 #include "src/main/cpp/util/strings.h"
@@ -49,7 +49,6 @@
 #include "third_party/ijar/common.h"
 #include "third_party/ijar/platform_utils.h"
 #include "third_party/ijar/zip.h"
-#include "tools/cpp/runfiles/runfiles.h"
 
 namespace bazel {
 namespace tools {
@@ -1146,8 +1145,8 @@ bool FindTestBinary(const Path& argv0, const Path& cwd, std::wstring test_path,
     }
 
     std::string error;
-    std::unique_ptr<bazel::tools::cpp::runfiles::Runfiles> runfiles(
-        bazel::tools::cpp::runfiles::Runfiles::Create(argv0_acp, &error));
+    std::unique_ptr<rules_cc::cc::runfiles::Runfiles> runfiles(
+        rules_cc::cc::runfiles::Runfiles::Create(argv0_acp, &error));
     if (runfiles == nullptr) {
       LogError(__LINE__, "Failed to load runfiles");
       return false;

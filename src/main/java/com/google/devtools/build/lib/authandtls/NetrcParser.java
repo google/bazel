@@ -14,9 +14,9 @@
 package com.google.devtools.build.lib.authandtls;
 
 import static com.google.common.base.Predicates.not;
-import static java.nio.charset.StandardCharsets.UTF_8;
+import static java.nio.charset.StandardCharsets.ISO_8859_1;
+import static java.util.Objects.requireNonNull;
 
-import com.google.auto.value.AutoValue;
 import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableMap;
 import com.google.devtools.build.lib.authandtls.Netrc.Credential;
@@ -49,26 +49,26 @@ public class NetrcParser {
 
   interface Token {}
 
-  @AutoValue
-  abstract static class ItemToken implements Token {
+  record ItemToken(String item) implements Token {
+    ItemToken {
+      requireNonNull(item, "item");
+    }
+
     public static ItemToken create(String item) {
-      return new AutoValue_NetrcParser_ItemToken(item);
+      return new ItemToken(item);
     }
 
-    abstract String item();
   }
 
-  @AutoValue
-  abstract static class NewlineToken implements Token {
+  record NewlineToken() implements Token {
     public static NewlineToken create() {
-      return new AutoValue_NetrcParser_NewlineToken();
+      return new NewlineToken();
     }
   }
 
-  @AutoValue
-  abstract static class CommentToken implements Token {
+  record CommentToken() implements Token {
     public static CommentToken create() {
-      return new AutoValue_NetrcParser_CommentToken();
+      return new CommentToken();
     }
   }
 
@@ -77,7 +77,7 @@ public class NetrcParser {
     private final Queue<Token> tokens = new ArrayDeque<>();
 
     TokenStream(InputStream inputStream) throws IOException {
-      bufferedReader = new BufferedReader(new InputStreamReader(inputStream, UTF_8));
+      bufferedReader = new BufferedReader(new InputStreamReader(inputStream, ISO_8859_1));
       processLine();
     }
 
@@ -183,8 +183,7 @@ public class NetrcParser {
     while (!done && tokenStream.hasNext()) {
       // Peek rather than taking next token since we probably won't process it
       Token token = tokenStream.peek();
-      if (token instanceof ItemToken itemToken) {
-        String item = itemToken.item();
+      if (token instanceof ItemToken(String item)) {
         switch (item) {
           case LOGIN -> {
             tokenStream.next();

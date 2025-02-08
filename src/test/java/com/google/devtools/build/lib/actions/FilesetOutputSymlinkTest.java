@@ -34,7 +34,7 @@ public final class FilesetOutputSymlinkTest {
   @Test
   public void stripsExecRootFromTarget() {
     FilesetOutputSymlink symlink = createSymlinkTo("/example/execroot/some/path");
-    PathFragment targetPath = symlink.getTargetPath();
+    PathFragment targetPath = symlink.targetPath();
     assertThat(targetPath.getPathString()).isEqualTo("some/path");
   }
 

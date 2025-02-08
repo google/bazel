@@ -15,6 +15,7 @@
 #ifndef BAZEL_SRC_MAIN_CPP_WORKSPACE_LAYOUT_H_
 #define BAZEL_SRC_MAIN_CPP_WORKSPACE_LAYOUT_H_
 
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -24,9 +25,6 @@ namespace blaze {
 class WorkspaceLayout {
  public:
   virtual ~WorkspaceLayout() = default;
-
-  // Returns the directory to use for storing outputs.
-  virtual std::string GetOutputRoot() const;
 
   // Given the working directory, returns the nearest enclosing directory with a
   // workspace boundary file in it.  If there is no such enclosing directory,
@@ -54,15 +52,13 @@ class WorkspaceLayout {
       const std::string& workspace,
       const std::vector<std::string>& startup_args) const;
 
-  // Turn a %workspace%-relative import into its true name in the filesystem.
-  // path_fragment is modified in place.
-  // Unlike FindCandidateBlazercPaths, it is an error if no import file
-  // exists.
-  virtual bool WorkspaceRelativizeRcFilePath(const std::string& workspace,
-                                             std::string* path_fragment) const;
+  // Resolves a %workspace%-relative import into an actual path.
+  // Returns nullopt if it could not be resolved into an existing file.
+  virtual std::optional<std::string> ResolveWorkspaceRelativeRcFilePath(
+      const std::string& workspace, const std::string& import_path) const;
 
-  static constexpr const char WorkspacePrefix[] = "%workspace%/";
-  static const int WorkspacePrefixLength = sizeof WorkspacePrefix - 1;
+  static constexpr const char kWorkspacePrefix[] = "%workspace%/";
+  static constexpr int kWorkspacePrefixLength = sizeof kWorkspacePrefix - 1;
 };
 
 }  // namespace blaze

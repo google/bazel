@@ -16,24 +16,32 @@ package com.google.devtools.build.lib.actions;
 
 import com.google.common.base.Preconditions;
 import com.google.devtools.build.lib.events.ExtendedEventHandler;
+import com.google.devtools.build.lib.util.io.FileOutErr;
 import java.time.Instant;
+import javax.annotation.Nullable;
 
 /** This event is fired during the build, when a subprocess is executed. */
 public final class SpawnExecutedEvent implements ExtendedEventHandler.Postable {
   private final Spawn spawn;
   private final InputMetadataProvider inputMetadataProvider;
+  private final FileOutErr fileOutErr;
   private final SpawnResult result;
   private final Instant startTimeInstant;
+  @Nullable private final String spawnIdentifier;
 
   public SpawnExecutedEvent(
       Spawn spawn,
       InputMetadataProvider inputMetadataProvider,
+      FileOutErr fileOutErr,
       SpawnResult result,
-      Instant startTimeInstant) {
+      Instant startTimeInstant,
+      @Nullable String spawnIdentifier) {
     this.spawn = Preconditions.checkNotNull(spawn);
     this.inputMetadataProvider = inputMetadataProvider;
+    this.fileOutErr = fileOutErr;
     this.result = Preconditions.checkNotNull(result);
     this.startTimeInstant = startTimeInstant;
+    this.spawnIdentifier = spawnIdentifier;
   }
 
   /** Returns the Spawn. */
@@ -64,6 +72,17 @@ public final class SpawnExecutedEvent implements ExtendedEventHandler.Postable {
   /** Returns the instant in time when the spawn starts. */
   public Instant getStartTimeInstant() {
     return startTimeInstant;
+  }
+
+  /** Returns the id used by the spawn runner to uniquely identify the spawn. */
+  @Nullable
+  public String getSpawnIdentifier() {
+    return spawnIdentifier;
+  }
+
+  /** Returns the FileOutErr used by the Spawn. */
+  public FileOutErr getFileOutErr() {
+    return fileOutErr;
   }
 
   /**

@@ -20,7 +20,6 @@ import com.google.common.base.Predicate;
 import com.google.common.base.Predicates;
 import com.google.common.base.Supplier;
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
 import com.google.devtools.build.lib.analysis.config.BuildConfigurationValue;
 import com.google.devtools.build.lib.packages.Attribute;
@@ -28,10 +27,9 @@ import com.google.devtools.build.lib.packages.Attribute.StarlarkComputedDefaultT
 import com.google.devtools.build.lib.packages.BuildType;
 import com.google.devtools.build.lib.packages.ProtoUtils;
 import com.google.devtools.build.lib.packages.RuleClass;
-import com.google.devtools.build.lib.packages.RuleFunction;
+import com.google.devtools.build.lib.packages.RuleClassUtils;
 import com.google.devtools.build.lib.packages.TriState;
 import com.google.devtools.build.lib.packages.Type;
-import com.google.devtools.build.lib.packages.semantics.BuildLanguageOptions;
 import com.google.devtools.build.lib.query2.proto.proto2api.Build.AllowedRuleClassInfo;
 import com.google.devtools.build.lib.query2.proto.proto2api.Build.AttributeDefinition;
 import com.google.devtools.build.lib.query2.proto.proto2api.Build.AttributeValue;
@@ -49,7 +47,6 @@ import java.util.Collection;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
-import net.starlark.java.eval.StarlarkFunction;
 import net.starlark.java.eval.StarlarkInt;
 
 /**
@@ -76,7 +73,12 @@ public final class BuildLanguageInfoItem extends InfoItem {
       throws AbruptExitException {
     checkNotNull(env);
     StarlarkBuiltinsValue builtins = loadStarlarkBuiltins(env);
-    return print(getBuildLanguageDefinition(getRuleClasses(builtins, env)));
+    return print(
+        getBuildLanguageDefinition(
+            RuleClassUtils.getBuiltinRuleClasses(
+                builtins,
+                env.getRuntime().getRuleClassProvider(),
+                /* includeMacroWrappedRules= */ true)));
   }
 
   private StarlarkBuiltinsValue loadStarlarkBuiltins(CommandEnvironment env)
@@ -96,46 +98,6 @@ public final class BuildLanguageInfoItem extends InfoItem {
                   .build()));
     }
     return (StarlarkBuiltinsValue) result.get(StarlarkBuiltinsValue.key());
-  }
-
-  private ImmutableList<RuleClass> getRuleClasses(
-      StarlarkBuiltinsValue builtins, CommandEnvironment env) {
-    ImmutableMap<String, RuleClass> nativeRuleClasses =
-        env.getRuntime().getRuleClassProvider().getRuleClassMap();
-
-    // The conditional for selecting whether or not to load symbols from @_builtins is the same as
-    // in PackageFunction.compileBuildFile
-    if (builtins
-        .starlarkSemantics
-        .get(BuildLanguageOptions.EXPERIMENTAL_BUILTINS_BZL_PATH)
-        .isEmpty()) {
-      return ImmutableList.sortedCopyOf(
-          Comparator.comparing(RuleClass::getName), nativeRuleClasses.values());
-    } else {
-      ImmutableList.Builder<RuleClass> ruleClasses = ImmutableList.builder();
-      for (Map.Entry<String, Object> entry : builtins.predeclaredForBuild.entrySet()) {
-        if (entry.getValue() instanceof RuleFunction) {
-          ruleClasses.add(((RuleFunction) entry.getValue()).getRuleClass());
-        } else if (entry.getValue() instanceof StarlarkFunction) {
-          // entry.getValue() is a Starlark macro in @_builtins overriding a native rule. We
-          // cannot extract the macro's metadata (other than by, perhaps, parsing its Starlark
-          // docstring via starlark_doc_extract, but that does not have sufficient fidelity to
-          // get rule attribute metadata), so we try to find the rule function if it's exposed to
-          // native, else extract it from the legacy rule instead.
-          // Note that we *cannot* rely on StarlarkFunction.getName() because under which the
-          // macro is defined may not match the name under which @_builtins exports it.
-          if (builtins.exportedToJava.containsKey(entry.getKey() + "_rule_function")) {
-            ruleClasses.add(
-                ((RuleFunction) builtins.exportedToJava.get(entry.getKey() + "_rule_function"))
-                    .getRuleClass());
-          } else if (nativeRuleClasses.containsKey(entry.getKey())) {
-            ruleClasses.add(nativeRuleClasses.get(entry.getKey()));
-          }
-        }
-      }
-      return ImmutableList.sortedCopyOf(
-          Comparator.comparing(RuleClass::getName), ruleClasses.build());
-    }
   }
 
   /**

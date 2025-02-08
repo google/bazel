@@ -149,8 +149,7 @@ public final class LtoBackendAction extends SpawnAction {
       HashSet<PathFragment> inputPaths, ActionExecutionContext actionExecutionContext)
       throws ActionExecutionException {
     NestedSetBuilder<Artifact> bitcodeInputs = NestedSetBuilder.stableOrder();
-    ImmutableMap<PathFragment, Artifact> execPathToArtifact =
-        bitcodeFiles.getFilesArtifactPathMap();
+    Map<PathFragment, Artifact> execPathToArtifact = bitcodeFiles.getFilesArtifactPathMap();
     Set<PathFragment> missingInputs = new HashSet<>();
     for (PathFragment inputPath : inputPaths) {
       Optional<Artifact> maybeArtifact = getArtifactOrTreeArtifact(inputPath, execPathToArtifact);

@@ -91,6 +91,7 @@ import com.google.devtools.build.lib.skyframe.SkyframeBuildView.BuildDriverKeyTe
 import com.google.devtools.build.lib.skyframe.SkyframeExecutor;
 import com.google.devtools.build.lib.skyframe.TargetPatternPhaseValue;
 import com.google.devtools.build.lib.skyframe.serialization.analysis.RemoteAnalysisCachingDependenciesProvider;
+import com.google.devtools.build.lib.skyframe.serialization.analysis.RemoteAnalysisCachingOptions.RemoteAnalysisCacheMode;
 import com.google.devtools.build.lib.util.AbruptExitException;
 import com.google.devtools.build.lib.util.DetailedExitCode;
 import com.google.devtools.build.lib.util.RegexFilter;
@@ -242,7 +243,7 @@ public class BuildView {
     pollInterruptedStatus();
 
     skyframeBuildView.resetProgressReceiver();
-    skyframeExecutor.setBaselineConfiguration(targetOptions);
+    skyframeExecutor.setBaselineConfiguration(targetOptions, eventHandler);
 
     ImmutableMap.Builder<Label, Target> labelToTargetsMapBuilder =
         ImmutableMap.builderWithExpectedSize(loadingResult.getTargetLabels().size());
@@ -276,7 +277,7 @@ public class BuildView {
             skyfocusState.buildConfiguration() != null
                 && !skyfocusState.buildConfiguration().equals(topLevelConfig);
         if (buildConfigChanged) {
-          switch (skyfocusState.options().handlingStrategy) {
+          switch (skyfocusState.options().frontierViolationCheck) {
             case WARN -> {
               eventHandler.handle(
                   Event.warn(
@@ -291,13 +292,15 @@ public class BuildView {
                                 "Skyfocus: detected changes to the build configuration. This is not"
                                     + " allowed in a focused build. Either clean to reset the"
                                     + " build, or set"
-                                    + " --experimental_skyfocus_handling_strategy=warn to perform a"
+                                    + " --experimental_frontier_violation_check=warn to perform a"
                                     + " full reanalysis instead of failing the build.")
                             .setSkyfocus(
                                 Skyfocus.newBuilder()
                                     .setCode(Skyfocus.Code.CONFIGURATION_CHANGE)
                                     .build())
                             .build()));
+            case DISABLED_FOR_TESTING ->
+                throw new IllegalStateException("disallowed; not in test.");
           }
         }
 
@@ -340,12 +343,12 @@ public class BuildView {
         createTopLevelAspectKeys(
             aspects, aspectsParameters, labelToTargetMap.keySet(), topLevelConfig, eventHandler);
 
-    if (remoteAnalysisCachingDependenciesProvider.enabled()) {
+    if (remoteAnalysisCachingDependenciesProvider.mode().requiresBackendConnectivity()) {
       remoteAnalysisCachingDependenciesProvider.setTopLevelConfigChecksum(
           topLevelConfigurationTrimmedOfTestOptionsChecksum);
-      skyframeExecutor.setRemoteAnalysisCachingDependenciesProvider(
-          remoteAnalysisCachingDependenciesProvider);
     }
+    skyframeExecutor.setRemoteAnalysisCachingDependenciesProvider(
+        remoteAnalysisCachingDependenciesProvider);
 
     getArtifactFactory().noteAnalysisStarting();
     SkyframeAnalysisResult skyframeAnalysisResult;
@@ -382,6 +385,10 @@ public class BuildView {
                 executors,
                 /* shouldDiscardAnalysisCache= */ viewOptions.discardAnalysisCache
                     || !skyframeExecutor.tracksStateForIncrementality(),
+                // Analysis uploads happen after the build and use the syscall cache, so it should
+                // not be cleared mid-build. The cache is still cleared upon command completion.
+                /* shouldClearSyscallCache= */ remoteAnalysisCachingDependenciesProvider.mode()
+                    != RemoteAnalysisCacheMode.UPLOAD,
                 buildDriverKeyTestContext,
                 skymeldAnalysisOverlapPercentage);
       } else {

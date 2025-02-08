@@ -13,7 +13,8 @@
 // limitations under the License.
 package com.google.devtools.build.lib.runtime;
 
-import com.google.devtools.build.lib.vfs.Path;
+import com.google.devtools.build.lib.runtime.InstrumentationOutputFactory.DestinationRelativeTo;
+import com.google.devtools.build.lib.vfs.PathFragment;
 import com.google.devtools.common.options.OptionsProvider;
 import com.google.errorprone.annotations.CanIgnoreReturnValue;
 
@@ -23,9 +24,19 @@ public interface InstrumentationOutputBuilder {
   @CanIgnoreReturnValue
   InstrumentationOutputBuilder setName(String name);
 
-  /** Sets the path to write the {@link InstrumentationOutput}. */
+  /**
+   * Sets the relative or absolute path for write the {@link LocalInstrumentationOutput} or download
+   * the redirect {@link InstrumentationOutput} in the downstream filesystem.
+   */
   @CanIgnoreReturnValue
-  default InstrumentationOutputBuilder setPath(Path path) {
+  default InstrumentationOutputBuilder setDestination(PathFragment destination) {
+    return this;
+  }
+
+  /** Specifies type of directory the output path is relative to. */
+  @CanIgnoreReturnValue
+  default InstrumentationOutputBuilder setDestinationRelatedToType(
+      DestinationRelativeTo relatedToType) {
     return this;
   }
 
@@ -34,6 +45,10 @@ public interface InstrumentationOutputBuilder {
   default InstrumentationOutputBuilder setOptions(OptionsProvider options) {
     return this;
   }
+
+  /** Specifies whether output parent directory should be created. */
+  @CanIgnoreReturnValue
+  InstrumentationOutputBuilder setCreateParent(boolean createParent);
 
   /** Builds the {@link InstrumentationOutput} object. */
   InstrumentationOutput build();
