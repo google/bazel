@@ -1435,6 +1435,8 @@ the same path on case-insensitive filesystems.
     // Must look up via AEF, rather than solely copy from `this.envVariables`, in order to
     // establish a SkyKey dependency relationship.
     if (env.getValue(ActionEnvironmentFunction.key(name)) == null) {
+      // TODO Add logic to pull from `clientEnv` if not specified in default `repoEnv`
+      // They can be pulled via ClientEnvironmentFunction
       throw new NeedsSkyframeRestartException();
     }
 

@@ -263,6 +263,7 @@ public abstract class RepositoryFunction {
       return null;
     }
 
+    // TODO This may miss changes under --strict_repo_env, maybe????
     // Only depend on --repo_env values that are specified in keys.
     ImmutableMap.Builder<String, Optional<String>> repoEnv = ImmutableMap.builder();
     repoEnv.putAll(environ);
