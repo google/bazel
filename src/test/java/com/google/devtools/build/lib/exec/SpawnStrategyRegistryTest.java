@@ -28,6 +28,7 @@ import com.google.devtools.build.lib.actions.SimpleSpawn;
 import com.google.devtools.build.lib.actions.Spawn;
 import com.google.devtools.build.lib.actions.SpawnResult;
 import com.google.devtools.build.lib.actions.SpawnStrategy;
+import com.google.devtools.build.lib.analysis.platform.PlatformInfo;
 import com.google.devtools.build.lib.cmdline.Label;
 import com.google.devtools.build.lib.collect.nestedset.NestedSetBuilder;
 import com.google.devtools.build.lib.collect.nestedset.Order;
@@ -309,7 +310,7 @@ public class SpawnStrategyRegistryTest {
         SpawnStrategyRegistry.builder()
             .registerStrategy(strategy1, "foo")
             .registerStrategy(strategy2, "bar")
-            .addExecPlatformFilter(Label.parseCanonical("//:dummy_platform"), ImmutableList.of("foo"))
+            .addExecPlatformFilter(PlatformInfo.EMPTY_PLATFORM_INFO.label(), ImmutableList.of("foo"))
             .build();
 
     assertThat(
