@@ -76,7 +76,6 @@ import com.google.devtools.build.lib.actions.Spawn;
 import com.google.devtools.build.lib.actions.SpawnResult;
 import com.google.devtools.build.lib.actions.StaticInputMetadataProvider;
 import com.google.devtools.build.lib.analysis.BlazeVersionInfo;
-import com.google.devtools.build.lib.analysis.platform.PlatformUtils;
 import com.google.devtools.build.lib.authandtls.CallCredentialsProvider;
 import com.google.devtools.build.lib.authandtls.GoogleAuthUtils;
 import com.google.devtools.build.lib.clock.JavaClock;
@@ -379,7 +378,6 @@ public class RemoteSpawnRunnerWithGrpcRemoteExecutorTest {
                     .setValue("value")
                     .build())
             .addAllOutputPaths(ImmutableList.of("bar", "foo"))
-            .setPlatform(PlatformUtils.getPlatformProto(simpleSpawn, null))
             .build();
     cmdDigest = DIGEST_UTIL.compute(command);
     channel.release();
