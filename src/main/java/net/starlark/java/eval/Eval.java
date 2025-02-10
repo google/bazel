@@ -669,17 +669,18 @@ final class Eval {
     }
     // Inv: n = |positional| + |named|
 
+    StarlarkCallable callable = Starlark.getStarlarkCallable(fr.thread, fn);
     // Temporarily prevent use of BuiltinFunction.ArgumentProcessor which caused performance
     // regression b/392290938, until the root cause of that regression is fixed.
-    if (fn instanceof StarlarkCallable && !(fn instanceof BuiltinFunction)) {
+    if (!(callable instanceof BuiltinFunction)) {
       StarlarkCallable.ArgumentProcessor argumentProcessor =
-          Starlark.requestArgumentProcessor(fr.thread, fn);
+          Starlark.requestArgumentProcessor(fr.thread, callable);
       if (argumentProcessor != null) {
         return evalCallWithArgumentProcessor(
-            fr, call, argumentProcessor, arguments, star, starstar, n);
+            fr, call, callable, argumentProcessor, arguments, star, starstar, n);
       }
     }
-    return evalFastcall(fr, fn, call, arguments, star, starstar, n);
+    return evalFastcall(fr, callable, call, arguments, star, starstar, n);
   }
 
   // TODO(b/380824219): Inline this method into evalCall() and remove evalFastcall() once all
@@ -688,6 +689,7 @@ final class Eval {
   private static Object evalCallWithArgumentProcessor(
       StarlarkThread.Frame fr,
       CallExpression call,
+      StarlarkCallable callable,
       StarlarkCallable.ArgumentProcessor argumentProcessor,
       ImmutableList<Argument> arguments,
       Argument.Star star,
@@ -749,7 +751,7 @@ final class Eval {
     fr.setLocation(loc);
 
     try {
-      return Starlark.callViaArgumentProcessor(fr.thread, argumentProcessor);
+      return Starlark.callViaArgumentProcessor(fr.thread, callable, argumentProcessor);
     } catch (EvalException ex) {
       fr.setErrorLocation(loc);
       throw ex;
@@ -761,7 +763,7 @@ final class Eval {
   // StarlarkCallable and a few tests) have a callViaArgumentProcessor alternative.
   private static Object evalFastcall(
       StarlarkThread.Frame fr,
-      Object fn,
+      StarlarkCallable callable,
       CallExpression call,
       ImmutableList<Argument> arguments,
       Argument.Star star,
@@ -827,7 +829,7 @@ final class Eval {
     Location loc = call.getLparenLocation(); // (Location is prematerialized)
     fr.setLocation(loc);
     try {
-      return Starlark.fastcall(fr.thread, fn, positional, named);
+      return Starlark.fastcall(fr.thread, callable, positional, named);
     } catch (EvalException ex) {
       fr.setErrorLocation(loc);
       throw ex;

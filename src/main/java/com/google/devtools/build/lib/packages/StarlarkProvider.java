@@ -246,42 +246,35 @@ public final class StarlarkProvider implements StarlarkCallable, StarlarkExporta
   @Override
   public StarlarkCallable.ArgumentProcessor requestArgumentProcessor(StarlarkThread thread)
       throws EvalException {
-    StarlarkCallable.ArgumentProcessor initArgumentProcessor = null;
+    StarlarkInfoFactory factory = newStarlarkInfoFactory(thread);
     if (init != null) {
-      initArgumentProcessor = Starlark.requestArgumentProcessor(thread, init);
-    }
-    return newArgumentProcessor(this, thread, initArgumentProcessor);
-  }
-
-  private StarlarkCallable.ArgumentProcessor requestRawArgumentProcessor(
-      StarlarkCallable owner, StarlarkThread thread) {
-    return newArgumentProcessor(owner, thread, null);
-  }
-
-  private StarlarkCallable.ArgumentProcessor newArgumentProcessor(
-      StarlarkCallable owner,
-      StarlarkThread thread,
-      StarlarkCallable.ArgumentProcessor initArgumentProcessor) {
-    StarlarkInfoFactory factory =
-        schema != null
-            ? StarlarkInfoWithSchema.newStarlarkInfoFactory(this, thread)
-            : StarlarkInfoNoSchema.newStarlarkInfoFactory(this, thread);
-    if (initArgumentProcessor != null) {
-      return new ArgumentProcessorWithInit(owner, factory, initArgumentProcessor, thread);
+      StarlarkCallable.ArgumentProcessor initArgumentProcessor =
+          Starlark.requestArgumentProcessor(thread, init);
+      return new ArgumentProcessorWithInit(this, factory, initArgumentProcessor, thread);
     } else {
-      return new RawArgumentProcessor(owner, factory, thread);
+      return new RawArgumentProcessor(this, factory, thread);
     }
   }
 
-  static final class ArgumentProcessorWithInit extends RawArgumentProcessor {
+  private StarlarkInfoFactory newStarlarkInfoFactory(StarlarkThread thread) {
+    return schema != null
+        ? StarlarkInfoWithSchema.newStarlarkInfoFactory(this, thread)
+        : StarlarkInfoNoSchema.newStarlarkInfoFactory(this, thread);
+  }
+
+  static final class ArgumentProcessorWithInit extends StarlarkCallable.ArgumentProcessor {
+    private final StarlarkProvider owner;
+    private final StarlarkProvider.StarlarkInfoFactory factory;
     private final StarlarkCallable.ArgumentProcessor initArgumentProcessor;
 
     ArgumentProcessorWithInit(
-        StarlarkCallable owner,
+        StarlarkProvider owner,
         StarlarkProvider.StarlarkInfoFactory factory,
         StarlarkCallable.ArgumentProcessor initArgumentProcessor,
         StarlarkThread thread) {
-      super(owner, factory, thread);
+      super(thread);
+      this.owner = owner;
+      this.factory = factory;
       this.initArgumentProcessor = initArgumentProcessor;
     }
 
@@ -296,17 +289,27 @@ public final class StarlarkProvider implements StarlarkCallable, StarlarkExporta
     }
 
     @Override
+    public StarlarkCallable getCallable() {
+      return owner;
+    }
+
+    @Override
     public Object call(StarlarkThread thread) throws EvalException, InterruptedException {
-      Object initResult = Starlark.callViaArgumentProcessor(thread, initArgumentProcessor);
+      Object initResult =
+          Starlark.callViaArgumentProcessor(thread, owner.init, initArgumentProcessor);
       Dict<String, Object> kwargs =
           Dict.cast(initResult, String.class, Object.class, "return value of provider init()");
       return factory.createFromMap(kwargs, thread);
     }
   }
 
+  /**
+   * A {@link RawArgumentProcessor} is used for calling two different types of StarlarkCallable:
+   * StarlarkProvider in case it doesn't have an init function, and RawConstructor.
+   */
   static class RawArgumentProcessor extends StarlarkCallable.ArgumentProcessor {
-    protected final StarlarkCallable owner;
-    protected final StarlarkProvider.StarlarkInfoFactory factory;
+    private final StarlarkCallable owner; // either StarlarkProvider or RawConstructor
+    private final StarlarkProvider.StarlarkInfoFactory factory;
 
     RawArgumentProcessor(
         StarlarkCallable owner,
@@ -364,7 +367,7 @@ public final class StarlarkProvider implements StarlarkCallable, StarlarkExporta
 
     @Override
     public StarlarkCallable.ArgumentProcessor requestArgumentProcessor(StarlarkThread thread) {
-      return provider.requestRawArgumentProcessor(this, thread);
+      return new RawArgumentProcessor(this, provider.newStarlarkInfoFactory(thread), thread);
     }
 
     @Override
@@ -630,10 +633,9 @@ public final class StarlarkProvider implements StarlarkCallable, StarlarkExporta
         return true;
       }
 
-      if (!(obj instanceof Key)) {
+      if (!(obj instanceof Key other)) {
         return false;
       }
-      Key other = (Key) obj;
       return Objects.equals(this.key, other.key)
           && Objects.equals(this.exportedName, other.exportedName);
     }

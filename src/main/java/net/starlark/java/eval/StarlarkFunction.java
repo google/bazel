@@ -193,29 +193,6 @@ public final class StarlarkFunction implements StarlarkCallable {
     return new ArgumentProcessor(this, thread);
   }
 
-  private Object callWithArguments(StarlarkThread thread, ArgumentProcessor argumentProcessor)
-      throws EvalException, InterruptedException {
-    checkRecursive(thread);
-    Frame fr = thread.frame(0);
-    fr.locals = argumentProcessor.retrieveFinishedLocals();
-
-    spillIndicatedLocalsToCells(fr);
-
-    return Eval.execFunctionBody(fr, rfn.getBody());
-  }
-
-  private void checkRecursive(StarlarkThread thread) throws EvalException {
-    if (!thread.isRecursionAllowed() && thread.isRecursiveCall(this)) {
-      throw Starlark.errorf("function '%s' called recursively", getName());
-    }
-  }
-
-  private void spillIndicatedLocalsToCells(Frame fr) {
-    for (int index : rfn.getCellIndices()) {
-      fr.locals[index] = new Cell(fr.locals[index]);
-    }
-  }
-
   Cell getFreeVar(int index) {
     return (Cell) freevars.get(index);
   }
@@ -394,11 +371,6 @@ public final class StarlarkFunction implements StarlarkCallable {
       return -1;
     }
 
-    private Object[] retrieveFinishedLocals() throws EvalException {
-      applyDefaultsReportMissingArgs();
-      return locals;
-    }
-
     private void addUnexpectedNamedArg(String keyword) {
       if (unexpectedNamedArgs == null) {
         unexpectedNamedArgs = new ArrayList<>();
@@ -427,7 +399,8 @@ public final class StarlarkFunction implements StarlarkCallable {
       // Apply defaults and report errors for missing required arguments.
       // Inv: all params below positionalCount were bound (by bindPositionalArgsToLocals()).
       int numParams = owner.getNumNonResidualParameters();
-      int firstDefault = numParams - owner.defaultValues.size(); // first default
+      Tuple defaultValues = owner.defaultValues;
+      int firstDefault = numParams - defaultValues.size(); // first default
       List<String> missingPositional = null;
       List<String> missingKwonly = null;
       for (int i = numNonSurplusPositionalArgs; i < numParams; i++) {
@@ -438,7 +411,7 @@ public final class StarlarkFunction implements StarlarkCallable {
 
         // optional?
         if (i >= firstDefault) {
-          Object dflt = owner.defaultValues.get(i - firstDefault);
+          Object dflt = defaultValues.get(i - firstDefault);
           if (dflt != MANDATORY) {
             locals[i] = dflt;
             continue;
@@ -525,6 +498,7 @@ public final class StarlarkFunction implements StarlarkCallable {
 
     @Override
     public Object call(StarlarkThread thread) throws EvalException, InterruptedException {
+      // Check positional args count
       int numOrdinaryParams = owner.getNumOrdinaryParameters();
       if (numNonSurplusPositionalArgs > numOrdinaryParams) {
         if (numOrdinaryParams > 0) {
@@ -541,7 +515,8 @@ public final class StarlarkFunction implements StarlarkCallable {
         }
       }
       checkUnexpectedNamedArgs();
-      if (owner.rfn.hasVarargs()) {
+      Resolver.Function rfn = owner.rfn;
+      if (rfn.hasVarargs()) {
         locals[getVarArgsIndex()] =
             varArgs == null
                 ? Tuple.empty()
@@ -549,11 +524,24 @@ public final class StarlarkFunction implements StarlarkCallable {
                     ? Tuple.of(varArgs.getFirst())
                     : Tuple.wrap(varArgs.toArray());
       }
-      if (owner.rfn.hasKwargs()) {
+      if (rfn.hasKwargs()) {
         locals[getKwargsIndex()] =
             kwargs == null ? Dict.of(thread.mutability()) : Dict.wrap(thread.mutability(), kwargs);
       }
-      return owner.callWithArguments(thread, this);
+      applyDefaultsReportMissingArgs();
+      // Spill indicated locals to cells
+      for (int index : rfn.getCellIndices()) {
+        locals[index] = new Cell(locals[index]);
+      }
+
+      // Check recursion
+      if (!thread.isRecursionAllowed() && thread.isRecursiveCall(owner)) {
+        throw Starlark.errorf("function '%s' called recursively", owner.getName());
+      }
+
+      Frame fr = thread.frame(0);
+      fr.locals = locals;
+      return Eval.execFunctionBody(fr, rfn.getBody());
     }
   }
 }
