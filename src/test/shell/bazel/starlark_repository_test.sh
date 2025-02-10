@@ -2999,6 +2999,10 @@ def _impl(ctx):
     fail("CLIENT_ENV_REMOVED should not be in the environment")
   if vars.get("REPO_ENV_PRESENT") != "value3":
     fail("REPO_ENV_PRESENT has wrong value: " + vars.get("REPO_ENV_PRESENT"))
+  if "PATH" not in vars:
+    fail("PATH should be in the environment")
+  if ctx.os.name.startswith("windows") and "PATHEXT" not in vars:
+    fail("PATHEXT should be in the environment (on Windows)")
   ctx.file("BUILD", "exports_files(['data.txt'])")
 my_repo = repository_rule(_impl)
 EOF

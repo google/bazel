@@ -22,6 +22,7 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSortedMap;
+import com.google.common.collect.Sets;
 import com.google.common.eventbus.EventBus;
 import com.google.common.eventbus.Subscribe;
 import com.google.devtools.build.lib.actions.ActionOutputDirectoryHelper;
@@ -62,6 +63,7 @@ import com.google.devtools.build.lib.skyframe.WorkspaceInfoFromDiff;
 import com.google.devtools.build.lib.skyframe.serialization.analysis.RemoteAnalysisCachingEventListener;
 import com.google.devtools.build.lib.util.AbruptExitException;
 import com.google.devtools.build.lib.util.DetailedExitCode;
+import com.google.devtools.build.lib.util.OS;
 import com.google.devtools.build.lib.util.io.CommandExtensionReporter;
 import com.google.devtools.build.lib.util.io.OutErr;
 import com.google.devtools.build.lib.util.io.TimestampGranularityMonitor;
@@ -323,6 +325,19 @@ public class CommandEnvironment {
             : UUID.randomUUID().toString();
 
     this.repoEnv.putAll(clientEnv);
+
+    Set<String> defaultRepoEnvInherited = new TreeSet<>();
+    defaultRepoEnvInherited.add("PATH");
+    if (OS.getCurrent() == OS.WINDOWS) {
+      defaultRepoEnvInherited.add("PATHEXT");
+    }
+    for (String name : defaultRepoEnvInherited) {
+      String value = clientEnv.get(name);
+      if (value != null) {
+        this.repoEnvFromOptions.put(name, value);
+      }
+    }
+
     if (command.buildPhase().analyzes() || command.name().equals("info")) {
       // Compute the set of environment variables that are allowlisted on the commandline
       // for inheritance.
