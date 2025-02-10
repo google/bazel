@@ -51,6 +51,7 @@ GRPC_JARS = [
     "@maven//:io_grpc_grpc_protobuf",
     "@maven//:io_grpc_grpc_protobuf_lite",
     "@maven//:io_grpc_grpc_stub",
+    "@maven//:io_grpc_grpc_xds",
 ]
 
 # TODO: wyv@ - rename this to just `grpc-java`.
