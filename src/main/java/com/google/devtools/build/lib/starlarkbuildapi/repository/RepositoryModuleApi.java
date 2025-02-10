@@ -89,12 +89,14 @@ public interface RepositoryModuleApi {
               @ParamType(type = Sequence.class, generic1 = String.class),
             },
             defaultValue = "[]",
-            doc =
-                "<b>Deprecated</b>. This parameter has been deprecated. Migrate to "
-                    + "<code>repository_ctx.getenv</code> instead.<br/>"
-                    + "Provides a list of environment variable that this repository rule depends "
-                    + "on. If an environment variable in that list change, the repository will be "
-                    + "refetched.",
+            doc = """
+                <b>Deprecated</b>. This parameter has been deprecated. Migrate to \
+                <code>repository_ctx.getenv</code> instead.<br/>
+                Provides a list of environment variable that this repository rule depends \
+                on. If an environment variable in that list change, the repository will be \
+                refetched.<br/>
+                See also <code>--strict_repo_env</code>.
+                """,
             named = true,
             positional = false),
         @Param(
@@ -178,10 +180,14 @@ public interface RepositoryModuleApi {
               @ParamType(type = Sequence.class, generic1 = String.class),
             },
             defaultValue = "[]",
-            doc =
-                "Provides a list of environment variable that this module extension depends on. If "
-                    + "an environment variable in that list changes, the extension will be "
-                    + "re-evaluated.",
+            doc = """
+                <b>Deprecated</b>. This parameter has been deprecated. Migrate to \
+                <code>module_ctx.getenv</code> instead.
+                Provides a list of environment variable that this module extension depends on. If \
+                an environment variable in that list changes, the extension will be \
+                re-evaluated.<br/>
+                See also <code>--strict_repo_env</code>.
+                """,
             named = true,
             positional = false),
         @Param(

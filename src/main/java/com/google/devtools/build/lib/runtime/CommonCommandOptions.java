@@ -554,11 +554,14 @@ public class CommonCommandOptions extends OptionsBase {
       effectTags = {OptionEffectTag.LOADING_AND_ANALYSIS},
       help =
           """
-          If true, repository rules and module extensions will not inherit the client environment \
-          and <code>--action_env=NAME=VALUE</code> options (<code>--action_env=NAME</code> is \
-          already ignored).
+          If true, repository rules and module extensions will only inherit <code>PATH</code>, \
+          <code>PATHEXT</code> (Windows), requests via <code>getenv</code> and <code>environ</code> \
+          declarations.
           <br>
-          Use <code>--repo_env=NAME</code> to inherit specific environment variables and \
+          <code>--action_env=NAME=VALUE</code> options will also no longer affect them\
+          (<code>--action_env=NAME</code> is already ignored).
+          <br>
+          Use <code>--repo_env=NAME</code> to inherit additional environment variables and \
           <code>--repo_env=NAME=VALUE</code> to set a static value.
           """)
     public boolean useStrictRepoEnv;
