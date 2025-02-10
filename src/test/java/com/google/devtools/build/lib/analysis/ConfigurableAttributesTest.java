@@ -2219,4 +2219,68 @@ public class ConfigurableAttributesTest extends BuildViewTestCase {
     assertThat(attributesFromSimplifiedSelects.get("link_extra_lib", BuildType.LABEL))
         .isEqualTo(attributesFromUnsimplifiedSelects.get("link_extra_lib", BuildType.LABEL));
   }
+
+  @Test
+  public void selectOnTestOptions_notTrimmed() throws Exception {
+    writeHelloRules(/* includeDefaultCondition= */ true);
+    scratch.file(
+        "conditions/BUILD",
+        """
+        config_setting(
+            name = 'a',
+            values = {
+                "test_timeout": "10",
+            },
+        )
+        config_setting(
+            name = 'b',
+            values = {
+                "test_timeout": "20",
+            },
+        )
+        """);
+    checkRule(
+        "//java/hello:hello",
+        "--trim_test_configuration=false",
+        /*expected:*/ ImmutableList.of(DEFAULTDEP_INPUT),
+        /*not expected:*/ ImmutableList.of(ADEP_INPUT, BDEP_INPUT));
+    checkRule(
+        "//java/hello:hello",
+        ImmutableList.of("--trim_test_configuration=false", "--test_timeout=10"),
+        /*expected:*/ ImmutableList.of(ADEP_INPUT),
+        /*not expected:*/ ImmutableList.of(BDEP_INPUT, DEFAULTDEP_INPUT));
+  }
+
+  @Test
+  public void selectOnTestOptions_trimmed() throws Exception {
+    // When --trime_test_configuration is set, all test options are considered to be unset (not
+    // their default value).
+    writeHelloRules(/* includeDefaultCondition= */ true);
+    scratch.file(
+        "conditions/BUILD",
+        """
+        config_setting(
+            name = 'a',
+            values = {
+                "test_timeout": "10",
+            },
+        )
+        config_setting(
+            name = 'b',
+            values = {
+                "test_timeout": "20",
+            },
+        )
+        """);
+    checkRule(
+        "//java/hello:hello",
+        "--trim_test_configuration=true",
+        /*expected:*/ ImmutableList.of(DEFAULTDEP_INPUT),
+        /*not expected:*/ ImmutableList.of(ADEP_INPUT, BDEP_INPUT));
+    checkRule(
+        "//java/hello:hello",
+        ImmutableList.of("--trim_test_configuration=true", "--test_timeout=10"),
+        /*expected:*/ ImmutableList.of(DEFAULTDEP_INPUT),
+        /*not expected:*/ ImmutableList.of(ADEP_INPUT, BDEP_INPUT));
+  }
 }

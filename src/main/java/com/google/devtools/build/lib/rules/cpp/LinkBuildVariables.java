@@ -17,6 +17,7 @@ import com.google.common.base.Preconditions;
 import com.google.common.base.Predicates;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
+import com.google.devtools.build.lib.actions.Artifact;
 import com.google.devtools.build.lib.collect.nestedset.NestedSet;
 import com.google.devtools.build.lib.rules.cpp.CcToolchainFeatures.FeatureConfiguration;
 import com.google.devtools.build.lib.rules.cpp.CcToolchainVariables.SequenceBuilder;
@@ -158,24 +159,24 @@ public enum LinkBuildVariables {
   }
 
   public static CcToolchainVariables.Builder setupLinkingVariables(
-      String outputFile,
+      Artifact outputFile,
       String runtimeSolibName,
-      String thinltoParamFile,
+      Artifact thinltoParamFile,
       CcToolchainProvider ccToolchainProvider,
       FeatureConfiguration featureConfiguration,
-      String interfaceLibraryBuilder,
-      String interfaceLibraryOutput,
+      Artifact interfaceLibraryBuilder,
+      Artifact interfaceLibraryOutput,
       FdoContext fdoContext)
       throws EvalException {
     CcToolchainVariables.Builder buildVariables = CcToolchainVariables.builder();
     if (thinltoParamFile != null) {
       // This is a normal link action and we need to use param file created by lto-indexing.
-      buildVariables.addStringVariable(
+      buildVariables.addArtifactVariable(
           LinkBuildVariables.THINLTO_PARAM_FILE.getVariableName(), thinltoParamFile);
     }
 
     // output exec path
-    buildVariables.addStringVariable(
+    buildVariables.addArtifactVariable(
         LinkBuildVariables.OUTPUT_EXECPATH.getVariableName(), outputFile);
 
     buildVariables.addStringVariable(
@@ -186,25 +187,26 @@ public enum LinkBuildVariables {
         && featureConfiguration.isEnabled(CppRuleClasses.PROPELLER_OPTIMIZE)
         && fdoContext.getPropellerOptimizeInputFile() != null
         && fdoContext.getPropellerOptimizeInputFile().getLdArtifact() != null) {
-      buildVariables.addStringVariable(
+      buildVariables.addArtifactVariable(
           LinkBuildVariables.PROPELLER_OPTIMIZE_LD_PATH.getVariableName(),
-          fdoContext.getPropellerOptimizeInputFile().getLdArtifact().getExecPathString());
+          fdoContext.getPropellerOptimizeInputFile().getLdArtifact());
     }
 
     boolean shouldGenerateInterfaceLibrary =
         outputFile != null && interfaceLibraryBuilder != null && interfaceLibraryOutput != null;
-    buildVariables.addStringVariable(
-        GENERATE_INTERFACE_LIBRARY.getVariableName(),
-        shouldGenerateInterfaceLibrary ? "yes" : "no");
-    buildVariables.addStringVariable(
-        INTERFACE_LIBRARY_BUILDER.getVariableName(),
-        shouldGenerateInterfaceLibrary ? interfaceLibraryBuilder : "ignored");
-    buildVariables.addStringVariable(
-        INTERFACE_LIBRARY_INPUT.getVariableName(),
-        shouldGenerateInterfaceLibrary ? outputFile : "ignored");
-    buildVariables.addStringVariable(
-        INTERFACE_LIBRARY_OUTPUT.getVariableName(),
-        shouldGenerateInterfaceLibrary ? interfaceLibraryOutput : "ignored");
+    if (shouldGenerateInterfaceLibrary) {
+      buildVariables.addStringVariable(GENERATE_INTERFACE_LIBRARY.getVariableName(), "yes");
+      buildVariables.addArtifactVariable(
+          INTERFACE_LIBRARY_BUILDER.getVariableName(), interfaceLibraryBuilder);
+      buildVariables.addArtifactVariable(INTERFACE_LIBRARY_INPUT.getVariableName(), outputFile);
+      buildVariables.addArtifactVariable(
+          INTERFACE_LIBRARY_OUTPUT.getVariableName(), interfaceLibraryOutput);
+    } else {
+      buildVariables.addStringVariable(GENERATE_INTERFACE_LIBRARY.getVariableName(), "no");
+      buildVariables.addStringVariable(INTERFACE_LIBRARY_BUILDER.getVariableName(), "ignored");
+      buildVariables.addStringVariable(INTERFACE_LIBRARY_INPUT.getVariableName(), "ignored");
+      buildVariables.addStringVariable(INTERFACE_LIBRARY_OUTPUT.getVariableName(), "ignored");
+    }
 
     return buildVariables;
   }
@@ -242,9 +244,7 @@ public enum LinkBuildVariables {
       buildVariables.addStringVariable(IS_USING_FISSION.getVariableName(), "");
     }
 
-    if (!cppConfiguration.useCcTestFeature()) {
-      buildVariables.addBooleanValue(IS_CC_TEST.getVariableName(), useTestOnlyFlags);
-    }
+    buildVariables.addBooleanValue(IS_CC_TEST.getVariableName(), useTestOnlyFlags);
 
     buildVariables.addStringSequenceVariable(
         RUNTIME_LIBRARY_SEARCH_DIRECTORIES.getVariableName(), runtimeLibrarySearchDirectories);

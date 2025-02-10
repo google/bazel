@@ -85,12 +85,8 @@ public final class HeapOffsetHelper {
       logger.atWarning().withCause(e).log(
           "Failed to obtain the size of jdk.internal.vm.FillerArray");
     }
-    if (!foundInternal && hasManagementApi) {
-      bugReporter.logUnexpected(
-          "Unable to identify JDK 21+ G1 GC internal 'filler' array. Reported Blaze JVM memory"
-              + " metrics are volatile See b/311665999.  vm.name=%s, feature=%d histogram=%s",
-          StandardSystemProperty.JAVA_VM_NAME.value(), Runtime.version().feature(), histogram);
-    }
+
+    logIfMissingFillerArray(bugReporter, foundInternal, hasManagementApi, histogram);
 
     if (sizeInBytes > 0) {
       logger.atInfo().log(
@@ -98,5 +94,26 @@ public final class HeapOffsetHelper {
           sizeInBytes);
     }
     return sizeInBytes;
+  }
+
+  /**
+   * Logs a non-fatal bug report if the filler-array type wasn't found.
+   *
+   * <p>Note that this can happen if we're issuing command fast enough for the filler array to not
+   * be present yet, as can happen in shell tests. For this reason logging is skipped in shell
+   * tests, since otherwise bug-report logging is configured to crash in tests.
+   */
+  private static void logIfMissingFillerArray(
+      BugReporter bugReporter, boolean foundInternal, boolean hasManagementApi, String histogram) {
+    if (TestType.getTestType() == TestType.SHELL_INTEGRATION) {
+      return;
+    }
+
+    if (!foundInternal && hasManagementApi) {
+      bugReporter.logUnexpected(
+          "Unable to identify JDK 21+ G1 GC internal 'filler' array. Reported Blaze JVM memory"
+              + " metrics are volatile See b/311665999.  vm.name=%s, feature=%d histogram=%s",
+          StandardSystemProperty.JAVA_VM_NAME.value(), Runtime.version().feature(), histogram);
+    }
   }
 }

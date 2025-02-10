@@ -310,48 +310,8 @@ public final class PackageIdentifier implements SkyKey, Comparable<PackageIdenti
     return PackageIdentifierLeafCodec.INSTANCE;
   }
 
-  public static DeferredObjectCodec<PackageIdentifier> valueSharingCodec() {
-    return PackageIdentifierValueSharingCodec.INSTANCE;
-  }
-
-  // TODO: b/359437873 - generate with @AutoCodec.
-  private static class PackageIdentifierValueSharingCodec
-      extends DeferredObjectCodec<PackageIdentifier> {
-
-    private static final PackageIdentifierValueSharingCodec INSTANCE =
-        new PackageIdentifierValueSharingCodec();
-
-    @Override
-    public boolean autoRegister() {
-      return false;
-    }
-
-    @Override
-    public Class<PackageIdentifier> getEncodedClass() {
-      return PackageIdentifier.class;
-    }
-
-    @Override
-    public void serialize(
-        SerializationContext context, PackageIdentifier id, CodedOutputStream codedOut)
-        throws SerializationException, IOException {
-      context.putSharedValue(
-          id, /* distinguisher= */ null, PackageIdentifierDeferredCodec.INSTANCE, codedOut);
-    }
-
-    @Override
-    public DeferredValue<PackageIdentifier> deserializeDeferred(
-        AsyncDeserializationContext context, CodedInputStream codedIn)
-        throws SerializationException, IOException {
-      SimpleDeferredValue<PackageIdentifier> value = SimpleDeferredValue.create();
-      context.getSharedValue(
-          codedIn,
-          /* distinguisher= */ null,
-          PackageIdentifierDeferredCodec.INSTANCE,
-          value,
-          SimpleDeferredValue::set);
-      return value;
-    }
+  public static DeferredObjectCodec<PackageIdentifier> deferredCodec() {
+    return PackageIdentifierDeferredCodec.INSTANCE;
   }
 
   private static class PackageIdentifierDeferredCodec

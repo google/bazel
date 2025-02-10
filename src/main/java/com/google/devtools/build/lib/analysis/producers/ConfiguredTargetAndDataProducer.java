@@ -28,6 +28,7 @@ import com.google.devtools.build.lib.skyframe.ConfiguredTargetAndData;
 import com.google.devtools.build.lib.skyframe.ConfiguredTargetKey;
 import com.google.devtools.build.lib.skyframe.ConfiguredValueCreationException;
 import com.google.devtools.build.lib.skyframe.PackageValue;
+import com.google.devtools.build.lib.skyframe.RemoteConfiguredTargetValue;
 import com.google.devtools.build.skyframe.SkyValue;
 import com.google.devtools.build.skyframe.state.StateMachine;
 import java.util.function.Consumer;
@@ -74,7 +75,7 @@ public final class ConfiguredTargetAndDataProducer
   private final int outputIndex;
 
   // -------------------- Internal State --------------------
-  private ConfiguredTarget configuredTarget;
+  private ConfiguredTargetValue configuredTargetValue;
   @Nullable // Null if the configured target key's configuration key is null.
   private BuildConfigurationValue configurationValue;
   private Package pkg;
@@ -118,10 +119,10 @@ public final class ConfiguredTargetAndDataProducer
   }
 
   private void acceptValue(ConfiguredTargetValue configuredTargetValue) {
-    this.configuredTarget = configuredTargetValue.getConfiguredTarget();
+    this.configuredTargetValue = configuredTargetValue;
     if (transitiveState.storeTransitivePackages()) {
       transitiveState.updateTransitivePackages(
-          ConfiguredTargetKey.fromConfiguredTarget(configuredTarget),
+          ConfiguredTargetKey.fromConfiguredTarget(configuredTargetValue.getConfiguredTarget()),
           configuredTargetValue.getTransitivePackages());
     }
   }
@@ -153,10 +154,11 @@ public final class ConfiguredTargetAndDataProducer
   }
 
   private StateMachine fetchConfigurationAndPackage(Tasks tasks) throws InterruptedException {
-    if (configuredTarget == null) {
+    if (configuredTargetValue == null) {
       return DONE; // There was a previous error.
     }
 
+    var configuredTarget = configuredTargetValue.getConfiguredTarget();
     var configurationKey = configuredTarget.getConfigurationKey();
     if (configurationKey != null) {
       this.configurationValue =
@@ -168,11 +170,15 @@ public final class ConfiguredTargetAndDataProducer
       }
     }
 
+    if (configuredTargetValue instanceof RemoteConfiguredTargetValue) {
+      // Skips package lookup. The RemoteConfiguredTargetValue includes its own TargetData.
+      return this::constructResult;
+    }
+
     // An alternative to this is to optimistically fetch the package using the label of the
     // configured target key. However, the actual package may differ when this is an
     // AliasConfiguredTarget and would need to be refetched.
 
-    // TODO(shahan): This lookup should be skipped when the ConfiguredTarget is fetched remotely.
     var packageId = configuredTarget.getLabel().getPackageIdentifier();
     this.pkg = transitiveState.getDependencyPackage(packageId);
     if (pkg == null) {
@@ -200,6 +206,15 @@ public final class ConfiguredTargetAndDataProducer
   }
 
   private StateMachine constructResult(Tasks tasks) {
+    ConfiguredTarget configuredTarget = configuredTargetValue.getConfiguredTarget();
+    if (configuredTargetValue instanceof RemoteConfiguredTargetValue remoteValue) {
+      sink.acceptConfiguredTargetAndData(
+          new ConfiguredTargetAndData(
+              configuredTarget, remoteValue.getTargetData(), configurationValue, transitionKeys),
+          outputIndex);
+      return DONE;
+    }
+
     Target target;
     try {
       target = pkg.getTarget(configuredTarget.getLabel().getName());

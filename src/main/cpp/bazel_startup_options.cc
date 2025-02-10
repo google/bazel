@@ -13,17 +13,21 @@
 // limitations under the License.
 #include "src/main/cpp/bazel_startup_options.h"
 
-#include <cassert>
+#include <assert.h>
+
+#include <string>
+#include <vector>
 
 #include "src/main/cpp/blaze_util.h"
+#include "src/main/cpp/blaze_util_platform.h"
+#include "src/main/cpp/startup_options.h"
 #include "src/main/cpp/util/logging.h"
-#include "src/main/cpp/workspace_layout.h"
+#include "src/main/cpp/util/path_platform.h"
 
 namespace blaze {
 
-BazelStartupOptions::BazelStartupOptions(
-    const WorkspaceLayout *workspace_layout)
-    : StartupOptions("Bazel", workspace_layout),
+BazelStartupOptions::BazelStartupOptions()
+    : StartupOptions("Bazel", /* lock_install_base= */ true),
       user_bazelrc_(""),
       use_system_rc(true),
       use_workspace_rc(true),
@@ -32,6 +36,10 @@ BazelStartupOptions::BazelStartupOptions(
   RegisterNullaryStartupFlagNoRc("system_rc", &use_system_rc);
   RegisterNullaryStartupFlagNoRc("workspace_rc", &use_workspace_rc);
   RegisterUnaryStartupFlag("bazelrc");
+}
+
+blaze_util::Path BazelStartupOptions::GetDefaultOutputRoot() const {
+  return blaze_util::Path(blaze::GetCacheDir());
 }
 
 blaze_exit_code::ExitCode BazelStartupOptions::ProcessArgExtra(

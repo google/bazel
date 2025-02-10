@@ -29,7 +29,7 @@ import com.google.devtools.build.lib.actions.Artifact;
 import com.google.devtools.build.lib.actions.BuildFailedException;
 import com.google.devtools.build.lib.actions.Executor;
 import com.google.devtools.build.lib.actions.InputMetadataProvider;
-import com.google.devtools.build.lib.actions.RemoteArtifactChecker;
+import com.google.devtools.build.lib.actions.OutputChecker;
 import com.google.devtools.build.lib.actions.ResourceManager;
 import com.google.devtools.build.lib.actions.TestExecException;
 import com.google.devtools.build.lib.analysis.ConfiguredTarget;
@@ -106,14 +106,16 @@ public class SkyframeBuilder implements Builder {
       OptionsProvider options,
       @Nullable Range<Long> lastExecutionTimeRange,
       TopLevelArtifactContext topLevelArtifactContext,
-      RemoteArtifactChecker remoteArtifactChecker)
+      OutputChecker outputChecker)
       throws BuildFailedException, AbruptExitException, TestExecException, InterruptedException {
     BuildRequestOptions buildRequestOptions = options.getOptions(BuildRequestOptions.class);
     // TODO(bazel-team): Should use --experimental_fsvc_threads instead of the hardcoded constant
     // but plumbing the flag through is hard.
     int fsvcThreads = buildRequestOptions == null ? 200 : buildRequestOptions.fsvcThreads;
+    boolean skyframeErrorHandlingRefactor =
+        buildRequestOptions != null && buildRequestOptions.skyframeErrorHandlingRefactor;
     skyframeExecutor.detectModifiedOutputFiles(
-        modifiedOutputFiles, lastExecutionTimeRange, remoteArtifactChecker, fsvcThreads);
+        modifiedOutputFiles, lastExecutionTimeRange, outputChecker, fsvcThreads);
     try (SilentCloseable c = Profiler.instance().profile("configureActionExecutor")) {
       skyframeExecutor.configureActionExecutor(fileCache, actionInputPrefetcher);
     }
@@ -175,12 +177,16 @@ public class SkyframeBuilder implements Builder {
               topLevelArtifactContext);
       // progressReceiver is finished, so unsynchronized access to builtTargets is now safe.
       DetailedExitCode detailedExitCode =
-          SkyframeErrorProcessor.processResult(
-              reporter,
-              result,
-              options.getOptions(KeepGoingOption.class).keepGoing,
-              skyframeExecutor.getCyclesReporter(),
-              bugReporter);
+          SkyframeErrorProcessor.processExecutionErrors(
+                  result,
+                  skyframeExecutor.getCyclesReporter(),
+                  reporter,
+                  options.getOptions(KeepGoingOption.class).keepGoing,
+                  skyframeExecutor.tracksStateForIncrementality(),
+                  skyframeExecutor.getEventBus(),
+                  bugReporter,
+                  skyframeErrorHandlingRefactor)
+              .executionDetailedExitCode();
 
       if (detailedExitCode != null) {
         detailedExitCodes.add(detailedExitCode);
@@ -202,13 +208,18 @@ public class SkyframeBuilder implements Builder {
                 actionCacheChecker,
                 actionOutputDirectoryHelper,
                 topLevelArtifactContext);
+
         detailedExitCode =
-            SkyframeErrorProcessor.processResult(
-                reporter,
-                result,
-                options.getOptions(KeepGoingOption.class).keepGoing,
-                skyframeExecutor.getCyclesReporter(),
-                bugReporter);
+            SkyframeErrorProcessor.processExecutionErrors(
+                    result,
+                    skyframeExecutor.getCyclesReporter(),
+                    reporter,
+                    options.getOptions(KeepGoingOption.class).keepGoing,
+                    skyframeExecutor.tracksStateForIncrementality(),
+                    skyframeExecutor.getEventBus(),
+                    bugReporter,
+                    skyframeErrorHandlingRefactor)
+                .executionDetailedExitCode();
         Preconditions.checkState(
             detailedExitCode != null || !result.keyNames().isEmpty(),
             "Build reported as successful but test %s not executed: %s",
@@ -229,13 +240,18 @@ public class SkyframeBuilder implements Builder {
                 options,
                 actionCacheChecker,
                 actionOutputDirectoryHelper);
+
         detailedExitCode =
-            SkyframeErrorProcessor.processResult(
-                reporter,
-                result,
-                options.getOptions(KeepGoingOption.class).keepGoing,
-                skyframeExecutor.getCyclesReporter(),
-                bugReporter);
+            SkyframeErrorProcessor.processExecutionErrors(
+                    result,
+                    skyframeExecutor.getCyclesReporter(),
+                    reporter,
+                    options.getOptions(KeepGoingOption.class).keepGoing,
+                    skyframeExecutor.tracksStateForIncrementality(),
+                    skyframeExecutor.getEventBus(),
+                    bugReporter,
+                    skyframeErrorHandlingRefactor)
+                .executionDetailedExitCode();
         if (detailedExitCode != null) {
           detailedExitCodes.add(detailedExitCode);
         }

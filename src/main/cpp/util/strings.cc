@@ -271,12 +271,7 @@ void StringPrintf(string *str, const char *format, ...) {
   delete[] buf;
 }
 
-void ToLower(string *str) {
-  assert(str);
-  *str = AsLower(*str);
-}
-
-string AsLower(const string &str) {
+string ToLower(const string &str) {
   if (str.empty()) {
     return "";
   }

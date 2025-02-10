@@ -43,7 +43,7 @@ public final class SimpleSpawn implements Spawn {
   @Nullable private final Set<? extends ActionInput> mandatoryOutputs;
   private final PathMapper pathMapper;
   private final LocalResourcesSupplier localResourcesSupplier;
-  private ResourceSet localResourcesCached;
+  @Nullable private ResourceSet localResourcesCached;
 
   private SimpleSpawn(
       ActionExecutionMetadata owner,
@@ -202,11 +202,11 @@ public final class SimpleSpawn implements Spawn {
         arguments,
         environment,
         executionInfo,
-        /*filesetMappings=*/ ImmutableMap.of(),
+        /* filesetMappings= */ ImmutableMap.of(),
         inputs,
-        /*tools=*/ NestedSetBuilder.emptySet(Order.STABLE_ORDER),
+        /* tools= */ NestedSetBuilder.emptySet(Order.STABLE_ORDER),
         outputs,
-        /*mandatoryOutputs=*/ null,
+        /* mandatoryOutputs= */ null,
         localResourcesSupplier);
   }
 
@@ -227,7 +227,7 @@ public final class SimpleSpawn implements Spawn {
         inputs,
         NestedSetBuilder.emptySet(Order.STABLE_ORDER),
         outputs,
-        /*mandatoryOutputs=*/ null,
+        /* mandatoryOutputs= */ null,
         resourceSet);
   }
 
@@ -278,11 +278,13 @@ public final class SimpleSpawn implements Spawn {
 
   @Override
   public ResourceSet getLocalResources() throws ExecException {
-    if (localResourcesCached == null) {
+    ResourceSet result = localResourcesCached;
+    if (result == null) {
       // Not expected to be called concurrently, and an idempotent computation if it is.
-      localResourcesCached = localResourcesSupplier.get();
+      result = localResourcesSupplier.get();
+      localResourcesCached = result;
     }
-    return localResourcesCached;
+    return result;
   }
 
   @Override
@@ -293,11 +295,6 @@ public final class SimpleSpawn implements Spawn {
   @Override
   public String getMnemonic() {
     return owner.getMnemonic();
-  }
-
-  @Override
-  public ImmutableMap<String, String> getCombinedExecProperties() {
-    return owner.getExecProperties();
   }
 
   @Override

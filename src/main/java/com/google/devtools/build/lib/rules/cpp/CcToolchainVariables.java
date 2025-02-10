@@ -14,6 +14,7 @@
 
 package com.google.devtools.build.lib.rules.cpp;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Collections2;
 import com.google.common.collect.ImmutableList;
@@ -178,7 +179,7 @@ public abstract class CcToolchainVariables implements CcToolchainVariablesApi {
       parse();
     }
 
-    /** @return the parsed chunks for this string. */
+    /** Returns the parsed chunks for this string. */
     public ImmutableList<StringChunk> getChunks() {
       return chunks.build();
     }
@@ -285,7 +286,9 @@ public abstract class CcToolchainVariables implements CcToolchainVariablesApi {
   private static final Object NULL_MARKER = new Object();
 
   // Values in this cache are either VariableValue, String error message, or NULL_MARKER.
-  private Map<String, Object> structuredVariableCache;
+  //
+  // It is initialized lazily.
+  private transient volatile Map<String, Object> structuredVariableCache;
 
   /**
    * Retrieves a {@link StringSequence} variable named {@code variableName} from {@code variables}
@@ -310,13 +313,15 @@ public abstract class CcToolchainVariables implements CcToolchainVariablesApi {
    * @throws ExpansionException when no such variable or no such field are present, or when
    *     accessing a field of non-structured variable
    */
-  VariableValue getVariable(String name) throws ExpansionException {
-    return lookupVariable(name, /* throwOnMissingVariable= */ true, /* expander= */ null);
+  VariableValue getVariable(String name, PathMapper pathMapper) throws ExpansionException {
+    return lookupVariable(
+        name, /* throwOnMissingVariable= */ true, /* expander= */ null, pathMapper);
   }
 
-  private VariableValue getVariable(String name, @Nullable ArtifactExpander expander)
+  private VariableValue getVariable(
+      String name, @Nullable ArtifactExpander expander, PathMapper pathMapper)
       throws ExpansionException {
-    return lookupVariable(name, /* throwOnMissingVariable= */ true, expander);
+    return lookupVariable(name, /* throwOnMissingVariable= */ true, expander, pathMapper);
   }
 
   /**
@@ -325,7 +330,10 @@ public abstract class CcToolchainVariables implements CcToolchainVariablesApi {
    */
   @Nullable
   private VariableValue lookupVariable(
-      String name, boolean throwOnMissingVariable, @Nullable ArtifactExpander expander)
+      String name,
+      boolean throwOnMissingVariable,
+      @Nullable ArtifactExpander expander,
+      PathMapper pathMapper)
       throws ExpansionException {
     VariableValue var = getNonStructuredVariable(name);
     if (var != null) {
@@ -342,13 +350,18 @@ public abstract class CcToolchainVariables implements CcToolchainVariablesApi {
     }
 
     if (structuredVariableCache == null) {
-      structuredVariableCache = Maps.newConcurrentMap();
+      synchronized (this) {
+        if (structuredVariableCache == null) {
+          structuredVariableCache = Maps.newConcurrentMap();
+        }
+      }
     }
 
     Object variableOrError = structuredVariableCache.get(name);
     if (variableOrError == null) {
       try {
-        VariableValue variable = getStructureVariable(name, throwOnMissingVariable, expander);
+        VariableValue variable =
+            getStructureVariable(name, throwOnMissingVariable, expander, pathMapper);
         variableOrError = variable != null ? variable : NULL_MARKER;
       } catch (ExpansionException e) {
         if (throwOnMissingVariable) {
@@ -376,7 +389,10 @@ public abstract class CcToolchainVariables implements CcToolchainVariablesApi {
 
   @Nullable
   private VariableValue getStructureVariable(
-      String name, boolean throwOnMissingVariable, @Nullable ArtifactExpander expander)
+      String name,
+      boolean throwOnMissingVariable,
+      @Nullable ArtifactExpander expander,
+      PathMapper pathMapper)
       throws ExpansionException {
     if (!name.contains(".")) {
       return null;
@@ -398,7 +414,8 @@ public abstract class CcToolchainVariables implements CcToolchainVariablesApi {
 
     while (!fieldsToAccess.empty()) {
       String field = fieldsToAccess.pop();
-      variable = variable.getFieldValue(structPath, field, expander, throwOnMissingVariable);
+      variable =
+          variable.getFieldValue(structPath, field, expander, pathMapper, throwOnMissingVariable);
       if (variable == null) {
         if (throwOnMissingVariable) {
           throw new ExpansionException(
@@ -416,19 +433,21 @@ public abstract class CcToolchainVariables implements CcToolchainVariablesApi {
 
   public String getStringVariable(String variableName, PathMapper pathMapper)
       throws ExpansionException {
-    return getVariable(variableName, /* expander= */ null).getStringValue(variableName, pathMapper);
+    return getVariable(variableName, /* expander= */ null, pathMapper)
+        .getStringValue(variableName, pathMapper);
   }
 
   public Iterable<? extends VariableValue> getSequenceVariable(
       String variableName, PathMapper pathMapper) throws ExpansionException {
-    return getVariable(variableName, /* expander= */ null)
+    return getVariable(variableName, /* expander= */ null, pathMapper)
         .getSequenceValue(variableName, pathMapper);
   }
 
   public Iterable<? extends VariableValue> getSequenceVariable(
       String variableName, @Nullable ArtifactExpander expander, PathMapper pathMapper)
       throws ExpansionException {
-    return getVariable(variableName, expander).getSequenceValue(variableName, pathMapper);
+    return getVariable(variableName, expander, pathMapper)
+        .getSequenceValue(variableName, pathMapper);
   }
 
   /** Returns whether {@code variable} is set. */
@@ -438,7 +457,10 @@ public abstract class CcToolchainVariables implements CcToolchainVariablesApi {
 
   boolean isAvailable(String variable, @Nullable ArtifactExpander expander) {
     try {
-      return lookupVariable(variable, /* throwOnMissingVariable= */ false, expander) != null;
+      // Availability doesn't depend on the path mapper.
+      return lookupVariable(
+              variable, /* throwOnMissingVariable= */ false, expander, PathMapper.NOOP)
+          != null;
     } catch (ExpansionException e) {
       throw new IllegalStateException(
           "Should not happen - call to lookupVariable threw when asked not to.", e);
@@ -468,7 +490,6 @@ public abstract class CcToolchainVariables implements CcToolchainVariablesApi {
      * StringValue), or throw exception if it cannot (e.g. Sequence).
      *
      * @param variableName name of the variable value at hand, for better exception message.
-     * @param pathMapper
      */
     String getStringValue(String variableName, PathMapper pathMapper) throws ExpansionException;
 
@@ -477,7 +498,6 @@ public abstract class CcToolchainVariables implements CcToolchainVariablesApi {
      * (e.g. Sequence), or throw exception if it cannot (e.g. StringValue).
      *
      * @param variableName name of the variable value at hand, for better exception message.
-     * @param pathMapper
      */
     Iterable<? extends VariableValue> getSequenceValue(String variableName, PathMapper pathMapper)
         throws ExpansionException;
@@ -488,14 +508,24 @@ public abstract class CcToolchainVariables implements CcToolchainVariablesApi {
      *
      * @param variableName name of the variable value at hand, for better exception message.
      */
-    VariableValue getFieldValue(String variableName, String field) throws ExpansionException;
-
     VariableValue getFieldValue(
         String variableName,
         String field,
         @Nullable ArtifactExpander expander,
+        PathMapper pathMapper,
         boolean throwOnMissingVariable)
         throws ExpansionException;
+
+    @VisibleForTesting
+    default VariableValue getFieldValue(String variableName, String field)
+        throws ExpansionException {
+      return getFieldValue(
+          variableName,
+          field,
+          /* expander= */ null,
+          PathMapper.NOOP,
+          /* throwOnMissingVariable= */ true);
+    }
 
     /** Returns true if the variable is truthy */
     boolean isTruthy();
@@ -516,19 +546,13 @@ public abstract class CcToolchainVariables implements CcToolchainVariablesApi {
     @Override
     public abstract boolean isTruthy();
 
-    @Override
-    public VariableValue getFieldValue(String variableName, String field)
-        throws ExpansionException {
-      return getFieldValue(
-          variableName, field, /* expander= */ null, /* throwOnMissingVariable= */ true);
-    }
-
     @Nullable
     @Override
     public VariableValue getFieldValue(
         String variableName,
         String field,
         @Nullable ArtifactExpander expander,
+        PathMapper pathMapper,
         boolean throwOnMissingVariable)
         throws ExpansionException {
       if (throwOnMissingVariable) {
@@ -611,6 +635,14 @@ public abstract class CcToolchainVariables implements CcToolchainVariablesApi {
     @Override
     public Sequence build() {
       return new Sequence(values.build());
+    }
+
+    /**
+     * @deprecated Only exposed to get the list into Starlark collect_libraries_to_link
+     */
+    @Deprecated
+    public ImmutableList<VariableValue> getValues() {
+      return values.build();
     }
   }
 
@@ -716,6 +748,7 @@ public abstract class CcToolchainVariables implements CcToolchainVariablesApi {
         String variableName,
         String field,
         @Nullable ArtifactExpander expander,
+        PathMapper pathMapper,
         boolean throwOnMissingVariable) {
       if (TYPE_FIELD_NAME.equals(field)) {
         return new StringValue(getTypeName());
@@ -770,11 +803,17 @@ public abstract class CcToolchainVariables implements CcToolchainVariablesApi {
           String variableName,
           String field,
           @Nullable ArtifactExpander expander,
+          PathMapper pathMapper,
           boolean throwOnMissingVariable) {
         if (NAME_FIELD_NAME.equals(field)) {
-          return new StringValue(name);
+          if (pathMapper.isNoop()) {
+            return new StringValue(name);
+          }
+          return new StringValue(
+              pathMapper.map(PathFragment.createAlreadyNormalized(name)).getPathString());
         }
-        return super.getFieldValue(variableName, field, expander, throwOnMissingVariable);
+        return super.getFieldValue(
+            variableName, field, expander, pathMapper, throwOnMissingVariable);
       }
 
       @Override
@@ -818,11 +857,13 @@ public abstract class CcToolchainVariables implements CcToolchainVariablesApi {
           String variableName,
           String field,
           @Nullable ArtifactExpander expander,
+          PathMapper pathMapper,
           boolean throwOnMissingVariable) {
         if (PATH_FIELD_NAME.equals(field)) {
           return new StringValue(path);
         }
-        return super.getFieldValue(variableName, field, expander, throwOnMissingVariable);
+        return super.getFieldValue(
+            variableName, field, expander, pathMapper, throwOnMissingVariable);
       }
 
       @Override
@@ -915,6 +956,7 @@ public abstract class CcToolchainVariables implements CcToolchainVariablesApi {
           String variableName,
           String field,
           @Nullable ArtifactExpander expander,
+          PathMapper pathMapper,
           boolean throwOnMissingVariable) {
         if (NAME_FIELD_NAME.equals(field)) {
           return null;
@@ -926,15 +968,17 @@ public abstract class CcToolchainVariables implements CcToolchainVariablesApi {
             if (objectFile.isTreeArtifact() && expander != null) {
               expandedObjectFiles.addAll(
                   Collections2.transform(
-                      expander.tryExpandTreeArtifact(objectFile), Artifact::getExecPathString));
+                      expander.tryExpandTreeArtifact(objectFile),
+                      pathMapper::getMappedExecPathString));
             } else {
-              expandedObjectFiles.add(objectFile.getExecPathString());
+              expandedObjectFiles.add(pathMapper.getMappedExecPathString(objectFile));
             }
           }
           return StringSequence.of(expandedObjectFiles.build());
         }
 
-        return super.getFieldValue(variableName, field, expander, throwOnMissingVariable);
+        return super.getFieldValue(
+            variableName, field, expander, pathMapper, throwOnMissingVariable);
       }
 
       @Override
@@ -1253,6 +1297,7 @@ public abstract class CcToolchainVariables implements CcToolchainVariablesApi {
         String variableName,
         String field,
         @Nullable ArtifactExpander expander,
+        PathMapper pathMapper,
         boolean throwOnMissingVariable) {
       return value.getOrDefault(field, null);
     }

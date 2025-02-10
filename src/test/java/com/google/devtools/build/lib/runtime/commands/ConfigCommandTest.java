@@ -31,7 +31,6 @@ import com.google.devtools.build.lib.buildtool.util.BuildIntegrationTestCase;
 import com.google.devtools.build.lib.runtime.BlazeCommandDispatcher;
 import com.google.devtools.build.lib.runtime.commands.ConfigCommand.ConfigurationDiffForOutput;
 import com.google.devtools.build.lib.runtime.commands.ConfigCommand.FragmentDiffForOutput;
-import com.google.devtools.build.lib.testutil.TestConstants;
 import com.google.devtools.build.lib.util.Pair;
 import com.google.devtools.build.lib.util.io.RecordingOutErr;
 import com.google.gson.Gson;
@@ -113,11 +112,9 @@ public class ConfigCommandTest extends BuildIntegrationTestCase {
    */
   private void analyzeTarget(String... args) throws Exception {
     List<String> params = Lists.newArrayList("build");
-    // Basic flags required to make any build work. Ideally we'd go through BlazeRuntimeWrapper,
-    // which does the same setup. But that's explicitly documented as not supported command
-    // invocations, which is exactly what we we need here.
-    params.addAll(TestConstants.PRODUCT_SPECIFIC_FLAGS);
-    params.addAll(TestConstants.PRODUCT_SPECIFIC_BUILD_LANG_OPTIONS);
+    // Ideally we'd directly use BlazeRuntimeWrapper, but it's explicitly documented as not
+    // exercising the command dispatcher, which is exactly what we need here.
+    params.addAll(runtimeWrapper.getOptions());
     params.add("//test:buildme");
     params.add("--nobuild"); // Execution phase isn't necessary to collect configurations.
     Collections.addAll(params, args);
@@ -130,11 +127,9 @@ public class ConfigCommandTest extends BuildIntegrationTestCase {
    */
   private void analyzeTargetWithTransition(String... args) throws Exception {
     List<String> params = Lists.newArrayList("build");
-    // Basic flags required to make any build work. Ideally we'd go through BlazeRuntimeWrapper,
-    // which does the same setup. But that's explicitly documented as not supported command
-    // invocations, which is exactly what we we need here.
-    params.addAll(TestConstants.PRODUCT_SPECIFIC_FLAGS);
-    params.addAll(TestConstants.PRODUCT_SPECIFIC_BUILD_LANG_OPTIONS);
+    // Ideally we'd directly use BlazeRuntimeWrapper, but it's explicitly documented as not
+    // exercising the command dispatcher, which is exactly what we need here.
+    params.addAll(runtimeWrapper.getOptions());
     params.add("//test:buildme_with_transition");
     params.add("--nobuild"); // Execution phase isn't necessary to collect configurations.
     Collections.addAll(params, args);

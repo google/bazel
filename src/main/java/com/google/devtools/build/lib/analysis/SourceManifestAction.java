@@ -231,7 +231,7 @@ public final class SourceManifestAction extends AbstractFileWriteAction
     StoredEventHandler eventHandler = new StoredEventHandler();
     BiConsumer<ConflictType, String> eventReceiver =
         runfiles.eventRunfilesConflictReceiver(eventHandler, getOwner().getLocation());
-    boolean seenNestedRunfilesTree[] = new boolean[] {false};
+    boolean[] seenNestedRunfilesTree = new boolean[] {false};
     BiConsumer<ConflictType, String> receiver =
         (conflictType, message) -> {
           eventReceiver.accept(conflictType, message);

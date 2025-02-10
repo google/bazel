@@ -16,41 +16,43 @@
 
 package com.tonicsystems.jarjar;
 
-import com.tonicsystems.jarjar.util.*;
-import java.io.*;
-import java.util.*;
+import java.io.IOException;
+import java.util.HashSet;
+import java.util.List;
 
+/** AbstractDepHandler. */
 public abstract class AbstractDepHandler implements DepHandler {
-  protected final int level;
-  private final Set<List<Object>> seenIt = new HashSet<List<Object>>();
+  protected final DepHandler.Level level;
+  private final HashSet<List<String>> seenPairs = new HashSet<>();
 
-  protected AbstractDepHandler(int level) {
+  protected AbstractDepHandler(DepHandler.Level level) {
     this.level = level;
   }
 
+  @Override
+  @SuppressWarnings("JdkImmutableCollections")
   public void handle(PathClass from, PathClass to) throws IOException {
-    List<Object> pair;
-    if (level == LEVEL_JAR) {
-      pair = createPair(from.getClassPath(), to.getClassPath());
-    } else {
-      pair = createPair(from.getClassName(), to.getClassName());
-    }
-    if (!seenIt.contains(pair)) {
-      seenIt.add(pair);
-      handle(pair.get(0).toString(), pair.get(1).toString());
+    List<String> pair = List.of(stringForLevel(from), stringForLevel(to));
+    if (seenPairs.add(pair)) {
+      handle(pair.get(0), pair.get(1));
     }
   }
 
   protected abstract void handle(String from, String to) throws IOException;
 
+  @Override
   public void handleStart() throws IOException {}
 
+  @Override
   public void handleEnd() throws IOException {}
 
-  private static List<Object> createPair(Object o1, Object o2) {
-    List<Object> list = new ArrayList<Object>(2);
-    list.add(o1);
-    list.add(o2);
-    return list;
+  private String stringForLevel(PathClass clazz) {
+    switch (level) {
+      case JAR:
+        return clazz.getClassPath();
+      case CLASS:
+        return clazz.getClassName();
+    }
+    throw new AssertionError();
   }
 }

@@ -28,9 +28,21 @@ public class AppleBootstrap implements Bootstrap {
   private static final ImmutableSet<PackageIdentifier> allowedRepositories =
       ImmutableSet.of(
           PackageIdentifier.createUnchecked("_builtins", ""),
+          PackageIdentifier.createUnchecked("apple_support", ""),
           PackageIdentifier.createUnchecked("bazel_tools", ""),
+          PackageIdentifier.createUnchecked("build_bazel_rules_apple", ""), // alias for rules_apple
+          PackageIdentifier.createUnchecked("build_bazel_rules_swift", ""), // alias for rules_swift
+          PackageIdentifier.createUnchecked("io_bazel_rules_go", ""), // alias for rules_go
+          PackageIdentifier.createUnchecked("local_config_cc", ""),
           PackageIdentifier.createUnchecked("rules_apple", ""),
-          PackageIdentifier.createUnchecked("", "tools/build_defs/apple"));
+          PackageIdentifier.createUnchecked("rules_cc", ""),
+          PackageIdentifier.createUnchecked("rules_go", ""),
+          PackageIdentifier.createUnchecked("rules_ios", ""),
+          PackageIdentifier.createUnchecked("rules_swift", ""),
+          PackageIdentifier.createUnchecked("stardoc", ""),
+          PackageIdentifier.createUnchecked("tulsi", ""),
+          PackageIdentifier.createUnchecked("", "test_starlark"),
+          PackageIdentifier.createUnchecked("", "tools/osx"));
 
   @Override
   public void addBindingsToBuilder(ImmutableMap.Builder<String, Object> builder) {

@@ -40,6 +40,7 @@ java_library(
         "//src/main/java/com/google/devtools/build/lib/remote/disk",
         "//src/main/java/com/google/devtools/build/lib/remote/options",
         "//src/main/java/com/google/devtools/build/lib/remote/util",
+        "//src/main/java/com/google/devtools/build/lib/remote/util:digest_utils",
         "//src/main/java/com/google/devtools/build/lib/sandbox:linux_sandbox_command_line_builder",
         "//src/main/java/com/google/devtools/build/lib/shell",
         "//src/main/java/com/google/devtools/build/lib/util:os",
@@ -55,7 +56,6 @@ java_library(
         "//third_party:jsr305",
         "//third_party:netty",
         "//third_party/grpc-java:grpc-jar",
-        "//tools/java/runfiles",
         "@com_google_protobuf//:protobuf_java",
         "@com_google_protobuf//:protobuf_java_util",
         "@googleapis//google/bytestream:bytestream_java_grpc",
@@ -64,5 +64,6 @@ java_library(
         "@googleapis//google/rpc:rpc_java_proto",
         "@remoteapis//:build_bazel_remote_execution_v2_remote_execution_java_grpc",
         "@remoteapis//:build_bazel_remote_execution_v2_remote_execution_java_proto",
+        "@rules_java//java/runfiles",
     ],
 )

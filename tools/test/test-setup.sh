@@ -237,9 +237,11 @@ fi
 # Redefine rlocation to notify users of its removal - it used to be exported.
 # TODO: Remove this before Bazel 9.
 function rlocation() {
-  read LINE SUB FILE < <(caller 0);
-  >&2 echo "ERROR: rlocation is no longer implicitly provided by Bazel's test setup, but called from $SUB in line $LINE of $FILE. Please use https://github.com/bazelbuild/rules_shell/blob/main/shell/runfiles/runfiles.bash instead."
-  exit 1
+  caller 0 | {
+    read LINE SUB FILE
+    echo >&2 "ERROR: rlocation is no longer implicitly provided by Bazel's test setup, but called from $SUB in line $LINE of $FILE. Please use https://github.com/bazelbuild/rules_shell/blob/main/shell/runfiles/runfiles.bash instead."
+    exit 1
+  }
 }
 export -f rlocation
 

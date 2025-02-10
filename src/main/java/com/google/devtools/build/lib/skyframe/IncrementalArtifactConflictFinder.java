@@ -45,13 +45,12 @@ import com.google.devtools.build.lib.vfs.PathFragment;
 import com.google.devtools.build.skyframe.SkyKey;
 import com.google.devtools.build.skyframe.SkyValue;
 import com.google.devtools.build.skyframe.WalkableGraph;
-import java.util.ArrayList;
-import java.util.Collections;
+import java.util.Collection;
 import java.util.Iterator;
-import java.util.List;
 import java.util.Set;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
@@ -235,8 +234,7 @@ public final class IncrementalArtifactConflictFinder {
     ConcurrentMap<ActionAnalysisMetadata, ActionConflictException> temporaryBadActionMap =
         new ConcurrentHashMap<>();
 
-    List<ListenableFuture<Void>> actionCheckingFutures =
-        Collections.synchronizedList(new ArrayList<>());
+    Collection<ListenableFuture<Void>> actionCheckingFutures = new ConcurrentLinkedQueue<>();
 
     CountDownLatch toWaitFor = null;
     CountDownLatch mySignal = null;
@@ -474,14 +472,14 @@ public final class IncrementalArtifactConflictFinder {
   /** Visit the transitive closure of {@code key} and check for conflicts among the actions. */
   private final class CheckForConflictsUnderKey implements Runnable {
     private final ActionLookupKey key;
-    private final List<ListenableFuture<Void>> actionCheckingFutures;
+    private final Collection<ListenableFuture<Void>> actionCheckingFutures;
     private final ConcurrentMap<ActionAnalysisMetadata, ActionConflictException> badActionMap;
 
     private final Set<ActionLookupKey> dedupSet;
 
     private CheckForConflictsUnderKey(
         ActionLookupKey key,
-        List<ListenableFuture<Void>> actionCheckingFutures,
+        Collection<ListenableFuture<Void>> actionCheckingFutures,
         ConcurrentMap<ActionAnalysisMetadata, ActionConflictException> badActionMap,
         Set<ActionLookupKey> dedupSet) {
       this.key = key;

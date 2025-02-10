@@ -24,11 +24,9 @@ import com.google.devtools.build.lib.bugreport.BugReporter;
 import com.google.devtools.build.lib.skyframe.serialization.FingerprintValueStore.MissingFingerprintValueException;
 import com.google.errorprone.annotations.CanIgnoreReturnValue;
 import java.io.IOException;
-import java.util.List;
 import java.util.concurrent.ExecutionException;
 
 /** Helpers for serialization futures. */
-@VisibleForTesting // package-private
 public final class FutureHelpers {
 
   /**
@@ -123,14 +121,6 @@ public final class FutureHelpers {
           BugReporter.defaultInstance().sendBugReport(t);
         }
       };
-
-  /** Combines a list of {@code Void} futures into a single future. */
-  static ListenableFuture<Void> aggregateStatusFutures(List<ListenableFuture<Void>> futures) {
-    if (futures.size() == 1) {
-      return futures.get(0);
-    }
-    return Futures.whenAllSucceed(futures).call(() -> null, directExecutor());
-  }
 
   private static SerializationException asDeserializationException(Throwable cause) {
     if (cause instanceof MissingFingerprintValueException) {

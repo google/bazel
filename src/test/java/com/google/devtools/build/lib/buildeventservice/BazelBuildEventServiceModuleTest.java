@@ -14,6 +14,7 @@
 
 package com.google.devtools.build.lib.buildeventservice;
 
+import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.google.common.truth.Truth.assertThat;
 import static com.google.common.truth.extensions.proto.ProtoTruth.assertThat;
 import static com.google.devtools.build.lib.buildeventservice.BuildEventServiceModule.RUNS_PER_TEST_LIMIT;
@@ -65,6 +66,8 @@ import com.google.devtools.build.lib.runtime.BlazeModule;
 import com.google.devtools.build.lib.runtime.BlazeRuntime;
 import com.google.devtools.build.lib.runtime.CommandEnvironment;
 import com.google.devtools.build.lib.runtime.NoSpawnCacheModule;
+import com.google.devtools.build.lib.runtime.proto.CommandLineOuterClass.CommandLineSection;
+import com.google.devtools.build.lib.runtime.proto.CommandLineOuterClass.Option;
 import com.google.devtools.build.lib.testutil.TestConstants;
 import com.google.devtools.build.lib.util.AbruptExitException;
 import com.google.devtools.build.lib.util.ExitCode;
@@ -920,6 +923,69 @@ public final class BazelBuildEventServiceModuleTest extends BuildIntegrationTest
         .containsExactly(
             TestConstants.PRODUCT_NAME + " is crashing: Crashed: (java.lang.OutOfMemoryError) ");
     assertAndClearBugReporterStoredCrash(OutOfMemoryError.class);
+  }
+
+  @Test
+  public void commandLineEvents_includesFlagsFromFlagsets() throws Exception {
+    write(
+        "hello/BUILD",
+        """
+        genrule(name = "hello", outs = ["hello.out"], cmd = "touch $@")
+        """);
+
+    write(
+        "flag/flag_def.bzl",
+        """
+string_flag = rule(
+  implementation = lambda ctx: [],
+  build_setting = config.string(flag = True),
+)
+""");
+    write(
+        "flag/BUILD",
+        """
+load(":flag_def.bzl", "string_flag")
+string_flag(
+  name = "my_flag",
+  build_setting_default = "default_value",
+)
+""");
+    write(
+        "hello/PROJECT.scl",
+        """
+project = {
+  "configs" : { "default_config": ["--define=foo=bar", "--bad_flag=bar", "--//flag:my_flag=my_value"]},
+  "default_config" : "default_config",
+  "enforcement_policy" : "warn"
+    }
+""");
+    File buildEventBinaryFile = tmpFolder.newFile();
+    addOptions(
+        "--enforce_project_configs",
+        "--build_event_binary_file=" + buildEventBinaryFile.getAbsolutePath());
+    buildTarget("//hello:hello");
+
+    BuildEvent canonicalCommandLineEvent = null;
+    try (InputStream in = new FileInputStream(buildEventBinaryFile)) {
+      BuildEvent ev;
+      while ((ev = BuildEvent.parseDelimitedFrom(in)) != null) {
+        if (ev.hasStructuredCommandLine()
+            && ev.getStructuredCommandLine().getCommandLineLabel().equals("canonical")) {
+          canonicalCommandLineEvent = ev;
+        }
+      }
+    }
+    ImmutableList<CommandLineSection> sections =
+        canonicalCommandLineEvent.getStructuredCommandLine().getSectionsList().stream()
+            .filter(s -> s.getSectionLabel().equals("command options"))
+            .collect(toImmutableList());
+
+    ImmutableList<String> options =
+        sections.getFirst().getOptionList().getOptionList().stream()
+            .map(Option::getCombinedForm)
+            .collect(toImmutableList());
+    assertThat(options).contains("--define=foo=bar");
+    assertThat(options).contains("--//flag:my_flag=my_value");
   }
 
   /**

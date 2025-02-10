@@ -14,7 +14,6 @@
 package com.google.devtools.build.lib.rules.java;
 
 import static com.google.devtools.build.lib.skyframe.BzlLoadValue.keyForBuild;
-import static com.google.devtools.build.lib.skyframe.BzlLoadValue.keyForBuiltins;
 import static java.util.Objects.requireNonNull;
 
 import com.google.common.annotations.VisibleForTesting;
@@ -51,8 +50,6 @@ import net.starlark.java.eval.StarlarkValue;
 @Immutable
 public final class JavaToolchainProvider extends StarlarkInfoWrapper {
 
-  public static final StarlarkProviderWrapper<JavaToolchainProvider> LEGACY_BUILTINS_PROVIDER =
-      new BuiltinsProvider();
   public static final StarlarkProviderWrapper<JavaToolchainProvider> RULES_JAVA_PROVIDER =
       new RulesJavaProvider();
   public static final StarlarkProviderWrapper<JavaToolchainProvider> WORKSPACE_PROVIDER =
@@ -67,8 +64,6 @@ public final class JavaToolchainProvider extends StarlarkInfoWrapper {
     com.google.devtools.build.lib.packages.Provider.Key key = info.getProvider().getKey();
     if (key.equals(PROVIDER.getKey())) {
       return PROVIDER.wrap(info);
-    } else if (key.equals(LEGACY_BUILTINS_PROVIDER.getKey())) {
-      return LEGACY_BUILTINS_PROVIDER.wrap(info);
     } else if (key.equals(RULES_JAVA_PROVIDER.getKey())) {
       return RULES_JAVA_PROVIDER.wrap(info);
     } else if (key.equals(WORKSPACE_PROVIDER.getKey())) {
@@ -319,14 +314,6 @@ public final class JavaToolchainProvider extends StarlarkInfoWrapper {
       } else {
         throw new RuleErrorException("expected JspecifyInfo, got: " + Starlark.type(value));
       }
-    }
-  }
-
-  private static class BuiltinsProvider extends Provider {
-    private BuiltinsProvider() {
-      super(
-          keyForBuiltins(
-              Label.parseCanonicalUnchecked("@_builtins//:common/java/java_toolchain.bzl")));
     }
   }
 

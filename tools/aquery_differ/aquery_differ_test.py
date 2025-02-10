@@ -17,7 +17,6 @@ import io
 import os
 import unittest
 
-# Do not edit this line. Copybara replaces it with PY2 migration helper.
 from third_party.py import mock
 
 from src.main.protobuf import analysis_v2_pb2

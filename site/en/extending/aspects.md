@@ -97,6 +97,7 @@ def _print_aspect_impl(target, ctx):
 print_aspect = aspect(
     implementation = _print_aspect_impl,
     attr_aspects = ['deps'],
+    required_providers = [CcInfo],
 )
 ```
 
@@ -108,6 +109,7 @@ Let's break the example up into its parts and examine each one individually.
 print_aspect = aspect(
     implementation = _print_aspect_impl,
     attr_aspects = ['deps'],
+    required_providers = [CcInfo],
 )
 ```
 Aspect definitions are similar to rule definitions, and defined using
@@ -122,6 +124,13 @@ rules that it is applied to.
 
 Another common argument for `attr_aspects` is `['*']` which would propagate the
 aspect to all attributes of a rule.
+
+``required_providers`` is a list of providers that allows the aspect to limit
+its propagation to only the targets whose rules advertise its required
+providers. For more details consult
+[the documentation of the aspect function](/rules/lib/globals/bzl#aspect).
+In this case, the aspect will only apply on targets that declare `CcInfo`
+provider.
 
 ### Aspect implementation
 

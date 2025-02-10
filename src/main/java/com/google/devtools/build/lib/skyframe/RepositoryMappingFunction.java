@@ -14,6 +14,8 @@
 
 package com.google.devtools.build.lib.skyframe;
 
+import static com.google.common.collect.ImmutableMap.toImmutableMap;
+
 import com.google.common.collect.ImmutableMap;
 import com.google.devtools.build.lib.bazel.bzlmod.BazelDepGraphValue;
 import com.google.devtools.build.lib.bazel.bzlmod.Module;
@@ -36,7 +38,6 @@ import com.google.devtools.build.skyframe.SkyValue;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Optional;
-import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 import net.starlark.java.eval.StarlarkSemantics;
 
@@ -140,7 +141,7 @@ public class RepositoryMappingFunction implements SkyFunction {
         if (env.valuesMissing()) {
           return null;
         }
-        Map<String, RepositoryName> additionalMappings =
+        ImmutableMap<String, RepositoryName> additionalMappings =
             externalPackageValue.getPackage().getTargets().entrySet().stream()
                 // We need to filter out the non repository rule targets in the //external package.
                 .filter(
@@ -148,7 +149,7 @@ public class RepositoryMappingFunction implements SkyFunction {
                         entry.getValue().getAssociatedRule() != null
                             && !entry.getValue().getAssociatedRule().getRuleClass().equals("bind"))
                 .collect(
-                    Collectors.toMap(
+                    toImmutableMap(
                         Entry::getKey, entry -> RepositoryName.createUnvalidated(entry.getKey())));
         return computeForBazelModuleRepo(repositoryName, bazelDepGraphValue)
             .get()

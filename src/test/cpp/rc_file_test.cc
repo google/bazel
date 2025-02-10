@@ -19,15 +19,15 @@
 #include <windows.h>
 #endif
 
-#include "src/main/cpp/rc_file.h"
-
 #include <memory>
+#include <string>
+#include <vector>
 
 #include "src/main/cpp/bazel_startup_options.h"
-#include "src/main/cpp/blaze_util.h"
 #include "src/main/cpp/blaze_util_platform.h"
 #include "src/main/cpp/option_processor-internal.h"
 #include "src/main/cpp/option_processor.h"
+#include "src/main/cpp/rc_file.h"
 #include "src/main/cpp/util/file.h"
 #include "src/main/cpp/util/file_platform.h"
 #include "src/main/cpp/util/path.h"
@@ -91,9 +91,7 @@ class RcFileTest : public ::testing::Test {
 
     ASSERT_TRUE(blaze_util::MakeDirectories(binary_dir_, 0755));
     option_processor_.reset(new OptionProcessor(
-        workspace_layout_.get(),
-        std::unique_ptr<StartupOptions>(
-            new BazelStartupOptions(workspace_layout_.get())),
+        workspace_layout_.get(), std::make_unique<BazelStartupOptions>(),
         "bazel.bazelrc"));
   }
 
@@ -800,10 +798,51 @@ TEST_F(BlazercImportTest, BazelRcTryImportDoesNotFailForUnreadableFile) {
   const std::string unreadable_rc_path =
       blaze_util::JoinPath(workspace_, "tryimported.bazelrc");
   ASSERT_TRUE(blaze_util::WriteFile("startup --max_idle_secs=123",
-                                    unreadable_rc_path, 222));
+                                    unreadable_rc_path, 0222));
   std::string workspace_rc;
   ASSERT_TRUE(
       SetUpWorkspaceRcFile("try-import " + unreadable_rc_path, &workspace_rc));
+
+  const std::vector<std::string> args = {"bazel", "build"};
+  ParseOptionsAndCheckOutput(args, blaze_exit_code::SUCCESS, "", "");
+}
+
+TEST_F(BlazercImportTest, BazelRcImportDoesNotFallBackToLiteralPlaceholder) {
+  // Check that we don't fall back to interpreting the %workspace% placeholder
+  // literally if an import statement cannot be resolved against it.
+
+  const std::string literal_placeholder_rc_path =
+      blaze_util::JoinPath(cwd_, "%workspace%/tryimported.bazelrc");
+  ASSERT_TRUE(blaze_util::MakeDirectories(
+      blaze_util::Dirname(literal_placeholder_rc_path), 0755));
+  ASSERT_TRUE(blaze_util::WriteFile("import syntax error",
+                                    literal_placeholder_rc_path, 0755));
+
+  std::string workspace_rc;
+  ASSERT_TRUE(SetUpWorkspaceRcFile("import %workspace%/tryimported.bazelrc",
+                                   &workspace_rc));
+
+  const std::vector<std::string> args = {"bazel", "build"};
+  ParseOptionsAndCheckOutput(args, blaze_exit_code::BAD_ARGV,
+                             "Nonexistent path in import declaration in config "
+                             "file.*'import %workspace%/tryimported.bazelrc'",
+                             "");
+}
+
+TEST_F(BlazercImportTest, BazelRcTryImportDoesNotFallBackToLiteralPlaceholder) {
+  // Check that we don't fall back to interpreting the %workspace% placeholder
+  // literally if a try-import statement cannot be resolved against it.
+
+  const std::string literal_placeholder_rc_path =
+      blaze_util::JoinPath(cwd_, "%workspace%/tryimported.bazelrc");
+  ASSERT_TRUE(blaze_util::MakeDirectories(
+      blaze_util::Dirname(literal_placeholder_rc_path), 0755));
+  ASSERT_TRUE(blaze_util::WriteFile("import syntax error",
+                                    literal_placeholder_rc_path, 0755));
+
+  std::string workspace_rc;
+  ASSERT_TRUE(SetUpWorkspaceRcFile("try-import %workspace%/tryimported.bazelrc",
+                                   &workspace_rc));
 
   const std::vector<std::string> args = {"bazel", "build"};
   ParseOptionsAndCheckOutput(args, blaze_exit_code::SUCCESS, "", "");

@@ -1329,8 +1329,7 @@ public abstract class BuildWithoutTheBytesIntegrationTestBase extends BuildInteg
   }
 
   @Test
-  public void incrementalBuild_remoteFileMetadataIsReplacedWithLocalFileMetadata()
-      throws Exception {
+  public void incrementalBuild_fileOutputIsPrefetched_noRuns() throws Exception {
     // We need to download the intermediate output
     if (!hasAccessToRemoteOutputs()) {
       return;
@@ -1363,13 +1362,58 @@ public abstract class BuildWithoutTheBytesIntegrationTestBase extends BuildInteg
     getRuntimeWrapper().registerSubscriber(actionEventCollector);
     buildTarget("//:foobar");
 
-    // Assert: remote file metadata is replaced with local file metadata
+    // Assert: remote file metadata has contents proxy and action node is not marked as dirty.
     assertValidOutputFile("out/foo.txt", "foo\n");
     assertValidOutputFile("out/foobar.txt", "foo\nbar\n");
     assertThat(actionEventCollector.getActionExecutedEvents()).isEmpty();
-    // Two actions are invalidated but were able to hit the action cache
-    assertThat(actionEventCollector.getCachedActionEvents()).hasSize(2);
-    assertThat(getOnlyElement(getMetadata("//:foo").values()).isRemote()).isFalse();
+    assertThat(actionEventCollector.getCachedActionEvents()).isEmpty();
+    var metadata = getOnlyElement(getMetadata("//:foo").values());
+    assertThat(metadata.isRemote()).isTrue();
+    assertThat(metadata.getContentsProxy()).isNotNull();
+  }
+
+  @Test
+  public void incrementalBuild_treeOutputIsPrefetched_noRuns() throws Exception {
+    // We need to download the intermediate output
+    if (!hasAccessToRemoteOutputs()) {
+      return;
+    }
+
+    // Arrange: Prepare workspace and run a clean build
+    writeOutputDirRule();
+    write(
+        "BUILD",
+        "load(':output_dir.bzl', 'output_dir')",
+        "output_dir(",
+        "  name = 'foo',",
+        "  content_map = {'file-1': '1', 'file-2': '2', 'file-3': '3'},",
+        ")",
+        "genrule(",
+        "  name = 'foobar',",
+        "  srcs = [':foo'],",
+        "  outs = ['out/foobar.txt'],",
+        "  cmd = 'echo bar >> $@',",
+        "  tags = ['no-remote'],",
+        ")");
+
+    buildTarget("//:foobar");
+    assertValidOutputFile("foo/file-1", "1");
+    assertValidOutputFile("foo/file-2", "2");
+    assertValidOutputFile("foo/file-3", "3");
+    assertValidOutputFile("out/foobar.txt", "bar\n");
+    assertThat(getOnlyElement(getTreeMetadata("//:foo").values()).isEntirelyRemote()).isTrue();
+
+    // Act: Do an incremental build without any modifications
+    ActionEventCollector actionEventCollector = new ActionEventCollector();
+    getRuntimeWrapper().registerSubscriber(actionEventCollector);
+    buildTarget("//:foobar");
+
+    // Assert: action node is not marked as dirty.
+    assertValidOutputFile("foo/file-1", "1");
+    assertValidOutputFile("foo/file-2", "2");
+    assertValidOutputFile("foo/file-3", "3");
+    assertThat(actionEventCollector.getActionExecutedEvents()).isEmpty();
+    assertThat(actionEventCollector.getCachedActionEvents()).isEmpty();
   }
 
   protected ImmutableMap<Artifact, FileArtifactValue> getMetadata(String target) throws Exception {
@@ -1381,6 +1425,21 @@ public abstract class BuildWithoutTheBytesIntegrationTestBase extends BuildInteg
         result.putAll(actionExecutionValue.getAllFileValues());
       } else if (value instanceof TreeArtifactValue treeArtifactValue) {
         result.putAll(treeArtifactValue.getChildValues());
+      }
+    }
+    return result.buildOrThrow();
+  }
+
+  protected ImmutableMap<Artifact, TreeArtifactValue> getTreeMetadata(String target)
+      throws Exception {
+    var result = ImmutableMap.<Artifact, TreeArtifactValue>builder();
+    var evaluator = getRuntimeWrapper().getSkyframeExecutor().getEvaluator();
+    for (var artifact : getArtifacts(target)) {
+      var value = evaluator.getExistingValue(Artifact.key(artifact));
+      if (value instanceof ActionExecutionValue actionExecutionValue) {
+        result.putAll(actionExecutionValue.getAllTreeArtifactValues());
+      } else if (value instanceof TreeArtifactValue treeArtifactValue) {
+        result.put(artifact, treeArtifactValue);
       }
     }
     return result.buildOrThrow();

@@ -604,11 +604,6 @@ public final class Crosstool {
         String.format(
             "register_toolchains('%s:all')",
             crosstoolTopLabel.getPackageIdentifier().getCanonicalForm()));
-    config.append(
-        "WORKSPACE",
-        String.format(
-            "register_toolchains('%s:all')",
-            crosstoolTopLabel.getPackageIdentifier().getCanonicalForm()));
     // Empty files to satisfy fake targets.
     config.create(crosstoolTop + "/grep-includes");
     config.create(crosstoolTop + "/build_interface_so");
@@ -720,9 +715,6 @@ public final class Crosstool {
         Joiner.on("\n").join(crosstoolBuild.build()));
     config.append(
         "MODULE.bazel",
-        "register_toolchains('//" + MockObjcSupport.DEFAULT_OSX_CROSSTOOL_DIR + ":all')");
-    config.append(
-        "WORKSPACE",
         "register_toolchains('//" + MockObjcSupport.DEFAULT_OSX_CROSSTOOL_DIR + ":all')");
     config.overwrite(crosstoolTop + "/cc_toolchain_config.bzl", ccToolchainConfigFileContents);
   }

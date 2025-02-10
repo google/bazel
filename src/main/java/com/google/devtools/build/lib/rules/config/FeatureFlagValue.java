@@ -118,7 +118,9 @@ public interface FeatureFlagValue {
 
     // Else construct a new one. This should not be the common case.
     BuildOptions.Builder result = original.toBuilder();
-    flagsToTrim.forEach(trimmedFlag -> result.removeStarlarkOption(trimmedFlag));
+    for (Label trimmedFlag : flagsToTrim) {
+      result.removeStarlarkOption(trimmedFlag);
+    }
     unknownFlagsToAdd.forEach((flag, value) -> result.addStarlarkOption(flag, value));
     BuildOptions builtResult = result.build();
     var builtConfigFeatureFlagOptions = builtResult.get(ConfigFeatureFlagOptions.class);

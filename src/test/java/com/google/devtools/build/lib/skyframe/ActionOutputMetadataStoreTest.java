@@ -32,7 +32,6 @@ import com.google.devtools.build.lib.actions.ArtifactPathResolver;
 import com.google.devtools.build.lib.actions.ArtifactRoot;
 import com.google.devtools.build.lib.actions.ArtifactRoot.RootType;
 import com.google.devtools.build.lib.actions.FileArtifactValue;
-import com.google.devtools.build.lib.actions.FileArtifactValue.RemoteFileArtifactValue;
 import com.google.devtools.build.lib.actions.FilesetOutputSymlink;
 import com.google.devtools.build.lib.actions.FilesetOutputTree;
 import com.google.devtools.build.lib.actions.HasDigest;
@@ -48,6 +47,7 @@ import com.google.devtools.build.lib.util.io.TimestampGranularityMonitor;
 import com.google.devtools.build.lib.vfs.DigestHashFunction;
 import com.google.devtools.build.lib.vfs.DigestUtils;
 import com.google.devtools.build.lib.vfs.FileSystem;
+import com.google.devtools.build.lib.vfs.FileSystemUtils;
 import com.google.devtools.build.lib.vfs.OutputPermissions;
 import com.google.devtools.build.lib.vfs.Path;
 import com.google.devtools.build.lib.vfs.PathFragment;
@@ -68,25 +68,14 @@ import org.junit.runner.RunWith;
 @RunWith(TestParameterInjector.class)
 public final class ActionOutputMetadataStoreTest {
 
-  private enum MaterializationPathDepth {
+  private enum ArtifactType {
+    SOURCE,
+    OUTPUT
+  }
+
+  private enum ResolvedPathDepth {
     SHALLOW,
     DEEP
-  }
-
-  private enum FileLocation {
-    LOCAL,
-    REMOTE
-  }
-
-  private enum TreeComposition {
-    EMPTY,
-    FULLY_LOCAL,
-    FULLY_REMOTE,
-    MIXED;
-
-    boolean isPartiallyRemote() {
-      return this == FULLY_REMOTE || this == MIXED;
-    }
   }
 
   private final Map<Path, Integer> chmodCalls = Maps.newConcurrentMap();
@@ -131,8 +120,7 @@ public final class ActionOutputMetadataStoreTest {
         outputs,
         SyscallCache.NO_CACHE,
         tsgm,
-        ArtifactPathResolver.createPathResolver(actionFs, execRoot),
-        execRoot.asFragment());
+        ArtifactPathResolver.createPathResolver(actionFs, execRoot));
   }
 
   private RemoteActionFileSystem createRemoteActionFileSystem(
@@ -291,9 +279,7 @@ public final class ActionOutputMetadataStoreTest {
     assertThat(chmodCalls).containsExactly(outputPath, 0555);
 
     // Inject a remote file of size 42.
-    store.injectFile(
-        artifact,
-        RemoteFileArtifactValue.create(new byte[] {1, 2, 3}, 42, 0, /* expireAtEpochMilli= */ -1));
+    store.injectFile(artifact, FileArtifactValue.createForRemoteFile(new byte[] {1, 2, 3}, 42, 0));
     assertThat(store.getOutputMetadata(artifact).getSize()).isEqualTo(42);
 
     // Reset this output, which will make the store stat the file again.
@@ -314,9 +300,7 @@ public final class ActionOutputMetadataStoreTest {
     byte[] digest = new byte[] {1, 2, 3};
     int size = 10;
     store.injectFile(
-        artifact,
-        RemoteFileArtifactValue.create(
-            digest, size, /* locationIndex= */ 1, /* expireAtEpochMilli= */ -1));
+        artifact, FileArtifactValue.createForRemoteFile(digest, size, /* locationIndex= */ 1));
 
     FileArtifactValue v = store.getOutputMetadata(artifact);
     assertThat(v).isNotNull();
@@ -334,8 +318,8 @@ public final class ActionOutputMetadataStoreTest {
     ActionOutputMetadataStore store = createStore(/* outputs= */ ImmutableSet.of(treeArtifact));
     store.prepareForActionExecution();
 
-    RemoteFileArtifactValue childValue =
-        RemoteFileArtifactValue.create(new byte[] {1, 2, 3}, 5, 1, /* expireAtEpochMilli= */ -1);
+    FileArtifactValue childValue =
+        FileArtifactValue.createForRemoteFile(new byte[] {1, 2, 3}, 5, 1);
 
     assertThrows(IllegalArgumentException.class, () -> store.injectFile(child, childValue));
     assertThat(store.getAllArtifactData()).isEmpty();
@@ -354,8 +338,7 @@ public final class ActionOutputMetadataStoreTest {
     ActionOutputMetadataStore store = createStore(/* outputs= */ ImmutableSet.of(treeArtifact));
     store.prepareForActionExecution();
 
-    RemoteFileArtifactValue value =
-        RemoteFileArtifactValue.create(new byte[] {1, 2, 3}, 5, 1, /* expireAtEpochMilli= */ -1);
+    FileArtifactValue value = FileArtifactValue.createForRemoteFile(new byte[] {1, 2, 3}, 5, 1);
     store.injectFile(output, value);
 
     assertThat(store.getAllArtifactData()).containsExactly(output, value);
@@ -374,12 +357,10 @@ public final class ActionOutputMetadataStoreTest {
         TreeArtifactValue.newBuilder(treeArtifact)
             .putChild(
                 TreeFileArtifact.createTreeOutput(treeArtifact, "foo"),
-                RemoteFileArtifactValue.create(
-                    new byte[] {1, 2, 3}, 5, 1, /* expireAtEpochMilli= */ -1))
+                FileArtifactValue.createForRemoteFile(new byte[] {1, 2, 3}, 5, 1))
             .putChild(
                 TreeFileArtifact.createTreeOutput(treeArtifact, "bar"),
-                RemoteFileArtifactValue.create(
-                    new byte[] {4, 5, 6}, 10, 1, /* expireAtEpochMilli= */ -1))
+                FileArtifactValue.createForRemoteFile(new byte[] {4, 5, 6}, 10, 1))
             .build();
 
     store.injectTree(treeArtifact, tree);
@@ -401,84 +382,63 @@ public final class ActionOutputMetadataStoreTest {
   }
 
   @Test
-  public void fileArtifactMaterializedAsSymlink(
-      @TestParameter MaterializationPathDepth depth, @TestParameter FileLocation location)
-      throws Exception {
-    Artifact targetArtifact =
-        ActionsTestUtil.createArtifactWithRootRelativePath(
-            outputRoot, PathFragment.create("target"));
-
+  public void fileArtifactMaterializedAsSymlinkToNonArtifact() throws Exception {
+    Path resolvedPath = outputRoot.getRoot().getRelative("resolved");
     Artifact outputArtifact =
         ActionsTestUtil.createArtifactWithRootRelativePath(
             outputRoot, PathFragment.create("output"));
 
-    PathFragment preexistingPath =
-        depth.equals(MaterializationPathDepth.DEEP)
-            ? outputRoot.getExecPath().getRelative("preexisting")
-            : null;
-
-    FileArtifactValue targetMetadata = createFileMetadataForSymlinkTest(location, preexistingPath);
-
-    ActionInputMap inputMap = new ActionInputMap(0);
-    inputMap.putWithNoDepOwner(targetArtifact, targetMetadata);
-
     RemoteActionFileSystem actionFs =
-        createRemoteActionFileSystem(inputMap, ImmutableSet.of(outputArtifact));
+        createRemoteActionFileSystem(new ActionInputMap(0), ImmutableSet.of(outputArtifact));
 
     ActionOutputMetadataStore store = createStore(ImmutableSet.of(outputArtifact), actionFs);
     store.prepareForActionExecution();
 
-    // In a realistic scenario, files with local metadata should also exist on disk.
-    // However, the action filesystem is expected to obtain their metadata from the input map.
     actionFs
-        .getPath(outputArtifact.getPath().getParentDirectory().getPathString())
+        .getPath(outputArtifact.getPath().asFragment())
+        .getParentDirectory()
         .createDirectoryAndParents();
     actionFs
-        .getPath(outputArtifact.getPath().getPathString())
-        .createSymbolicLink(targetArtifact.getPath().asFragment());
-
-    PathFragment expectedMaterializationExecPath = null;
-    if (location == FileLocation.REMOTE) {
-      expectedMaterializationExecPath =
-          preexistingPath != null ? preexistingPath : targetArtifact.getExecPath();
-    }
+        .getPath(outputArtifact.getPath().asFragment())
+        .createSymbolicLink(resolvedPath.asFragment());
+    FileSystemUtils.writeContentAsLatin1(resolvedPath, "foo");
 
     assertThat(store.getOutputMetadata(outputArtifact))
-        .isEqualTo(createFileMetadataForSymlinkTest(location, expectedMaterializationExecPath));
-  }
-
-  private static FileArtifactValue createFileMetadataForSymlinkTest(
-      FileLocation location, @Nullable PathFragment materializationExecPath) {
-    switch (location) {
-      case LOCAL:
-        return FileArtifactValue.createForNormalFile(new byte[] {1, 2, 3}, /* proxy= */ null, 10);
-      case REMOTE:
-        return RemoteFileArtifactValue.create(
-            new byte[] {1, 2, 3}, 10, 1, -1, materializationExecPath);
-    }
-    throw new AssertionError();
+        .isEqualTo(FileArtifactValue.createForTesting(resolvedPath));
   }
 
   @Test
-  public void treeArtifactMaterializedAsSymlink(
-      @TestParameter MaterializationPathDepth depth, @TestParameter TreeComposition composition)
+  public void fileArtifactMaterializedAsSymlinkToFileArtifact(
+      @TestParameter ArtifactType artifactType, @TestParameter ResolvedPathDepth depth)
       throws Exception {
-    SpecialArtifact targetArtifact =
-        ActionsTestUtil.createTreeArtifactWithGeneratingAction(outputRoot, "target");
+    ArtifactRoot root =
+        switch (artifactType) {
+          case SOURCE -> sourceRoot;
+          case OUTPUT -> outputRoot;
+        };
+    Artifact resolvedArtifact =
+        ActionsTestUtil.createArtifactWithRootRelativePath(root, PathFragment.create("resolved"));
+    Artifact inputArtifact =
+        switch (depth) {
+          case SHALLOW -> resolvedArtifact;
+          case DEEP ->
+              ActionsTestUtil.createArtifactWithRootRelativePath(
+                  outputRoot, PathFragment.create("input"));
+        };
+    Artifact outputArtifact =
+        ActionsTestUtil.createArtifactWithRootRelativePath(
+            outputRoot, PathFragment.create("output"));
 
-    SpecialArtifact outputArtifact =
-        ActionsTestUtil.createTreeArtifactWithGeneratingAction(outputRoot, "output");
-
-    PathFragment preexistingPath =
-        depth.equals(MaterializationPathDepth.DEEP)
-            ? outputRoot.getExecPath().getRelative("preexisting")
-            : null;
-
-    TreeArtifactValue targetMetadata =
-        createTreeMetadataForSymlinkTest(targetArtifact, composition, preexistingPath);
+    FileArtifactValue inputMetadata =
+        FileArtifactValue.createForNormalFile(new byte[] {1, 2, 3}, null, 123L);
+    if (!resolvedArtifact.equals(inputArtifact)) {
+      inputMetadata =
+          FileArtifactValue.createFromExistingWithResolvedPath(
+              inputMetadata, resolvedArtifact.getPath().asFragment());
+    }
 
     ActionInputMap inputMap = new ActionInputMap(0);
-    inputMap.putTreeArtifact(targetArtifact, targetMetadata, /* depOwner= */ null);
+    inputMap.putWithNoDepOwner(inputArtifact, inputMetadata);
 
     RemoteActionFileSystem actionFs =
         createRemoteActionFileSystem(inputMap, ImmutableSet.of(outputArtifact));
@@ -486,69 +446,101 @@ public final class ActionOutputMetadataStoreTest {
     ActionOutputMetadataStore store = createStore(ImmutableSet.of(outputArtifact), actionFs);
     store.prepareForActionExecution();
 
-    // In a realistic scenario, files with local metadata should also exist on disk.
-    // However, the action filesystem is expected to obtain their metadata from the input map.
     actionFs
-        .getPath(outputArtifact.getPath().getParentDirectory().getPathString())
+        .getPath(outputArtifact.getPath().asFragment())
+        .getParentDirectory()
         .createDirectoryAndParents();
-    actionFs.getPath(targetArtifact.getPath().getPathString()).createDirectoryAndParents();
     actionFs
-        .getPath(outputArtifact.getPath().getPathString())
-        .createSymbolicLink(targetArtifact.getPath().asFragment());
+        .getPath(outputArtifact.getPath().asFragment())
+        .createSymbolicLink(inputArtifact.getPath().asFragment());
 
-    PathFragment expectedMaterializationExecPath = null;
-    if (composition.isPartiallyRemote()) {
-      expectedMaterializationExecPath =
-          preexistingPath != null ? preexistingPath : targetArtifact.getExecPath();
-    }
+    assertThat(store.getOutputMetadata(outputArtifact))
+        .isEqualTo(
+            FileArtifactValue.createFromExistingWithResolvedPath(
+                inputMetadata, resolvedArtifact.getPath().asFragment()));
+  }
+
+  @Test
+  public void treeArtifactMaterializedAsSymlinkToNonArtifact() throws Exception {
+    Path resolvedPath = outputRoot.getRoot().getRelative("resolved");
+    SpecialArtifact outputArtifact =
+        ActionsTestUtil.createTreeArtifactWithGeneratingAction(outputRoot, "output");
+
+    RemoteActionFileSystem actionFs =
+        createRemoteActionFileSystem(new ActionInputMap(0), ImmutableSet.of(outputArtifact));
+
+    ActionOutputMetadataStore store = createStore(ImmutableSet.of(outputArtifact), actionFs);
+    store.prepareForActionExecution();
+
+    actionFs
+        .getPath(outputArtifact.getPath().asFragment())
+        .getParentDirectory()
+        .createDirectoryAndParents();
+    actionFs
+        .getPath(outputArtifact.getPath().asFragment())
+        .createSymbolicLink(resolvedPath.asFragment());
+    actionFs.getPath(resolvedPath.asFragment()).createDirectoryAndParents();
+    FileSystemUtils.writeContentAsLatin1(resolvedPath.getRelative("child"), "foo");
 
     assertThat(store.getTreeArtifactValue(outputArtifact))
         .isEqualTo(
-            createTreeMetadataForSymlinkTest(
-                outputArtifact, composition, expectedMaterializationExecPath));
+            TreeArtifactValue.newBuilder(outputArtifact)
+                .putChild(
+                    TreeFileArtifact.createTreeOutput(outputArtifact, "child"),
+                    FileArtifactValue.createForTesting(resolvedPath.getRelative("child")))
+                .build());
   }
 
-  private static TreeArtifactValue createTreeMetadataForSymlinkTest(
-      SpecialArtifact parent,
-      TreeComposition composition,
-      @Nullable PathFragment materializationExecPath) {
-    TreeArtifactValue.Builder builder = TreeArtifactValue.newBuilder(parent);
+  @Test
+  public void treeArtifactMaterializedAsSymlinkToAnotherTreeArtifact(
+      @TestParameter ResolvedPathDepth depth) throws Exception {
+    SpecialArtifact resolvedArtifact =
+        ActionsTestUtil.createTreeArtifactWithGeneratingAction(outputRoot, "resolved");
+    SpecialArtifact inputArtifact =
+        switch (depth) {
+          case SHALLOW -> resolvedArtifact;
+          case DEEP -> ActionsTestUtil.createTreeArtifactWithGeneratingAction(outputRoot, "input");
+        };
+    SpecialArtifact outputArtifact =
+        ActionsTestUtil.createTreeArtifactWithGeneratingAction(outputRoot, "output");
 
-    TreeFileArtifact child1 = TreeFileArtifact.createTreeOutput(parent, "child1");
-    TreeFileArtifact child2 = TreeFileArtifact.createTreeOutput(parent, "child2");
-
-    FileArtifactValue localMetadata1 =
-        FileArtifactValue.createForNormalFile(new byte[] {1, 2, 3}, /* proxy= */ null, 10);
-    FileArtifactValue localMetadata2 =
-        FileArtifactValue.createForNormalFile(new byte[] {1, 2, 3}, /* proxy= */ null, 20);
-
-    RemoteFileArtifactValue remoteMetadata1 =
-        RemoteFileArtifactValue.create(new byte[] {1, 2, 3}, 10, 1, -1);
-    RemoteFileArtifactValue remoteMetadata2 =
-        RemoteFileArtifactValue.create(new byte[] {4, 5, 6}, 20, 1, -1);
-
-    switch (composition) {
-      case EMPTY:
-        break;
-      case FULLY_LOCAL:
-        builder.putChild(child1, localMetadata1);
-        builder.putChild(child2, localMetadata2);
-        break;
-      case FULLY_REMOTE:
-        builder.putChild(child1, remoteMetadata1);
-        builder.putChild(child2, remoteMetadata2);
-        break;
-      case MIXED:
-        builder.putChild(child1, localMetadata1);
-        builder.putChild(child2, remoteMetadata2);
-        break;
+    TreeArtifactValue.Builder builder =
+        TreeArtifactValue.newBuilder(inputArtifact)
+            .putChild(
+                TreeFileArtifact.createTreeOutput(inputArtifact, "child"),
+                FileArtifactValue.createForNormalFile(
+                    new byte[] {1, 2, 3}, /* proxy= */ null, 123L));
+    if (depth == ResolvedPathDepth.DEEP) {
+      builder.setResolvedPath(resolvedArtifact.getPath().asFragment());
     }
+    TreeArtifactValue inputMetadata = builder.build();
 
-    if (materializationExecPath != null) {
-      builder.setMaterializationExecPath(materializationExecPath);
-    }
+    ActionInputMap inputMap = new ActionInputMap(0);
+    inputMap.putTreeArtifact(inputArtifact, inputMetadata, /* depOwner= */ null);
 
-    return builder.build();
+    RemoteActionFileSystem actionFs =
+        createRemoteActionFileSystem(inputMap, ImmutableSet.of(outputArtifact));
+
+    ActionOutputMetadataStore store = createStore(ImmutableSet.of(outputArtifact), actionFs);
+    store.prepareForActionExecution();
+
+    actionFs
+        .getPath(outputArtifact.getPath().asFragment())
+        .getParentDirectory()
+        .createDirectoryAndParents();
+    actionFs
+        .getPath(outputArtifact.getPath().asFragment())
+        .createSymbolicLink(inputArtifact.getPath().asFragment());
+
+    assertThat(store.getTreeArtifactValue(outputArtifact))
+        .isEqualTo(
+            TreeArtifactValue.newBuilder(outputArtifact)
+                .putChild(
+                    TreeFileArtifact.createTreeOutput(outputArtifact, "child"),
+                    FileArtifactValue.createForNormalFile(
+                        new byte[] {1, 2, 3}, /* proxy= */ null, 123L))
+                .setResolvedPath(resolvedArtifact.getPath().asFragment())
+                .build());
   }
 
   @Test
@@ -667,8 +659,7 @@ public final class ActionOutputMetadataStoreTest {
             /* outputs= */ ImmutableSet.of(output),
             SyscallCache.NO_CACHE,
             tsgm,
-            ArtifactPathResolver.IDENTITY,
-            execRoot.asFragment());
+            ArtifactPathResolver.IDENTITY);
     store.prepareForActionExecution();
 
     FileArtifactValue metadata = store.getOutputMetadata(output);

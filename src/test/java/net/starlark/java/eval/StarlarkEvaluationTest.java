@@ -1991,7 +1991,7 @@ public final class StarlarkEvaluationTest {
           }
 
           @Override
-          public Object fastcall(StarlarkThread thread, Object[] positional, Object[] named) {
+          public Object call(StarlarkThread thread, Tuple args, Dict<String, Object> kwargs) {
             return "fromValues";
           }
         };

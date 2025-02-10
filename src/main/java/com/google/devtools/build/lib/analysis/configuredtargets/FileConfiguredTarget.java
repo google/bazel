@@ -14,34 +14,34 @@
 
 package com.google.devtools.build.lib.analysis.configuredtargets;
 
+import com.google.devtools.build.lib.actions.ActionLookupKey;
 import com.google.devtools.build.lib.actions.Artifact;
 import com.google.devtools.build.lib.analysis.AnalysisUtils;
 import com.google.devtools.build.lib.analysis.FileProvider;
 import com.google.devtools.build.lib.analysis.FilesToRunProvider;
 import com.google.devtools.build.lib.analysis.LicensesProvider;
-import com.google.devtools.build.lib.analysis.TargetContext;
 import com.google.devtools.build.lib.analysis.TransitiveInfoProvider;
 import com.google.devtools.build.lib.analysis.VisibilityProvider;
 import com.google.devtools.build.lib.collect.nestedset.NestedSet;
 import com.google.devtools.build.lib.collect.nestedset.NestedSetBuilder;
 import com.google.devtools.build.lib.collect.nestedset.Order;
 import com.google.devtools.build.lib.concurrent.ThreadSafety.Immutable;
+import com.google.devtools.build.lib.packages.PackageSpecification.PackageGroupContents;
 import com.google.devtools.build.lib.util.FileType;
 import javax.annotation.Nullable;
 import net.starlark.java.eval.Dict;
 
-/**
- * A ConfiguredTarget for a source FileTarget. (Generated files use a subclass,
- * OutputFileConfiguredTarget.)
- */
+/** A configured target representing a source or derived / generated file. */
 @Immutable
-public abstract class FileConfiguredTarget extends AbstractConfiguredTarget
-    implements FileType.HasFileType, LicensesProvider {
+public abstract sealed class FileConfiguredTarget extends AbstractConfiguredTarget
+    implements FileType.HasFileType, LicensesProvider
+    permits InputFileConfiguredTarget, OutputFileConfiguredTarget {
 
   private final NestedSet<Artifact> singleFile;
 
-  FileConfiguredTarget(TargetContext targetContext, Artifact artifact) {
-    super(targetContext.getAnalysisEnvironment().getOwner(), targetContext.getVisibility());
+  FileConfiguredTarget(
+      ActionLookupKey lookupKey, NestedSet<PackageGroupContents> visibility, Artifact artifact) {
+    super(lookupKey, visibility);
     this.singleFile = NestedSetBuilder.create(Order.STABLE_ORDER, artifact);
   }
 

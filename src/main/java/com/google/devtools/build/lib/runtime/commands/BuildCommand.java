@@ -106,7 +106,7 @@ public final class BuildCommand implements BlazeCommand {
               .build();
     }
     DetailedExitCode detailedExitCode =
-        new BuildTool(env).processRequest(request, null).getDetailedExitCode();
+        new BuildTool(env).processRequest(request, null, options).getDetailedExitCode();
     return BlazeCommandResult.detailedExitCode(detailedExitCode);
   }
 }

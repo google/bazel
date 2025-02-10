@@ -469,8 +469,8 @@ instead.
 <p>
   The following are defined in Java toolchain rules and available to any rule
   that sets <code>toolchains =
-["@bazel_tools//tools/jdk:current_java_runtime"]</code> (or
-  <code>"@bazel_tools//tools/jdk:current_host_java_runtime"</code>
+["@rules_java//toolchains:current_java_runtime"]</code> (or
+  <code>"@rules_java//toolchains:current_host_java_runtime"</code>
   for the host toolchain equivalent).
 </p>
 

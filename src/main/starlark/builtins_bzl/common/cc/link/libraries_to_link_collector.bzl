@@ -87,6 +87,40 @@ def collect_libraries_to_link(
       Both depsets of directories are exposed to the link_build_variables.
 
     """
+    return cc_internal.collect_libraries_to_link(
+        linker_inputs,
+        cc_toolchain,
+        feature_configuration,
+        output,
+        dynamic_library_solib_symlink_output,
+        link_type,
+        linking_mode,
+        is_native_deps,
+        need_whole_archive,
+        solib_dir,
+        toolchain_libraries_solib_dir,
+        allow_lto_indexing,
+        lto_mapping,
+        workspace_name,
+    )
+
+# A pure Starlark implementation of collect_libraries_to_link at the moment unused,
+# because it causes a regression
+def _collect_libraries_to_link(
+        linker_inputs,
+        cc_toolchain,
+        feature_configuration,
+        output,
+        dynamic_library_solib_symlink_output,
+        link_type,
+        linking_mode,
+        is_native_deps,
+        need_whole_archive,
+        solib_dir,
+        toolchain_libraries_solib_dir,
+        allow_lto_indexing,
+        lto_mapping,
+        workspace_name):
     need_toolchain_libraries_rpath = (
         toolchain_libraries_solib_dir and
         (is_dynamic_library(link_type) or

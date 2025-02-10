@@ -107,9 +107,7 @@ public class BzlLoadCycleReporter implements CyclesReporter.SingleCycleReporter 
             }
             Preconditions.checkArgument(input.argument() instanceof ModuleExtensionId);
             ModuleExtensionId id = (ModuleExtensionId) input.argument();
-            return String.format(
-                "extension '%s' defined in %s",
-                id.extensionName(), id.bzlFileLabel().getCanonicalForm());
+            return "module extension " + id;
           };
 
       StringBuilder cycleMessage =

@@ -221,11 +221,8 @@ def finalize_link_action(
         # A different value from use_pic
         needs_pic = (cc_toolchain._cpp_configuration.force_pic() or
                      (is_dynamic_library(link_type) and feature_configuration.is_enabled("supports_pic")))
-        seen_linkstamp_sources = {}
+
         for linkstamp, artifact in linkstamp_map.items():
-            if linkstamp.file() in seen_linkstamp_sources:
-                continue
-            seen_linkstamp_sources[linkstamp.file()] = True
             cc_common_internal.register_linkstamp_compile_action(
                 actions = actions,
                 cc_toolchain = cc_toolchain,

@@ -82,19 +82,18 @@ inline CharStar var_strprefix(CharStar str, const char *prefix) {
 
 // Join the elements of pieces separated by delimeter.  Returns the joined
 // string in output.
-void JoinStrings(const std::vector<std::string> &pieces, const char delimeter,
+void JoinStrings(const std::vector<std::string> &pieces, char delimeter,
                  std::string *output);
 
 // Splits contents by delimeter.  Skips empty subsections.
-std::vector<std::string> Split(const std::string &contents,
-                               const char delimeter);
+std::vector<std::string> Split(const std::string &contents, char delimeter);
 
 // Same as above, but adds results to output.
-void SplitStringUsing(const std::string &contents, const char delimeter,
+void SplitStringUsing(const std::string &contents, char delimeter,
                       std::vector<std::string> *output);
 
 // Same as above, but adds results to output. Returns number of elements added.
-size_t SplitQuotedStringUsing(const std::string &contents, const char delimeter,
+size_t SplitQuotedStringUsing(const std::string &contents, char delimeter,
                               std::vector<std::string> *output);
 
 // Global replace of oldsub with newsub.
@@ -116,9 +115,7 @@ void Tokenize(const std::string &str, const char &comment,
 void StringPrintf(std::string *str, const char *format, ...);
 
 // Convert str to lower case. No locale handling, this is just for ASCII.
-void ToLower(std::string *str);
-
-std::string AsLower(const std::string &str);
+std::string ToLower(const std::string &str);
 
 #if defined(_WIN32) || defined(__CYGWIN__)
 // Convert UTF-16 string to ASCII (using the Active Code Page).

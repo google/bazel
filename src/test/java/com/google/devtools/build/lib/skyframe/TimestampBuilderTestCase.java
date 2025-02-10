@@ -48,7 +48,7 @@ import com.google.devtools.build.lib.actions.BuildFailedException;
 import com.google.devtools.build.lib.actions.DiscoveredModulesPruner;
 import com.google.devtools.build.lib.actions.Executor;
 import com.google.devtools.build.lib.actions.InputMetadataProvider;
-import com.google.devtools.build.lib.actions.RemoteArtifactChecker;
+import com.google.devtools.build.lib.actions.OutputChecker;
 import com.google.devtools.build.lib.actions.TestExecException;
 import com.google.devtools.build.lib.actions.ThreadStateReceiver;
 import com.google.devtools.build.lib.actions.cache.ActionCache;
@@ -337,7 +337,7 @@ public abstract class TimestampBuilderTestCase extends FoundationTestCase {
           OptionsProvider options,
           Range<Long> lastExecutionTimeRange,
           TopLevelArtifactContext topLevelArtifactContext,
-          RemoteArtifactChecker remoteArtifactChecker)
+          OutputChecker outputChecker)
           throws BuildFailedException, InterruptedException, TestExecException {
         latestResult = null;
         skyframeActionExecutor.prepareForExecution(
@@ -503,7 +503,7 @@ public abstract class TimestampBuilderTestCase extends FoundationTestCase {
           options,
           null,
           null,
-          RemoteArtifactChecker.IGNORE_ALL);
+          OutputChecker.TRUST_LOCAL_ONLY);
     } finally {
       tsgm.waitForTimestampGranularity(reporter.getOutErr());
     }

@@ -47,6 +47,8 @@ import com.google.devtools.build.lib.packages.PackageSpecification.PackageGroupC
 import com.google.devtools.build.lib.packages.Provider;
 import com.google.devtools.build.lib.packages.RuleClassId;
 import com.google.devtools.build.lib.skyframe.ConfiguredTargetKey;
+import com.google.devtools.build.lib.skyframe.serialization.VisibleForSerialization;
+import com.google.devtools.build.lib.skyframe.serialization.autocodec.AutoCodec;
 import com.google.devtools.build.lib.starlarkbuildapi.ActionApi;
 import com.google.devtools.build.lib.vfs.PathFragment;
 import java.util.function.Consumer;
@@ -64,6 +66,7 @@ import net.starlark.java.eval.StarlarkThread;
  * works, see {@link com.google.devtools.build.lib.analysis.RuleConfiguredTargetFactory}.
  */
 @Immutable
+@AutoCodec
 public final class RuleConfiguredTarget extends AbstractConfiguredTarget {
 
   /** A set of this target's implicitDeps. */
@@ -82,9 +85,12 @@ public final class RuleConfiguredTarget extends AbstractConfiguredTarget {
   private final RuleClassId ruleClassId;
 
   /**
-   * Operations accessing actions, for example, executing them should be performed in the same Bazel
-   * instance that constructs the {@code RuleConfiguredTarget} instance and not on a Bazel instance
-   * that retrieves it remotely using deserialization.
+   * Operations accessing actions (for example, executing them or looking up metadata in them)
+   * should be performed in the same Bazel instance that constructs the {@code RuleConfiguredTarget}
+   * instance and not on a Bazel instance that retrieves the {@code RuleConfiguredTarget} remotely
+   * using deserialization, because actions will be null then.
+   *
+   * <p>Prefer using {@link #getActions()} which guards against null actions with a clear error.
    */
   @Nullable // Null if deserialized.
   private final transient ImmutableList<ActionAnalysisMetadata> actions;
@@ -172,6 +178,27 @@ public final class RuleConfiguredTarget extends AbstractConfiguredTarget {
   }
 
   /**
+   * @deprecated for serialization only
+   */
+  @Deprecated
+  @VisibleForSerialization
+  @AutoCodec.Instantiator
+  RuleConfiguredTarget(
+      ActionLookupKey lookupKey,
+      NestedSet<PackageGroupContents> visibility,
+      TransitiveInfoProviderMap providers,
+      ImmutableMap<Label, ConfigMatchingProvider> configConditions,
+      ImmutableSet<ConfiguredTargetKey> implicitDeps,
+      RuleClassId ruleClassId) {
+    super(lookupKey, visibility);
+    this.providers = providers;
+    this.configConditions = configConditions;
+    this.implicitDeps = implicitDeps;
+    this.ruleClassId = ruleClassId;
+    this.actions = null; // not currently serialized
+  }
+
+  /**
    * Marker provider that indicates this target was instantiated within one or more symbolic macros.
    */
   private static class CreatedInSymbolicMacroMarker implements TransitiveInfoProvider {
@@ -254,7 +281,7 @@ public final class RuleConfiguredTarget extends AbstractConfiguredTarget {
       // Only expose actions which are legitimate Starlark values, otherwise they will later
       // cause a Bazel crash.
       // TODO(cparsons): Expose all actions to Starlark.
-      return actions.stream()
+      return getActions().stream()
           .filter(action -> action instanceof ActionApi)
           .collect(ImmutableList.toImmutableList());
     }
@@ -299,7 +326,7 @@ public final class RuleConfiguredTarget extends AbstractConfiguredTarget {
         outputLabel,
         this);
     PathFragment relativeOutputPath = outputLabel.toPathFragment();
-    for (ActionAnalysisMetadata action : actions) {
+    for (ActionAnalysisMetadata action : getActions()) {
       for (Artifact output : action.getOutputs()) {
         if (output.getExecPath().endsWith(relativeOutputPath)) {
           return output;

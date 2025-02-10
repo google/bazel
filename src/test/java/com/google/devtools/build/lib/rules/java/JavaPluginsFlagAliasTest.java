@@ -45,10 +45,7 @@ public class JavaPluginsFlagAliasTest extends BuildViewTestCase {
     ConfiguredTarget target =
         getConfiguredTarget(TestConstants.TOOLS_REPOSITORY + "//tools/jdk:java_plugins_flag_alias");
 
-    assertThat(JavaPluginInfo.get(target))
-        .isAnyOf(
-            JavaPluginInfo.empty(JavaPluginInfo.PROVIDER),
-            JavaPluginInfo.empty(JavaPluginInfo.LEGACY_BUILTINS_PROVIDER));
+    assertThat(JavaPluginInfo.get(target)).isEqualTo(JavaPluginInfo.empty(JavaPluginInfo.PROVIDER));
   }
 
   /** Tests that a single plugin passed by a flag is returned by java_plugins_flag_alias. */

@@ -189,82 +189,6 @@ EOF
   expect_log "PASS.*: //$pkg/foo/bar:test"
 }
 
-function test_output_filter_build() {
-  # "test output filter for BUILD files"
-  local -r pkg=$FUNCNAME
-
-  mkdir -p $pkg/foo/bar
-  cat >$pkg/foo/bar/BUILD <<EOF
-# Trigger sh_binary in deps of sh_binary warning.
-sh_binary(name='red',
-          srcs=['tomato.skin'])
-sh_binary(name='tomato',
-          srcs=['tomato.pulp'],
-          deps=[':red'])
-EOF
-
-  touch $pkg/foo/bar/tomato.{skin,pulp}
-  chmod +x $pkg/foo/bar/tomato.{skin,pulp}
-
-  # check that we do get a deprecation warning
-  bazel build //$pkg/foo/bar:tomato >&"$TEST_log" || fail "build failed"
-  expect_log "is unexpected here"
-
-  bazel clean >& "$TEST_log" || fail "clean failed"
-
-  # check that we do get a deprecation warning if we select the target
-  bazel build --output_filter=$pkg/foo/bar:tomato //$pkg/foo/bar:tomato >&"$TEST_log" \
-    || fail "build failed"
-  expect_log "is unexpected here"
-
-  bazel clean >& "$TEST_log" || fail "clean failed"
-
-  # check that we do not get a deprecation warning if we select another target
-  bazel build --output_filter=$pkg/foo/bar:red //$pkg/foo/bar:tomato >&"$TEST_log" \
-    || fail "build failed"
-  expect_not_log "is unexpected here"
-}
-
-function test_output_filter_build_hostattribute() {
-  # "test that output filter also applies to host attributes"
-  local -r pkg=$FUNCNAME
-
-  # What do you get in bars?
-  mkdir -p $pkg/bar
-
-  cat >$pkg/bar/BUILD <<EOF
-# Trigger sh_binary in deps of sh_binary warning.
-sh_binary(name='red',
-          srcs=['tomato.skin'])
-sh_binary(name='tomato',
-          srcs=['tomato.pulp'],
-          deps=[':red'])
-
-# Booze, obviously.
-genrule(name='bloody_mary',
-        srcs=['vodka'],
-        outs=['fun'],
-        tools=[':tomato'],
-        cmd='cp \$< \$@')
-EOF
-
-  touch $pkg/bar/tomato.{skin,pulp}
-  chmod +x $pkg/bar/tomato.{skin,pulp}
-  echo Moskowskaya > $pkg/bar/vodka
-
-  # Check that we do get a deprecation warning
-  bazel build //$pkg/bar:bloody_mary >&"$TEST_log" || fail "build failed"
-  expect_log "is unexpected here"
-
-  # Check that the warning is disabled if we do not want to see it
-  echo "# add comment to trigger rebuild" >> $pkg/bar/tomato.skin
-  echo "# add comment to trigger rebuild" >> $pkg/bar/tomato.pulp
-
-  bazel build //$pkg/bar:bloody_mary --output_filter='nothing' >&"$TEST_log" \
-    || fail "build failed"
-  expect_not_log "is unexpected here"
-}
-
 function test_output_filter_does_not_apply_to_test_output() {
   local -r pkg=$FUNCNAME
   mkdir -p $pkg/geflugel
@@ -341,6 +265,12 @@ EOF
 echo 'STATUS_COMMAND_RAN' >&2
 EOF
   chmod +x "$status_cmd" || fail "Failed to mark $status_cmd executable"
+
+  bazel build --workspace_status_command="$status_cmd" \
+      --auto_output_filter=none \
+      "//$pkg:foo" >&"$TEST_log" \
+      || fail "Expected success"
+  expect_log STATUS_COMMAND_RAN
 
   bazel build --workspace_status_command="$status_cmd" \
       --auto_output_filter=packages \

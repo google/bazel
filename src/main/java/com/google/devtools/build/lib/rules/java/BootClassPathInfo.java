@@ -14,7 +14,6 @@
 package com.google.devtools.build.lib.rules.java;
 
 import static com.google.devtools.build.lib.skyframe.BzlLoadValue.keyForBuild;
-import static com.google.devtools.build.lib.skyframe.BzlLoadValue.keyForBuiltins;
 
 import com.google.devtools.build.lib.actions.Artifact;
 import com.google.devtools.build.lib.cmdline.Label;
@@ -38,9 +37,6 @@ import net.starlark.java.eval.Starlark;
 public class BootClassPathInfo extends StarlarkInfoWrapper {
 
   /** Provider singleton constant. */
-  public static final StarlarkProviderWrapper<BootClassPathInfo> LEGACY_BUILTINS_PROVIDER =
-      new BuiltinsProvider();
-
   public static final StarlarkProviderWrapper<BootClassPathInfo> PROVIDER = new Provider();
   public static final StarlarkProviderWrapper<BootClassPathInfo> RULES_JAVA_PROVIDER =
       new RulesJavaProvider();
@@ -87,8 +83,6 @@ public class BootClassPathInfo extends StarlarkInfoWrapper {
     com.google.devtools.build.lib.packages.Provider.Key key = info.getProvider().getKey();
     if (key.equals(PROVIDER.getKey())) {
       return PROVIDER.wrap(info);
-    } else if (key.equals(LEGACY_BUILTINS_PROVIDER.getKey())) {
-      return LEGACY_BUILTINS_PROVIDER.wrap(info);
     } else if (key.equals(RULES_JAVA_PROVIDER.getKey())) {
       return RULES_JAVA_PROVIDER.wrap(info);
     } else if (key.equals(WORKSPACE_PROVIDER.getKey())) {
@@ -127,14 +121,6 @@ public class BootClassPathInfo extends StarlarkInfoWrapper {
         && auxiliary().isEmpty()
         && systemInputs().isEmpty()
         && systemPath().isEmpty();
-  }
-
-  private static class BuiltinsProvider extends Provider {
-    private BuiltinsProvider() {
-      super(
-          keyForBuiltins(
-              Label.parseCanonicalUnchecked("@_builtins//:common/java/boot_class_path_info.bzl")));
-    }
   }
 
   private static class RulesJavaProvider extends Provider {

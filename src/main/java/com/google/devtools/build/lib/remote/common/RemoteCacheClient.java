@@ -22,7 +22,9 @@ import com.google.common.base.Preconditions;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.devtools.build.lib.vfs.Path;
 import com.google.protobuf.ByteString;
+import java.io.Closeable;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.Set;
 
@@ -112,25 +114,56 @@ public interface RemoteCacheClient extends MissingDigestsFinder {
       RemoteActionExecutionContext context, Digest digest, OutputStream out);
 
   /**
-   * Uploads a {@code file} to the CAS.
+   * A supplier for the data comprising a BLOB.
+   *
+   * <p>As blobs can be large and may need to be kept in memory, consumers should call {@link #get}
+   * as late as possible and close the blob as soon as they are done with it.
+   */
+  @FunctionalInterface
+  interface Blob extends Closeable {
+    /** Get an input stream for the blob's data. Can be called multiple times. */
+    InputStream get() throws IOException;
+
+    @Override
+    default void close() {}
+  }
+
+  /**
+   * Uploads a {@code file} BLOB to the CAS.
    *
    * @param context the context for the action.
    * @param digest The digest of the file.
    * @param file The file to upload.
    * @return A future representing pending completion of the upload.
    */
-  ListenableFuture<Void> uploadFile(RemoteActionExecutionContext context, Digest digest, Path file);
+  default ListenableFuture<Void> uploadFile(
+      RemoteActionExecutionContext context, Digest digest, Path file) {
+    return uploadBlob(context, digest, () -> new LazyFileInputStream(file));
+  }
 
   /**
-   * Uploads a BLOB to the CAS.
+   * Uploads a blob to the CAS.
+   *
+   * @param context the context for the action.
+   * @param digest The digest of the blob.
+   * @param blob A supplier for the blob to upload. May be called multiple times, but is closed by
+   *     the implementation after the upload is complete.
+   * @return A future representing pending completion of the upload.
+   */
+  ListenableFuture<Void> uploadBlob(RemoteActionExecutionContext context, Digest digest, Blob blob);
+
+  /**
+   * Uploads an in-memory BLOB to the CAS.
    *
    * @param context the context for the action.
    * @param digest The digest of the blob.
    * @param data The BLOB to upload.
    * @return A future representing pending completion of the upload.
    */
-  ListenableFuture<Void> uploadBlob(
-      RemoteActionExecutionContext context, Digest digest, ByteString data);
+  default ListenableFuture<Void> uploadBlob(
+      RemoteActionExecutionContext context, Digest digest, ByteString data) {
+    return uploadBlob(context, digest, data::newInput);
+  }
 
   /** Close resources associated with the remote cache. */
   void close();

@@ -46,6 +46,10 @@ public interface InstrumentationOutputBuilder {
     return this;
   }
 
+  /** Specifies whether output parent directory should be created. */
+  @CanIgnoreReturnValue
+  InstrumentationOutputBuilder setCreateParent(boolean createParent);
+
   /** Builds the {@link InstrumentationOutput} object. */
   InstrumentationOutput build();
 }

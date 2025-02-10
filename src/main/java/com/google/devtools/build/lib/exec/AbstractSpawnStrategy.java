@@ -29,6 +29,7 @@ import com.google.devtools.build.lib.actions.ActionExecutionContext;
 import com.google.devtools.build.lib.actions.ActionExecutionMetadata;
 import com.google.devtools.build.lib.actions.ActionInput;
 import com.google.devtools.build.lib.actions.ActionInputPrefetcher.Priority;
+import com.google.devtools.build.lib.actions.ActionInputPrefetcher.Reason;
 import com.google.devtools.build.lib.actions.ArtifactExpander;
 import com.google.devtools.build.lib.actions.ArtifactPathResolver;
 import com.google.devtools.build.lib.actions.EnvironmentalExecException;
@@ -124,7 +125,7 @@ public abstract class AbstractSpawnStrategy implements SandboxedSpawnStrategy {
       ActionExecutionContext actionExecutionContext,
       @Nullable SandboxedSpawnStrategy.StopConcurrentSpawns stopConcurrentSpawns)
       throws ExecException, InterruptedException {
-    actionExecutionContext.maybeReportSubcommand(spawn);
+    actionExecutionContext.maybeReportSubcommand(spawn, spawnRunner.getName());
 
     final Duration timeout = Spawns.getTimeout(spawn);
     SpawnExecutionContext context =
@@ -156,14 +157,21 @@ public abstract class AbstractSpawnStrategy implements SandboxedSpawnStrategy {
             Instant.ofEpochMilli(actionExecutionContext.getClock().currentTimeMillis());
         // Actual execution.
         spawnResult = spawnRunner.exec(spawn, context);
+
+        String spawnIdentifier = null;
+        if (spawnResult.getDigest() != null) {
+          spawnIdentifier = spawnResult.getDigest().getHash();
+        }
         actionExecutionContext
             .getEventHandler()
             .post(
                 new SpawnExecutedEvent(
                     spawn,
                     actionExecutionContext.getInputMetadataProvider(),
+                    actionExecutionContext.getFileOutErr(),
                     spawnResult,
-                    startTime));
+                    startTime,
+                    spawnIdentifier));
         if (cacheHandle.willStore()) {
           cacheHandle.store(spawnResult);
         }
@@ -289,8 +297,9 @@ public abstract class AbstractSpawnStrategy implements SandboxedSpawnStrategy {
                     spawn.getResourceOwner(),
                     getInputMapping(PathFragment.EMPTY_FRAGMENT, /* willAccessRepeatedly= */ true)
                         .values(),
-                    getInputMetadataProvider()::getInputMetadata,
-                    Priority.MEDIUM),
+                    getInputMetadataProvider(),
+                    Priority.MEDIUM,
+                    Reason.INPUTS),
             BulkTransferException.class,
             (BulkTransferException e) -> {
               if (executionOptions.useNewExitCodeForLostInputs
@@ -328,6 +337,7 @@ public abstract class AbstractSpawnStrategy implements SandboxedSpawnStrategy {
     public InputMetadataProvider getInputMetadataProvider() {
       return actionExecutionContext.getInputMetadataProvider();
     }
+
     @Override
     public <T extends ActionContext> T getContext(Class<T> identifyingType) {
       return actionExecutionContext.getContext(identifyingType);

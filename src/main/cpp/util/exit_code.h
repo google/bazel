@@ -36,6 +36,9 @@ enum ExitCode {
   // this command fails fast.
   LOCK_HELD_NOBLOCK_FOR_LOCK = 9,
 
+  // The server process ran out of memory.
+  OOM_ERROR = 33,
+
   // Something is wrong with the host Bazel is running on and a re-run of the
   // same command probably will not help.
   LOCAL_ENVIRONMENTAL_ERROR = 36,

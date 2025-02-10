@@ -156,6 +156,7 @@ function test_modify_execution_info_various_types() {
   cat >> "$pkg/BUILD" <<'EOF'
 load("@rules_java//java:java_library.bzl", "java_library")
 load("@rules_python//python:py_binary.bzl", "py_binary")
+load("@com_google_protobuf//bazel:proto_library.bzl", "proto_library")
 
 starlark_shell(
   name = "shelly",

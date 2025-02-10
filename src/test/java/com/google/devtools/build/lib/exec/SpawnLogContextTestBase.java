@@ -2066,7 +2066,9 @@ public abstract class SpawnLogContextTestBase {
   @Test
   public void testSpawnPlatformProperties() throws Exception {
     Spawn spawn =
-        defaultSpawnBuilder().withExecProperties(ImmutableMap.of("a", "3", "c", "4")).build();
+        defaultSpawnBuilder()
+            .withCombinedExecProperties(ImmutableMap.of("a", "3", "c", "4"))
+            .build();
 
     SpawnLogContext context = createSpawnLogContext(ImmutableMap.of("a", "1", "b", "2"));
 

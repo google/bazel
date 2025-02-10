@@ -60,7 +60,7 @@ final class Discovery {
       throws InterruptedException, ExternalDepsException {
     String rootModuleName = root.getModule().getName();
     ImmutableMap<String, ModuleOverride> overrides = root.getOverrides();
-    Map<ModuleKey, InterimModule> depGraph = new HashMap<>();
+    Map<ModuleKey, InterimModule> depGraph = new LinkedHashMap<>();
     depGraph.put(
         ModuleKey.ROOT,
         root.getModule()

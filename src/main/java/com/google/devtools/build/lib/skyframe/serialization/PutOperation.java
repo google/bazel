@@ -13,7 +13,7 @@
 // limitations under the License.
 package com.google.devtools.build.lib.skyframe.serialization;
 
-import com.google.common.util.concurrent.ListenableFuture;
+import com.google.devtools.build.lib.skyframe.serialization.WriteStatuses.WriteStatus;
 
 /**
  * Tuple representing a {@link FingerprintValueStore#put} operation.
@@ -21,4 +21,4 @@ import com.google.common.util.concurrent.ListenableFuture;
  * @param fingerprint key used to store the value.
  * @param writeStatus result of storing the value in the {@link FingerprintValueStore}.
  */
-public record PutOperation(PackedFingerprint fingerprint, ListenableFuture<Void> writeStatus) {}
+public record PutOperation(PackedFingerprint fingerprint, WriteStatus writeStatus) {}

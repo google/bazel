@@ -13,6 +13,9 @@
 // limitations under the License.
 package com.google.devtools.build.lib.analysis;
 
+import static com.google.common.truth.Truth.assertThat;
+import static com.google.devtools.build.lib.skyframe.serialization.testutils.RoundTripping.roundTripMemoized;
+
 import com.google.common.collect.ImmutableList;
 import com.google.common.testing.EqualsTester;
 import com.google.devtools.build.lib.analysis.config.BuildConfigurationValue;
@@ -27,6 +30,7 @@ import com.google.devtools.build.lib.packages.NativeAspectClass;
 import com.google.devtools.build.lib.skyframe.AspectKeyCreator;
 import com.google.devtools.build.lib.skyframe.AspectKeyCreator.AspectKey;
 import com.google.devtools.build.lib.skyframe.ConfiguredTargetKey;
+import com.google.devtools.build.lib.skyframe.serialization.AutoRegistry;
 import com.google.devtools.build.skyframe.SkyKey;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -124,6 +128,30 @@ public final class AspectValueTest extends AnalysisTestCase {
         .addEqualityGroup(
             createDerivedKey(l1, c1, a2, i1, a1, i2), createDerivedKey(l1, c1, a2, i1b, a1, i2))
         .testEquals();
+  }
+
+  @Test
+  public void roundTrippingEmptyAspectParameters_outputsSingleInstance() throws Exception {
+    var subject =
+        ImmutableList.of(
+            new AspectParameters.Builder().build(), new AspectParameters.Builder().build());
+    // Empty parameters has its own singleton serialization constant.
+    assertThat(subject.get(0)).isSameInstanceAs(subject.get(1));
+    var deserialized = roundTripMemoized(subject, AutoRegistry.get());
+    // It's preserved by round tripping.
+    assertThat(deserialized.get(0)).isSameInstanceAs(subject.get(0));
+    assertThat(deserialized.get(1)).isSameInstanceAs(subject.get(0));
+  }
+
+  @Test
+  public void roundTripping_mergesEquivalentAspectParameters() throws Exception {
+    var subject =
+        ImmutableList.of(
+            new AspectParameters.Builder().addAttribute("abc", "def").build(),
+            new AspectParameters.Builder().addAttribute("abc", "def").build());
+    assertThat(subject.get(0)).isNotSameInstanceAs(subject.get(1));
+    var deserialized = roundTripMemoized(subject, AutoRegistry.get());
+    assertThat(deserialized.get(0)).isSameInstanceAs(deserialized.get(1));
   }
 
   private static AspectKey createKey(

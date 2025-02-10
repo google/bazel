@@ -357,7 +357,7 @@ abstract class AbstractParallelEvaluator {
               .getProgressReceiver()
               .evaluated(
                   skyKey,
-                  EvaluationState.get(valueMaybeWithMetadata, /* changed= */ false),
+                  EvaluationState.get(valueMaybeWithMetadata, /* versionChanged= */ false),
                   /* newValue= */ null,
                   /* newError= */ null,
                   /* directDeps= */ null);
@@ -424,6 +424,9 @@ abstract class AbstractParallelEvaluator {
         try {
           evaluatorContext.getProgressReceiver().stateStarting(skyKey, NodeState.CHECK_DIRTY);
           if (maybeHandleDirtyNode(nodeEntry) == DirtyOutcome.ALREADY_PROCESSED) {
+            if (nodeEntry.getLifecycleState() == LifecycleState.DONE) {
+              evaluatorContext.getProgressReceiver().changePruned(skyKey);
+            }
             return;
           }
         } finally {

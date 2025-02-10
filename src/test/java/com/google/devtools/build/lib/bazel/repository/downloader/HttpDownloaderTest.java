@@ -41,6 +41,7 @@ import java.io.OutputStream;
 import java.net.InetAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.net.SocketException;
 import java.net.SocketTimeoutException;
 import java.net.URI;
 import java.net.URL;
@@ -770,6 +771,99 @@ public class HttpDownloaderTest {
 
     assertThat(times.get()).isEqualTo(4);
     String content = new String(result.getInputStream().readAllBytes(), UTF_8);
+    assertThat(content).isEqualTo("content");
+  }
+
+  @Test
+  public void download_socketException_retries() throws Exception {
+    Downloader downloader = mock(Downloader.class);
+    HttpDownloader httpDownloader = mock(HttpDownloader.class);
+    int retries = 5;
+    DownloadManager downloadManager =
+        new DownloadManager(repositoryCache, downloader, httpDownloader);
+    downloadManager.setRetries(retries);
+    AtomicInteger times = new AtomicInteger(0);
+    byte[] data = "content".getBytes(UTF_8);
+    doAnswer(
+            (Answer<Void>)
+                invocationOnMock -> {
+                  if (times.getAndIncrement() < 3) {
+                    throw new SocketException("Connection reset");
+                  }
+                  Path output = invocationOnMock.getArgument(5, Path.class);
+                  try (OutputStream outputStream = output.getOutputStream()) {
+                    ByteStreams.copy(new ByteArrayInputStream(data), outputStream);
+                  }
+
+                  return null;
+                })
+        .when(downloader)
+        .download(any(), any(), any(), any(), any(), any(), any(), any(), any());
+
+    Path result =
+        download(
+            downloadManager,
+            ImmutableList.of(new URL("http://localhost")),
+            ImmutableMap.of(),
+            ImmutableMap.of(),
+            Optional.empty(),
+            "testCanonicalId",
+            Optional.empty(),
+            fs.getPath(workingDir.newFile().getAbsolutePath()),
+            eventHandler,
+            ImmutableMap.of(),
+            "testRepo");
+
+    assertThat(times.get()).isEqualTo(4);
+    String content = new String(ByteStreams.toByteArray(result.getInputStream()), UTF_8);
+    assertThat(content).isEqualTo("content");
+  }
+
+  @Test
+  public void download_socketExceptionWithOtherErrors_retries() throws Exception {
+    Downloader downloader = mock(Downloader.class);
+    HttpDownloader httpDownloader = mock(HttpDownloader.class);
+    int retries = 5;
+    DownloadManager downloadManager =
+        new DownloadManager(repositoryCache, downloader, httpDownloader);
+    downloadManager.setRetries(retries);
+    AtomicInteger times = new AtomicInteger(0);
+    byte[] data = "content".getBytes(UTF_8);
+    doAnswer(
+            (Answer<Void>)
+                invocationOnMock -> {
+                  if (times.getAndIncrement() < 3) {
+                    IOException e = new IOException();
+                    e.addSuppressed(new SocketException("Connection reset"));
+                    e.addSuppressed(new IOException());
+                    throw e;
+                  }
+                  Path output = invocationOnMock.getArgument(5, Path.class);
+                  try (OutputStream outputStream = output.getOutputStream()) {
+                    ByteStreams.copy(new ByteArrayInputStream(data), outputStream);
+                  }
+
+                  return null;
+                })
+        .when(downloader)
+        .download(any(), any(), any(), any(), any(), any(), any(), any(), any());
+
+    Path result =
+        download(
+            downloadManager,
+            ImmutableList.of(new URL("http://localhost")),
+            ImmutableMap.of(),
+            ImmutableMap.of(),
+            Optional.empty(),
+            "testCanonicalId",
+            Optional.empty(),
+            fs.getPath(workingDir.newFile().getAbsolutePath()),
+            eventHandler,
+            ImmutableMap.of(),
+            "testRepo");
+
+    assertThat(times.get()).isEqualTo(4);
+    String content = new String(ByteStreams.toByteArray(result.getInputStream()), UTF_8);
     assertThat(content).isEqualTo("content");
   }
 

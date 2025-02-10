@@ -301,7 +301,7 @@ TEST(PathWindowsTest, MakeAbsolute) {
   EXPECT_EQ("c:\\foo\\bar", MakeAbsolute("C:/foo/bar"));
   EXPECT_EQ("c:\\foo\\bar", MakeAbsolute("C:\\foo\\bar\\"));
   EXPECT_EQ("c:\\foo\\bar", MakeAbsolute("C:/foo/bar/"));
-  EXPECT_EQ(blaze_util::AsLower(blaze_util::GetCwd()) + "\\foo",
+  EXPECT_EQ(blaze_util::ToLower(blaze_util::GetCwd()) + "\\foo",
             MakeAbsolute("foo"));
 
   EXPECT_EQ("nul", MakeAbsolute("NUL"));

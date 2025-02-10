@@ -63,15 +63,13 @@ public final class SymlinkTreeHelperTest {
   public void checkCreatedSpawn() {
     Path execRoot = fs.getPath("/my/workspace");
     Path inputManifestPath = execRoot.getRelative("input_manifest");
+    Path outputManifestPath = execRoot.getRelative("output/MANIFEST");
+    Path symlinkTreeRoot = execRoot.getRelative("output");
     BinTools binTools =
         BinTools.forUnitTesting(execRoot, ImmutableList.of(SymlinkTreeHelper.BUILD_RUNFILES));
     Command command =
         new SymlinkTreeHelper(
-                execRoot,
-                inputManifestPath,
-                execRoot.getRelative("output/MANIFEST"),
-                false,
-                "__main__")
+                execRoot, inputManifestPath, outputManifestPath, symlinkTreeRoot, false, "__main__")
             .createCommand(binTools, ImmutableMap.of());
     assertThat(command.getEnvironment()).isEmpty();
     assertThat(command.getWorkingDirectory()).isEqualTo(execRoot.getPathFile());
@@ -80,7 +78,7 @@ public final class SymlinkTreeHelperTest {
     assertThat(commandLine.get(0)).endsWith(SymlinkTreeHelper.BUILD_RUNFILES);
     assertThat(commandLine.get(1)).isEqualTo("--allow_relative");
     assertThat(commandLine.get(2)).isEqualTo("input_manifest");
-    assertThat(commandLine.get(3)).isEqualTo("output/MANIFEST");
+    assertThat(commandLine.get(3)).isEqualTo("output");
   }
 
   @Test
@@ -134,8 +132,10 @@ public final class SymlinkTreeHelperTest {
       @TestParameter TreeType treeType, @TestParameter boolean replace) throws Exception {
     Path treeRoot = execRoot.getRelative("foo.runfiles");
     Path inputManifestPath = execRoot.getRelative("foo.runfiles_manifest");
+    Path outputManifestPath = execRoot.getRelative("foo.runfiles/MANIFEST");
     SymlinkTreeHelper helper =
-        new SymlinkTreeHelper(execRoot, inputManifestPath, treeRoot, false, WORKSPACE_NAME);
+        new SymlinkTreeHelper(
+            execRoot, inputManifestPath, outputManifestPath, treeRoot, false, WORKSPACE_NAME);
 
     Artifact file = ActionsTestUtil.createArtifact(outputRoot, "file");
     Artifact symlink = ActionsTestUtil.createUnresolvedSymlinkArtifact(outputRoot, "symlink");

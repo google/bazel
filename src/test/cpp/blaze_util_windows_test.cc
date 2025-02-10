@@ -42,7 +42,7 @@ using std::wstring;
 #define ASSERT_ENVVAR_UNSET(/* const char* */ key)                          \
   {                                                                         \
     ASSERT_EQ(::GetEnvironmentVariableA(key, nullptr, 0), (DWORD)0);        \
-    ASSERT_EQ(::GetEnvironmentVariableA(blaze_util::AsLower(key).c_str(),   \
+    ASSERT_EQ(::GetEnvironmentVariableA(blaze_util::ToLower(key).c_str(),   \
                                         nullptr, 0),                        \
               (DWORD)0);                                                    \
     ASSERT_EQ(::GetEnvironmentVariableW(                                    \
@@ -50,7 +50,7 @@ using std::wstring;
               (DWORD)0);                                                    \
     ASSERT_EQ(                                                              \
         ::GetEnvironmentVariableW(                                          \
-            blaze_util::CstringToWstring(blaze_util::AsLower(key)).c_str(), \
+            blaze_util::CstringToWstring(blaze_util::ToLower(key)).c_str(), \
             nullptr, 0),                                                    \
         (DWORD)0);                                                          \
   }
@@ -76,7 +76,7 @@ using std::wstring;
     ASSERT_EQ(string(buf.get()), expected);                               \
                                                                           \
     /* Assert that envvar keys are case-insensitive. */                   \
-    string lkey(blaze_util::AsLower(key));                                \
+    string lkey(blaze_util::ToLower(key));                                \
     ASSERT_EQ(::GetEnvironmentVariableA(lkey.c_str(), buf.get(), size),   \
               size - 1);                                                  \
     ASSERT_EQ(string(buf.get()), expected);                               \

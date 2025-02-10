@@ -24,4 +24,8 @@ package com.google.devtools.build.lib.skyframe.serialization.analysis;
  * set of directory names so the two types are deliberately separated.
  */
 sealed interface FileSystemDependencies
-    permits FileDependencies, ListingDependencies, NestedDependencies {}
+    permits FileSystemDependencies.FileOpDependency, NestedDependencies {
+  /** Dependencies, excluding nested dependencies. */
+  sealed interface FileOpDependency extends FileSystemDependencies
+      permits FileDependencies, ListingDependencies {}
+}

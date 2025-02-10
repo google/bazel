@@ -36,9 +36,8 @@ import com.google.devtools.build.lib.packages.Type.LabelClass;
 import com.google.devtools.build.lib.skyframe.ConfiguredTargetAndData;
 import com.google.devtools.build.lib.util.OrderedSetMultimap;
 import com.google.devtools.build.skyframe.state.StateMachine;
-import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
-import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
 import javax.annotation.Nullable;
@@ -190,13 +189,16 @@ public final class DependencyMapProducer implements StateMachine, DependencyProd
   }
 
   private class MaterializedDependencySink implements DependencyProducer.ResultSink {
+    private int remaining;
     private final int resultsIndex;
-    private int labelCount;
-    private final List<ConfiguredTargetAndData> materializationResults = new ArrayList<>();
+    // The outer array is for the individual labels the materializer returns, the inner array is for
+    // the different configurations in case the attribute has a split transition
+    private final ConfiguredTargetAndData[][] materializationResults;
 
     private MaterializedDependencySink(int resultsIndex, int labelCount) {
       this.resultsIndex = resultsIndex;
-      this.labelCount = labelCount;
+      this.remaining = labelCount;
+      this.materializationResults = new ConfiguredTargetAndData[labelCount][];
     }
 
     @Override
@@ -207,13 +209,22 @@ public final class DependencyMapProducer implements StateMachine, DependencyProd
 
     @Override
     public void acceptDependencyValues(int index, ConfiguredTargetAndData[] values) {
-      for (var value : values) {
-        materializationResults.add(value);
+      materializationResults[index] = values;
+      if (--remaining > 0) {
+        // More dependencies to come
+        return;
       }
 
-      if (--labelCount == 0) {
-        results[resultsIndex] = materializationResults.toArray(new ConfiguredTargetAndData[] {});
-      }
+      // "results" is an array of arrays: for each (dependency kind, label) pair, it contains an
+      // array with a dependency for each configuration in a split transition. Materializers abuse
+      // this mechanism by putting all configured targets returned by a materializer into the second
+      // array because it cannot be known how many of them there are before "results" is created.
+      // This means that if a materializer has a split configuration, we need to do a level of
+      // flattening here.
+      results[resultsIndex] =
+          Arrays.stream(materializationResults)
+              .flatMap(Arrays::stream)
+              .toArray(ConfiguredTargetAndData[]::new);
     }
 
     @Override
@@ -264,9 +275,10 @@ public final class DependencyMapProducer implements StateMachine, DependencyProd
           } else {
             MaterializedDependencySink sink =
                 new MaterializedDependencySink(currentIndex, materializationResults.size());
-            for (Label materializedLabel : materializationResults) {
+            for (int i = 0; i < materializationResults.size(); i++) {
               tasks.enqueue(
-                  new DependencyProducer(parameters, kind, materializedLabel, aspects, sink, -1));
+                  new DependencyProducer(
+                      parameters, kind, materializationResults.get(i), aspects, sink, i));
             }
           }
         } else if (label != null) {

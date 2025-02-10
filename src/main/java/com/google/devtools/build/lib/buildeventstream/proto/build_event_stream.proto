@@ -549,6 +549,8 @@ message NamedSetOfFiles {
 // failing; however, consumers of the build-event protocol must not assume
 // that only failed actions are posted.
 message ActionExecuted {
+  reserved 10;
+
   bool success = 1;
 
   // The mnemonic of the action that was executed
@@ -576,9 +578,6 @@ message ActionExecuted {
 
   // The command-line of the action, if the action is a command.
   repeated string command_line = 9;
-
-  // List of paths to log files
-  repeated File action_metadata_logs = 10;
 
   // Only populated if success = false, and sometimes not even then.
   failure_details.FailureDetail failure_detail = 11;

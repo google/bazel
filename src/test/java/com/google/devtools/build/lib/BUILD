@@ -43,7 +43,6 @@ filegroup(
         "//src/test/java/com/google/devtools/build/lib/profiler/memory:srcs",
         "//src/test/java/com/google/devtools/build/lib/query2:srcs",
         "//src/test/java/com/google/devtools/build/lib/remote:srcs",
-        "//src/test/java/com/google/devtools/build/lib/repository:srcs",
         "//src/test/java/com/google/devtools/build/lib/rules:srcs",
         "//src/test/java/com/google/devtools/build/lib/sandbox:srcs",
         "//src/test/java/com/google/devtools/build/lib/server:srcs",

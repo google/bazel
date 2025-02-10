@@ -1,11 +1,20 @@
 <p>List of <a href="${link build-ref#labels}">labels</a>;
   <a href="#configurable-attributes">nonconfigurable</a>;
-  default is <code><a href="${link package.default_visibility}">default_visibility</a></code> from
-  <a href="${link package}">package</a> if specified, or <code>"//visibility:private"</code>
-  otherwise</p>
+  default varies
+</p>
 
 <p>
-The <code>visibility</code> attribute on a target controls whether the target
-can be used in other packages. See the documentation for
-<a href="${link visibility}">visibility</a>.
+  The <code>visibility</code> attribute controls whether the target can be
+  depended on by targets in other locations. See the documentation for
+  <a href="${link visibility}">visibility</a>.
+</p>
+
+<p>
+  For targets declared directly in a BUILD file or in legacy macros called from
+  a BUILD file, the default value is the package's
+  <code><a href="${link package.default_visibility}">default_visibility</a></code>
+  if specified, or else <code>["//visibility:private"]</code>. For targets
+  declared in one or more symbolic macros, the default value is always just
+  <code>["//visibility:private"]</code> (which makes it useable only within the
+  package containing the macro's code).
 </p>

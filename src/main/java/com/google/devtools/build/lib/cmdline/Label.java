@@ -689,7 +689,7 @@ public final class Label implements Comparable<Label>, StarlarkValue, SkyKey, Co
         // ignore
       }
     }
-    printer.append(getDisplayForm(mainRepoMapping));
+    printer.append(getShorthandDisplayForm(mainRepoMapping));
   }
 
   @Override
@@ -785,44 +785,8 @@ public final class Label implements Comparable<Label>, StarlarkValue, SkyKey, Co
     return Codec.INSTANCE;
   }
 
-  public static DeferredObjectCodec<Label> valueSharingCodec() {
-    return LabelValueSharingCodec.INSTANCE;
-  }
-
-  // TODO: b/359437873 - generate with @AutoCodec.
-  private static class LabelValueSharingCodec extends DeferredObjectCodec<Label> {
-
-    private static final LabelValueSharingCodec INSTANCE = new LabelValueSharingCodec();
-
-    @Override
-    public boolean autoRegister() {
-      return false;
-    }
-
-    @Override
-    public Class<Label> getEncodedClass() {
-      return Label.class;
-    }
-
-    @Override
-    public void serialize(SerializationContext context, Label id, CodedOutputStream codedOut)
-        throws SerializationException, IOException {
-      context.putSharedValue(id, /* distinguisher= */ null, LabelDeferredCodec.INSTANCE, codedOut);
-    }
-
-    @Override
-    public DeferredValue<Label> deserializeDeferred(
-        AsyncDeserializationContext context, CodedInputStream codedIn)
-        throws SerializationException, IOException {
-      SimpleDeferredValue<Label> value = SimpleDeferredValue.create();
-      context.getSharedValue(
-          codedIn,
-          /* distinguisher= */ null,
-          LabelDeferredCodec.INSTANCE,
-          value,
-          SimpleDeferredValue::set);
-      return value;
-    }
+  public static DeferredObjectCodec<Label> deferredCodec() {
+    return LabelDeferredCodec.INSTANCE;
   }
 
   private static class LabelDeferredCodec extends DeferredObjectCodec<Label> {

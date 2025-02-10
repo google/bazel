@@ -274,7 +274,7 @@ class BuildResultPrinter {
       ArrayList<ConfiguredTarget> skipped,
       boolean omitNothingToBuild) {
     for (ConfiguredTarget target : skipped) {
-      outErr.printErr("Target " + target.getLabel() + " was skipped\n");
+      outErr.printErr("Target " + target.getOriginalLabel() + " was skipped\n");
     }
     for (int i = 0; i < succeeded.size(); ++i) {
       ConfiguredTarget target = succeeded.get(i);

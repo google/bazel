@@ -16,17 +16,19 @@
 
 package com.tonicsystems.jarjar;
 
-import java.io.*;
-import java.util.*;
+import java.io.IOException;
+import java.io.PrintWriter;
 
+/** TextDepHandler */
 public class TextDepHandler extends AbstractDepHandler {
-  private PrintWriter w;
+  private final PrintWriter w;
 
-  public TextDepHandler(PrintWriter w, int level) {
+  public TextDepHandler(PrintWriter w, DepHandler.Level level) {
     super(level);
     this.w = w;
   }
 
+  @Override
   protected void handle(String from, String to) throws IOException {
     w.println(from + " -> " + to);
   }

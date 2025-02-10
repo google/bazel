@@ -15,13 +15,13 @@
 #include "src/main/cpp/rc_file.h"
 
 #include <memory>
+#include <optional>
 #include <string>
 #include <utility>
 #include <vector>
 
-#include "src/main/cpp/blaze_util.h"
 #include "src/main/cpp/blaze_util_platform.h"
-#include "src/main/cpp/util/file.h"
+#include "src/main/cpp/util/file_platform.h"
 #include "src/main/cpp/util/logging.h"
 #include "src/main/cpp/util/strings.h"
 #include "src/main/cpp/workspace_layout.h"
@@ -67,8 +67,6 @@ RcFile::ParseError RcFile::ParseFile(const std::string& filename,
     return ParseError::UNREADABLE_FILE;
   }
   const std::string canonical_filename = canonicalize_path(filename);
-  const absl::string_view workspace_prefix(
-      workspace_layout.WorkspacePrefix, workspace_layout.WorkspacePrefixLength);
 
   int rcfile_index = canonical_rcfile_paths_.size();
   canonical_rcfile_paths_.push_back(canonical_filename);
@@ -112,17 +110,26 @@ RcFile::ParseError RcFile::ParseFile(const std::string& filename,
     }
 
     std::string& import_filename = words[1];
-    if (absl::StartsWith(import_filename, workspace_prefix)) {
-      const bool could_relativize =
-          workspace_layout.WorkspaceRelativizeRcFilePath(workspace,
-                                                         &import_filename);
-      if (!could_relativize && command == kCommandImport) {
-        *error_text = absl::StrFormat(
-            "Nonexistent path in import declaration in config file '%s': '%s'"
-            " (are you in your source checkout/WORKSPACE?)",
-            canonical_filename, line);
-        return ParseError::INVALID_FORMAT;
+    if (absl::StartsWith(import_filename, WorkspaceLayout::kWorkspacePrefix)) {
+      const auto resolved_filename =
+          workspace_layout.ResolveWorkspaceRelativeRcFilePath(workspace,
+                                                              import_filename);
+      if (!resolved_filename.has_value()) {
+        if (command == kCommandImport) {
+          *error_text = absl::StrFormat(
+              "Nonexistent path in import declaration in config file '%s': '%s'"
+              " (are you in your source checkout/WORKSPACE?)",
+              canonical_filename, line);
+          return ParseError::INVALID_FORMAT;
+        }
+        // For try-import, we ignore it if we couldn't find a file.
+        BAZEL_LOG(INFO) << "Skipped optional import of " << import_filename
+                        << ", the specified rc file either does not exist or"
+                        << "is not readable.";
+        continue;
       }
+
+      import_filename = resolved_filename.value();
     }
 
     if (absl::c_linear_search(import_stack, import_filename)) {

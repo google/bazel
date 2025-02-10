@@ -15,7 +15,6 @@
 package com.google.devtools.build.lib.rules.java;
 
 import static com.google.devtools.build.lib.skyframe.BzlLoadValue.keyForBuild;
-import static com.google.devtools.build.lib.skyframe.BzlLoadValue.keyForBuiltins;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableList;
@@ -43,8 +42,6 @@ public final class JavaPackageConfigurationProvider implements StarlarkValue {
 
   private static final StarlarkProviderWrapper<JavaPackageConfigurationProvider> PROVIDER =
       new Provider();
-  private static final StarlarkProviderWrapper<JavaPackageConfigurationProvider> BUILTINS_PROVIDER =
-      new BuiltinsProvider();
 
   private final StructImpl underlying;
 
@@ -55,11 +52,7 @@ public final class JavaPackageConfigurationProvider implements StarlarkValue {
   @VisibleForTesting
   public static JavaPackageConfigurationProvider get(ConfiguredTarget target)
       throws RuleErrorException {
-    JavaPackageConfigurationProvider info = target.get(PROVIDER);
-    if (info == null) {
-      info = target.get(BUILTINS_PROVIDER);
-    }
-    return info;
+    return target.get(PROVIDER);
   }
 
   /** Package specifications for which the configuration should be applied. */
@@ -132,16 +125,6 @@ public final class JavaPackageConfigurationProvider implements StarlarkValue {
             "expected an instance of JavaPackageConfigurationProvider, got: "
                 + Starlark.type(value));
       }
-    }
-  }
-
-  private static class BuiltinsProvider extends JavaPackageConfigurationProvider.Provider {
-
-    private BuiltinsProvider() {
-      super(
-          keyForBuiltins(
-              Label.parseCanonicalUnchecked(
-                  "@_builtins//:common/java/java_package_configuration.bzl")));
     }
   }
 

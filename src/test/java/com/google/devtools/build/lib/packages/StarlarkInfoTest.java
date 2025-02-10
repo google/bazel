@@ -162,66 +162,6 @@ public class StarlarkInfoTest {
     return StarlarkInfo.create(provider, values.build(), Location.BUILTIN);
   }
 
-  // Tests Ganapathy permute algorithm on arrays of various lengths from Fibonacci sequence.
-  @Test
-  public void testPermute() throws Exception {
-    boolean ok = true;
-    // (a, b) is the Fibonacci generator. We use a as the array length.
-    for (int a = 0, b = 1; a < 1000; ) {
-      // generate array of 'a' k/v pairs
-      Integer[] array = new Integer[2 * a];
-      for (int i = 0; i < a; i++) {
-        array[2 * i] = i + 1; // keys are positive
-        array[2 * i + 1] = -i - 1; // value is negation of corresponding key
-      }
-      StarlarkInfoNoSchema.permute(array);
-
-      // Assert that keys (positive) appear before values (negative).
-      for (int i = 0; i < 2 * a; i++) {
-        if ((i < a) != (array[i] > 0)) {
-          System.err.printf(
-              "a=%d: at index %d, keys not before values: %s\n", a, i, Arrays.toString(array));
-          ok = false;
-          break;
-        }
-      }
-
-      // Assert that key/value correspondence is maintained.
-      for (int i = 0; i < a; i++) {
-        int k = array[i];
-        int v = array[i + a];
-        if (k != -v) {
-          System.err.printf(
-              "a=%d: at index %d, key=%d but value=%d, want %d: %s\n",
-              a, i, k, v, -k, Arrays.toString(array));
-          ok = false;
-          break;
-        }
-      }
-
-      // Assert that all keys in input remain present in output.
-      Integer[] sortedKeys = Arrays.copyOf(array, a);
-      Arrays.sort(sortedKeys);
-      for (int i = 0; i < a; i++) {
-        if (sortedKeys[i] != i + 1) {
-          System.err.printf(
-              "a=%d: at index %d of sorted keys, got %d, want %d: %s\n",
-              a, i, sortedKeys[i], i + 1, Arrays.toString(sortedKeys));
-          ok = false;
-          break;
-        }
-      }
-
-      // next Fibonacci number
-      int c = a + b;
-      a = b;
-      b = c;
-    }
-    if (!ok) {
-      throw new AssertionError("failed");
-    }
-  }
-
   // Tests sortPairs using arrays of various lengths from Fibonacci sequence.
   @Test
   public void testSortPairs() throws Exception {

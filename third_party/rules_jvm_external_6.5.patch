@@ -1,0 +1,158 @@
+commit 9cceed0f65f90e79394edf0421168788ac2cf22d
+Author: Fabian Meumertzheim <fabian@meumertzhe.im>
+Date:   Wed Nov 20 15:16:53 2024 +0100
+
+    Add targets to make it easier to vendor the `@maven` repository
+
+    This change is required to support Bazel's offline bootstrap build.
+    More context in https://github.com/bazelbuild/bazel/pull/17112
+
+    Instead of checking in jar files in Bazel's source tree, Bazel wants to use rules_jvm_external
+    to fetch jars dependencies. However, to support Bazel's bootstrap build,
+    we need to patch rules_jvm_external for vendoring the @maven repository.
+
+    - Generate a BUILD.vendor file to be used in the vendored `@maven` repository.
+      Added a jvm_import and a filegroup rule for each downloaded jar artifact.
+      The filegroup rule is required by the bootstrap Java toolchain used in Bazel's
+      bootstrap build. The bootstrap Java toolchain cannot depend on a jvm_import target.
+      Because the jvm_import rule depends on a java_binary tool "AddJarManifestEntry",
+      which requires a Java toolchain. Depending on the jar via a filegroup rule helps
+      avoid this cyclic dependency.
+    - Added a filegroup rule to collect all sources needed for vendoring `@maven`,
+      including BUILD.vendor, WORKSPACE and jar files.
+
+diff --git a/private/dependency_tree_parser.bzl b/private/dependency_tree_parser.bzl
+index d778bab..ee7646a 100644
+--- a/private/dependency_tree_parser.bzl
++++ b/private/dependency_tree_parser.bzl
+@@ -77,7 +77,8 @@ def _generate_target(
+         neverlink_artifacts,
+         testonly_artifacts,
+         default_visibilities,
+-        artifact):
++        artifact,
++        vendor_targets):
+     to_return = []
+     simple_coord = strip_packaging_and_classifier_and_version(artifact["coordinates"])
+     target_label = escape(simple_coord)
+@@ -333,6 +334,7 @@ package_info(
+     target_import_string.append(")")
+ 
+     to_return.append("\n".join(target_import_string))
++    vendor_targets.append("\n".join(target_import_string))
+ 
+     # 10. Create a versionless alias target
+     #
+@@ -343,6 +345,9 @@ package_info(
+     versioned_target_alias_label = escape(strip_packaging_and_classifier(artifact["coordinates"]))
+     to_return.append("alias(\n\tname = \"%s\",\n\tactual = \"%s\",\n%s)" %
+                      (versioned_target_alias_label, target_label, alias_visibility))
++    file_group_target_string = "filegroup(\n\tname = \"%s\",\n\tsrcs = [\"%s\"],\n%s)" % (target_label + "_file", artifact_path, alias_visibility)
++    to_return.append(file_group_target_string)
++    vendor_targets.append(file_group_target_string)
+ 
+     for annotation_processor in artifact.get("annotation_processors", []):
+         to_return.append(
+@@ -421,6 +426,9 @@ def _generate_imports(repository_ctx, dependencies, explicit_artifacts, neverlin
+                     if repository_ctx.attr.maven_install_json:
+                         all_imports.append(_genrule_copy_artifact_from_http_file(artifact, default_visibilities))
+ 
++    artifact_paths = []
++    vendor_targets = []
++
+     # Iterate through the list of artifacts, and generate the target declaration strings.
+     for artifact in dependencies:
+         artifact_path = artifact["file"]
+@@ -456,9 +464,9 @@ def _generate_imports(repository_ctx, dependencies, explicit_artifacts, neverlin
+             # Override target labels with the user provided mapping, instead of generating
+             # a jvm_import/aar_import based on information in dep_tree.
+             seen_imports[target_label] = True
+-            all_imports.append(
+-                "alias(\n\tname = \"%s\",\n\tactual = \"%s\",\n\tvisibility = [\"//visibility:public\"],)" % (target_label, labels_to_override.get(target_label)),
+-            )
++            alias = "alias(\n\tname = \"%s\",\n\tactual = \"%s\",\n\tvisibility = [\"//visibility:public\"],)" % (target_label, labels_to_override.get(target_label))
++            all_imports.append(alias)
++            vendor_targets.append(alias)
+             if repository_ctx.attr.maven_install_json:
+                 # Provide the downloaded artifact as a file target.
+                 all_imports.append(_genrule_copy_artifact_from_http_file(artifact, default_visibilities))
+@@ -478,6 +486,7 @@ def _generate_imports(repository_ctx, dependencies, explicit_artifacts, neverlin
+                 testonly_artifacts,
+                 default_visibilities,
+                 raw_artifact,
++                vendor_targets,
+             ))
+ 
+         elif artifact_path != None and packaging != "pom":
+@@ -493,7 +502,9 @@ def _generate_imports(repository_ctx, dependencies, explicit_artifacts, neverlin
+                 testonly_artifacts,
+                 default_visibilities,
+                 artifact,
++                vendor_targets,
+             ))
++            artifact_paths.append("\"%s\"" % artifact_path)
+         else:  # artifact_path == None or packaging == "pom":
+             # Special case for certain artifacts that only come with a POM file.
+             # Such artifacts "aggregate" their dependencies, so they don't have
+@@ -546,7 +557,10 @@ def _generate_imports(repository_ctx, dependencies, explicit_artifacts, neverlin
+             all_imports.append("alias(\n\tname = \"%s\",\n\tactual = \"%s\",\n%s)" %
+                                (versioned_target_alias_label, target_label, alias_visibility))
+ 
+-    return ("\n".join(all_imports), jar_versionless_target_labels)
++    all_imports.append("filegroup(\n\tname = \"srcs\",\n\tsrcs = [\n\t\t%s,\n\t],\n\tvisibility = [\"//visibility:public\"],\n)" %
++                       (",\n\t\t".join(["\"BUILD.vendor\"", "\"defs.bzl\"", "\"REPO.bazel\""] + artifact_paths)))
++
++    return ("\n".join(all_imports), jar_versionless_target_labels, "\n".join(vendor_targets))
+ 
+ parser = struct(
+     generate_imports = _generate_imports,
+diff --git a/private/rules/coursier.bzl b/private/rules/coursier.bzl
+index 8a3e7dc..46a2f9b 100644
+--- a/private/rules/coursier.bzl
++++ b/private/rules/coursier.bzl
+@@ -56,6 +56,12 @@ bzl_library(
+ )
+ """
+ 
++_BUILD_VENDOR = """
++load("@rules_jvm_external//private/rules:jvm_import.bzl", "jvm_import")
++
++{vendor_targets}
++"""
++
+ DEFAULT_AAR_IMPORT_LABEL = "@build_bazel_rules_android//android:rules.bzl"
+ 
+ _AAR_IMPORT_STATEMENT = """\
+@@ -615,7 +621,7 @@ def _pinned_coursier_fetch_impl(repository_ctx):
+     )
+ 
+     repository_ctx.report_progress("Generating BUILD targets..")
+-    (generated_imports, jar_versionless_target_labels) = parser.generate_imports(
++    (generated_imports, jar_versionless_target_labels, generated_vendor_targets) = parser.generate_imports(
+         repository_ctx = repository_ctx,
+         dependencies = importer.get_artifacts(maven_install_json_content),
+         explicit_artifacts = {
+@@ -657,6 +663,14 @@ def _pinned_coursier_fetch_impl(repository_ctx):
+         executable = False,
+     )
+ 
++    repository_ctx.file(
++        "BUILD.vendor",
++        (_BUILD_VENDOR).format(
++            vendor_targets = generated_vendor_targets,
++        ),
++        executable = False,
++    )
++
+     _add_outdated_files(repository_ctx, artifacts, repositories)
+ 
+     # Generate a compatibility layer of external repositories for all jar artifacts.
+@@ -1248,7 +1262,7 @@ def _coursier_fetch_impl(repository_ctx):
+     )
+ 
+     repository_ctx.report_progress("Generating BUILD targets..")
+-    (generated_imports, jar_versionless_target_labels) = parser.generate_imports(
++    (generated_imports, jar_versionless_target_labels, _) = parser.generate_imports(
+         repository_ctx = repository_ctx,
+         dependencies = v2_lock_file.get_artifacts(lock_file_contents),
+         explicit_artifacts = {

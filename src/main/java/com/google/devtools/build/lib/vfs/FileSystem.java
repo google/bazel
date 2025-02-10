@@ -842,4 +842,9 @@ public abstract class FileSystem {
     throw new UnsupportedOperationException(
         "getNioPath() not supported for " + getClass().getName());
   }
+
+  /** Represents an arbitrary transform on a Path. */
+  public interface PathTransformer {
+    Path transformPath(Path original);
+  }
 }

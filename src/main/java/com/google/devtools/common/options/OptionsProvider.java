@@ -32,7 +32,12 @@ public interface OptionsProvider {
         }
 
         @Override
-        public Map<String, Object> getStarlarkOptions() {
+        public ImmutableMap<String, Object> getStarlarkOptions() {
+          return ImmutableMap.of();
+        }
+
+        @Override
+        public ImmutableMap<String, String> getScopesAttributes() {
           return ImmutableMap.of();
         }
 
@@ -80,4 +85,6 @@ public interface OptionsProvider {
    * map of option name to the option's {@code expandedFrom}, or "" if the option was not expanded.
    */
   ImmutableMap<String, String> getUserOptions();
+
+  Map<String, String> getScopesAttributes();
 }

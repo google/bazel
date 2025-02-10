@@ -1,0 +1,21 @@
+<p>List of <a href="${link build-ref#labels}">labels</a>;
+  <a href="#configurable-attributes">nonconfigurable</a>; default is the package's
+  <code><a href="${link package.default_package_metadata}">default_package_metadata</a></code>
+</p>
+
+<p>
+A list of labels that are associated metadata about this target.
+Typically, the labels are simple rules that return a provider of
+constant values. Rules and aspects may use these labels to perform some
+additional analysis on the build graph.
+</p>
+
+<p>
+The canonical use case is that of
+<a href="https://github.com/bazelbuild/rules_license">rules_license</a>.
+For that use case, <code>package_metadata</code> and
+<code>default_package_metadata</code> is used to attach information
+about a package's licence or version to targets. An aspect applied
+to a top-level binary can be used to gather those and produce
+compliance reports.
+</p>

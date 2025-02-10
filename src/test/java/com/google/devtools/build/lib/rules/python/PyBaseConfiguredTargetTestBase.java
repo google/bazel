@@ -19,7 +19,6 @@ import static com.google.devtools.build.lib.rules.python.PythonTestUtils.getPyLo
 
 import com.google.devtools.build.lib.analysis.ConfiguredTarget;
 import com.google.devtools.build.lib.analysis.util.BuildViewTestCase;
-import java.util.regex.Pattern;
 import org.junit.Before;
 import org.junit.Test;
 
@@ -42,21 +41,6 @@ public abstract class PyBaseConfiguredTargetTestBase extends BuildViewTestCase {
   /** Retrieves the Python version of a configured target. */
   protected PythonVersion getPythonVersion(ConfiguredTarget ct) {
     return getConfiguration(ct).getOptions().get(PythonOptions.class).getPythonVersion();
-  }
-
-  @Test
-  public void badSrcsVersionValue() throws Exception {
-    checkError(
-        "pkg",
-        "foo",
-        // error:
-        Pattern.compile(".*invalid value.*srcs_version.*"),
-        // build file:
-        bzlLoad,
-        ruleName + "(",
-        "    name = 'foo',",
-        "    srcs_version = 'doesnotexist',",
-        "    srcs = ['foo.py'])");
   }
 
   @Test

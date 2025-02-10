@@ -18,6 +18,7 @@ import static com.google.common.collect.ImmutableList.toImmutableList;
 import static java.nio.charset.StandardCharsets.UTF_8;
 
 import com.google.common.base.Preconditions;
+import com.google.common.base.Splitter;
 import com.google.devtools.build.lib.buildtool.BuildRequestOptions;
 import com.google.devtools.build.lib.profiler.Profiler;
 import com.google.devtools.build.lib.profiler.SilentCloseable;
@@ -34,6 +35,8 @@ import java.util.function.Predicate;
 
 /** Provides support for reading target patterns from a file or the command-line. */
 public final class TargetPatternsHelper {
+
+  private static final Splitter TARGET_PATTERN_SPLITTER = Splitter.on('#');
 
   private TargetPatternsHelper() {}
 
@@ -58,7 +61,7 @@ public final class TargetPatternsHelper {
       try {
         targets =
             FileSystemUtils.readLines(residuePath, UTF_8).stream()
-                .map(s -> s.split("#")[0])
+                .map(s -> TARGET_PATTERN_SPLITTER.splitToList(s).get(0))
                 .map(String::trim)
                 .filter(Predicate.not(String::isEmpty))
                 .collect(toImmutableList());

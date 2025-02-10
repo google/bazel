@@ -81,10 +81,10 @@ java_library(
         "//src/main/java/com/google/devtools/build/lib/events",
         "//src/main/java/com/google/devtools/build/lib/vfs",
         "//src/main/java/com/google/devtools/common/options",
+        "//third_party:async_profiler",
         "//third_party:flogger",
         "//third_party:guava",
         "//third_party:jsr305",
-        "@maven//:tools_profiler_async_profiler",
     ],
 )
 
@@ -124,6 +124,7 @@ java_library(
 
 java_library(
     name = "profiler-output",
+    testonly = 1,
     srcs =
         [
             "JsonProfile.java",
@@ -135,7 +136,6 @@ java_library(
     deps = [
         ":profiler",
         "//src/main/java/com/google/devtools/build/lib/util",
-        "//third_party:auto_value",
         "//third_party:gson",
         "//third_party:guava",
         "//third_party:jsr305",

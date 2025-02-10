@@ -241,7 +241,6 @@ public abstract class MockCcSupport {
         "        '" + TestConstants.CONSTRAINTS_PACKAGE_ROOT + "os:android',",
         "    ],",
         ")");
-    config.append("WORKSPACE", "register_toolchains('//toolchains:all')");
     config.append("MODULE.bazel", "register_toolchains('//toolchains:all')");
   }
 

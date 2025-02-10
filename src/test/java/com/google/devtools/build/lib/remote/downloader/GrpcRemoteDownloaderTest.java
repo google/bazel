@@ -29,6 +29,7 @@ import build.bazel.remote.asset.v1.FetchBlobResponse;
 import build.bazel.remote.asset.v1.FetchGrpc.FetchImplBase;
 import build.bazel.remote.asset.v1.Qualifier;
 import build.bazel.remote.execution.v2.Digest;
+import build.bazel.remote.execution.v2.DigestFunction;
 import build.bazel.remote.execution.v2.RequestMetadata;
 import build.bazel.remote.execution.v2.ServerCapabilities;
 import com.google.auth.Credentials;
@@ -96,8 +97,10 @@ public class GrpcRemoteDownloaderTest {
 
   private static final ManualClock clock = new ManualClock();
 
+  // Use an unusual default to verify that the hash function used to generate a given Checksum is
+  // propagated correctly.
   private static final DigestUtil DIGEST_UTIL =
-      new DigestUtil(SyscallCache.NO_CACHE, DigestHashFunction.SHA256);
+      new DigestUtil(SyscallCache.NO_CACHE, DigestHashFunction.SHA1);
 
   private final MutableHandlerRegistry serviceRegistry = new MutableHandlerRegistry();
   private final String fakeServerName = "fake server for " + getClass();
@@ -277,7 +280,8 @@ public class GrpcRemoteDownloaderTest {
   @Test
   public void testPropagateChecksum() throws Exception {
     final byte[] content = "example content".getBytes(UTF_8);
-    final Digest contentDigest = DIGEST_UTIL.compute(content);
+    final DigestUtil digestUtil = new DigestUtil(SyscallCache.NO_CACHE, DigestHashFunction.SHA256);
+    final Digest contentDigest = digestUtil.compute(content);
 
     serviceRegistry.addService(
         new FetchImplBase() {
@@ -287,7 +291,7 @@ public class GrpcRemoteDownloaderTest {
             assertThat(request)
                 .isEqualTo(
                     FetchBlobRequest.newBuilder()
-                        .setDigestFunction(DIGEST_UTIL.getDigestFunction())
+                        .setDigestFunction(digestUtil.getDigestFunction())
                         .addUris("http://example.com/content.txt")
                         .addQualifiers(
                             Qualifier.newBuilder()
@@ -316,7 +320,8 @@ public class GrpcRemoteDownloaderTest {
   @Test
   public void testRejectChecksumMismatch() throws Exception {
     final byte[] content = "example content".getBytes(UTF_8);
-    final Digest contentDigest = DIGEST_UTIL.compute(content);
+    final DigestUtil digestUtil = new DigestUtil(SyscallCache.NO_CACHE, DigestHashFunction.SHA256);
+    final Digest contentDigest = digestUtil.compute(content);
 
     serviceRegistry.addService(
         new FetchImplBase() {
@@ -326,7 +331,7 @@ public class GrpcRemoteDownloaderTest {
             assertThat(request)
                 .isEqualTo(
                     FetchBlobRequest.newBuilder()
-                        .setDigestFunction(DIGEST_UTIL.getDigestFunction())
+                        .setDigestFunction(digestUtil.getDigestFunction())
                         .addUris("http://example.com/content.txt")
                         .addQualifiers(
                             Qualifier.newBuilder()
@@ -355,7 +360,7 @@ public class GrpcRemoteDownloaderTest {
                     Optional.of(Checksum.fromString(KeyType.SHA256, contentDigest.getHash()))));
 
     assertThat(e).hasMessageThat().contains(contentDigest.getHash());
-    assertThat(e).hasMessageThat().contains(DIGEST_UTIL.computeAsUtf8("wrong content").getHash());
+    assertThat(e).hasMessageThat().contains(digestUtil.computeAsUtf8("wrong content").getHash());
   }
 
   @Test
@@ -382,7 +387,7 @@ public class GrpcRemoteDownloaderTest {
         .isEqualTo(
             FetchBlobRequest.newBuilder()
                 .setInstanceName("instance name")
-                .setDigestFunction(DIGEST_UTIL.getDigestFunction())
+                .setDigestFunction(DigestFunction.Value.SHA256)
                 .addUris("http://example.com/a")
                 .addUris("http://example.com/b")
                 .addUris("file:/not/limited/to/http")
@@ -431,7 +436,7 @@ public class GrpcRemoteDownloaderTest {
         .isEqualTo(
             FetchBlobRequest.newBuilder()
                 .setInstanceName("instance name")
-                .setDigestFunction(DIGEST_UTIL.getDigestFunction())
+                .setDigestFunction(DigestFunction.Value.SHA256)
                 .addUris("http://example.com/a")
                 .addQualifiers(
                     Qualifier.newBuilder()
@@ -474,7 +479,7 @@ public class GrpcRemoteDownloaderTest {
         .isEqualTo(
             FetchBlobRequest.newBuilder()
                 .setInstanceName("instance name")
-                .setDigestFunction(DIGEST_UTIL.getDigestFunction())
+                .setDigestFunction(DigestFunction.Value.SHA256)
                 .addUris("http://example.com/a")
                 .addQualifiers(
                     Qualifier.newBuilder()

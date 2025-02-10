@@ -194,7 +194,7 @@ sh_test(
     tags = [
         "no_windows",
     ],
-    toolchains = ["@bazel_tools//tools/jdk:current_java_runtime"],
+    toolchains = ["@rules_java//toolchains:current_java_runtime"],
 )
 
 sh_test(
@@ -250,7 +250,7 @@ sh_test(
     tags = [
         "no_windows",
     ],
-    toolchains = ["@bazel_tools//tools/jdk:current_java_runtime"],
+    toolchains = ["@rules_java//toolchains:current_java_runtime"],
 )
 
 sh_test(
@@ -474,7 +474,7 @@ sh_test(
     ],
     shard_count = 8,
     tags = ["no_windows"],
-    toolchains = ["@bazel_tools//tools/jdk:current_java_runtime"],
+    toolchains = ["@rules_java//toolchains:current_java_runtime"],
 )
 
 sh_test(
@@ -487,7 +487,7 @@ sh_test(
         ":test-deps",
         "@bazel_tools//tools/bash/runfiles",
     ],
-    toolchains = ["@bazel_tools//tools/jdk:current_java_runtime"],
+    toolchains = ["@rules_java//toolchains:current_java_runtime"],
 )
 
 sh_test(
@@ -653,6 +653,7 @@ sh_test(
     size = "large",
     srcs = ["client_test.sh"],
     data = [":test-deps"],
+    shard_count = 8,
     tags = ["no_windows"],
 )
 
@@ -776,25 +777,9 @@ sh_test(
 )
 
 sh_test(
-    name = "incompatible_autoload_externally_bzlmod_test",
+    name = "incompatible_autoload_externally_test",
     size = "medium",
     srcs = ["incompatible_autoload_externally_test.sh"],
-    args = ["--enable_bzlmod"],
-    data = [":test-deps"],
-    tags = [
-        "no_windows",
-        "requires-network",
-    ],
-)
-
-sh_test(
-    name = "incompatible_autoload_externally_workspace_test",
-    size = "medium",
-    srcs = ["incompatible_autoload_externally_test.sh"],
-    args = [
-        "--noenable_bzlmod",
-        "--enable_workspace",
-    ],
     data = [":test-deps"],
     tags = [
         "no_windows",
@@ -1023,6 +1008,15 @@ sh_test(
 sh_test(
     name = "platform_based_flags_test",
     srcs = ["platform_based_flags_test.sh"],
+    data = [
+        ":test-deps",
+        "@bazel_tools//tools/bash/runfiles",
+    ],
+)
+
+sh_test(
+    name = "flags_scoping_integration_tests",
+    srcs = ["flags_scoping_integration_tests.sh"],
     data = [
         ":test-deps",
         "@bazel_tools//tools/bash/runfiles",

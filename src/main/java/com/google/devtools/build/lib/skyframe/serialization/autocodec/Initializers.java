@@ -33,6 +33,7 @@ import com.squareup.javapoet.TypeName;
 import com.squareup.javapoet.TypeSpec;
 import java.io.IOException;
 import java.util.List;
+import javax.annotation.processing.Generated;
 import javax.annotation.processing.ProcessingEnvironment;
 import javax.lang.model.element.Modifier;
 import javax.lang.model.element.TypeElement;
@@ -52,6 +53,10 @@ class Initializers {
   static TypeSpec.Builder initializeCodecClassBuilder(
       TypeElement encodedType, ProcessingEnvironment env) {
     return TypeSpec.classBuilder(getGeneratedName(encodedType, GENERATED_CLASS_NAME_SUFFIX))
+        .addAnnotation(
+            AnnotationSpec.builder(Generated.class)
+                .addMember("value", "$S", AutoCodecProcessor.class.getCanonicalName())
+                .build())
         .addAnnotation(
             AnnotationSpec.builder(ClassName.get(SuppressWarnings.class))
                 .addMember("value", "$S", "unchecked")

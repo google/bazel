@@ -16,9 +16,15 @@
 
 package com.tonicsystems.jarjar;
 
-import com.tonicsystems.jarjar.util.*;
-import java.io.*;
-import java.util.*;
+import com.tonicsystems.jarjar.util.ClassHeaderReader;
+import com.tonicsystems.jarjar.util.ClassPathEntry;
+import com.tonicsystems.jarjar.util.ClassPathIterator;
+import com.tonicsystems.jarjar.util.RuntimeIOException;
+import java.io.File;
+import java.io.IOException;
+import java.io.InputStream;
+import java.util.HashMap;
+import java.util.Map;
 import org.objectweb.asm.ClassReader;
 
 public class DepFind {
@@ -31,7 +37,7 @@ public class DepFind {
   public void run(String from, String to, DepHandler handler) throws IOException {
     try {
       ClassHeaderReader header = new ClassHeaderReader();
-      Map<String, String> classes = new HashMap<String, String>();
+      Map<String, String> classes = new HashMap<>();
       ClassPathIterator cp = new ClassPathIterator(curDir, to, null);
       try {
         while (cp.hasNext()) {

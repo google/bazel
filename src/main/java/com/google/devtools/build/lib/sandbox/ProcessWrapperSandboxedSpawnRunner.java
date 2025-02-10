@@ -91,7 +91,7 @@ final class ProcessWrapperSandboxedSpawnRunner extends AbstractSandboxSpawnRunne
             .setTimeout(timeout);
 
     Path statisticsPath = sandboxPath.getRelative("stats.out");
-    commandLineBuilder.setStatisticsPath(statisticsPath);
+    commandLineBuilder.setStatisticsPath(statisticsPath.asFragment());
 
     SandboxInputs inputs =
         helpers.processInputFiles(

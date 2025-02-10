@@ -31,7 +31,6 @@ import com.google.devtools.build.lib.actions.ActionLookupValue;
 import com.google.devtools.build.lib.actions.Artifact;
 import com.google.devtools.build.lib.actions.Artifact.TreeFileArtifact;
 import com.google.devtools.build.lib.actions.FileArtifactValue;
-import com.google.devtools.build.lib.actions.FileArtifactValue.RemoteFileArtifactValue;
 import com.google.devtools.build.lib.actions.cache.ActionCache;
 import com.google.devtools.build.lib.actions.cache.ActionCache.Entry;
 import com.google.devtools.build.lib.actions.cache.ActionCache.Entry.SerializableTreeArtifactValue;
@@ -128,7 +127,7 @@ public class RemoteLeaseExtension implements LeaseExtension {
             // issue one giant `FindMissingBlobs` call to avoid increasing memory footprint. Since
             // this happens in the background, increased network calls are acceptable.
             try (var silentCloseable1 = Profiler.instance().profile(action.describe())) {
-              extendLeaseForAction(action, remoteFiles, earliestExpiration.toEpochMilli());
+              extendLeaseForAction(action, remoteFiles, earliestExpiration);
             }
           }
         }
@@ -152,7 +151,7 @@ public class RemoteLeaseExtension implements LeaseExtension {
   }
 
   private static boolean isRemoteMetadataWithTtl(FileArtifactValue metadata) {
-    return metadata.isRemote() && ((RemoteFileArtifactValue) metadata).getExpireAtEpochMilli() >= 0;
+    return metadata.isRemote() && metadata.getExpirationTime() != null;
   }
 
   private ImmutableList<Map.Entry<? extends Artifact, FileArtifactValue>> collectRemoteFiles(
@@ -179,7 +178,7 @@ public class RemoteLeaseExtension implements LeaseExtension {
   private void extendLeaseForAction(
       Action action,
       ImmutableList<Map.Entry<? extends Artifact, FileArtifactValue>> remoteFiles,
-      long expireAtEpochMilli)
+      Instant expirationTime)
       throws IOException, InterruptedException {
     ImmutableSet<Digest> missingDigests;
     try (var silentCloseable = Profiler.instance().profile("findMissingDigests")) {
@@ -196,15 +195,15 @@ public class RemoteLeaseExtension implements LeaseExtension {
     var token = getActionCacheToken(action);
     for (var remoteFile : remoteFiles) {
       var artifact = remoteFile.getKey();
-      var metadata = (RemoteFileArtifactValue) remoteFile.getValue();
+      var metadata = remoteFile.getValue();
       // Only extend the lease for the remote output if it is still alive remotely.
       if (!missingDigests.contains(buildDigest(metadata))) {
-        metadata.extendExpireAtEpochMilli(expireAtEpochMilli);
+        metadata.setExpirationTime(expirationTime);
         if (token != null) {
           if (artifact instanceof TreeFileArtifact treeFileArtifact) {
-            token.extendOutputTreeFile(treeFileArtifact, expireAtEpochMilli);
+            token.extendOutputTreeFile(treeFileArtifact, expirationTime);
           } else {
-            token.extendOutputFile(artifact, expireAtEpochMilli);
+            token.extendOutputFile(artifact, expirationTime);
           }
         }
       }
@@ -260,20 +259,20 @@ public class RemoteLeaseExtension implements LeaseExtension {
       this.entry = entry;
     }
 
-    void extendOutputFile(Artifact artifact, long expireAtEpochMilli) {
+    void extendOutputFile(Artifact artifact, Instant expirationTime) {
       var metadata = entry.getOutputFile(artifact);
       if (metadata != null) {
-        metadata.extendExpireAtEpochMilli(expireAtEpochMilli);
+        metadata.setExpirationTime(expirationTime);
         dirty = true;
       }
     }
 
-    void extendOutputTreeFile(TreeFileArtifact treeFile, long expireAtEpochMilli) {
+    void extendOutputTreeFile(TreeFileArtifact treeFile, Instant expirationTime) {
       SerializableTreeArtifactValue treeMetadata = entry.getOutputTree(treeFile.getParent());
       if (treeMetadata != null) {
         var metadata = treeMetadata.childValues().get(treeFile.getTreeRelativePathString());
         if (metadata != null) {
-          metadata.extendExpireAtEpochMilli(expireAtEpochMilli);
+          metadata.setExpirationTime(expirationTime);
           dirty = true;
         }
       }

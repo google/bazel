@@ -137,7 +137,7 @@ cc_test(
       "-Iexternal/gtest/googletest",
     ],
     deps = [
-        "@googletest//:main",
+        "@googletest//:gtest_main",
         "//main:hello-greet",
     ],
 )

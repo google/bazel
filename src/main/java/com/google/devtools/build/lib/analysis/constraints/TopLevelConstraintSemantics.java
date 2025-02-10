@@ -146,7 +146,7 @@ public class TopLevelConstraintSemantics {
     String targetIncompatibleMessage =
         String.format(
             TARGET_INCOMPATIBLE_ERROR_TEMPLATE,
-            configuredTarget.getLabel(),
+            configuredTarget.getOriginalLabel(),
             // We need access to the provider so we pass in the underlying target here that is
             // responsible for the incompatibility.
             reportOnIncompatibility(underlyingTarget));
@@ -247,7 +247,7 @@ public class TopLevelConstraintSemantics {
                 target,
                 eventHandler,
                 /* eagerlyThrowError= */ !keepGoing,
-                explicitTargetPatterns.contains(target.getLabel()),
+                explicitTargetPatterns.contains(target.getOriginalLabel()),
                 skipIncompatibleExplicitTargets);
         if (PlatformCompatibility.INCOMPATIBLE_EXPLICIT.equals(platformCompatibility)) {
           incompatibleButRequestedTargets.add(target);

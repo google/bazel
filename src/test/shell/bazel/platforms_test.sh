@@ -48,40 +48,6 @@ function test_platforms_repository_builds_itself() {
       || fail "Build failed unexpectedly"
 }
 
-function test_platforms_can_be_overridden() {
-  # We test that a custom repository can override @platforms in their
-  # WORKSPACE file.
-  mkdir -p platforms_can_be_overridden || fail "couldn't create directory"
-  touch platforms_can_be_overridden/BUILD || \ fail "couldn't touch BUILD file"
-  cat > platforms_can_be_overridden/WORKSPACE <<EOF
-local_repository(
-  name = 'platforms',
-  path = '../override',
-)
-EOF
-
-  # Define the custom platforms repository. It needs all the contents of the
-  # regular version, plus our additions.
-  mkdir -p override || fail "couldn't create override directory"
-  touch override/WORKSPACE || fail "couldn't touch override/WORKSPACE"
-
-  # Copy the existing platforms repo to our test dir.
-  bazel build --noenable_bzlmod --enable_workspace @platforms//...
-  cp -r `bazel info output_base`/external/platforms/* override
-
-  # Add a custom target
-  cat >> override/BUILD <<EOF
-# Have to use a rule that doesn't require a target platform, or else there will
-# be a cycle.
-toolchain_type(name = 'yolo')
-EOF
-
-  cd platforms_can_be_overridden || fail "couldn't cd into workspace"
-  # platforms is one of the WELL_KNOWN_MODULES, so it cannot be overridden by a workspace repository.
-  bazel build --noenable_bzlmod --enable_workspace @platforms//:yolo &> $TEST_log || \
-    fail "Bazel failed to build @platforms"
-}
-
 function test_platform_accessor() {
   add_platforms "MODULE.bazel"
   cat > rules.bzl <<'EOF'

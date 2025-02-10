@@ -13,20 +13,28 @@
 // limitations under the License.
 package com.google.devtools.build.lib.rules.cpp;
 
-import static com.google.common.collect.ImmutableMap.toImmutableMap;
-
-import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.ImmutableList;
 import com.google.devtools.build.lib.actions.Artifact;
+import com.google.devtools.build.lib.collect.compacthashmap.CompactHashMap;
 import com.google.devtools.build.lib.collect.nestedset.NestedSet;
 import com.google.devtools.build.lib.util.Fingerprint;
 import com.google.devtools.build.lib.vfs.PathFragment;
+import java.lang.ref.WeakReference;
+import java.util.Map;
 import javax.annotation.Nullable;
 
-/** Wrapper around a map of bitcode files for purposes of caching its fingerprint. */
+/**
+ * Wrapper around a map of bitcode files for purposes of caching its fingerprint.
+ *
+ * <p>Each instance is potentially shared by many {@link LtoBackendAction} instances.
+ */
 final class BitcodeFiles {
 
   private final NestedSet<Artifact> files;
   @Nullable private volatile byte[] fingerprint = null;
+
+  private volatile WeakReference<Map<PathFragment, Artifact>> filesArtifactPathMapReference =
+      new WeakReference<>(null);
 
   BitcodeFiles(NestedSet<Artifact> files) {
     this.files = files;
@@ -37,9 +45,33 @@ final class BitcodeFiles {
   }
 
   /** Helper function to get a map from path to artifact */
-  ImmutableMap<PathFragment, Artifact> getFilesArtifactPathMap() {
-    return getFiles().toList().stream()
-        .collect(toImmutableMap(Artifact::getExecPath, artifact -> artifact));
+  Map<PathFragment, Artifact> getFilesArtifactPathMap() {
+    // This method is called once per LtoBackendAction instance that shares this BitcodeFiles
+    // instance. Therefore we weakly cache the result.
+    //
+    // It's a garbage hotspot, so we deliberately use a presized CompactHashMap instead of
+    // streams and ImmutableMap. In a build with many LtoBackendAction instances, this approach
+    // reduced garbage allocated by this method by ~65%. The approach of caching the result further
+    // reduced garbage up to a total reduction of >99%.
+
+    Map<PathFragment, Artifact> result = filesArtifactPathMapReference.get();
+    if (result != null) {
+      return result;
+    }
+
+    synchronized (this) {
+      result = filesArtifactPathMapReference.get();
+      if (result != null) {
+        return result;
+      }
+      ImmutableList<Artifact> filesList = getFiles().toList();
+      result = CompactHashMap.createWithExpectedSize(filesList.size());
+      for (Artifact file : filesList) {
+        result.put(file.getExecPath(), file);
+      }
+      filesArtifactPathMapReference = new WeakReference<>(result);
+      return result;
+    }
   }
 
   void addToFingerprint(Fingerprint fp) {

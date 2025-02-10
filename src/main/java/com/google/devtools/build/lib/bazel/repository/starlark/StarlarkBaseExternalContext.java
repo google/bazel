@@ -38,6 +38,7 @@ import com.google.devtools.build.lib.bazel.repository.downloader.DownloadManager
 import com.google.devtools.build.lib.bazel.repository.downloader.HttpUtils;
 import com.google.devtools.build.lib.cmdline.Label;
 import com.google.devtools.build.lib.cmdline.LabelConstants;
+import com.google.devtools.build.lib.cmdline.LabelSyntaxException;
 import com.google.devtools.build.lib.cmdline.RepositoryName;
 import com.google.devtools.build.lib.events.Event;
 import com.google.devtools.build.lib.events.ExtendedEventHandler.FetchProgress;
@@ -1448,10 +1449,13 @@ the same path on case-insensitive filesystems.
       name = "path",
       doc =
           """
-          Returns a path from a string, label or path. If the path is relative, it will resolve \
-          relative to the repository directory. If the path is a label, it will resolve to \
-          the path of the corresponding file. Note that remote repositories are executed \
-          during the analysis phase and thus cannot depends on a target result (the \
+          Returns a path from a string, label, or path. If this context is a \
+          <code>repository_ctx</code>, a relative path will resolve relative to the \
+          repository directory. If it is a <code>module_ctx</code>, a relative path will \
+          resolve relative to a temporary working directory for this module extension. \
+          If the path is a label, it will resolve to \
+          the path of the corresponding file. Note that remote repositories and module extensions \
+          are executed during the analysis phase and thus cannot depends on a target result (the \
           label should point to a non-generated file). If path is a path, it will return \
           that path as is.
           """,
@@ -1554,11 +1558,16 @@ the same path on case-insensitive filesystems.
       PathFragment relPath = path.relativeTo(outputBaseExternal);
       if (!relPath.isEmpty()) {
         // The file is under a repo root.
-        String repoName = relPath.getSegment(0);
+        RepositoryName repoName;
+        try {
+          repoName = RepositoryName.create(relPath.getSegment(0));
+        } catch (LabelSyntaxException e) {
+          throw Starlark.errorf(
+              "attempted to watch path under external repository directory: %s", e.getMessage());
+        }
         PathFragment repoRelPath =
-            relPath.relativeTo(PathFragment.createAlreadyNormalized(repoName));
-        return RepoCacheFriendlyPath.createInsideWorkspace(
-            RepositoryName.createUnvalidated(repoName), repoRelPath);
+            relPath.relativeTo(PathFragment.createAlreadyNormalized(repoName.getName()));
+        return RepoCacheFriendlyPath.createInsideWorkspace(repoName, repoRelPath);
       }
     }
     // The file is just under a random absolute path.

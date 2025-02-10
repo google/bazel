@@ -56,6 +56,7 @@ public final class SymlinkTreeHelper {
 
   private final Path execRoot;
   private final Path inputManifest;
+  private final Path outputManifest;
   private final Path symlinkTreeRoot;
   private final boolean filesetTree;
   private final String workspaceName;
@@ -63,20 +64,23 @@ public final class SymlinkTreeHelper {
   /**
    * Creates SymlinkTreeHelper instance. Can be used independently of SymlinkTreeAction.
    *
-   * @param inputManifest exec path to the input runfiles manifest
-   * @param symlinkTreeRoot the root of the symlink tree to be created
-   * @param filesetTree true if this is fileset symlink tree, false if this is a runfiles symlink
+   * @param inputManifest path to the input runfiles manifest
+   * @param outputManifest path to the output runfiles manifest
+   * @param symlinkTreeRoot path to the root of the symlink tree
+   * @param filesetTree true if this is a fileset symlink tree, false if this is a runfiles symlink
    *     tree.
    * @param workspaceName the name of the workspace, used to create the workspace subdirectory
    */
   public SymlinkTreeHelper(
       Path execRoot,
       Path inputManifest,
+      Path outputManifest,
       Path symlinkTreeRoot,
       boolean filesetTree,
       String workspaceName) {
     this.execRoot = ensureNonSnapshotting(execRoot);
     this.inputManifest = ensureNonSnapshotting(inputManifest);
+    this.outputManifest = ensureNonSnapshotting(outputManifest);
     this.symlinkTreeRoot = ensureNonSnapshotting(symlinkTreeRoot);
     this.filesetTree = filesetTree;
     this.workspaceName = workspaceName;
@@ -90,10 +94,6 @@ public final class SymlinkTreeHelper {
       return snapshottingFs.getUnderlyingNonSnapshottingFileSystem().getPath(path.asFragment());
     }
     return path;
-  }
-
-  private Path getOutputManifest() {
-    return symlinkTreeRoot.getChild("MANIFEST");
   }
 
   interface TargetPathFunction<T> {
@@ -190,7 +190,6 @@ public final class SymlinkTreeHelper {
   /** Links the output manifest to the input manifest. */
   private void linkManifest() throws ExecException {
     // Pretend we created the runfiles tree by symlinking the output manifest to the input manifest.
-    Path outputManifest = getOutputManifest();
     try {
       symlinkTreeRoot.createDirectoryAndParents();
       outputManifest.delete();

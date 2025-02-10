@@ -302,7 +302,7 @@ public class TestRunnerAction extends AbstractAction
             // Note that splitLogsPath points to a file inside the splitLogsDir so it's not
             // necessary to delete it explicitly.
             splitLogsDir,
-            getUndeclaredOutputsDir(),
+            undeclaredOutputsDir.getExecPath(),
             undeclaredOutputsAnnotationsDir,
             baseDir.getRelative("test_attempts"));
   }
@@ -712,10 +712,10 @@ public class TestRunnerAction extends AbstractAction
     }
   }
 
-  public void setupEnvVariables(Map<String, String> env, Duration timeout) {
+  public void setupEnvVariables(Map<String, String> env) {
     env.put("TEST_TARGET", Label.print(getOwner().getLabel()));
     env.put("TEST_SIZE", getTestProperties().getSize().toString());
-    env.put("TEST_TIMEOUT", Long.toString(timeout.toSeconds()));
+    env.put("TEST_TIMEOUT", Long.toString(getTimeout().toSeconds()));
     env.put("TEST_WORKSPACE", getRunfilesPrefix());
     env.put(
         "TEST_BINARY",
@@ -756,7 +756,7 @@ public class TestRunnerAction extends AbstractAction
       env.put("TEST_UNDECLARED_OUTPUTS_ZIP", getUndeclaredOutputsZipPath().getPathString());
     }
 
-    env.put("TEST_UNDECLARED_OUTPUTS_DIR", getUndeclaredOutputsDir().getPathString());
+    env.put("TEST_UNDECLARED_OUTPUTS_DIR", undeclaredOutputsDir.getExecPathString());
     env.put("TEST_UNDECLARED_OUTPUTS_MANIFEST", getUndeclaredOutputsManifestPath().getPathString());
     env.put(
         "TEST_UNDECLARED_OUTPUTS_ANNOTATIONS",
@@ -823,6 +823,11 @@ public class TestRunnerAction extends AbstractAction
     }
   }
 
+  /** Returns the timeout for this test action, respecting the value of {@code --test_timeout}. */
+  public Duration getTimeout() {
+    return testConfiguration.getTestTimeout().get(testProperties.getTimeout());
+  }
+
   public Artifact getTestLog() {
     return testLog;
   }
@@ -845,6 +850,10 @@ public class TestRunnerAction extends AbstractAction
     return cacheStatus;
   }
 
+  public PathFragment getTestStderrPath() {
+    return testStderr;
+  }
+
   public PathFragment getTestWarningsPath() {
     return testWarningsPath;
   }
@@ -857,13 +866,13 @@ public class TestRunnerAction extends AbstractAction
     return splitLogsPath;
   }
 
-  public PathFragment getUndeclaredOutputsDir() {
-    return undeclaredOutputsDir.getExecPath();
+  public Artifact getUndeclaredOutputsDir() {
+    return undeclaredOutputsDir;
   }
 
   /** Returns path to the optional zip file of undeclared test outputs. */
   public PathFragment getUndeclaredOutputsZipPath() {
-    return getUndeclaredOutputsDir().getChild(UNDECLARED_OUTPUTS_ZIP_NAME);
+    return undeclaredOutputsDir.getExecPath().getChild(UNDECLARED_OUTPUTS_ZIP_NAME);
   }
 
   /** Returns path to the undeclared output manifest file. */

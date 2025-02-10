@@ -16,6 +16,7 @@ package com.google.devtools.build.lib.unsafe;
 import static com.google.devtools.build.lib.unsafe.UnsafeProvider.unsafe;
 
 import com.google.common.base.Ascii;
+
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
 import java.lang.reflect.Constructor;
@@ -61,6 +62,7 @@ public final class StringUnsafe {
     return INSTANCE;
   }
 
+  // TODO: b/386384684 - remove Unsafe usage
   private StringUnsafe() {
     Field valueField;
     Field coderField;
@@ -82,6 +84,7 @@ public final class StringUnsafe {
   }
 
   /** Returns the coder used for this string. See {@link #LATIN1} and {@link #UTF16}. */
+  // TODO: b/386384684 - remove Unsafe usage
   public byte getCoder(String obj) {
     return unsafe().getByte(obj, coderOffset);
   }
@@ -92,6 +95,7 @@ public final class StringUnsafe {
    * <p>Use of this is unsafe. The representation may change from one JDK version to the next.
    * Ensure you do not mutate this byte array in any way.
    */
+  // TODO: b/386384684 - remove Unsafe usage
   public byte[] getByteArray(String obj) {
     return (byte[]) unsafe().getObject(obj, valueOffset);
   }

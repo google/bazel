@@ -22,6 +22,7 @@ USE_ARCHIVER = "archiver"
 LINK_TARGET_TYPE = struct(
     # A normal static archive.
     STATIC_LIBRARY = struct(
+        _name = "STATIC_LIBRARY",
         linker_or_archiver = USE_ARCHIVER,
         action_name = ACTION_NAMES.cpp_link_static_library,
         is_pic = False,
@@ -31,6 +32,7 @@ LINK_TARGET_TYPE = struct(
 
     # An objc fully linked static archive.
     OBJC_FULLY_LINKED_ARCHIVE = struct(
+        _name = "OBJC_FULLY_LINKED_ARCHIVE",
         linker_or_archiver = USE_ARCHIVER,
         action_name = ACTION_NAMES.objc_fully_link,
         is_pic = False,
@@ -40,6 +42,7 @@ LINK_TARGET_TYPE = struct(
 
     # An objc executable.
     OBJC_EXECUTABLE = struct(
+        _name = "OBJC_EXECUTABLE",
         linker_or_archiver = USE_LINKER,
         action_name = ACTION_NAMES.objc_executable,
         is_pic = False,
@@ -49,6 +52,7 @@ LINK_TARGET_TYPE = struct(
 
     #A  static archive with .pic.o object files (compiled with -fPIC).
     PIC_STATIC_LIBRARY = struct(
+        _name = "PIC_STATIC_LIBRARY",
         linker_or_archiver = USE_ARCHIVER,
         action_name = ACTION_NAMES.cpp_link_static_library,
         is_pic = True,
@@ -58,6 +62,7 @@ LINK_TARGET_TYPE = struct(
 
     #  An interface dynamic library.
     INTERFACE_DYNAMIC_LIBRARY = struct(
+        _name = "INTERFACE_DYNAMIC_LIBRARY",
         linker_or_archiver = USE_LINKER,
         action_name = ACTION_NAMES.cpp_link_dynamic_library,
         is_pic = False,  # Actually PIC but it's not indicated in the file name
@@ -67,6 +72,7 @@ LINK_TARGET_TYPE = struct(
 
     # A dynamic library built from cc_library srcs.
     NODEPS_DYNAMIC_LIBRARY = struct(
+        _name = "NODEPS_DYNAMIC_LIBRARY",
         linker_or_archiver = USE_LINKER,
         action_name = ACTION_NAMES.cpp_link_nodeps_dynamic_library,
         is_pic = False,  #  Actually PIC but it's not indicated in the file name
@@ -76,6 +82,7 @@ LINK_TARGET_TYPE = struct(
 
     # A transitive dynamic library used for distribution.
     DYNAMIC_LIBRARY = struct(
+        _name = "DYNAMIC_LIBRARY",
         linker_or_archiver = USE_LINKER,
         action_name = ACTION_NAMES.cpp_link_dynamic_library,
         is_pic = False,  #  Actually PIC but it's not indicated in the file name
@@ -85,6 +92,7 @@ LINK_TARGET_TYPE = struct(
 
     # A static archive without removal of unused object files.
     ALWAYS_LINK_STATIC_LIBRARY = struct(
+        _name = "ALWAYS_LINK_STATIC_LIBRARY",
         linker_or_archiver = USE_ARCHIVER,
         action_name = ACTION_NAMES.cpp_link_static_library,
         is_pic = False,
@@ -94,6 +102,7 @@ LINK_TARGET_TYPE = struct(
 
     # A PIC static archive without removal of unused object files.
     ALWAYS_LINK_PIC_STATIC_LIBRARY = struct(
+        _name = "ALWAYS_LINK_PIC_STATIC_LIBRARY",
         linker_or_archiver = USE_ARCHIVER,
         action_name = ACTION_NAMES.cpp_link_static_library,
         is_pic = True,
@@ -103,6 +112,7 @@ LINK_TARGET_TYPE = struct(
 
     # An executable binary.
     EXECUTABLE = struct(
+        _name = "EXECUTABLE",
         linker_or_archiver = USE_LINKER,
         action_name = ACTION_NAMES.cpp_link_executable,
         is_pic = False,  #  is_pic is not indicate in the file name

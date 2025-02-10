@@ -1,4 +1,3 @@
-#include "src/main/cpp/util/file_platform.h"
 // Copyright 2016 The Bazel Authors. All rights reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -20,13 +19,13 @@
 #include <windows.h>
 
 #include <memory>
-#include <sstream>
 #include <string>
 #include <vector>
 
 #include "src/main/cpp/util/errors.h"
 #include "src/main/cpp/util/exit_code.h"
 #include "src/main/cpp/util/file.h"
+#include "src/main/cpp/util/file_platform.h"
 #include "src/main/cpp/util/logging.h"
 #include "src/main/cpp/util/path_platform.h"
 #include "src/main/cpp/util/strings.h"
@@ -38,8 +37,6 @@ namespace blaze_util {
 using bazel::windows::AutoHandle;
 using bazel::windows::GetLongPath;
 using bazel::windows::HasUncPrefix;
-using std::basic_string;
-using std::pair;
 using std::string;
 using std::unique_ptr;
 using std::vector;
@@ -498,9 +495,7 @@ bool CanReadFile(const std::string& path) {
   return CanReadFile(Path(path));
 }
 
-bool CanReadFile(const Path& path) {
-  return CanReadFileW(path.AsNativePath());
-}
+bool CanReadFile(const Path& path) { return CanReadFileW(path.AsNativePath()); }
 
 bool CanExecuteFile(const std::string& path) {
   return CanExecuteFile(Path(path));
@@ -521,46 +516,18 @@ bool CanAccessDirectory(const std::string& path) {
 }
 
 bool CanAccessDirectory(const Path& path) {
-  DWORD attr = ::GetFileAttributesW(path.AsNativePath().c_str());
-  if ((attr == INVALID_FILE_ATTRIBUTES) || !(attr & FILE_ATTRIBUTE_DIRECTORY)) {
-    // The path doesn't exist or is not a directory.
+  AutoHandle h(CreateFileW(path.AsNativePath().c_str(),
+                           GENERIC_READ | GENERIC_WRITE, kAllShare, nullptr,
+                           OPEN_EXISTING, FILE_FLAG_BACKUP_SEMANTICS, nullptr));
+  if (!h.IsValid()) {
     return false;
   }
-
-  // The only easy way to know if a directory is writable is by attempting to
-  // open a file for writing in it.
-  // File name with Thread ID avoids races among concurrent Bazel processes.
-  std::string dummy_name = "bazel_directory_access_test_";
-  dummy_name += std::to_string(::GetCurrentThreadId());
-
-  Path dummy_path = path.GetRelative(dummy_name);
-
-  // Attempt to open the dummy file for read/write access.
-  // If the file happens to exist, no big deal, we won't overwrite it thanks to
-  // OPEN_ALWAYS.
-  HANDLE handle = ::CreateFileW(
-      /* lpFileName */ dummy_path.AsNativePath().c_str(),
-      /* dwDesiredAccess */ GENERIC_WRITE | GENERIC_READ,
-      /* dwShareMode */ kAllShare,
-      /* lpSecurityAttributes */ nullptr,
-      /* dwCreationDisposition */ OPEN_ALWAYS,
-      /* dwFlagsAndAttributes */ FILE_ATTRIBUTE_NORMAL,
-      /* hTemplateFile */ nullptr);
-  DWORD err = GetLastError();
-  if (handle == INVALID_HANDLE_VALUE) {
-    // We couldn't open the file, and not because the dummy file already exists.
-    // Consequently it is because `path` doesn't exist.
+  BY_HANDLE_FILE_INFORMATION info;
+  if (!GetFileInformationByHandle(h, &info)) {
     return false;
   }
-  // The fact that we could open the file, regardless of it existing beforehand
-  // or not, means the directory also exists and we can read/write in it.
-  CloseHandle(handle);
-  if (err != ERROR_ALREADY_EXISTS) {
-    // The file didn't exist before, but due to OPEN_ALWAYS we created it just
-    // now, so do delete it.
-    ::DeleteFileW(dummy_path.AsNativePath().c_str());
-  }  // Otherwise the file existed before, leave it alone.
-  return true;
+  return info.dwFileAttributes != INVALID_FILE_ATTRIBUTES &&
+         (info.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY);
 }
 
 bool IsDirectoryW(const wstring& path) {
@@ -569,9 +536,14 @@ bool IsDirectoryW(const wstring& path) {
   // Follow reparse points in order to return false for dangling ones.
   AutoHandle h(CreateFileW(path.c_str(), 0, kAllShare, nullptr, OPEN_EXISTING,
                            FILE_FLAG_BACKUP_SEMANTICS, nullptr));
+  if (!h.IsValid()) {
+    return false;
+  }
   BY_HANDLE_FILE_INFORMATION info;
-  return h.IsValid() && GetFileInformationByHandle(h, &info) &&
-         info.dwFileAttributes != INVALID_FILE_ATTRIBUTES &&
+  if (!GetFileInformationByHandle(h, &info)) {
+    return false;
+  }
+  return info.dwFileAttributes != INVALID_FILE_ATTRIBUTES &&
          (info.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY);
 }
 

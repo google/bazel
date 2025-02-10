@@ -1612,4 +1612,30 @@ EOF
   assert_contains "$pkg/single_file" output
 }
 
+# Regression test for b/381071645.
+function test_invalid_select_no_crash() {
+  local -r pkg=$FUNCNAME
+  mkdir -p $pkg
+  cat > $pkg/BUILD <<'EOF'
+platform(
+    name = "platform",
+    constraint_values = [],
+)
+
+filegroup(
+    name = "demo",
+    srcs = select({
+        # :platform is not valid as a select key.
+        ":platform": [],
+    }),
+)
+EOF
+
+  bazel cquery \
+    --experimental_use_validation_aspect \
+    "//$pkg:demo" &>"$TEST_log" && fail "Expected failure"
+  expect_not_log "crashed due to an internal error"
+  expect_log "//${pkg}:platform is not a valid select.. condition"
+}
+
 run_suite "${PRODUCT_NAME} configured query tests"

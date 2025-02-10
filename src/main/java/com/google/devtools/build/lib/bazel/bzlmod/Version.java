@@ -91,14 +91,18 @@ public record Version(
    * compared differently based on whether it's digits-only or not.
    */
   @AutoCodec
-  record Identifier(boolean isDigitsOnly, int asNumber, String asString)
+  record Identifier(boolean isDigitsOnly, long asNumber, String asString)
       implements Comparable<Identifier> {
     static Identifier from(String string) throws ParseException {
       if (Strings.isNullOrEmpty(string)) {
         throw new ParseException("identifier is empty");
       }
       if (string.chars().allMatch(Character::isDigit)) {
-        return new Identifier(true, Integer.parseInt(string), string);
+        try {
+          return new Identifier(true, Long.parseUnsignedLong(string), string);
+        } catch (NumberFormatException e) {
+          throw new ParseException("numeric version segment is too large: " + string, e);
+        }
       } else {
         return new Identifier(false, 0, string);
       }
@@ -106,7 +110,7 @@ public record Version(
 
     private static final Comparator<Identifier> COMPARATOR =
         comparing(Identifier::isDigitsOnly, trueFirst())
-            .thenComparingInt(Identifier::asNumber)
+            .thenComparing((a, b) -> Long.compareUnsigned(a.asNumber, b.asNumber))
             .thenComparing(Identifier::asString);
 
     @Override

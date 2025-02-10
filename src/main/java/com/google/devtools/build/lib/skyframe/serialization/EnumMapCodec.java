@@ -19,6 +19,7 @@ import static com.google.devtools.build.lib.unsafe.UnsafeProvider.unsafe;
 import static sun.misc.Unsafe.ARRAY_OBJECT_BASE_OFFSET;
 import static sun.misc.Unsafe.ARRAY_OBJECT_INDEX_SCALE;
 
+
 import com.google.protobuf.CodedInputStream;
 import com.google.protobuf.CodedOutputStream;
 import java.io.IOException;
@@ -31,6 +32,7 @@ import java.util.concurrent.atomic.AtomicInteger;
  * there are no "benign" subclasses of {@link EnumMap} in the Bazel codebase that can be used where
  * an {@link EnumMap} was expected.
  */
+// TODO: b/386384684 - remove Unsafe usage
 @SuppressWarnings({"rawtypes", "unchecked"})
 class EnumMapCodec extends AsyncObjectCodec<EnumMap> {
   /** Used to retrieve the hidden {@link EnumMap#keyType} field. */
@@ -49,6 +51,7 @@ class EnumMapCodec extends AsyncObjectCodec<EnumMap> {
     return EnumMap.class;
   }
 
+  // TODO: b/386384684 - remove Unsafe usage
   @Override
   public void serialize(SerializationContext context, EnumMap obj, CodedOutputStream codedOut)
       throws SerializationException, IOException {
@@ -71,6 +74,7 @@ class EnumMapCodec extends AsyncObjectCodec<EnumMap> {
     }
   }
 
+  // TODO: b/386384684 - remove Unsafe usage
   @Override
   public EnumMap deserializeAsync(AsyncDeserializationContext context, CodedInputStream codedIn)
       throws SerializationException, IOException {

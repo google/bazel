@@ -3,6 +3,8 @@ Book: /_book.yaml
 
 # Automatic Execution Groups (AEGs)
 
+{% include "_buttons.html" %}
+
 Automatic execution groups select an [execution platform][exec_platform]
 for each toolchain type. In other words, one target can have multiple
 execution platforms without defining execution groups.

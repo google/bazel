@@ -14,7 +14,6 @@
 package com.google.devtools.build.lib.rules.java;
 
 import static com.google.devtools.build.lib.skyframe.BzlLoadValue.keyForBuild;
-import static com.google.devtools.build.lib.skyframe.BzlLoadValue.keyForBuiltins;
 import static com.google.devtools.build.lib.unsafe.UnsafeProvider.unsafe;
 
 import com.google.common.annotations.VisibleForTesting;
@@ -49,7 +48,6 @@ import com.google.devtools.build.lib.skyframe.serialization.autocodec.Serializat
 import com.google.devtools.build.lib.starlarkbuildapi.cpp.CcInfoApi;
 import com.google.devtools.build.lib.starlarkbuildapi.java.JavaInfoApi;
 import com.google.devtools.build.lib.starlarkbuildapi.java.JavaModuleFlagsProviderApi;
-import com.google.errorprone.annotations.CanIgnoreReturnValue;
 import com.google.errorprone.annotations.Keep;
 import com.google.protobuf.CodedInputStream;
 import com.google.protobuf.CodedOutputStream;
@@ -69,12 +67,9 @@ import net.starlark.java.syntax.Location;
 @Immutable
 public sealed class JavaInfo extends NativeInfo
     implements JavaInfoApi<Artifact, JavaOutput, JavaPluginData>
-    permits JavaInfo.BuiltinsJavaInfo, JavaInfo.RulesJavaJavaInfo, JavaInfo.WorkspaceJavaInfo {
+    permits JavaInfo.RulesJavaJavaInfo, JavaInfo.WorkspaceJavaInfo {
 
   public static final String STARLARK_NAME = "JavaInfo";
-
-  @SerializationConstant
-  public static final JavaInfoProvider LEGACY_BUILTINS_PROVIDER = new BuiltinsJavaInfoProvider();
 
   // Not serialized
   public static final JavaInfoProvider RULES_JAVA_PROVIDER = new RulesJavaJavaInfoProvider();
@@ -82,15 +77,6 @@ public sealed class JavaInfo extends NativeInfo
   public static final JavaInfoProvider WORKSPACE_PROVIDER = new WorkspaceJavaInfoProvider();
 
   @SerializationConstant public static final JavaInfoProvider PROVIDER = new JavaInfoProvider();
-
-  // Ideally we would check if the target has a JavaInfo, but this check predates the Starlark
-  // sandwich and consumers depend on this returning `false` for java_binary/java_test targets. When
-  // these are in Starlark, this check will need to exclude the latter targets by checking for
-  // `JavaInfo._is_binary`
-  public static boolean isJavaLibraryesqueTarget(TransitiveInfoCollection target)
-      throws RuleErrorException {
-    return JavaInfo.getCompilationArgsProvider(target).isPresent();
-  }
 
   public static NestedSet<Artifact> transitiveRuntimeJars(TransitiveInfoCollection target)
       throws RuleErrorException {
@@ -124,19 +110,6 @@ public sealed class JavaInfo extends NativeInfo
     return CcInfo.EMPTY;
   }
 
-  public static ImmutableList<CcInfo> ccInfos(Iterable<? extends TransitiveInfoCollection> targets)
-      throws RuleErrorException {
-    ImmutableList.Builder<CcInfo> builder = ImmutableList.builder();
-    for (TransitiveInfoCollection target : targets) {
-      builder.add(JavaInfo.ccInfo(target));
-    }
-    return builder.build();
-  }
-
-  public Optional<JavaCompilationArgsProvider> compilationArgsProvider() {
-    return Optional.ofNullable(providerJavaCompilationArgs);
-  }
-
   /** Marker interface for encapuslated providers */
   public interface JavaInfoInternalProvider {}
 
@@ -145,9 +118,20 @@ public sealed class JavaInfo extends NativeInfo
     return object != Starlark.NONE ? type.cast(object) : null;
   }
 
-  static final JavaInfo EMPTY_JAVA_INFO_FOR_TESTING = Builder.create().build();
-  static final BuiltinsJavaInfo EMPTY_BUILTINS_JAVA_INFO_FOR_TESTING =
-      (BuiltinsJavaInfo) new Builder().setProvider(LEGACY_BUILTINS_PROVIDER).build();
+  static final JavaInfo EMPTY_JAVA_INFO_FOR_TESTING =
+      new JavaInfo(
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          ImmutableList.of(),
+          false,
+          ImmutableList.of(),
+          Location.BUILTIN);
 
   private final JavaCompilationArgsProvider providerJavaCompilationArgs;
   private final JavaSourceJarsProvider providerJavaSourceJars;
@@ -219,9 +203,6 @@ public sealed class JavaInfo extends NativeInfo
   public static JavaInfo getJavaInfo(TransitiveInfoCollection target) throws RuleErrorException {
     JavaInfo info = target.get(PROVIDER);
     if (info == null) {
-      info = target.get(LEGACY_BUILTINS_PROVIDER);
-    }
-    if (info == null) {
       info = target.get(RULES_JAVA_PROVIDER);
     }
     if (info == null) {
@@ -230,11 +211,10 @@ public sealed class JavaInfo extends NativeInfo
     return info;
   }
 
+  @VisibleForTesting
   public static JavaInfo wrap(Info info) throws RuleErrorException {
     Provider.Key key = info.getProvider().getKey();
-    if (key.equals(LEGACY_BUILTINS_PROVIDER.getKey())) {
-      return LEGACY_BUILTINS_PROVIDER.wrap(info);
-    } else if (key.equals(RULES_JAVA_PROVIDER.getKey())) {
+    if (key.equals(RULES_JAVA_PROVIDER.getKey())) {
       return RULES_JAVA_PROVIDER.wrap(info);
     } else if (key.equals(WORKSPACE_PROVIDER.getKey())) {
       return WORKSPACE_PROVIDER.wrap(info);
@@ -516,48 +496,6 @@ public sealed class JavaInfo extends NativeInfo
         providerJavaPlugin);
   }
 
-  @VisibleForTesting // package-private for testing.
-  static final class BuiltinsJavaInfo extends JavaInfo {
-
-    private BuiltinsJavaInfo(StructImpl javaInfo)
-        throws EvalException, TypeException, RuleErrorException {
-      super(javaInfo);
-    }
-
-    private BuiltinsJavaInfo(
-        JavaCcInfoProvider javaCcInfoProvider,
-        JavaCompilationArgsProvider javaCompilationArgsProvider,
-        JavaCompilationInfoProvider javaCompilationInfoProvider,
-        JavaGenJarsProvider javaGenJarsProvider,
-        JavaModuleFlagsProvider javaModuleFlagsProvider,
-        JavaPluginInfo javaPluginInfo,
-        JavaRuleOutputJarsProvider javaRuleOutputJarsProvider,
-        JavaSourceJarsProvider javaSourceJarsProvider,
-        ImmutableList<Artifact> directRuntimeJars,
-        boolean neverlink,
-        ImmutableList<String> javaConstraints,
-        Location creationLocation) {
-      super(
-          javaCcInfoProvider,
-          javaCompilationArgsProvider,
-          javaCompilationInfoProvider,
-          javaGenJarsProvider,
-          javaModuleFlagsProvider,
-          javaPluginInfo,
-          javaRuleOutputJarsProvider,
-          javaSourceJarsProvider,
-          directRuntimeJars,
-          neverlink,
-          javaConstraints,
-          creationLocation);
-    }
-
-    @Override
-    public JavaInfoProvider getProvider() {
-      return LEGACY_BUILTINS_PROVIDER;
-    }
-  }
-
   static final class RulesJavaJavaInfo extends JavaInfo {
 
     private RulesJavaJavaInfo(StructImpl javaInfo)
@@ -572,7 +510,6 @@ public sealed class JavaInfo extends NativeInfo
   }
 
   static final class WorkspaceJavaInfo extends JavaInfo {
-
     private WorkspaceJavaInfo(StructImpl javaInfo)
         throws EvalException, TypeException, RuleErrorException {
       super(javaInfo);
@@ -581,20 +518,6 @@ public sealed class JavaInfo extends NativeInfo
     @Override
     public JavaInfoProvider getProvider() {
       return WORKSPACE_PROVIDER;
-    }
-  }
-
-  /** Legacy Provider class for {@link JavaInfo} objects. */
-  public static final class BuiltinsJavaInfoProvider extends JavaInfoProvider {
-    private BuiltinsJavaInfoProvider() {
-      super(
-          keyForBuiltins(Label.parseCanonicalUnchecked("@_builtins//:common/java/java_info.bzl")));
-    }
-
-    @Override
-    protected JavaInfo makeNewInstance(StructImpl info)
-        throws RuleErrorException, TypeException, EvalException {
-      return new BuiltinsJavaInfo(info);
     }
   }
 
@@ -626,8 +549,7 @@ public sealed class JavaInfo extends NativeInfo
 
   /** Provider class for {@link JavaInfo} objects. */
   public static sealed class JavaInfoProvider extends StarlarkProviderWrapper<JavaInfo>
-      implements Provider
-      permits BuiltinsJavaInfoProvider, RulesJavaJavaInfoProvider, WorkspaceJavaInfoProvider {
+      implements Provider permits RulesJavaJavaInfoProvider, WorkspaceJavaInfoProvider {
     private JavaInfoProvider() {
       this(
           keyForBuild(
@@ -671,114 +593,6 @@ public sealed class JavaInfo extends NativeInfo
     @Override
     public Location getLocation() {
       return Location.BUILTIN;
-    }
-  }
-
-  /** A Builder for {@link JavaInfo}. */
-  public static class Builder {
-
-    private JavaCompilationArgsProvider providerJavaCompilationArgs;
-    private JavaCompilationInfoProvider providerJavaCompilationInfo;
-    private JavaRuleOutputJarsProvider providerJavaRuleOutputJars;
-    private JavaSourceJarsProvider providerJavaSourceJars;
-    private ImmutableList<Artifact> runtimeJars;
-    private ImmutableList<String> javaConstraints;
-    private boolean neverlink;
-    private Location creationLocation = Location.BUILTIN;
-    private Provider provider = PROVIDER;
-
-    private Builder() {}
-
-    public static Builder create() {
-      return new Builder()
-          .setRuntimeJars(ImmutableList.of())
-          .setJavaConstraints(ImmutableList.of());
-    }
-
-    @CanIgnoreReturnValue
-    public Builder setRuntimeJars(ImmutableList<Artifact> runtimeJars) {
-      this.runtimeJars = runtimeJars;
-      return this;
-    }
-
-    @CanIgnoreReturnValue
-    public Builder setNeverlink(boolean neverlink) {
-      this.neverlink = neverlink;
-      return this;
-    }
-
-    @CanIgnoreReturnValue
-    public Builder setJavaConstraints(ImmutableList<String> javaConstraints) {
-      this.javaConstraints = javaConstraints;
-      return this;
-    }
-
-    @CanIgnoreReturnValue
-    public Builder setLocation(Location location) {
-      this.creationLocation = location;
-      return this;
-    }
-
-    @CanIgnoreReturnValue
-    public Builder javaCompilationArgs(JavaCompilationArgsProvider provider) {
-      this.providerJavaCompilationArgs = provider;
-      return this;
-    }
-
-    @CanIgnoreReturnValue
-    public Builder javaCompilationInfo(JavaCompilationInfoProvider provider) {
-      this.providerJavaCompilationInfo = provider;
-      return this;
-    }
-
-    @CanIgnoreReturnValue
-    public Builder javaRuleOutputs(JavaRuleOutputJarsProvider provider) {
-      this.providerJavaRuleOutputJars = provider;
-      return this;
-    }
-
-    @CanIgnoreReturnValue
-    public Builder javaSourceJars(JavaSourceJarsProvider provider) {
-      this.providerJavaSourceJars = provider;
-      return this;
-    }
-
-    @CanIgnoreReturnValue
-    public Builder setProvider(Provider provider) {
-      this.provider = provider;
-      return this;
-    }
-
-    public JavaInfo build() {
-      if (provider.getKey().equals(LEGACY_BUILTINS_PROVIDER.getKey())) {
-        return new BuiltinsJavaInfo(
-            /* javaCcInfoProvider= */ null,
-            providerJavaCompilationArgs,
-            providerJavaCompilationInfo,
-            /* javaGenJarsProvider= */ null,
-            /* javaModuleFlagsProvider= */ null,
-            /* javaPluginInfo= */ null,
-            providerJavaRuleOutputJars,
-            providerJavaSourceJars,
-            runtimeJars,
-            neverlink,
-            javaConstraints,
-            creationLocation);
-      } else {
-        return new JavaInfo(
-            /* javaCcInfoProvider= */ null,
-            providerJavaCompilationArgs,
-            providerJavaCompilationInfo,
-            /* javaGenJarsProvider= */ null,
-            /* javaModuleFlagsProvider= */ null,
-            /* javaPluginInfo= */ null,
-            providerJavaRuleOutputJars,
-            providerJavaSourceJars,
-            runtimeJars,
-            neverlink,
-            javaConstraints,
-            creationLocation);
-      }
     }
   }
 
@@ -835,14 +649,6 @@ public sealed class JavaInfo extends NativeInfo
     @Override
     public void serialize(SerializationContext context, JavaInfo obj, CodedOutputStream codedOut)
         throws SerializationException, IOException {
-      switch (obj.getProvider()) {
-        case BuiltinsJavaInfoProvider unused -> codedOut.writeBoolNoTag(true);
-        case RulesJavaJavaInfoProvider unused ->
-            throw new UnsupportedOperationException("not implemented");
-        case WorkspaceJavaInfoProvider unused ->
-            throw new UnsupportedOperationException("not implemented");
-        case JavaInfoProvider unused -> codedOut.writeBoolNoTag(false);
-      }
       for (FieldHandler handler : handlers) {
         handler.serialize(context, codedOut, obj);
       }
@@ -856,10 +662,7 @@ public sealed class JavaInfo extends NativeInfo
 
       JavaInfo obj;
       try {
-        obj =
-            codedIn.readBool()
-                ? (BuiltinsJavaInfo) unsafe().allocateInstance(BuiltinsJavaInfo.class)
-                : (JavaInfo) unsafe().allocateInstance(JavaInfo.class);
+        obj = (JavaInfo) unsafe().allocateInstance(JavaInfo.class);
       } catch (InstantiationException e) {
         throw new SerializationException("Could not instantiate JavaInfo with Unsafe", e);
       }

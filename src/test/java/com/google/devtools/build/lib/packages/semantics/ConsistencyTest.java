@@ -23,6 +23,7 @@ import com.google.devtools.build.lib.skyframe.serialization.testutils.RoundTripp
 import com.google.devtools.common.options.Options;
 import com.google.devtools.common.options.OptionsParser;
 import java.util.Arrays;
+import java.util.Locale;
 import java.util.Random;
 import net.starlark.java.eval.StarlarkSemantics;
 import org.junit.Test;
@@ -124,8 +125,6 @@ public class ConsistencyTest {
         "--experimental_bzl_visibility=" + rand.nextBoolean(),
         "--experimental_enable_android_migration_apis=" + rand.nextBoolean(),
         "--experimental_single_package_toolchain_binding=" + rand.nextBoolean(),
-        "--enable_bzlmod=" + rand.nextBoolean(),
-        "--enable_workspace=" + rand.nextBoolean(),
         "--experimental_isolated_extension_usages=" + rand.nextBoolean(),
         "--incompatible_no_implicit_watch_label=" + rand.nextBoolean(),
         "--experimental_google_legacy_api=" + rand.nextBoolean(),
@@ -133,7 +132,6 @@ public class ConsistencyTest {
         "--incompatible_allow_tags_propagation=" + rand.nextBoolean(), // flag, Java names differ
         "--experimental_cc_shared_library=" + rand.nextBoolean(),
         "--experimental_repo_remote_exec=" + rand.nextBoolean(),
-        "--experimental_action_resource_set=" + rand.nextBoolean(),
         "--experimental_dormant_deps=" + rand.nextBoolean(),
         "--incompatible_always_check_depset_elements=" + rand.nextBoolean(),
         "--incompatible_depset_for_libraries_to_link_getter=" + rand.nextBoolean(),
@@ -142,11 +140,15 @@ public class ConsistencyTest {
         "--incompatible_disallow_struct_provider_syntax=" + rand.nextBoolean(),
         "--incompatible_do_not_split_linking_cmdline=" + rand.nextBoolean(),
         "--incompatible_enable_deprecated_label_apis=" + rand.nextBoolean(),
-        "--incompatible_java_common_parameters=" + rand.nextBoolean(),
+        "--incompatible_enforce_starlark_utf8="
+            + BuildLanguageOptions.Utf8EnforcementMode.values()[
+                rand.nextInt(BuildLanguageOptions.Utf8EnforcementMode.values().length)]
+                .toString()
+                .toLowerCase(Locale.ROOT),
+        "--incompatible_locations_prefers_executable=" + rand.nextBoolean(),
         "--incompatible_merge_fixed_and_default_shell_env=" + rand.nextBoolean(),
         "--incompatible_no_attr_license=" + rand.nextBoolean(),
         "--incompatible_no_implicit_file_export=" + rand.nextBoolean(),
-        "--incompatible_no_package_distribs=" + rand.nextBoolean(),
         "--incompatible_no_rule_outputs_param=" + rand.nextBoolean(),
         "--incompatible_run_shell_command_string=" + rand.nextBoolean(),
         "--incompatible_require_linker_input_cc_api=" + rand.nextBoolean(),
@@ -172,8 +174,6 @@ public class ConsistencyTest {
             BuildLanguageOptions.EXPERIMENTAL_ENABLE_ANDROID_MIGRATION_APIS, rand.nextBoolean())
         .setBool(
             BuildLanguageOptions.EXPERIMENTAL_SINGLE_PACKAGE_TOOLCHAIN_BINDING, rand.nextBoolean())
-        .setBool(BuildLanguageOptions.ENABLE_BZLMOD, rand.nextBoolean())
-        .setBool(BuildLanguageOptions.ENABLE_WORKSPACE, rand.nextBoolean())
         .setBool(BuildLanguageOptions.EXPERIMENTAL_ISOLATED_EXTENSION_USAGES, rand.nextBoolean())
         .setBool(BuildLanguageOptions.INCOMPATIBLE_NO_IMPLICIT_WATCH_LABEL, rand.nextBoolean())
         .setBool(BuildLanguageOptions.EXPERIMENTAL_GOOGLE_LEGACY_API, rand.nextBoolean())
@@ -181,7 +181,6 @@ public class ConsistencyTest {
         .setBool(BuildLanguageOptions.INCOMPATIBLE_ALLOW_TAGS_PROPAGATION, rand.nextBoolean())
         .setBool(BuildLanguageOptions.EXPERIMENTAL_CC_SHARED_LIBRARY, rand.nextBoolean())
         .setBool(BuildLanguageOptions.EXPERIMENTAL_REPO_REMOTE_EXEC, rand.nextBoolean())
-        .setBool(BuildLanguageOptions.EXPERIMENTAL_ACTION_RESOURCE_SET, rand.nextBoolean())
         .setBool(BuildLanguageOptions.EXPERIMENTAL_DORMANT_DEPS, rand.nextBoolean())
         .setBool(BuildLanguageOptions.INCOMPATIBLE_ALWAYS_CHECK_DEPSET_ELEMENTS, rand.nextBoolean())
         .setBool(
@@ -194,12 +193,15 @@ public class ConsistencyTest {
             BuildLanguageOptions.INCOMPATIBLE_DISALLOW_STRUCT_PROVIDER_SYNTAX, rand.nextBoolean())
         .setBool(BuildLanguageOptions.INCOMPATIBLE_DO_NOT_SPLIT_LINKING_CMDLINE, rand.nextBoolean())
         .setBool(BuildLanguageOptions.INCOMPATIBLE_ENABLE_DEPRECATED_LABEL_APIS, rand.nextBoolean())
-        .setBool(BuildLanguageOptions.INCOMPATIBLE_JAVA_COMMON_PARAMETERS, rand.nextBoolean())
+        .set(
+            BuildLanguageOptions.INCOMPATIBLE_ENFORCE_STARLARK_UTF8,
+            BuildLanguageOptions.Utf8EnforcementMode.values()[
+                rand.nextInt(BuildLanguageOptions.Utf8EnforcementMode.values().length)])
+        .setBool(BuildLanguageOptions.INCOMPATIBLE_LOCATIONS_PREFERS_EXECUTABLE, rand.nextBoolean())
         .setBool(
             BuildLanguageOptions.INCOMPATIBLE_MERGE_FIXED_AND_DEFAULT_SHELL_ENV, rand.nextBoolean())
         .setBool(BuildLanguageOptions.INCOMPATIBLE_NO_ATTR_LICENSE, rand.nextBoolean())
         .setBool(BuildLanguageOptions.INCOMPATIBLE_NO_IMPLICIT_FILE_EXPORT, rand.nextBoolean())
-        .setBool(BuildLanguageOptions.INCOMPATIBLE_NO_PACKAGE_DISTRIBS, rand.nextBoolean())
         .setBool(BuildLanguageOptions.INCOMPATIBLE_NO_RULE_OUTPUTS_PARAM, rand.nextBoolean())
         .setBool(BuildLanguageOptions.INCOMPATIBLE_RUN_SHELL_COMMAND_STRING, rand.nextBoolean())
         .setBool(BuildLanguageOptions.INCOMPATIBLE_REQUIRE_LINKER_INPUT_CC_API, rand.nextBoolean())

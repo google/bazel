@@ -46,7 +46,6 @@ class BazelOverridesTest(test_base.TestBase):
         [
             # In ipv6 only network, this has to be enabled.
             # 'startup --host_jvm_args=-Djava.net.preferIPv6Addresses=true',
-            'build --noenable_workspace',
             'build --registry=' + self.main_registry.getURL(),
             # We need to have BCR here to make sure built-in modules like
             # bazel_tools can work.
@@ -495,8 +494,8 @@ class BazelOverridesTest(test_base.TestBase):
         allow_failure=True,
     )
     self.assertIn(
-        'ERROR: Error computing the main repository mapping: module not found'
-        ' in registries: ss@1.0',
+        'ERROR: Error computing the main repository mapping: module ss@1.0 not'
+        ' found in registries:',
         stderr,
     )
 

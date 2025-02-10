@@ -237,8 +237,8 @@ final class DarwinSandboxedSpawnRunner extends AbstractSandboxSpawnRunner {
             .addExecutionInfo(spawn.getExecutionInfo())
             .setTimeout(timeout);
 
-    final Path statisticsPath = sandboxPath.getRelative("stats.out");
-    processWrapperCommandLineBuilder.setStatisticsPath(statisticsPath);
+    Path statisticsPath = sandboxPath.getRelative("stats.out");
+    processWrapperCommandLineBuilder.setStatisticsPath(statisticsPath.asFragment());
 
     ImmutableList<String> commandLine =
         ImmutableList.<String>builder()
@@ -279,7 +279,7 @@ final class DarwinSandboxedSpawnRunner extends AbstractSandboxSpawnRunner {
     };
   }
 
-  private void writeConfig(
+  private static void writeConfig(
       Path sandboxConfigPath,
       Set<Path> writableDirs,
       Set<Path> inaccessiblePaths,

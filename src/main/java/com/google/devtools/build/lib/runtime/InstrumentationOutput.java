@@ -16,6 +16,7 @@ package com.google.devtools.build.lib.runtime;
 import com.google.devtools.build.lib.buildtool.BuildResult.BuildToolLogCollection;
 import java.io.IOException;
 import java.io.OutputStream;
+import javax.annotation.Nullable;
 
 /** Stores and publishes the instrumentation output information. */
 public interface InstrumentationOutput {
@@ -25,4 +26,10 @@ public interface InstrumentationOutput {
 
   /** Publishes instrumentation output information to the {@link BuildToolLogCollection}. */
   void publish(BuildToolLogCollection buildToolLogCollection);
+
+  /** Returns the string of output path. */
+  @Nullable
+  default String getPathString() {
+    return null;
+  }
 }

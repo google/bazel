@@ -85,17 +85,23 @@ def _fix_yaml_paths(content, rel_path, version):
 
 
 _PURE_HTML_FIXES = [_fix_html_links, _fix_html_metadata]
-_PURE_MD_FIXES = [_fix_md_links_and_images, _fix_md_metadata, _set_header_vars]
+_PURE_MD_FIXES = [_fix_md_links_and_images, _fix_md_metadata]
 _PURE_YAML_FIXES = [_fix_yaml_paths]
+_MD_AND_HTML_ONLY_FIXES = [_set_header_vars]
 
 _FIXES = {
-    ".html": _PURE_HTML_FIXES,
-    ".md": _PURE_MD_FIXES + _PURE_HTML_FIXES,
+    ".html": _PURE_HTML_FIXES + _MD_AND_HTML_ONLY_FIXES,
+    ".md": _PURE_MD_FIXES + _PURE_HTML_FIXES + _MD_AND_HTML_ONLY_FIXES,
     ".yaml": _PURE_YAML_FIXES + _PURE_HTML_FIXES,
 }
 
 
 def _get_fixes(path):
+  # Ignore _buttons.html since it's updated by //scripts/docs:gen_new_toc
+  # (src/main/java/com/google/devtools/build/docgen/release/TableOfContentsUpdater.java).
+  if "_buttons.html" in path:
+    return None
+
   _, ext = os.path.splitext(path)
   return _FIXES.get(ext)
 

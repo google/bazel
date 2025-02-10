@@ -165,6 +165,7 @@ public final class LtoBackendArtifacts implements LtoBackendArtifactsApi<Artifac
                         linkActionConstruction.getConfig().isSiblingRepositoryLayout()),
                     ".dwo"));
       }
+      addEnvironmentVariables(builder, buildVariables, featureConfiguration);
       scheduleLtoBackendAction(
           builder,
           buildVariables,
@@ -326,6 +327,20 @@ public final class LtoBackendArtifacts implements LtoBackendArtifactsApi<Artifac
     // Add the context sensitive instrument path to the backend.
     if (dwoFile != null) {
       builder.addOutput(dwoFile);
+    }
+  }
+
+  private static void addEnvironmentVariables(
+      LtoBackendAction.Builder builder,
+      CcToolchainVariables buildVariables,
+      FeatureConfiguration featureConfiguration)
+      throws EvalException {
+    try {
+      builder.setEnvironment(
+          featureConfiguration.getEnvironmentVariables(
+              CppActionNames.LTO_BACKEND, buildVariables, PathMapper.NOOP));
+    } catch (ExpansionException e) {
+      throw new EvalException(e.getMessage());
     }
   }
 

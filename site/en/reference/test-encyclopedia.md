@@ -776,9 +776,3 @@ The runfiles directory contains the following:
     The destination of the symlink is the OutputFileName() of the OutputFile or
     CommandRule, expressed as an absolute path. Thus, the destination of the
     symlink might be `$(WORKSPACE)/linux-dbg/deps/server/42/server`.
-*   **Symlinks to sub-runfiles**: for every `*_binary()` Z that is a run-time
-    dependency of `*_binary()` C, there is a second link in the runfiles
-    directory of C to the runfiles of Z. The name of the symlink is
-    `$(WORKSPACE)/package_name/rule_name.runfiles`. The target of the symlink is
-    the runfiles directory. For example, all subprograms share a common runfiles
-    directory.

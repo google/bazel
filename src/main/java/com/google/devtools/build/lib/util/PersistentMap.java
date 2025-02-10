@@ -196,6 +196,16 @@ public abstract class PersistentMap<K, V> extends ForwardingConcurrentMap<K, V> 
     return previous;
   }
 
+  @Override
+  public V replace(K key, V value) {
+    throw new UnsupportedOperationException();
+  }
+
+  @Override
+  public boolean replace(K key, V oldValue, V newValue) {
+    throw new UnsupportedOperationException();
+  }
+
   /**
    * Updates the persistent journal by writing all entries to the {@link #journalOut} stream and
    * clearing the in memory journal.
@@ -381,13 +391,15 @@ public abstract class PersistentMap<K, V> extends ForwardingConcurrentMap<K, V> 
     try {
       if (in.readLong() != MAGIC) { // not a PersistentMap
         if (failFast) {
-          throw new IOException("Unexpected format");
+          throw new IOException("Bad magic number");
         }
         return;
       }
-      if (in.readLong() != version) { // PersistentMap version incompatible
+      long persistedVersion = in.readLong();
+      if (persistedVersion != version) { // PersistentMap version incompatible
         if (failFast) {
-          throw new IOException("Unexpected format");
+          throw new IOException(
+              "Incompatible version: want %d, got %d".formatted(version, persistedVersion));
         }
         return;
       }

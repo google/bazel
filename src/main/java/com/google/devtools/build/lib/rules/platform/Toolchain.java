@@ -55,7 +55,7 @@ public class Toolchain implements RuleConfiguredTargetFactory {
         ruleContext.getPrerequisites(ToolchainRule.TARGET_SETTING_ATTR).stream()
             .map(target -> target.getProvider(ConfigMatchingProvider.class))
             .collect(toImmutableList());
-    Label toolchainLabel =
+    Label resolvedToolchainLabel =
         ruleContext.attributes().get(ToolchainRule.TOOLCHAIN_ATTR, BuildType.NODEP_LABEL);
 
     DeclaredToolchainInfo registeredToolchain;
@@ -66,7 +66,8 @@ public class Toolchain implements RuleConfiguredTargetFactory {
               .addExecConstraints(execConstraints)
               .addTargetConstraints(targetConstraints)
               .addTargetSettings(targetSettings)
-              .toolchainLabel(toolchainLabel)
+              .resolvedToolchainLabel(resolvedToolchainLabel)
+              .targetLabel(ruleContext.getLabel())
               .build();
     } catch (DeclaredToolchainInfo.DuplicateConstraintException e) {
       if (e.execConstraintsException() != null) {

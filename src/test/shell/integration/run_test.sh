@@ -678,6 +678,46 @@ EOF
   fi
 }
 
+function test_run_under_command_change_preserves_cache() {
+  if $is_windows; then
+    echo "This test requires --run_under to be able to run echo."
+    return
+  fi
+
+  local -r pkg="pkg${LINENO}"
+  mkdir -p "${pkg}"
+  cat > "$pkg/BUILD" <<'EOF'
+load(":defs.bzl", "my_rule")
+my_rule(
+  name = "my_rule",
+)
+EOF
+  cat > "$pkg/defs.bzl" <<'EOF'
+def _my_rule_impl(ctx):
+  print("my_rule is being analyzed")
+  out = ctx.actions.declare_file(ctx.label.name)
+  ctx.actions.write(out, "echo -n world", is_executable = True)
+  return [DefaultInfo(executable = out)]
+
+my_rule = rule(
+  implementation = _my_rule_impl,
+  executable = True,
+)
+EOF
+
+  bazel run "${pkg}:my_rule" >$TEST_log 2>&1 \
+   || fail "expected run to pass"
+  expect_log "my_rule is being analyzed"
+  expect_not_log "hello"
+  expect_log "world"
+
+  bazel run --run_under="echo -n hello &&" "${pkg}:my_rule" >$TEST_log 2>&1 \
+   || fail "expected run to pass"
+  expect_not_log "my_rule is being analyzed"
+  expect_log "hello"
+  expect_log "world"
+}
+
 function test_build_id_env_var() {
   local -r pkg="pkg${LINENO}"
   mkdir -p "${pkg}"
@@ -752,6 +792,40 @@ EOF
   chmod +x "$pkg/foo.sh"
 
   bazel run --run_env=OVERRIDDEN_RUN_ENV=FOO --run_env=RUN_ENV_ONLY=BAR "//$pkg:foo" >"$TEST_log" || fail "expected run to succeed"
+
+  expect_log "FROMBUILD: '1'"
+  expect_log "OVERRIDDEN_RUN_ENV: 'FOO'"
+  expect_log "RUN_ENV_ONLY: 'BAR'"
+}
+
+function test_run_env_script_path() {
+  local -r pkg="pkg${LINENO}"
+  mkdir -p "${pkg}"
+  cat > "$pkg/BUILD" <<'EOF'
+sh_binary(
+  name = "foo",
+  srcs = ["foo.sh"],
+  env = {
+    "FROMBUILD": "1",
+    "OVERRIDDEN_RUN_ENV": "2",
+  }
+)
+EOF
+  cat > "$pkg/foo.sh" <<'EOF'
+#!/bin/bash
+
+set -euo pipefail
+
+echo "FROMBUILD: '$FROMBUILD'"
+echo "OVERRIDDEN_RUN_ENV: '$OVERRIDDEN_RUN_ENV'"
+echo "RUN_ENV_ONLY: '$RUN_ENV_ONLY'"
+EOF
+
+  chmod +x "$pkg/foo.sh"
+
+  bazel run --script_path=script.bat --run_env=OVERRIDDEN_RUN_ENV=FOO --run_env=RUN_ENV_ONLY=BAR "//$pkg:foo" || fail "expected run to succeed"
+
+  ./script.bat >"$TEST_log" || fail "expected script to succeed"
 
   expect_log "FROMBUILD: '1'"
   expect_log "OVERRIDDEN_RUN_ENV: 'FOO'"

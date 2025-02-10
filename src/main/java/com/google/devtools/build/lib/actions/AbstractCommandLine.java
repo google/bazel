@@ -53,10 +53,12 @@ public abstract class AbstractCommandLine extends CommandLine {
   public void addToFingerprint(
       ActionKeyContext actionKeyContext,
       @Nullable ArtifactExpander artifactExpander,
-      CoreOptions.OutputPathsMode outputPathsMode,
+      CoreOptions.OutputPathsMode effectiveOutputPathsMode,
       Fingerprint fingerprint)
       throws CommandLineExpansionException, InterruptedException {
-    for (String s : arguments()) {
+    for (String s :
+        arguments(
+            /* artifactExpander= */ null, PathMapper.forActionKey(effectiveOutputPathsMode))) {
       fingerprint.addString(s);
     }
   }

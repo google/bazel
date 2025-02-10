@@ -44,7 +44,7 @@ public abstract class StarlarkExecGroupCollection implements ExecGroupCollection
    * Empty collection of exec groups to be used when exec groups are not valid in the current
    * context.
    */
-  public static final ExecGroupCollectionApi EXEC_GRPOUP_COLLECTION_NOT_VALID =
+  public static final ExecGroupCollectionApi EXEC_GROUP_COLLECTION_NOT_VALID =
       new ExecGroupCollectionApi() {
         @Override
         public boolean containsKey(StarlarkSemantics semantics, Object key) {

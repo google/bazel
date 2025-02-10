@@ -15,9 +15,10 @@ package com.google.devtools.build.lib.skyframe.serialization;
 
 import static com.google.common.util.concurrent.Futures.immediateFailedFuture;
 import static com.google.common.util.concurrent.Futures.immediateFuture;
-import static com.google.common.util.concurrent.Futures.immediateVoidFuture;
+import static com.google.devtools.build.lib.skyframe.serialization.WriteStatuses.immediateWriteStatus;
 
 import com.google.common.util.concurrent.ListenableFuture;
+import com.google.devtools.build.lib.skyframe.serialization.WriteStatuses.WriteStatus;
 import java.io.IOException;
 import java.util.concurrent.ConcurrentHashMap;
 import javax.annotation.Nullable;
@@ -32,7 +33,7 @@ public interface FingerprintValueStore {
    *
    * @return a future that completes when the write completes
    */
-  ListenableFuture<Void> put(KeyBytesProvider fingerprint, byte[] serializedBytes);
+  WriteStatus put(KeyBytesProvider fingerprint, byte[] serializedBytes);
 
   /**
    * Retrieves the serialized bytes associated with {@code fingerprint}.
@@ -71,9 +72,9 @@ public interface FingerprintValueStore {
         new ConcurrentHashMap<>();
 
     @Override
-    public ListenableFuture<Void> put(KeyBytesProvider fingerprint, byte[] serializedBytes) {
+    public WriteStatus put(KeyBytesProvider fingerprint, byte[] serializedBytes) {
       fingerprintToContents.put(fingerprint, serializedBytes);
-      return immediateVoidFuture();
+      return immediateWriteStatus();
     }
 
     @Override

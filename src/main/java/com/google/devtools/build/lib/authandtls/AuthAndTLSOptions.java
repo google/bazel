@@ -183,8 +183,8 @@ public class AuthAndTLSOptions extends OptionsBase {
       documentationCategory = OptionDocumentationCategory.UNCATEGORIZED,
       effectTags = {OptionEffectTag.UNKNOWN},
       help =
-          "The default duration for which credentials supplied by a credential helper are cached if"
-              + " the helper does not provide when the credentials expire.")
+          "How long to cache credentials for if the credential helper doesn't return an expiration"
+              + " time. Changing the value of this flag clears the cache.")
   public Duration credentialHelperCacheTimeout;
 
   /**

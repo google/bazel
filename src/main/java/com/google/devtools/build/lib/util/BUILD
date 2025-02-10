@@ -1,5 +1,4 @@
 load("@rules_java//java:defs.bzl", "java_library")
-load("//src:build_defs.bzl", "java_11_library")
 
 package(
     default_applicable_licenses = ["//:license"],
@@ -31,7 +30,7 @@ java_library(
     ],
 )
 
-java_11_library(
+java_library(
     name = "os",
     srcs = ["OS.java"],
 )
@@ -203,7 +202,7 @@ java_library(
     ],
 )
 
-java_11_library(
+java_library(
     name = "pair",
     srcs = [
         "Pair.java",
@@ -265,7 +264,7 @@ java_library(
     ],
 )
 
-java_11_library(
+java_library(
     name = "stream_writer",
     srcs = [
         "StreamWriter.java",
@@ -348,7 +347,7 @@ java_library(
     ],
 )
 
-java_11_library(
+java_library(
     name = "exit_code",
     srcs = [
         "ExitCode.java",
@@ -364,6 +363,7 @@ java_library(
     name = "custom_exit_code_publisher",
     srcs = ["CustomExitCodePublisher.java"],
     deps = [
+        "//third_party:flogger",
         "//third_party:guava",
         "//third_party:jsr305",
     ],
@@ -412,6 +412,7 @@ java_library(
     name = "heap_offset_helper",
     srcs = ["HeapOffsetHelper.java"],
     deps = [
+        ":TestType",
         "//src/main/java/com/google/devtools/build/lib/bugreport",
         "//third_party:flogger",
         "//third_party:guava",

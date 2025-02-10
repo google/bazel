@@ -185,7 +185,7 @@ public final class CqueryCommand implements BlazeCommand {
             .build();
     DetailedExitCode detailedExitCode =
         new BuildTool(env, new CqueryProcessor(expr, mainRepoTargetParser))
-            .processRequest(request, null)
+            .processRequest(request, null, options)
             .getDetailedExitCode();
     return BlazeCommandResult.detailedExitCode(detailedExitCode);
   }

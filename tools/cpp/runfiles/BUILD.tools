@@ -1,8 +1,6 @@
-# This package will host the C++ runfiles library when it's finally released.
-
 cc_library(
     name = "runfiles",
-    srcs = ["runfiles.cc"],
     hdrs = ["runfiles.h"],
+    deps = ["@rules_cc//cc/runfiles"],
     visibility = ["//visibility:public"],
 )

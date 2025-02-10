@@ -25,4 +25,9 @@ final class TestShardingStrategyForced implements TestShardingStrategy {
   public int getNumberOfShards(int shardCountFromAttr) {
     return forcedShardsCount;
   }
+
+  @Override
+  public String toString() {
+    return "forced=" + forcedShardsCount;
+  }
 }

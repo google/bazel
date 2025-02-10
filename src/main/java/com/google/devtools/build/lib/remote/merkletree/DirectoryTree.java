@@ -16,10 +16,10 @@ package com.google.devtools.build.lib.remote.merkletree;
 import build.bazel.remote.execution.v2.Digest;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Iterables;
+import com.google.devtools.build.lib.actions.cache.VirtualActionInput;
 import com.google.devtools.build.lib.vfs.Path;
 import com.google.devtools.build.lib.vfs.PathFragment;
 import com.google.errorprone.annotations.CanIgnoreReturnValue;
-import com.google.protobuf.ByteString;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
@@ -73,7 +73,7 @@ final class DirectoryTree {
 
   static class FileNode extends Node {
     private final Path path;
-    private final ByteString data;
+    private final VirtualActionInput virtualActionInput;
     private final Digest digest;
     private final boolean isExecutable;
     private final boolean toolInput;
@@ -96,15 +96,19 @@ final class DirectoryTree {
     }
 
     static FileNode createExecutable(
-        String pathSegment, ByteString data, Digest digest, boolean toolInput) {
-      return new FileNode(pathSegment, data, digest, /* isExecutable= */ true, toolInput);
+        String pathSegment,
+        VirtualActionInput virtualActionInput,
+        Digest digest,
+        boolean toolInput) {
+      return new FileNode(
+          pathSegment, virtualActionInput, digest, /* isExecutable= */ true, toolInput);
     }
 
     private FileNode(
         String pathSegment, Path path, Digest digest, boolean isExecutable, boolean toolInput) {
       super(pathSegment);
       this.path = Preconditions.checkNotNull(path, "path");
-      this.data = null;
+      this.virtualActionInput = null;
       this.digest = Preconditions.checkNotNull(digest, "digest");
       this.isExecutable = isExecutable;
       this.toolInput = toolInput;
@@ -112,13 +116,13 @@ final class DirectoryTree {
 
     private FileNode(
         String pathSegment,
-        ByteString data,
+        VirtualActionInput input,
         Digest digest,
         boolean isExecutable,
         boolean toolInput) {
       super(pathSegment);
       this.path = null;
-      this.data = Preconditions.checkNotNull(data, "data");
+      this.virtualActionInput = Preconditions.checkNotNull(input, "data");
       this.digest = Preconditions.checkNotNull(digest, "digest");
       this.isExecutable = isExecutable;
       this.toolInput = toolInput;
@@ -132,8 +136,8 @@ final class DirectoryTree {
       return path;
     }
 
-    ByteString getBytes() {
-      return data;
+    VirtualActionInput getVirtualActionInput() {
+      return virtualActionInput;
     }
 
     public boolean isExecutable() {
@@ -146,7 +150,8 @@ final class DirectoryTree {
 
     @Override
     public int hashCode() {
-      return Objects.hash(super.hashCode(), path, data, digest, toolInput, isExecutable);
+      return Objects.hash(
+          super.hashCode(), path, virtualActionInput, digest, toolInput, isExecutable);
     }
 
     @Override
@@ -154,7 +159,7 @@ final class DirectoryTree {
       if (o instanceof FileNode other) {
         return super.equals(other)
             && Objects.equals(path, other.path)
-            && Objects.equals(data, other.data)
+            && Objects.equals(virtualActionInput, other.virtualActionInput)
             && Objects.equals(digest, other.digest)
             && toolInput == other.toolInput
             && isExecutable == other.isExecutable;

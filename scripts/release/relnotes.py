@@ -163,6 +163,20 @@ def get_external_authors_between(base, head):
   return ", ".join(sorted(authors.union(coauthors), key=str.casefold))
 
 
+def get_filtered_notes(base, previous_release, is_patch_release):
+  # Generate notes for all commits from last branch cut to HEAD, but filter out
+  # any identical notes from the previous release branch.
+  cur_release_relnotes = get_relnotes_between(
+      base, "HEAD", is_patch_release
+  )
+  last_release_relnotes = set(
+      get_relnotes_between(base, previous_release, is_patch_release)
+  )
+  return [
+      note for note in cur_release_relnotes if note not in last_release_relnotes
+  ]
+
+
 if __name__ == "__main__":
   # Get last release and make sure it's consistent with current X.Y.Z release
   # e.g. if current_release is 5.3.3, last_release should be 5.3.2 even if
@@ -194,23 +208,20 @@ if __name__ == "__main__":
   # for.
   merge_base = git("merge-base", "HEAD", last_release)[0]
 
-  # Generate notes for all commits from last branch cut to HEAD, but filter out
-  # any identical notes from the previous release branch.
-  cur_release_relnotes = get_relnotes_between(
-      merge_base, "HEAD", is_patch
-  )
-  last_release_relnotes = set(
-      get_relnotes_between(merge_base, last_release, is_patch)
-  )
-  filtered_relnotes = [
-      note for note in cur_release_relnotes if note not in last_release_relnotes
-  ]
+  filtered_relnotes = get_filtered_notes(merge_base, last_release, is_patch)
 
   # Reverse so that the notes are in chronological order.
   filtered_relnotes.reverse()
   print()
   print("Release Notes:")
   print()
+
+  # For minor releases w/o any RELNOTES tags, follow the patch release format to
+  # get release notes (PR title instead of RELNOTES tag)
+  # Not applicable for major or patch releases
+  if all(not note for note in filtered_relnotes) and is_patch == 0:
+    is_patch = True
+    filtered_relnotes = get_filtered_notes(merge_base, last_release, is_patch)
 
   categorized_release_notes = get_categorized_relnotes(filtered_relnotes)
   for label in categorized_release_notes:

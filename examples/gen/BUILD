@@ -2,8 +2,8 @@ package(default_visibility = ["//visibility:public"])
 
 genquery(
     name = "genquery",
-    expression = "deps(@bazel_tools//tools/jdk:current_java_runtime)",
-    scope = ["@bazel_tools//tools/jdk:current_java_runtime"],
+    expression = "deps(@rules_java//toolchains:current_java_runtime)",
+    scope = ["@rules_java//toolchains:current_java_runtime"],
 )
 
 genrule(

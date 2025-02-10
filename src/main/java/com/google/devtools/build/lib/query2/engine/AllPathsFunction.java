@@ -58,6 +58,16 @@ public class AllPathsFunction implements QueryFunction {
       QueryExpression expression,
       List<Argument> args,
       Callback<T> callback) {
+    if (env instanceof StreamableQueryEnvironment) {
+      return ((StreamableQueryEnvironment<T>) env)
+          .allPaths(
+              args.get(0).getExpression(),
+              args.get(1).getExpression(),
+              context,
+              callback,
+              expression);
+    }
+
     QueryTaskFuture<ThreadSafeMutableSet<T>> fromValueFuture =
         QueryUtil.evalAll(env, context, args.get(0).getExpression());
     QueryTaskFuture<ThreadSafeMutableSet<T>> toValueFuture =

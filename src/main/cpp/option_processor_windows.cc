@@ -63,7 +63,14 @@ static void PreprocessEnvString(std::string* env_str) {
 #endif  // defined(__CYGWIN__)
 
 static bool IsValidEnvName(std::string_view s) {
-  std::string_view name = s.substr(0, s.find('='));
+  std::size_t first_equal = s.find('=');
+  if (first_equal == 0) {
+    // Skip over legacy environment variables that start with '=', e.g. '=C:'
+    // These are set by cmd.exe and can't be parsed by the Bazel server if
+    // passed into --client_env.
+    return false;
+  }
+  std::string_view name = s.substr(0, first_equal);
   return std::all_of(name.begin(), name.end(), [](char c) {
     return (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') ||
            (c >= '0' && c <= '9') || c == '_' || c == '(' || c == ')';

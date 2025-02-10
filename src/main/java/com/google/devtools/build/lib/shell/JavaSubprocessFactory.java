@@ -24,6 +24,7 @@ import java.io.OutputStream;
 import java.lang.ProcessBuilder.Redirect;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.locks.ReentrantLock;
 
 /** A subprocess factory that uses {@link java.lang.ProcessBuilder}. */
 public class JavaSubprocessFactory implements SubprocessFactory {
@@ -114,6 +115,7 @@ public class JavaSubprocessFactory implements SubprocessFactory {
   }
 
   public static final JavaSubprocessFactory INSTANCE = new JavaSubprocessFactory();
+  private final ReentrantLock lock = new ReentrantLock();
 
   private JavaSubprocessFactory() {
     // We are a singleton
@@ -136,8 +138,9 @@ public class JavaSubprocessFactory implements SubprocessFactory {
   // I was able to reproduce this problem reliably by running significantly more threads than
   // there are CPU cores on my workstation - the more threads the more likely it happens.
   //
-  // As a workaround, we put a synchronized block around the fork.
-  private synchronized Process start(ProcessBuilder builder) throws IOException {
+  // As a workaround, we use a lock around the fork.
+  private Process start(ProcessBuilder builder) throws IOException {
+    lock.lock();
     try {
       return builder.start();
     } catch (IOException e) {
@@ -150,6 +153,8 @@ public class JavaSubprocessFactory implements SubprocessFactory {
             e);
       }
       throw e;
+    } finally {
+      lock.unlock();
     }
   }
 

@@ -16,15 +16,18 @@ package com.google.devtools.build.lib.actions;
 import static com.google.common.truth.Truth.assertThat;
 
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Iterables;
 import com.google.devtools.build.lib.actions.CommandLines.ExpandedCommandLines;
 import com.google.devtools.build.lib.actions.ParameterFile.ParameterFileType;
 import com.google.devtools.build.lib.vfs.PathFragment;
+import com.google.testing.junit.testparameterinjector.TestParameter;
+import com.google.testing.junit.testparameterinjector.TestParameterInjector;
+import java.util.Collections;
 import org.junit.Test;
 import org.junit.runner.RunWith;
-import org.junit.runners.JUnit4;
 
 /** Tests for {@link CommandLines}. */
-@RunWith(JUnit4.class)
+@RunWith(TestParameterInjector.class)
 public class CommandLinesTest {
 
   private final ArtifactExpander artifactExpander = null;
@@ -204,6 +207,41 @@ public class CommandLinesTest {
     assertThat(expanded.getParamFiles()).hasSize(1);
     assertThat(expanded.getParamFiles().get(0).getArguments())
         .containsExactly("--a", "--b=c")
+        .inOrder();
+  }
+
+  @Test
+  public void expand_onlyExecutableArgProcessedForPathMapping(
+      @TestParameter({"0", "1", "2", "3"}) int numNonExecutableArgs,
+      @TestParameter boolean normalizedExecutablePath,
+      @TestParameter boolean mappableNonExecutablePath)
+      throws Exception {
+    CommandLines.Builder builder = CommandLines.builder();
+    String executableArg =
+        normalizedExecutablePath
+            ? "bazel-out/k8-fastbuild/bin/my_binary"
+            : "bazel-out/some/path/../my_binary";
+    String nonExecutableArg =
+        mappableNonExecutablePath ? "bazel-out/k8-fastbuild/bin/unrelated" : "hello/../world";
+    builder.addSingleArgument(executableArg);
+    for (int i = 0; i < numNonExecutableArgs; i++) {
+      builder.addSingleArgument(nonExecutableArg);
+    }
+    CommandLines commandLines = builder.build();
+    PathMapper pathMapper =
+        execPath ->
+            execPath.startsWith(PathFragment.create("bazel-out"))
+                ? PathFragment.create("mapped").getRelative(execPath)
+                : execPath;
+
+    String expectedExecutableArg =
+        normalizedExecutablePath ? "mapped/bazel-out/k8-fastbuild/bin/my_binary" : executableArg;
+    Iterable<String> expectedArgs =
+        Iterables.concat(
+            ImmutableList.of(expectedExecutableArg),
+            Collections.nCopies(numNonExecutableArgs, nonExecutableArg));
+    assertThat(commandLines.allArguments(pathMapper))
+        .containsExactlyElementsIn(expectedArgs)
         .inOrder();
   }
 }

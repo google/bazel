@@ -41,10 +41,7 @@ import com.google.devtools.build.lib.packages.util.LoadingMock;
 import com.google.devtools.build.lib.packages.util.MockCcSupport;
 import com.google.devtools.build.lib.packages.util.MockPythonSupport;
 import com.google.devtools.build.lib.packages.util.MockToolsConfig;
-import com.google.devtools.build.lib.rules.repository.LocalRepositoryFunction;
-import com.google.devtools.build.lib.rules.repository.LocalRepositoryRule;
 import com.google.devtools.build.lib.rules.repository.RepositoryDelegatorFunction;
-import com.google.devtools.build.lib.rules.repository.RepositoryFunction;
 import com.google.devtools.build.lib.runtime.BlazeModule;
 import com.google.devtools.build.lib.skyframe.BazelSkyframeExecutorConstants;
 import com.google.devtools.build.lib.skyframe.ClientEnvironmentFunction;
@@ -53,12 +50,10 @@ import com.google.devtools.build.lib.skyframe.RepositoryMappingFunction;
 import com.google.devtools.build.lib.skyframe.SkyFunctions;
 import com.google.devtools.build.lib.skyframe.packages.PackageFactoryBuilderWithSkyframeForTesting;
 import com.google.devtools.build.lib.testutil.TestConstants;
-import com.google.devtools.build.lib.vfs.Path;
 import com.google.devtools.build.skyframe.SkyFunction;
 import com.google.devtools.build.skyframe.SkyFunctionName;
 import java.io.IOException;
 import java.lang.reflect.Field;
-import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
@@ -108,13 +103,11 @@ public abstract class AnalysisMock extends LoadingMock {
    * configuration.
    */
   public void setupMockClient(MockToolsConfig mockToolsConfig) throws IOException {
-    ImmutableList<String> workspaceContents = getWorkspaceContents(mockToolsConfig);
-    setupMockClient(mockToolsConfig, workspaceContents);
+    setupMockClientInternal(mockToolsConfig);
     setupMockTestingRules(mockToolsConfig);
   }
 
-  public abstract void setupMockClient(
-      MockToolsConfig mockToolsConfig, List<String> getWorkspaceContents) throws IOException;
+  public abstract void setupMockClientInternal(MockToolsConfig mockToolsConfig) throws IOException;
 
   public void setupMockTestingRules(MockToolsConfig mockToolsConfig) throws IOException {
     mockToolsConfig.create("test_defs/BUILD");
@@ -173,25 +166,10 @@ public abstract class AnalysisMock extends LoadingMock {
         """);
   }
 
-  /** Returns the contents of WORKSPACE. */
-  public abstract ImmutableList<String> getWorkspaceContents(MockToolsConfig config);
-
-  /** Returns the repos defined in the contents of WORKSPACE above. */
-  public abstract ImmutableList<String> getWorkspaceRepos();
-
-  /**
-   * This is called from test setup to create any necessary mock workspace files in the <code>
-   * _embedded_binaries</code> directory.
-   */
-  public abstract void setupMockWorkspaceFiles(Path embeddedBinariesRoot) throws IOException;
-
   /** Creates a mock tools repository. */
   public void setupMockToolsRepository(MockToolsConfig config) throws IOException {
     // Do nothing by default.
   }
-
-  @Override
-  public abstract ConfiguredRuleClassProvider createRuleClassProvider();
 
   public abstract boolean isThisBazel();
 
@@ -202,18 +180,11 @@ public abstract class AnalysisMock extends LoadingMock {
   public abstract MockPythonSupport pySupport();
 
   public ImmutableMap<SkyFunctionName, SkyFunction> getSkyFunctions(BlazeDirectories directories) {
-    // Some tests require the local_repository rule so we need the appropriate SkyFunctions.
-    ImmutableMap.Builder<String, RepositoryFunction> repositoryHandlers =
-        new ImmutableMap.Builder<String, RepositoryFunction>()
-            .put(LocalRepositoryRule.NAME, new LocalRepositoryFunction());
-
-    addExtraRepositoryFunctions(repositoryHandlers);
-
     return ImmutableMap.<SkyFunctionName, SkyFunction>builder()
         .put(
             SkyFunctions.REPOSITORY_DIRECTORY,
             new RepositoryDelegatorFunction(
-                repositoryHandlers.buildKeepingLast(),
+                ImmutableMap.of(),
                 new StarlarkRepositoryFunction(),
                 new AtomicBoolean(true),
                 ImmutableMap::of,
@@ -264,7 +235,6 @@ public abstract class AnalysisMock extends LoadingMock {
         PrecomputedValue.injected(ModuleFileFunction.REGISTRIES, ImmutableSet.of()),
         PrecomputedValue.injected(ModuleFileFunction.IGNORE_DEV_DEPS, false),
         PrecomputedValue.injected(ModuleFileFunction.INJECTED_REPOSITORIES, ImmutableMap.of()),
-        PrecomputedValue.injected(ModuleFileFunction.MODULE_OVERRIDES, ImmutableMap.of()),
         PrecomputedValue.injected(YankedVersionsUtil.ALLOWED_YANKED_VERSIONS, ImmutableList.of()),
         PrecomputedValue.injected(
             BazelModuleResolutionFunction.CHECK_DIRECT_DEPENDENCIES, CheckDirectDepsMode.WARNING),
@@ -272,10 +242,6 @@ public abstract class AnalysisMock extends LoadingMock {
             BazelModuleResolutionFunction.BAZEL_COMPATIBILITY_MODE, BazelCompatibilityMode.ERROR),
         PrecomputedValue.injected(BazelLockFileFunction.LOCKFILE_MODE, LockfileMode.UPDATE));
   }
-
-  // Allow subclasses to add extra repository functions.
-  public abstract void addExtraRepositoryFunctions(
-      ImmutableMap.Builder<String, RepositoryFunction> repositoryHandlers);
 
   /** Returns the built-in modules. */
   public abstract ImmutableMap<String, NonRegistryOverride> getBuiltinModules(
@@ -298,24 +264,8 @@ public abstract class AnalysisMock extends LoadingMock {
     }
 
     @Override
-    public void setupMockClient(MockToolsConfig mockToolsConfig, List<String> workspaceContents)
-        throws IOException {
-      delegate.setupMockClient(mockToolsConfig, workspaceContents);
-    }
-
-    @Override
-    public ImmutableList<String> getWorkspaceContents(MockToolsConfig mockToolsConfig) {
-      return delegate.getWorkspaceContents(mockToolsConfig);
-    }
-
-    @Override
-    public ImmutableList<String> getWorkspaceRepos() {
-      return delegate.getWorkspaceRepos();
-    }
-
-    @Override
-    public void setupMockWorkspaceFiles(Path embeddedBinariesRoot) throws IOException {
-      delegate.setupMockWorkspaceFiles(embeddedBinariesRoot);
+    public void setupMockClientInternal(MockToolsConfig mockToolsConfig) throws IOException {
+      delegate.setupMockClientInternal(mockToolsConfig);
     }
 
     @Override
@@ -374,12 +324,6 @@ public abstract class AnalysisMock extends LoadingMock {
     @Override
     public void setupPrelude(MockToolsConfig mockToolsConfig) throws IOException {
       delegate.setupPrelude(mockToolsConfig);
-    }
-
-    @Override
-    public void addExtraRepositoryFunctions(
-        ImmutableMap.Builder<String, RepositoryFunction> repositoryHandlers) {
-      delegate.addExtraRepositoryFunctions(repositoryHandlers);
     }
 
     @Override

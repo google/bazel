@@ -50,42 +50,6 @@ msys*|mingw*|cygwin*)
   ;;
 esac
 
-function test_rules_java_can_be_overridden() {
-  # The bazelrc file might contain an --override_repository flag for rules_java,
-  # which would cause this test to fail to override the repo via a WORKSPACE file.
-  sed -i.bak '/override_repository=rules_java=/d' $TEST_TMPDIR/bazelrc
-
-  # We test that a custom repository can override @platforms in their
-  # WORKSPACE file.
-  mkdir -p rules_java_can_be_overridden || fail "couldn't create directory"
-  touch rules_java_can_be_overridden/BUILD || \ fail "couldn't touch BUILD file"
-  cat > rules_java_can_be_overridden/WORKSPACE <<EOF
-local_repository(
-  name = 'rules_java',
-  path = '../override',
-)
-EOF
-
-  mkdir -p override/java || fail "couldn't create override directory"
-  touch override/WORKSPACE || fail "couldn't touch override/WORKSPACE"
-  cat > override/BUILD <<EOF
-filegroup(name = 'yolo')
-EOF
-  touch override/java/BUILD || fail "couldn't touch override/java/BUILD"
-  cat > override/java/rules_java_deps.bzl <<EOF
-def rules_java_dependencies():
-    pass
-EOF
-  cat > override/java/repositories.bzl <<EOF
-def rules_java_toolchains():
-    pass
-EOF
-
-  cd rules_java_can_be_overridden || fail "couldn't cd into workspace"
-  bazel build --incompatible_autoload_externally= --noenable_bzlmod --enable_workspace @rules_java//:yolo &> $TEST_log || \
-    fail "Bazel failed to build @rules_java"
-}
-
 function test_rules_java_repository_builds_itself() {
   add_rules_java "MODULE.bazel"
   write_default_bazelrc

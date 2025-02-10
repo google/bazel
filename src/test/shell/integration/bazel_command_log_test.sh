@@ -36,7 +36,7 @@ function strip_lines_from_bazel_cc() {
   clean_log=$(\
     sed \
     -e "/^INFO: Reading 'startup' options from /d" \
-    -e '/^\$TEST_TMPDIR defined: output root default is/d' \
+    -e '/^\$TEST_TMPDIR defined, some defaults will be overridden/d' \
     -e '/^OpenJDK 64-Bit Server VM warning: ignoring option UseSeparateVSpacesInYoungGen; support was removed in 8.0/d' \
     -e '/^Starting local B[azel]* server (.*) and connecting to it\.\.\.\.*$/d' \
     -e '/^\.\.\. still trying to connect to local B[azel]* server ([1-9][0-9]*) after [1-9][0-9]* seconds \.\.\.\.*$/d' \

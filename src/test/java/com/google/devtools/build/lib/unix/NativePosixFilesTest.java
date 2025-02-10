@@ -20,6 +20,7 @@ import static org.junit.Assert.fail;
 import static org.junit.Assume.assumeTrue;
 
 import com.google.devtools.build.lib.testutil.TestUtils;
+import com.google.devtools.build.lib.unix.NativePosixFiles.StatErrorHandling;
 import com.google.devtools.build.lib.util.OS;
 import com.google.devtools.build.lib.vfs.DigestHashFunction;
 import com.google.devtools.build.lib.vfs.FileSystem;
@@ -38,30 +39,21 @@ import org.junit.runners.JUnit4;
 public class NativePosixFilesTest {
 
   private Path workingDir;
-  private Path testFile;
 
   @Before
   public final void createFileSystem() throws Exception  {
     FileSystem testFS = new UnixFileSystem(DigestHashFunction.SHA256, /*hashAttributeName=*/ "");
     workingDir = testFS.getPath(new File(TestUtils.tmpDir()).getCanonicalPath());
-    testFile = workingDir.getRelative("test");
   }
 
+  // TODO(tjgq): Move this into FileSystemTest, and add more comprehensive coverage for chmod.
   @Test
-  public void throwsFileNotFoundException() throws Exception {
-    FileNotFoundException e =
-        assertThrows(
-            FileNotFoundException.class, () -> NativePosixFiles.stat(testFile.getPathString()));
-    assertThat(e).hasMessageThat().isEqualTo(testFile + " (No such file or directory)");
-  }
-
-  @Test
-  public void throwsFilePermissionException() throws Exception {
+  public void chmod_throwsFilePermissionException() throws Exception {
     File foo = new File("/bin");
     try {
-      NativePosixFiles.chmod(
-          foo.getPath(),
-          NativePosixFiles.lstat(foo.getPath()).getPermissions() | FileStatus.S_IWUSR);
+      int perms =
+          NativePosixFiles.lstat(foo.getPath(), StatErrorHandling.ALWAYS_THROW).getPermissions();
+      NativePosixFiles.chmod(foo.getPath(), perms | UnixFileStatus.S_IWUSR);
       fail("Expected FilePermissionException or IOException, but wasn't thrown.");
     } catch (FilePermissionException e) {
       assertThat(e).hasMessageThat().isEqualTo(foo + " (Operation not permitted)");

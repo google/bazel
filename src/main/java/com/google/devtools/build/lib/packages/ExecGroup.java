@@ -14,6 +14,7 @@
 
 package com.google.devtools.build.lib.packages;
 
+import static com.google.common.base.Preconditions.checkArgument;
 import static java.util.Objects.requireNonNull;
 
 import com.google.auto.value.AutoBuilder;
@@ -25,39 +26,47 @@ import com.google.devtools.build.lib.skyframe.serialization.autocodec.AutoCodec;
 import com.google.devtools.build.lib.starlarkbuildapi.ExecGroupApi;
 import com.google.errorprone.annotations.CanIgnoreReturnValue;
 import javax.annotation.Nullable;
+import net.starlark.java.syntax.Identifier;
 
 /**
  * Resolves the appropriate toolchains for the given parameters.
  *
  * @param toolchainTypesMap Returns the underlying map from label to ToolchainTypeRequirement.
  * @param execCompatibleWith Returns the execution constraints for this exec group.
- * @param copyFrom Returns the name of another exec group in the same rule to copy data from.
+ * @param copyFromDefault Whether this exec group should copy the data from the default exec group
+ *     in the same rule.
  */
 @AutoCodec
 public record ExecGroup(
     ImmutableMap<Label, ToolchainTypeRequirement> toolchainTypesMap,
     ImmutableSet<Label> execCompatibleWith,
-    @Nullable String copyFrom)
+    boolean copyFromDefault)
     implements ExecGroupApi {
   public ExecGroup {
     requireNonNull(toolchainTypesMap, "toolchainTypesMap");
     requireNonNull(execCompatibleWith, "execCompatibleWith");
+    checkArgument(
+        !copyFromDefault || (toolchainTypesMap.isEmpty() && execCompatibleWith.isEmpty()));
   }
 
   // This is intentionally a string that would fail {@code Identifier.isValid} so that
   // users can't create a group with the same name.
   public static final String DEFAULT_EXEC_GROUP_NAME = "default-exec-group";
 
+  /** An exec group that copies all data from the default exec group. */
+  public static final ExecGroup COPY_FROM_DEFAULT = builder().copyFromDefault(true).build();
+
   /** Returns a builder for a new ExecGroup. */
   public static Builder builder() {
     return new AutoBuilder_ExecGroup_Builder()
+        .copyFromDefault(false)
         .toolchainTypes(ImmutableSet.of())
         .execCompatibleWith(ImmutableSet.of());
   }
 
-  /** Create an exec group that inherits from the default exec group. */
-  public static ExecGroup copyFromDefault() {
-    return builder().copyFrom(DEFAULT_EXEC_GROUP_NAME).build();
+  /** Returns true if the given exec group is an automatic exec group. */
+  public static boolean isAutomatic(String execGroupName) {
+    return !Identifier.isValid(execGroupName) && !execGroupName.equals(DEFAULT_EXEC_GROUP_NAME);
   }
 
   /** Returns the required toolchain types for this exec group. */
@@ -70,19 +79,8 @@ public record ExecGroup(
     return toolchainTypesMap().get(label);
   }
 
-  /** Creates a new exec group that inherits from the given group and this group. */
-  public ExecGroup inheritFrom(ExecGroup other) {
-    Builder builder = builder().copyFrom(null);
-    builder.toolchainTypesMapBuilder().putAll(this.toolchainTypesMap());
-    builder.toolchainTypesMapBuilder().putAll(other.toolchainTypesMap());
-
-    builder.execCompatibleWith(
-        new ImmutableSet.Builder<Label>()
-            .addAll(this.execCompatibleWith())
-            .addAll(other.execCompatibleWith())
-            .build());
-
-    return builder.build();
+  public Builder toBuilder() {
+    return new AutoBuilder_ExecGroup_Builder(this);
   }
 
   /** A builder interface to create ExecGroup instances. */
@@ -108,8 +106,8 @@ public record ExecGroup(
     /** Sets the execution constraints. */
     Builder execCompatibleWith(ImmutableSet<Label> execCompatibleWith);
 
-    /** Sets the name of another exec group in the same rule to copy from. */
-    Builder copyFrom(@Nullable String copyfrom);
+    /** Do not call, internal usage only. */
+    Builder copyFromDefault(boolean copyFromDefault);
 
     /** Returns the new ExecGroup instance. */
     ExecGroup build();

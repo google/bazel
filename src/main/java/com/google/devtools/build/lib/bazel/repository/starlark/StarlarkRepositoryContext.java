@@ -30,6 +30,7 @@ import com.google.devtools.build.lib.packages.Attribute;
 import com.google.devtools.build.lib.packages.Rule;
 import com.google.devtools.build.lib.packages.StructImpl;
 import com.google.devtools.build.lib.packages.StructProvider;
+import com.google.devtools.build.lib.packages.Type;
 import com.google.devtools.build.lib.pkgcache.PathPackageLocator;
 import com.google.devtools.build.lib.repository.RepositoryFetchProgress;
 import com.google.devtools.build.lib.rules.repository.NeedsSkyframeRestartException;
@@ -143,9 +144,31 @@ public class StarlarkRepositoryContext extends StarlarkBaseExternalContext {
   @StarlarkMethod(
       name = "name",
       structField = true,
-      doc = "The name of the external repository created by this rule.")
+      doc =
+          "The canonical name of the external repository created by this rule. This name is"
+              + " guaranteed to be unique among all external repositories, but its exact format is"
+              + " not specified. Use <a href='#original_name'><code>original_name</code></a>"
+              + " instead to get the name that was originally specified as the <code>name</code>"
+              + " when this repository rule was instantiated.")
   public String getName() {
     return rule.getName();
+  }
+
+  @StarlarkMethod(
+      name = "original_name",
+      structField = true,
+      doc =
+          "The name that was originally specified as the <code>name</code> attribute when this"
+              + " repository rule was instantiated. This name is not necessarily unique among"
+              + " external repositories. Use <a href='#name'><code>name</code></a> instead to get"
+              + " the canonical name of the external repository.")
+  public String getOriginalName() {
+    String originalName = (String) rule.getAttr("$original_name", Type.STRING);
+    // The original name isn't set for WORKSPACE-defined repositories as well as repositories
+    // backing Bazel modules. In case of the former, the original name is the same as the name, in
+    // the latter the original name doesn't matter as the restricted set of rules that can back
+    // Bazel modules do not use the name.
+    return originalName != null ? originalName : rule.getName();
   }
 
   @StarlarkMethod(

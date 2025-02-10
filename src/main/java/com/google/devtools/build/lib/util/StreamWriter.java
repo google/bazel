@@ -21,8 +21,10 @@ import java.io.OutputStream;
  */
 public interface StreamWriter {
   /**
-   * Writes the fake file to an OutputStream. MUST be deterministic, in that multiple calls to
-   * write the same StreamWriter must write identical bytes.
+   * Writes the fake file to an OutputStream. MUST be deterministic, in that multiple calls to write
+   * the same StreamWriter must write identical bytes.
+   *
+   * @throws IOException only if out throws an IOException
    */
   void writeTo(OutputStream out) throws IOException;
 }

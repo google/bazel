@@ -268,10 +268,6 @@ public abstract class ObjcRuleTestCase extends BuildViewTestCase {
   protected static void addAppleBinaryStarlarkRule(Scratch scratch) throws Exception {
     scratch.file("test_starlark/BUILD");
     RepositoryName toolsRepo = TestConstants.TOOLS_REPOSITORY;
-    String toolsLoc = toolsRepo + "//tools/objc";
-    scratch.file(
-        TestConstants.TOOLS_REPOSITORY_SCRATCH + "tools/objc/dummy/BUILD",
-        "objc_library(name = 'dummy_lib', srcs = ['objc_dummy.mm'], alwayslink = False)");
 
     scratch.file(
         "test_starlark/apple_binary_starlark.bzl",
@@ -645,13 +641,6 @@ public abstract class ObjcRuleTestCase extends BuildViewTestCase {
         "        '_child_configuration_dummy': attr.label(",
         "            cfg=apple_platform_split_transition,",
         "            default=Label('" + toolsRepo + "//tools/cpp:current_cc_toolchain'),),",
-        "        '_dummy_lib': attr.label(",
-        "            default = Label('" + toolsLoc + "/dummy:dummy_lib'),),",
-        "        '_j2objc_dead_code_pruner': attr.label(",
-        "            executable = True,",
-        "            allow_files=True,",
-        "            cfg = config.exec('j2objc'),",
-        "            default = Label('" + toolsLoc + ":j2objc_dead_code_pruner_binary'),),",
         "        '_xcode_config': attr.label(",
         "            default=configuration_field(",
         "                fragment='apple', name='xcode_config_label'),),",
@@ -676,10 +665,7 @@ public abstract class ObjcRuleTestCase extends BuildViewTestCase {
         "        'string_variables_extension': attr.string_dict(),",
         "        'string_list_variables_extension': attr.string_list_dict(),",
         "    },",
-        "    exec_groups = {",
-        "        'j2objc': exec_group()",
-        "    },",
-        "    fragments = ['apple', 'objc', 'cpp', 'j2objc'],",
+        "    fragments = ['apple', 'objc', 'cpp']",
         ")");
     scratch.overwriteFile(
         "tools/allowlists/function_transition_allowlist/BUILD",

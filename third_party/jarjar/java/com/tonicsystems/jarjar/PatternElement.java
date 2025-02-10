@@ -16,7 +16,8 @@
 
 package com.tonicsystems.jarjar;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.List;
 
 public abstract class PatternElement {
   private String pattern;
@@ -30,7 +31,7 @@ public abstract class PatternElement {
   }
 
   static List<Wildcard> createWildcards(List<? extends PatternElement> patterns) {
-    List<Wildcard> wildcards = new ArrayList<Wildcard>();
+    List<Wildcard> wildcards = new ArrayList<>();
     for (PatternElement pattern : patterns) {
       String result = (pattern instanceof Rule) ? ((Rule) pattern).getResult() : "";
       String expr = pattern.getPattern();

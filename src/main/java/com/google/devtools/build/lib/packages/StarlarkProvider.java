@@ -243,45 +243,119 @@ public final class StarlarkProvider implements StarlarkCallable, StarlarkExporta
     }
   }
 
-  private static Object[] toNamedArgs(Object value, String descriptionForError)
-      throws EvalException {
-    Dict<String, Object> kwargs = Dict.cast(value, String.class, Object.class, descriptionForError);
-    Object[] named = new Object[2 * kwargs.size()];
-    int i = 0;
-    for (Map.Entry<String, Object> e : kwargs.entrySet()) {
-      named[i++] = e.getKey();
-      named[i++] = e.getValue();
-    }
-    return named;
-  }
-
   @Override
-  public Object fastcall(StarlarkThread thread, Object[] positional, Object[] named)
-      throws InterruptedException, EvalException {
-    if (init == null) {
-      return fastcallRawConstructor(thread, positional, named);
-    }
-
-    Object initResult = Starlark.fastcall(thread, init, positional, named);
-    // The code-path for providers with schema could be optimised to skip the call to toNamedArgs.
-    // As it is, we copy the map to an alternating key-value Object array, and then extract just
-    // the values into another array.
-    return createFromNamedArgs(
-        toNamedArgs(initResult, "return value of provider init()"), thread.getCallerLocation());
-  }
-
-  private Object fastcallRawConstructor(StarlarkThread thread, Object[] positional, Object[] named)
+  public StarlarkCallable.ArgumentProcessor requestArgumentProcessor(StarlarkThread thread)
       throws EvalException {
-    if (positional.length > 0) {
-      throw Starlark.errorf("%s: unexpected positional arguments", getName());
+    StarlarkInfoFactory factory = newStarlarkInfoFactory(thread);
+    if (init != null) {
+      StarlarkCallable.ArgumentProcessor initArgumentProcessor =
+          Starlark.requestArgumentProcessor(thread, init);
+      return new ArgumentProcessorWithInit(this, factory, initArgumentProcessor, thread);
+    } else {
+      return new RawArgumentProcessor(this, factory, thread);
     }
-    return createFromNamedArgs(named, thread.getCallerLocation());
   }
 
-  private StarlarkInfo createFromNamedArgs(Object[] named, Location loc) throws EvalException {
+  private StarlarkInfoFactory newStarlarkInfoFactory(StarlarkThread thread) {
     return schema != null
-        ? StarlarkInfoWithSchema.createFromNamedArgs(this, named, loc)
-        : StarlarkInfoNoSchema.createFromNamedArgs(this, named, loc);
+        ? StarlarkInfoWithSchema.newStarlarkInfoFactory(this, thread)
+        : StarlarkInfoNoSchema.newStarlarkInfoFactory(this, thread);
+  }
+
+  static final class ArgumentProcessorWithInit extends StarlarkCallable.ArgumentProcessor {
+    private final StarlarkProvider owner;
+    private final StarlarkProvider.StarlarkInfoFactory factory;
+    private final StarlarkCallable.ArgumentProcessor initArgumentProcessor;
+
+    ArgumentProcessorWithInit(
+        StarlarkProvider owner,
+        StarlarkProvider.StarlarkInfoFactory factory,
+        StarlarkCallable.ArgumentProcessor initArgumentProcessor,
+        StarlarkThread thread) {
+      super(thread);
+      this.owner = owner;
+      this.factory = factory;
+      this.initArgumentProcessor = initArgumentProcessor;
+    }
+
+    @Override
+    public void addPositionalArg(Object value) throws EvalException {
+      initArgumentProcessor.addPositionalArg(value);
+    }
+
+    @Override
+    public void addNamedArg(String name, Object value) throws EvalException {
+      initArgumentProcessor.addNamedArg(name, value);
+    }
+
+    @Override
+    public StarlarkCallable getCallable() {
+      return owner;
+    }
+
+    @Override
+    public Object call(StarlarkThread thread) throws EvalException, InterruptedException {
+      Object initResult =
+          Starlark.callViaArgumentProcessor(thread, owner.init, initArgumentProcessor);
+      Dict<String, Object> kwargs =
+          Dict.cast(initResult, String.class, Object.class, "return value of provider init()");
+      return factory.createFromMap(kwargs, thread);
+    }
+  }
+
+  /**
+   * A {@link RawArgumentProcessor} is used for calling two different types of StarlarkCallable:
+   * StarlarkProvider in case it doesn't have an init function, and RawConstructor.
+   */
+  static class RawArgumentProcessor extends StarlarkCallable.ArgumentProcessor {
+    private final StarlarkCallable owner; // either StarlarkProvider or RawConstructor
+    private final StarlarkProvider.StarlarkInfoFactory factory;
+
+    RawArgumentProcessor(
+        StarlarkCallable owner,
+        StarlarkProvider.StarlarkInfoFactory factory,
+        StarlarkThread thread) {
+      super(thread);
+      this.owner = owner;
+      this.factory = factory;
+    }
+
+    @Override
+    public void addPositionalArg(Object value) throws EvalException {
+      pushCallableAndThrow(Starlark.errorf("%s: unexpected positional arguments", owner.getName()));
+    }
+
+    @Override
+    public void addNamedArg(String name, Object value) throws EvalException {
+      factory.addNamedArg(name, value);
+    }
+
+    @Override
+    public StarlarkCallable getCallable() {
+      return owner;
+    }
+
+    @Override
+    public Object call(StarlarkThread thread) throws EvalException, InterruptedException {
+      return factory.createFromArgs(thread);
+    }
+  }
+
+  abstract static class StarlarkInfoFactory {
+    protected final StarlarkProvider provider;
+    protected final StarlarkThread thread;
+
+    StarlarkInfoFactory(StarlarkProvider provider, StarlarkThread thread) {
+      this.provider = provider;
+      this.thread = thread;
+    }
+
+    abstract StarlarkInfo createFromArgs(StarlarkThread thread) throws EvalException;
+
+    abstract StarlarkInfo createFromMap(Map<String, Object> map, StarlarkThread thread)
+        throws EvalException;
+
+    abstract void addNamedArg(String name, Object value) throws EvalException;
   }
 
   private static final class RawConstructor implements StarlarkCallable {
@@ -292,9 +366,8 @@ public final class StarlarkProvider implements StarlarkCallable, StarlarkExporta
     }
 
     @Override
-    public Object fastcall(StarlarkThread thread, Object[] positional, Object[] named)
-        throws EvalException {
-      return provider.fastcallRawConstructor(thread, positional, named);
+    public StarlarkCallable.ArgumentProcessor requestArgumentProcessor(StarlarkThread thread) {
+      return new RawArgumentProcessor(this, provider.newStarlarkInfoFactory(thread), thread);
     }
 
     @Override
@@ -466,9 +539,8 @@ public final class StarlarkProvider implements StarlarkCallable, StarlarkExporta
    * <p>Mutable values are never optimized.
    */
   Object optimizeField(int index, Object value) {
-    if (value instanceof Depset) {
+    if (value instanceof Depset depset) {
       Preconditions.checkArgument(depsetTypePredictor != null);
-      Depset depset = (Depset) value;
       if (depset.isEmpty()) {
         // Most empty depsets have the empty (null) type. We can't store this type because it
         // would clash with whatever the actual element type is for non-empty depsets in that
@@ -561,10 +633,9 @@ public final class StarlarkProvider implements StarlarkCallable, StarlarkExporta
         return true;
       }
 
-      if (!(obj instanceof Key)) {
+      if (!(obj instanceof Key other)) {
         return false;
       }
-      Key other = (Key) obj;
       return Objects.equals(this.key, other.key)
           && Objects.equals(this.exportedName, other.exportedName);
     }

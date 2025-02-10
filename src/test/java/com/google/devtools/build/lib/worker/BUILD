@@ -55,6 +55,7 @@ java_library(
         "//src/main/java/com/google/devtools/build/lib/worker:worker_pool",
         "//src/main/java/com/google/devtools/build/lib/worker:worker_spawn_runner",
         "//src/test/java/com/google/devtools/build/lib/actions/util",
+        "//third_party:error_prone_annotations",
         "//third_party:guava",
     ],
 )
@@ -134,9 +135,7 @@ java_library(
         "//src/test/java/com/google/devtools/build/lib/testutil:TestThread",
         "//src/test/java/com/google/devtools/build/lib/testutil:TestUtils",
         "//src/test/java/com/google/devtools/build/lib/vfs/util",
-        "//third_party:apache_commons_pool2",
         "//third_party:guava",
-        "//third_party:guava-testlib",
         "//third_party:jsr305",
         "//third_party:junit4",
         "//third_party:mockito",
@@ -162,10 +161,6 @@ java_test(
 java_test(
     name = "WorkRequestHandlerTest",
     srcs = ["WorkRequestHandlerTest.java"],
-    jvm_flags = [
-        # TODO: b/222158599 - GoogleTestSecurityManager is being turned down
-        "-Dcom.google.testing.junit.runner.shouldInstallTestSecurityManager=true",
-    ],
     deps = [
         "//src/main/java/com/google/devtools/build/lib/worker:work_request_handlers",
         "//src/main/protobuf:worker_protocol_java_proto",

@@ -14,7 +14,6 @@
 package com.google.devtools.build.lib.skyframe;
 
 import static com.google.common.truth.Truth.assertThat;
-import static com.google.devtools.build.lib.packages.semantics.BuildLanguageOptions.ENABLE_WORKSPACE;
 
 import com.google.common.base.Suppliers;
 import com.google.common.collect.ImmutableList;
@@ -27,7 +26,6 @@ import com.google.devtools.build.lib.analysis.util.AnalysisMock;
 import com.google.devtools.build.lib.bazel.bzlmod.BzlmodRepoRuleValue;
 import com.google.devtools.build.lib.clock.BlazeClock;
 import com.google.devtools.build.lib.cmdline.PackageIdentifier;
-import com.google.devtools.build.lib.cmdline.RepositoryName;
 import com.google.devtools.build.lib.events.NullEventHandler;
 import com.google.devtools.build.lib.io.FileSymlinkCycleUniquenessFunction;
 import com.google.devtools.build.lib.packages.RuleClassProvider;
@@ -172,10 +170,7 @@ public class ContainingPackageLookupFunctionTest extends FoundationTestCase {
     evaluator = new InMemoryMemoizingEvaluator(skyFunctions, differencer);
     PrecomputedValue.BUILD_ID.set(differencer, UUID.randomUUID());
     PrecomputedValue.PATH_PACKAGE_LOCATOR.set(differencer, pkgLocator.get());
-    // External repo related test cases don't work with Bzlmod
-    // https://github.com/bazelbuild/bazel/issues/22208
-    PrecomputedValue.STARLARK_SEMANTICS.set(
-        differencer, StarlarkSemantics.DEFAULT.toBuilder().setBool(ENABLE_WORKSPACE, true).build());
+    PrecomputedValue.STARLARK_SEMANTICS.set(differencer, StarlarkSemantics.DEFAULT);
     RepositoryMappingFunction.REPOSITORY_OVERRIDES.set(differencer, ImmutableMap.of());
     RepositoryDelegatorFunction.FORCE_FETCH.set(
         differencer, RepositoryDelegatorFunction.FORCE_FETCH_DISABLED);
@@ -242,32 +237,6 @@ public class ContainingPackageLookupFunctionTest extends FoundationTestCase {
     assertThat(value.getContainingPackageName())
         .isEqualTo(PackageIdentifier.createInMainRepo("a/b"));
     assertThat(value.getContainingPackageRoot()).isEqualTo(Root.fromPath(rootDirectory));
-  }
-
-  @Test
-  public void testContainingPackageIsExternalRepositoryViaExternalRepository() throws Exception {
-    scratch.overwriteFile("WORKSPACE", "local_repository(name='a', path='a')");
-    scratch.file("a/WORKSPACE");
-    scratch.file("a/BUILD");
-    scratch.file("a/b/BUILD");
-    ContainingPackageLookupValue value =
-        lookupContainingPackage(
-            PackageIdentifier.create(RepositoryName.create("a"), PathFragment.create("b")));
-    assertThat(value.hasContainingPackage()).isTrue();
-    assertThat(value.getContainingPackageName())
-        .isEqualTo(PackageIdentifier.create(RepositoryName.create("a"), PathFragment.create("b")));
-  }
-
-  @Test
-  public void testContainingPackageIsExternalRepositoryViaLocalPath() throws Exception {
-    scratch.overwriteFile("WORKSPACE", "local_repository(name='a', path='a')");
-    scratch.file("a/WORKSPACE");
-    scratch.file("a/BUILD");
-    scratch.file("a/b/BUILD");
-    ContainingPackageLookupValue value = lookupContainingPackage("a/b");
-    assertThat(value.hasContainingPackage()).isTrue();
-    assertThat(value.getContainingPackageName())
-        .isEqualTo(PackageIdentifier.create(RepositoryName.create("a"), PathFragment.create("b")));
   }
 
   @Test

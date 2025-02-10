@@ -46,9 +46,9 @@ public final class CppSysrootTest extends BuildViewTestCase {
         getRuleContext(getConfiguredTarget(Label.parseCanonical("//dummy:library"), config));
     ConfigurationMakeVariableContext context =
         new ConfigurationMakeVariableContext(
-            ruleContext,
             ruleContext.getTarget().getPackage(),
             config,
+            ruleContext.getDefaultTemplateVariableProviders(),
             ImmutableList.of(new CcCommon.CcFlagsSupplier(ruleContext)));
     if (shouldContain) {
       assertThat(context.lookupVariable("CC_FLAGS")).contains("--sysroot=" + sysroot);
@@ -145,9 +145,9 @@ public final class CppSysrootTest extends BuildViewTestCase {
         getRuleContext(getConfiguredTarget(Label.parseCanonical("//dummy:library"), targetConfig));
     ConfigurationMakeVariableContext context =
         new ConfigurationMakeVariableContext(
-            ruleContext,
             ruleContext.getTarget().getPackage(),
             targetConfig,
+            ruleContext.getDefaultTemplateVariableProviders(),
             ImmutableList.of(new CcCommon.CcFlagsSupplier(ruleContext)));
     assertThat(context.lookupVariable("CC_FLAGS"))
         .contains("fc-start --sysroot=a/grte/top-from-feature fc-end");

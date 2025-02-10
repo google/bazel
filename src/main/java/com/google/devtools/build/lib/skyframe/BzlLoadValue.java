@@ -20,6 +20,7 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.MoreObjects;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableTable;
+import com.google.devtools.build.lib.cmdline.BazelModuleKey;
 import com.google.devtools.build.lib.cmdline.Label;
 import com.google.devtools.build.lib.cmdline.RepositoryName;
 import com.google.devtools.build.lib.concurrent.ThreadSafety.Immutable;
@@ -32,7 +33,6 @@ import com.google.devtools.build.lib.skyframe.serialization.VisibleForSerializat
 import com.google.devtools.build.lib.util.HashCodes;
 import com.google.devtools.build.lib.vfs.Root;
 import com.google.devtools.build.lib.vfs.RootedPath;
-import com.google.devtools.build.skyframe.SkyFunctionName;
 import com.google.devtools.build.skyframe.SkyKey;
 import com.google.devtools.build.skyframe.SkyKey.SkyKeyInterner;
 import com.google.devtools.build.skyframe.SkyValue;
@@ -102,7 +102,7 @@ public class BzlLoadValue implements SkyValue {
   private static final SkyKeyInterner<Key> keyInterner = SkyKey.newInterner();
 
   /** SkyKey for a Starlark load. */
-  public abstract static sealed class Key implements SkyKey
+  public abstract static sealed class Key implements BazelModuleKey
       permits KeyForBuild, KeyForWorkspace, KeyForBuiltins, KeyForBzlmod {
     // Closed, for class-based equals()/hashCode().
     private Key() {}
@@ -114,6 +114,7 @@ public class BzlLoadValue implements SkyValue {
      * other keys to use {@code @_builtins}, but since no real repo by that name may be defined,
      * they won't evaluate to a successful result.)
      */
+    @Override
     public abstract Label getLabel();
 
     /** Returns true if this is a request for the special BUILD prelude file. */
@@ -157,11 +158,6 @@ public class BzlLoadValue implements SkyValue {
      * given the Root in which to find its file.
      */
     abstract BzlCompileValue.Key getCompileKey(Root root);
-
-    @Override
-    public SkyFunctionName functionName() {
-      return SkyFunctions.BZL_LOAD;
-    }
 
     @Override
     public final boolean valueIsShareable() {

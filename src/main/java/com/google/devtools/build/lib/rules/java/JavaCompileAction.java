@@ -228,8 +228,11 @@ public final class JavaCompileAction extends AbstractAction implements CommandAc
     fp.addUUID(GUID);
     fp.addInt(classpathMode.ordinal());
     CoreOptions.OutputPathsMode outputPathsMode = PathMappers.getOutputPathsMode(configuration);
-    executableLine.addToFingerprint(actionKeyContext, artifactExpander, outputPathsMode, fp);
-    flagLine.addToFingerprint(actionKeyContext, artifactExpander, outputPathsMode, fp);
+    CoreOptions.OutputPathsMode effectiveOutputPathsMode =
+        PathMappers.getEffectiveOutputPathsMode(outputPathsMode, getMnemonic(), getExecutionInfo());
+    executableLine.addToFingerprint(
+        actionKeyContext, artifactExpander, effectiveOutputPathsMode, fp);
+    flagLine.addToFingerprint(actionKeyContext, artifactExpander, effectiveOutputPathsMode, fp);
     // As the classpath is no longer part of commandLines implicitly, we need to explicitly add
     // the transitive inputs to the key here.
     actionKeyContext.addNestedSetToFingerprint(fp, transitiveInputs);

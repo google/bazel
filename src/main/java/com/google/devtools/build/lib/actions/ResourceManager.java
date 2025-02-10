@@ -141,7 +141,7 @@ public class ResourceManager implements ResourceEstimator {
         worker.getStatus().maybeUpdateStatus(Status.PENDING_KILL_DUE_TO_UNKNOWN);
       }
 
-      manager.workerPool.invalidateObject(request.getResourceSet().getWorkerKey(), worker);
+      manager.workerPool.invalidateWorker(worker);
       worker = null;
       this.close();
     }
@@ -441,7 +441,7 @@ public class ResourceManager implements ResourceEstimator {
     windowEstimationCpu += resources.getResources().getOrDefault(ResourceSet.CPU, 0.0);
     usedLocalTestCount += resources.getLocalTestCount();
     if (resources.getWorkerKey() != null) {
-      return this.workerPool.borrowObject(resources.getWorkerKey());
+      return this.workerPool.borrowWorker(resources.getWorkerKey());
     }
 
     runningActions++;
@@ -532,7 +532,7 @@ public class ResourceManager implements ResourceEstimator {
   private synchronized void release(ResourceRequest request, @Nullable Worker worker)
       throws IOException, InterruptedException {
     if (worker != null) {
-      this.workerPool.returnObject(worker.getWorkerKey(), worker);
+      this.workerPool.returnWorker(worker.getWorkerKey(), worker);
     }
 
     ResourceSet resources = request.getResourceSet();

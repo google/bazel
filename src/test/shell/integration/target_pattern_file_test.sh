@@ -69,6 +69,7 @@ EOF
 # Test comment
 //:x # Trailing comment
 //:y
+#
 EOF
 }
 

@@ -16,6 +16,7 @@ package com.google.devtools.build.lib.outputfilter;
 
 import com.google.common.base.Joiner;
 import com.google.common.collect.ImmutableSortedSet;
+import com.google.devtools.build.lib.analysis.platform.PlatformConstants;
 import com.google.devtools.build.lib.cmdline.Label;
 import com.google.devtools.build.lib.events.OutputFilter;
 import com.google.devtools.build.lib.events.OutputFilter.RegexOutputFilter;
@@ -95,9 +96,8 @@ public enum AutoOutputFilter {
     }
   };
 
-  /** An empty pattern */
-  private static final String SYSTEM_ACTION_NAME = "(unknown)";
-  private static final String SYSTEM_ACTION_REGEX = SYSTEM_ACTION_NAME;
+  private static final String SYSTEM_ACTION_REGEX =
+      "(unknown)|" + PlatformConstants.INTERNAL_PLATFORM;
 
   /** Returns an output filter regex for a set of requested targets. */
   public abstract OutputFilter getFilter(Iterable<Label> targets);

@@ -112,4 +112,11 @@ public class IgnoredSubdirectoriesValue implements SkyValue {
       return interner;
     }
   }
+
+  /** Exception thrown when an ignore path is wrong for some reason. */
+  public static final class InvalidIgnorePathException extends Exception {
+    public InvalidIgnorePathException(String path, String message) {
+      super("Invalid path in " + path + ": " + message);
+    }
+  }
 }

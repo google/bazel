@@ -25,7 +25,6 @@ import com.google.devtools.build.lib.vfs.Path;
 import com.google.devtools.build.lib.vfs.PathFragment;
 import com.google.devtools.build.lib.vfs.PathStrippable;
 import com.google.errorprone.annotations.CanIgnoreReturnValue;
-import com.google.protobuf.ByteString;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.util.ArrayList;
@@ -39,7 +38,7 @@ import javax.annotation.Nullable;
  * <p>This class is used by {@link com.google.devtools.build.lib.exec.SpawnRunner} implementations
  * to expand the command lines into a master argument list + any param files needed to be written.
  */
-public abstract class CommandLines {
+public abstract sealed class CommandLines {
 
   // A (hopefully) conservative estimate of how much long each param file arg would be
   // eg. the length of '@path/to/param_file'.
@@ -173,7 +172,7 @@ public abstract class CommandLines {
   public void addToFingerprint(
       ActionKeyContext actionKeyContext,
       @Nullable ArtifactExpander artifactExpander,
-      CoreOptions.OutputPathsMode outputPathsMode,
+      CoreOptions.OutputPathsMode effectiveOutputPathsMode,
       Fingerprint fingerprint)
       throws CommandLineExpansionException, InterruptedException {
     ImmutableList<CommandLineAndParamFileInfo> commandLines = unpack();
@@ -181,7 +180,7 @@ public abstract class CommandLines {
       CommandLine commandLine = pair.commandLine;
       ParamFileInfo paramFileInfo = pair.paramFileInfo;
       commandLine.addToFingerprint(
-          actionKeyContext, artifactExpander, outputPathsMode, fingerprint);
+          actionKeyContext, artifactExpander, effectiveOutputPathsMode, fingerprint);
       if (paramFileInfo != null) {
         addParamFileInfoToFingerprint(paramFileInfo, fingerprint);
       }
@@ -237,13 +236,6 @@ public abstract class CommandLines {
     public byte[] atomicallyWriteTo(Path outputPath) throws IOException {
       // This is needed for internal path wrangling reasons :(
       return super.atomicallyWriteTo(outputPath);
-    }
-
-    @Override
-    public ByteString getBytes() throws IOException {
-      ByteString.Output out = ByteString.newOutput();
-      writeTo(out);
-      return out.toByteString();
     }
 
     @Override
@@ -381,8 +373,18 @@ public abstract class CommandLines {
     }
   }
 
-  private static CommandLine toCommandLine(Object obj) {
-    return obj instanceof CommandLine ? (CommandLine) obj : new SingletonCommandLine(obj);
+  private static CommandLine toExecutableCommandLine(Object obj) {
+    return toCommandLine(obj, /* hasExecutablePath= */ true);
+  }
+
+  private static CommandLine toNonExecutableCommandLine(Object obj) {
+    return toCommandLine(obj, /* hasExecutablePath= */ false);
+  }
+
+  private static CommandLine toCommandLine(Object obj, boolean hasExecutablePath) {
+    return obj instanceof CommandLine commandLine
+        ? commandLine
+        : new SingletonCommandLine(obj, hasExecutablePath);
   }
 
   private static final class OnePartCommandLines extends CommandLines {
@@ -394,7 +396,8 @@ public abstract class CommandLines {
 
     @Override
     public ImmutableList<CommandLineAndParamFileInfo> unpack() {
-      return ImmutableList.of(new CommandLineAndParamFileInfo(toCommandLine(part1), null));
+      return ImmutableList.of(
+          new CommandLineAndParamFileInfo(toExecutableCommandLine(part1), null));
     }
   }
 
@@ -412,8 +415,8 @@ public abstract class CommandLines {
     @Override
     public ImmutableList<CommandLineAndParamFileInfo> unpack() {
       return ImmutableList.of(
-          new CommandLineAndParamFileInfo(toCommandLine(part1), null),
-          new CommandLineAndParamFileInfo(toCommandLine(part2), part2ParamFileInfo));
+          new CommandLineAndParamFileInfo(toExecutableCommandLine(part1), null),
+          new CommandLineAndParamFileInfo(toNonExecutableCommandLine(part2), part2ParamFileInfo));
     }
   }
 
@@ -431,9 +434,9 @@ public abstract class CommandLines {
     @Override
     public ImmutableList<CommandLineAndParamFileInfo> unpack() {
       return ImmutableList.of(
-          new CommandLineAndParamFileInfo(toCommandLine(part1), null),
-          new CommandLineAndParamFileInfo(toCommandLine(part2), null),
-          new CommandLineAndParamFileInfo(toCommandLine(part3), null));
+          new CommandLineAndParamFileInfo(toExecutableCommandLine(part1), null),
+          new CommandLineAndParamFileInfo(toNonExecutableCommandLine(part2), null),
+          new CommandLineAndParamFileInfo(toNonExecutableCommandLine(part3), null));
     }
   }
 
@@ -460,9 +463,9 @@ public abstract class CommandLines {
     @Override
     public ImmutableList<CommandLineAndParamFileInfo> unpack() {
       return ImmutableList.of(
-          new CommandLineAndParamFileInfo(toCommandLine(part1), null),
-          new CommandLineAndParamFileInfo(toCommandLine(part2), part2ParamFileInfo),
-          new CommandLineAndParamFileInfo(toCommandLine(part3), part3ParamFileInfo));
+          new CommandLineAndParamFileInfo(toExecutableCommandLine(part1), null),
+          new CommandLineAndParamFileInfo(toNonExecutableCommandLine(part2), part2ParamFileInfo),
+          new CommandLineAndParamFileInfo(toNonExecutableCommandLine(part3), part3ParamFileInfo));
     }
   }
 
@@ -496,7 +499,7 @@ public abstract class CommandLines {
             paramFileInfo = (ParamFileInfo) commandLines[++i];
           }
         } else {
-          commandLine = new SingletonCommandLine(obj);
+          commandLine = new SingletonCommandLine(obj, /* hasExecutablePath= */ i == 0);
         }
 
         result.add(new CommandLineAndParamFileInfo(commandLine, paramFileInfo));
@@ -507,13 +510,15 @@ public abstract class CommandLines {
 
   private static class SingletonCommandLine extends AbstractCommandLine {
     private final Object arg;
+    private final boolean hasExecutablePath;
 
-    SingletonCommandLine(Object arg) {
+    SingletonCommandLine(Object arg, boolean hasExecutablePath) {
       this.arg = arg;
+      this.hasExecutablePath = hasExecutablePath;
     }
 
     @Override
-    public Iterable<String> arguments() throws CommandLineExpansionException, InterruptedException {
+    public Iterable<String> arguments() {
       return arguments(null, PathMapper.NOOP);
     }
 
@@ -524,8 +529,16 @@ public abstract class CommandLines {
           switch (arg) {
             case PathStrippable ps -> ps.expand(pathMapper::map);
             // StarlarkAction stores the executable path as a string to save memory, but it should
-            // still be mapped just like a PathFragment.
-            case String s -> pathMapper.map(PathFragment.create(s)).getPathString();
+            // still be mapped just like a PathFragment. In this case, the string always represents
+            // a normalized path, so if it isn't (e.g. because it is an absolute path, possibly for
+            // another OS), don't normalize or map it.
+            case String s when hasExecutablePath -> {
+              PathFragment pathFragment = PathFragment.create(s);
+              if (!pathFragment.getPathString().equals(s)) {
+                yield s;
+              }
+              yield pathMapper.map(pathFragment).getPathString();
+            }
             default -> CommandLineItem.expandToCommandLine(arg);
           });
     }

@@ -96,7 +96,7 @@ public class TextOutputFormatter extends OutputFormatter {
       ModuleKey key, ModuleExtensionId extensionId, boolean unexpanded, int depth) {
     printTreeDrawing(IsIndirect.FALSE, depth);
     str.append('$');
-    str.append(extensionId.asTargetString());
+    str.append(extensionId);
     str.append(' ');
     if (unexpanded && options.extensionInfo == ExtensionShow.ALL) {
       str.append("... ");

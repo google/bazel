@@ -41,7 +41,6 @@ import com.google.devtools.build.lib.vfs.FileSystem;
 import com.google.devtools.build.lib.vfs.Path;
 import com.google.devtools.build.lib.vfs.PathFragment;
 import com.google.devtools.build.lib.vfs.Root;
-import com.google.devtools.build.lib.vfs.RootedPath;
 import com.google.devtools.build.lib.vfs.inmemoryfs.InMemoryFileSystem;
 import com.google.devtools.build.skyframe.ErrorInfo;
 import com.google.devtools.build.skyframe.EvaluationResult;
@@ -434,37 +433,6 @@ public class BzlLoadFunctionTest extends BuildViewTestCase {
         .contains(
             "invalid target name 'oops<?>.bzl': "
                 + "target names may not contain non-printable characters: '\\x00'");
-  }
-
-  @Test
-  public void testLoadFromExternalRepoInWorkspaceFileAllowed() throws Exception {
-    setBuildLanguageOptions("--enable_workspace");
-    Path p =
-        scratch.overwriteFile(
-            "WORKSPACE",
-            "local_repository(",
-            "    name = 'a_remote_repo',",
-            "    path = '/a_remote_repo'",
-            ")");
-    scratch.file("/a_remote_repo/WORKSPACE");
-    scratch.file("/a_remote_repo/remote_pkg/BUILD");
-    scratch.file("/a_remote_repo/remote_pkg/ext.bzl", "CONST = 17");
-
-    RootedPath rootedPath =
-        RootedPath.toRootedPath(
-            Root.fromPath(p.getParentDirectory()), PathFragment.create("WORKSPACE"));
-
-    SkyKey skyKey =
-        BzlLoadValue.keyForWorkspace(
-            Label.parseCanonicalUnchecked("@a_remote_repo//remote_pkg:ext.bzl"),
-            /* inWorkspace= */
-            /* workspaceChunk= */ 0,
-            rootedPath);
-    EvaluationResult<BzlLoadValue> result =
-        SkyframeExecutorTestUtils.evaluate(
-            getSkyframeExecutor(), skyKey, /*keepGoing=*/ false, reporter);
-
-    assertThat(result.hasError()).isFalse();
   }
 
   @Test
@@ -1076,61 +1044,6 @@ public class BzlLoadFunctionTest extends BuildViewTestCase {
   }
 
   @Test
-  public void testLoadBzlFileFromWorkspaceWithRemapping() throws Exception {
-    setBuildLanguageOptions("--enable_workspace");
-    Path p =
-        scratch.overwriteFile(
-            "WORKSPACE",
-            "local_repository(",
-            "    name = 'y',",
-            "    path = '/y'",
-            ")",
-            "local_repository(",
-            "    name = 'a',",
-            "    path = '/a',",
-            "    repo_mapping = {'@x' : '@y'}",
-            ")",
-            "load('@a//:a.bzl', 'a_symbol')");
-
-    scratch.file("/y/WORKSPACE");
-    scratch.file("/y/BUILD");
-    scratch.file(
-        "/y/y.bzl",
-        """
-        l = Label("@z//:z")
-        y_symbol = 5
-        """);
-
-    scratch.file("/a/WORKSPACE");
-    scratch.file("/a/BUILD");
-    scratch.file(
-        "/a/a.bzl",
-        """
-        load("@x//:y.bzl", "y_symbol")
-
-        a_symbol = y_symbol
-        """);
-
-    Root root = Root.fromPath(p.getParentDirectory());
-    RootedPath rootedPath = RootedPath.toRootedPath(root, PathFragment.create("WORKSPACE"));
-
-    SkyKey skyKey =
-        BzlLoadValue.keyForWorkspace(Label.parseCanonicalUnchecked("@a//:a.bzl"), 1, rootedPath);
-
-    EvaluationResult<BzlLoadValue> result =
-        SkyframeExecutorTestUtils.evaluate(
-            getSkyframeExecutor(), skyKey, /*keepGoing=*/ false, reporter);
-
-    var bzlLoadValue = result.get(skyKey);
-    assertThat(bzlLoadValue.getModule().getGlobals()).containsEntry("a_symbol", StarlarkInt.of(5));
-    assertThat(bzlLoadValue.getRecordedRepoMappings().cellSet())
-        .containsExactly(
-            Tables.immutableCell(RepositoryName.create("a"), "x", RepositoryName.create("y")),
-            Tables.immutableCell(RepositoryName.create("y"), "z", RepositoryName.create("z")))
-        .inOrder();
-  }
-
-  @Test
   public void testLoadBzlFileFromBzlmod() throws Exception {
     setBuildLanguageOptions("--experimental_enable_scl_dialect");
     scratch.overwriteFile("MODULE.bazel", "bazel_dep(name='foo',version='1.0')");
@@ -1141,7 +1054,7 @@ public class BzlLoadFunctionTest extends BuildViewTestCase {
             "bazel_dep(name='bar',version='2.0',repo_name='bar_alias')")
         .addModule(createModuleKey("bar", "2.0"), "module(name='bar',version='2.0')");
     Path fooDir = moduleRoot.getRelative("foo+1.0");
-    scratch.file(fooDir.getRelative("WORKSPACE").getPathString());
+    scratch.file(fooDir.getRelative("REPO.bazel").getPathString());
     scratch.file(fooDir.getRelative("BUILD").getPathString());
     scratch.file(
         fooDir.getRelative("test.bzl").getPathString(),
@@ -1150,7 +1063,7 @@ public class BzlLoadFunctionTest extends BuildViewTestCase {
         "l = Label('@foo//:whatever')",
         "hoho = haha");
     Path barDir = moduleRoot.getRelative("bar+2.0");
-    scratch.file(barDir.getRelative("WORKSPACE").getPathString());
+    scratch.file(barDir.getRelative("REPO.bazel").getPathString());
     scratch.file(barDir.getRelative("BUILD").getPathString());
     scratch.file(barDir.getRelative("test.scl").getPathString(), "haha = 5");
 

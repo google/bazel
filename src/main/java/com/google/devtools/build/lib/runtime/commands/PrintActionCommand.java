@@ -187,7 +187,7 @@ public final class PrintActionCommand implements BlazeCommand {
               .setTargets(targets)
               .setStartTimeMillis(env.getCommandStartTime())
               .build();
-      BuildResult result = new BuildTool(env).processRequest(request, null);
+      BuildResult result = new BuildTool(env).processRequest(request, null, options);
       if (hasFatalBuildFailure(result)) {
         return result;
       }

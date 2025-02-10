@@ -37,9 +37,17 @@ public final class StarlarkExecTransitionLoader {
   /** Thrown when the Starlark transition failed to load. */
   public static class StarlarkExecTransitionLoadingException extends Exception {
     public StarlarkExecTransitionLoadingException(String context, String ref, String message) {
-      super(
+      this(
           String.format(
               "Bad Starlark transition reference from %s: %s. %s.", context, ref, message));
+    }
+
+    public StarlarkExecTransitionLoadingException(String message) {
+      super(message);
+    }
+
+    public StarlarkExecTransitionLoadingException(Throwable cause) {
+      super(cause);
     }
   }
 
@@ -49,7 +57,8 @@ public final class StarlarkExecTransitionLoader {
      * Loads the given {@link BzlLoadValue.Key}. Returns null if not all Skyframe deps are ready.
      */
     @Nullable
-    BzlLoadValue getValue(BzlLoadValue.Key key) throws BzlLoadFailedException, InterruptedException;
+    BzlLoadValue getValue(BzlLoadValue.Key key)
+        throws BzlLoadFailedException, InterruptedException, StarlarkExecTransitionLoadingException;
   }
 
   /**

@@ -20,6 +20,7 @@ import com.google.auto.value.AutoValue;
 import com.google.common.collect.ImmutableBiMap;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
+import com.google.devtools.build.lib.skyframe.serialization.autocodec.AutoCodec;
 import com.google.devtools.build.lib.vfs.PathFragment;
 import com.google.errorprone.annotations.CanIgnoreReturnValue;
 import com.ryanharter.auto.value.gson.GenerateTypeAdapter;
@@ -138,6 +139,7 @@ public abstract class ModuleExtensionUsage {
    * @param mustExist Whether this override should apply to an existing repo.
    * @param location The location of the {@code override_repo} or {@code inject_repo} call.
    */
+  @AutoCodec
   @GenerateTypeAdapter
   public record RepoOverride(String overridingRepoName, boolean mustExist, Location location) {}
 

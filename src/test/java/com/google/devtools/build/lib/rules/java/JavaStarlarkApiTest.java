@@ -55,7 +55,6 @@ import java.util.Iterator;
 import java.util.List;
 import net.starlark.java.annot.StarlarkMethod;
 import net.starlark.java.eval.Sequence;
-import net.starlark.java.eval.StarlarkList;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -388,8 +387,8 @@ public class JavaStarlarkApiTest extends BuildViewTestCase {
                 new StarlarkProvider.Key(
                     keyForBuild(Label.parseCanonical("//java/test:extension.bzl")), "result"));
 
-    @SuppressWarnings("unchecked") // deserialization
-    StarlarkList<JavaOutput> javaOutputs = ((StarlarkList<JavaOutput>) info.getValue("outputs"));
+    ImmutableList<JavaOutput> javaOutputs =
+        JavaOutput.wrapSequence(info.getValue("outputs", Sequence.class));
 
     assertThat(javaOutputs.size()).isEqualTo(1);
     JavaOutput javaOutput = javaOutputs.get(0);
@@ -4934,7 +4933,6 @@ public class JavaStarlarkApiTest extends BuildViewTestCase {
     "{api: check_provider_instances}",
     "{api: _google_legacy_api_enabled}",
     "{api: _check_java_toolchain_is_declared_on_rule}",
-    "{api: wrap_java_info}",
     "{api: tokenize_javacopts}",
   })
   public void testJavaCommonPrivateApis_areNotVisibleToPublicStarlark(String api) throws Exception {

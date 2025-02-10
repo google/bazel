@@ -5,6 +5,8 @@ Book: /_book.yaml
 
 # Macros
 
+{% include "_buttons.html" %}
+
 This page covers the basics of using macros and includes typical use cases,
 debugging, and conventions.
 
@@ -22,6 +24,9 @@ visibility of targets created. They are designed to be amenable to lazy
 evaluation (which will be added in a future Bazel release). Symbolic macros are
 available by default in Bazel 8. Where this document mentions `macros`, it's
 referring to **symbolic macros**.
+
+An executable example of symbolic macros can be found in the
+[examples repository](https://github.com/bazelbuild/examples/tree/main/macros).
 
 ## Usage {:#usage}
 
@@ -80,9 +85,9 @@ my_macro = macro(
     inherit_attrs = native.cc_library,
     attrs = {
         # override native.cc_library's `local_defines` attribute
-        local_defines = attr.string_list(default = ["FOO"]),
+        "local_defines": attr.string_list(default = ["FOO"]),
         # do not inherit native.cc_library's `defines` attribute
-        defines = None,
+        "defines": None,
     },
     ...
 )
@@ -214,65 +219,127 @@ Symbolic macros
 *   may not call `native.environment_group()`
 *   must create targets whose names adhere to the [naming schema](#naming)
 *   can't refer to input files that weren't declared or passed in as an argument
-    (see [visibility and macros](#visibility) for more details).
+*   can't refer to private targets of their callers (see
+    [visibility and macros](#visibility) for more details).
 
 ### Visibility and macros {:#visibility}
 
-See [Visibility](/concepts/visibility) for an in-depth discussion of visibility
-in Bazel.
+The [visibility](/concepts/visibility) system helps protect the implementation
+details of both (symbolic) macros and their callers.
 
-#### Target visibility {:#target-visibility}
+By default, targets created in a symbolic macro are visible within the macro
+itself, but not necessarily to the macro's caller. The macro can "export" a
+target as a public API by forwarding the value of its own `visibility`
+attribute, as in `some_rule(..., visibility = visibility)`.
 
-By default, targets created by a symbolic macro are visible only in the package
-containing the .bzl file defining the macro. In particular, *they are not
-visible to the caller of the symbolic macro* unless the caller happens to be in
-the same package as the macro's .bzl file.
+The key ideas of macro visibility are:
 
-To make a target visible to the caller of the symbolic macro, pass
-`visibility = visibility` to the rule or inner macro. You may also make the
-target visible in additional packages by giving it a wider (or even public)
-visibility.
+1. Visibility is checked based on what macro declared the target, not what
+   package called the macro.
 
-A package's default visibility (as declared in `package()`) is by default passed
-to the outermost macro's `visibility` parameter, but it is up to the macro to
-then pass (or not pass!) that `visibility` to the targets it instantiates.
+   * In other words, being in the same package does not by itself make one
+     target visible to another. This protects the macro's internal targets
+     from becoming dependencies of other macros or top-level targets in the
+     package.
 
-#### Dependency visibility {:#dependency-visibility}
+1. All `visibility` attributes, on both rules and macros, automatically
+   include the place where the rule or macro was called.
 
-Targets that are referred to in a macro's implementation must be visible to that
-macro's definition. Visibility can be given in one of the following ways:
+   * Thus, a target is unconditionally visible to other targets declared in the
+     same macro (or the `BUILD` file, if not in a macro).
 
-*   Targets are visible to a macro if they are passed to the macro through
-    label, label list, or label-keyed or -valued dict attributes, either
-    explicitly:
+In practice, this means that when a macro declares a target without setting its
+`visibility`, the target defaults to being internal to the macro. (The package's
+[default visibility](/reference/be/functions#package.default_visibility) does
+not apply within a macro.) Exporting the target means that the target is visible
+to whatever the macro's caller specified in the macro's `visibility` attribute,
+plus the package of the macro's caller itself, as well as the macro's own code.
+Another way of thinking of it is that the visibility of a macro determines who
+(aside from the macro itself) can see the macro's exported targets.
 
 ```starlark
+# tool/BUILD
+...
+some_rule(
+    name = "some_tool",
+    visibility = ["//macro:__pkg__"],
+)
+```
 
+```starlark
+# macro/macro.bzl
+
+def _impl(name, visibility):
+    cc_library(
+        name = name + "_helper",
+        ...
+        # No visibility passed in. Same as passing `visibility = None` or
+        # `visibility = ["//visibility:private"]`. Visible to the //macro
+        # package only.
+    )
+    cc_binary(
+        name = name + "_exported",
+        deps = [
+            # Allowed because we're also in //macro. (Targets in any other
+            # instance of this macro, or any other macro in //macro, can see it
+            # too.)
+            name + "_helper",
+            # Allowed by some_tool's visibility, regardless of what BUILD file
+            # we're called from.
+            "//tool:some_tool",
+        ],
+        ...
+        visibility = visibility,
+    )
+
+my_macro = macro(implementation = _impl, ...)
+```
+
+```starlark
 # pkg/BUILD
-my_macro(... deps = ["//other_package:my_tool"] )
-```
+load("//macro:macro.bzl", "my_macro")
+...
 
-*   ... or as attribute default values:
+my_macro(
+    name = "foo",
+    ...
+)
 
-```starlark
-# my_macro:macro.bzl
-my_macro = macro(
-  attrs = {"deps" : attr.label_list(default = ["//other_package:my_tool"])},
-  ...
+some_rule(
+    ...
+    deps = [
+        # Allowed, its visibility is ["//pkg:__pkg__", "//macro:__pkg__"].
+        ":foo_exported",
+        # Disallowed, its visibility is ["//macro:__pkg__"] and
+        # we are not in //macro.
+        ":foo_helper",
+    ]
 )
 ```
 
-*   Targets are also visible to a macro if they are declared visible to the
-    package containing the .bzl file defining the macro:
+If `my_macro` were called with `visibility = ["//other_pkg:__pkg__"]`, or if
+the `//pkg` package had set its `default_visibility` to that value, then
+`//pkg:foo_exported` could also be used within `//other_pkg/BUILD` or within a
+macro defined in `//other_pkg:defs.bzl`, but `//pkg:foo_helper` would remain
+protected.
 
-```starlark
-# other_package/BUILD
-# Any macro defined in a .bzl file in //my_macro package can use this tool.
-cc_binary(
-    name = "my_tool",
-    visibility = "//my_macro:\\__pkg__",
-)
-```
+A macro can declare that a target is visible to a friend package by passing
+`visibility = ["//some_friend:__pkg__"]` (for an internal target) or
+`visibility = visibility + ["//some_friend:__pkg__"]` (for an exported one).
+Note that it is an antipattern for a macro to declare a target with public
+visibility (`visibility = ["//visibility:public"]`). This is because it makes
+the target unconditionally visible to every package, even if the caller
+specified a more restricted visibility.
+
+All visibility checking is done with respect to the innermost currently running
+symbolic macro. However, there is a visibility delegation mechanism: If a macro
+passes a label as an attribute value to an inner macro, any usages of the label
+in the inner macro are checked with respect to the outer macro. See the
+[visibility page](/concepts/visibility#symbolic-macros) for more details.
+
+Remember that legacy macros are entirely transparent to the visibility system,
+and behave as though their location is whatever BUILD file or symbolic macro
+they were called from.
 
 ### Selects {:#selects}
 

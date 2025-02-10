@@ -34,14 +34,15 @@ import com.google.devtools.build.lib.actions.ArtifactExpander;
 import com.google.devtools.build.lib.actions.ArtifactRoot;
 import com.google.devtools.build.lib.analysis.RuleContext;
 import com.google.devtools.build.lib.analysis.actions.ActionConstructionContext;
+import com.google.devtools.build.lib.analysis.actions.SymlinkAction;
 import com.google.devtools.build.lib.analysis.platform.PlatformInfo;
 import com.google.devtools.build.lib.cmdline.Label;
 import com.google.devtools.build.lib.collect.nestedset.NestedSetBuilder;
 import com.google.devtools.build.lib.collect.nestedset.Order;
 import com.google.devtools.build.lib.concurrent.ThreadSafety.Immutable;
 import com.google.devtools.build.lib.exec.SpawnLogContext;
+import com.google.devtools.build.lib.server.FailureDetails;
 import com.google.devtools.build.lib.server.FailureDetails.FailureDetail;
-import com.google.devtools.build.lib.server.FailureDetails.SymlinkAction;
 import com.google.devtools.build.lib.server.FailureDetails.SymlinkAction.Code;
 import com.google.devtools.build.lib.util.DetailedExitCode;
 import com.google.devtools.build.lib.util.Fingerprint;
@@ -88,7 +89,8 @@ public final class SolibSymlinkAction extends AbstractAction {
               FailureDetail.newBuilder()
                   .setMessage(message)
                   .setSymlinkAction(
-                      SymlinkAction.newBuilder().setCode(Code.LINK_CREATION_IO_EXCEPTION))
+                      FailureDetails.SymlinkAction.newBuilder()
+                          .setCode(Code.LINK_CREATION_IO_EXCEPTION))
                   .build());
       throw new ActionExecutionException(message, e, this, false, code);
     }
@@ -107,11 +109,13 @@ public final class SolibSymlinkAction extends AbstractAction {
                 FailureDetail.newBuilder()
                     .setMessage(message)
                     .setSymlinkAction(
-                        SymlinkAction.newBuilder().setCode(Code.LINK_LOG_IO_EXCEPTION))
+                        FailureDetails.SymlinkAction.newBuilder()
+                            .setCode(Code.LINK_LOG_IO_EXCEPTION))
                     .build());
         throw new ActionExecutionException(message, e, this, false, code);
       }
     }
+    SymlinkAction.maybeInjectMetadata(this, actionExecutionContext);
     return ActionResult.EMPTY;
   }
 
@@ -317,10 +321,8 @@ public final class SolibSymlinkAction extends AbstractAction {
   }
 
   @Override
-  @Nullable
   public PlatformInfo getExecutionPlatform() {
-    // SolibSymlinkAction is platform agnostic.
-    return null;
+    return PlatformInfo.EMPTY_PLATFORM_INFO;
   }
 
   @Override

@@ -158,7 +158,9 @@ public interface Spawn extends DescribableExecutionUnit {
    * #getExecutionInfo()} can be set by multiple sources while this data is set via the {@code
    * exec_properties} attribute on targets and platforms.
    */
-  ImmutableMap<String, String> getCombinedExecProperties();
+  default ImmutableMap<String, String> getCombinedExecProperties() {
+    return getResourceOwner().getOwner().getExecProperties();
+  }
 
   @Nullable
   PlatformInfo getExecutionPlatform();

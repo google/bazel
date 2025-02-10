@@ -24,6 +24,8 @@
 #include <sys/stat.h>
 #include <time.h>
 
+#include <cstring>
+
 #ifndef _WIN32
 #include <unistd.h>
 #else
@@ -366,6 +368,16 @@ bool OutputJar::AddJar(int jar_path_index) {
     if (ends_with(file_name, file_name_length, ".SF") ||
         ends_with(file_name, file_name_length, ".RSA") ||
         ends_with(file_name, file_name_length, ".DSA")) {
+      continue;
+    }
+
+    // Skip module-info.class files
+    // Deploy jars are not modularized jars, and including module-infos from
+    // modularized dependencies doesn't work. See also b/204112761.
+    if (!options_->no_strip_module_info &&
+        (!strncmp(file_name, "module-info.class", file_name_length) ||
+         (begins_with(file_name, file_name_length, "META-INF/versions/") &&
+          ends_with(file_name, file_name_length, "/module-info.class")))) {
       continue;
     }
 

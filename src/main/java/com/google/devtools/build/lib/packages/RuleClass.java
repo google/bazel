@@ -68,8 +68,6 @@ import java.util.Arrays;
 import java.util.BitSet;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.HashMap;
-import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -160,6 +158,12 @@ public class RuleClass implements RuleClassData {
   public static final String APPLICABLE_METADATA_ATTR = "package_metadata";
 
   public static final String APPLICABLE_METADATA_ATTR_ALT = "applicable_licenses";
+
+  public static final String DEFAULT_TEST_RUNNER_EXEC_GROUP_NAME = "test";
+  // The test exec group should not inherit any exec constraints or toolchains from the default exec
+  // group since the execution platform for a test is generally independent (and often different)
+  // from the execution platform of the actions that produce the test executable.
+  public static final ExecGroup DEFAULT_TEST_RUNNER_EXEC_GROUP = ExecGroup.builder().build();
 
   /** Interface for determining whether a rule needs toolchain resolution or not. */
   @FunctionalInterface
@@ -258,9 +262,15 @@ public class RuleClass implements RuleClassData {
 
   /**
    * For Bazel's constraint system: the attribute that declares the list of constraints that the
-   * execution platform must satisfy to be considered compatible.
+   * default exec group's execution platform must satisfy to be considered compatible.
    */
   public static final String EXEC_COMPATIBLE_WITH_ATTR = "exec_compatible_with";
+
+  /**
+   * For Bazel's constraint system: the attribute that declares the list of constraints that the
+   * given exec groups' execution platforms must satisfy to be considered compatible.
+   */
+  public static final String EXEC_GROUP_COMPATIBLE_WITH_ATTR = "exec_group_compatible_with";
 
   /**
    * The attribute that declares execution properties that should be added to actions created by
@@ -749,11 +759,11 @@ public class RuleClass implements RuleClassData {
     private boolean supportsConstraintChecking = true;
 
     private final Map<String, Attribute> attributes = new LinkedHashMap<>();
-    private final Set<ToolchainTypeRequirement> toolchainTypes = new HashSet<>();
+    private final Set<ToolchainTypeRequirement> toolchainTypes = new LinkedHashSet<>();
     private ToolchainResolutionMode toolchainResolutionMode = ToolchainResolutionMode.ENABLED;
-    private final Set<Label> executionPlatformConstraints = new HashSet<>();
+    private final Set<Label> executionPlatformConstraints = new LinkedHashSet<>();
     private OutputFile.Kind outputFileKind = OutputFile.Kind.FILE;
-    private final Map<String, ExecGroup> execGroups = new HashMap<>();
+    private final Map<String, ExecGroup> execGroups = new LinkedHashMap<>();
     private AutoExecGroupsMode autoExecGroupsMode = AutoExecGroupsMode.DYNAMIC;
 
     /**
@@ -1620,11 +1630,6 @@ public class RuleClass implements RuleClassData {
         }
       }
       return this;
-    }
-
-    /** Adds an exec group that copies its toolchains and constraints from the rule. */
-    public Builder addExecGroup(String name) {
-      return addExecGroups(ImmutableMap.of(name, ExecGroup.copyFromDefault()));
     }
 
     /** An error to help report {@link ExecGroup}s with the same name */

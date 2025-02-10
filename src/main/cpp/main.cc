@@ -24,10 +24,10 @@
 
 int main_impl(int argc, char **argv) {
   uint64_t start_time = blaze::GetMillisecondsMonotonic();
-  std::unique_ptr<blaze::WorkspaceLayout> workspace_layout(
-      new blaze::WorkspaceLayout());
+  std::unique_ptr<blaze::WorkspaceLayout> workspace_layout =
+      std::make_unique<blaze::WorkspaceLayout>();
   std::unique_ptr<blaze::StartupOptions> startup_options(
-      new blaze::BazelStartupOptions(workspace_layout.get()));
+      std::make_unique<blaze::BazelStartupOptions>());
   return blaze::Main(argc, argv, workspace_layout.get(),
                      new blaze::OptionProcessor(workspace_layout.get(),
                                                 std::move(startup_options)),

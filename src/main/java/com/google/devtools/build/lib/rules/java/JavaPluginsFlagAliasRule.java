@@ -54,8 +54,7 @@ public final class JavaPluginsFlagAliasRule implements RuleDefinition {
                     ImmutableList.of(
                         ImmutableList.of(JavaPluginInfo.PROVIDER.id()),
                         ImmutableList.of(JavaPluginInfo.RULES_JAVA_PROVIDER.id()),
-                        ImmutableList.of(JavaPluginInfo.WORKSPACE_PROVIDER.id()),
-                        ImmutableList.of(JavaPluginInfo.LEGACY_BUILTINS_PROVIDER.id())))
+                        ImmutableList.of(JavaPluginInfo.WORKSPACE_PROVIDER.id())))
                 .silentRuleClassFilter()
                 .value(JavaSemantics.JAVA_PLUGINS))
         .build();
@@ -92,12 +91,6 @@ public final class JavaPluginsFlagAliasRule implements RuleDefinition {
         plugins =
             ruleContext
                 .getRulePrerequisitesCollection()
-                .getPrerequisites(":java_plugins", JavaPluginInfo.LEGACY_BUILTINS_PROVIDER);
-      }
-      if (plugins.isEmpty()) {
-        plugins =
-            ruleContext
-                .getRulePrerequisitesCollection()
                 .getPrerequisites(":java_plugins", JavaPluginInfo.RULES_JAVA_PROVIDER);
       }
       if (plugins.isEmpty()) {
@@ -108,8 +101,6 @@ public final class JavaPluginsFlagAliasRule implements RuleDefinition {
       }
       JavaPluginInfo javaPluginInfo =
           JavaPluginInfo.mergeWithoutJavaOutputs(plugins, JavaPluginInfo.PROVIDER);
-      JavaPluginInfo builtinsProviderInfo =
-          JavaPluginInfo.mergeWithoutJavaOutputs(plugins, JavaPluginInfo.LEGACY_BUILTINS_PROVIDER);
       JavaPluginInfo rulesJavaProviderInfo =
           JavaPluginInfo.mergeWithoutJavaOutputs(plugins, JavaPluginInfo.RULES_JAVA_PROVIDER);
       JavaPluginInfo workspaceProviderInfo =
@@ -117,7 +108,6 @@ public final class JavaPluginsFlagAliasRule implements RuleDefinition {
 
       return new RuleConfiguredTargetBuilder(ruleContext)
           .addStarlarkDeclaredProvider(javaPluginInfo)
-          .addStarlarkDeclaredProvider(builtinsProviderInfo)
           .addStarlarkDeclaredProvider(rulesJavaProviderInfo)
           .addStarlarkDeclaredProvider(workspaceProviderInfo)
           .addProvider(RunfilesProvider.class, RunfilesProvider.EMPTY)

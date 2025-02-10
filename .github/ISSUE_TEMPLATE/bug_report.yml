@@ -23,7 +23,7 @@ body:
     id: subteam
     attributes:
       label: Which category does this issue belong to?
-      description: Help us triage this issue faster and more accurately to the relevant team(s).
+      description: Help us triage this issue faster and more accurately to the relevant team(s). Check the [team labels description](https://bazel.build/contribute/maintainers-guide#team-labels) first to make sure you select the most accurate label.
       multiple: true
       options:
         - Android

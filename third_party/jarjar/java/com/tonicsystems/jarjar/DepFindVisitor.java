@@ -16,11 +16,11 @@
 
 package com.tonicsystems.jarjar;
 
-import com.tonicsystems.jarjar.util.*;
-import java.io.*;
-import java.util.*;
-import org.objectweb.asm.*;
-import org.objectweb.asm.commons.*;
+import com.tonicsystems.jarjar.util.RuntimeIOException;
+import java.io.IOException;
+import java.util.Map;
+import org.objectweb.asm.commons.ClassRemapper;
+import org.objectweb.asm.commons.Remapper;
 
 class DepFindVisitor extends ClassRemapper {
   public DepFindVisitor(Map<String, String> classes, String source, DepHandler handler)
@@ -28,6 +28,7 @@ class DepFindVisitor extends ClassRemapper {
     super(null, new DepFindRemapper(classes, source, handler));
   }
 
+  @Override
   public void visit(
       int version,
       int access,
@@ -45,8 +46,7 @@ class DepFindVisitor extends ClassRemapper {
     private final DepHandler handler;
     private PathClass curPathClass;
 
-    public DepFindRemapper(Map<String, String> classes, String source, DepHandler handler)
-        throws IOException {
+    public DepFindRemapper(Map<String, String> classes, String source, DepHandler handler) {
       this.classes = classes;
       this.source = source;
       this.handler = handler;
@@ -56,6 +56,7 @@ class DepFindVisitor extends ClassRemapper {
       curPathClass = new PathClass(source, name);
     }
 
+    @Override
     public String map(String key) {
       try {
         if (classes.containsKey(key)) {

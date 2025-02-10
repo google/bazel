@@ -27,7 +27,6 @@ public class BuildEventStreamOptions extends OptionsBase {
 
   @Option(
       name = "build_event_text_file",
-      oldName = "experimental_build_event_text_file",
       defaultValue = "",
       documentationCategory = OptionDocumentationCategory.LOGGING,
       effectTags = {OptionEffectTag.AFFECTS_OUTPUTS},
@@ -46,7 +45,6 @@ public class BuildEventStreamOptions extends OptionsBase {
 
   @Option(
       name = "build_event_binary_file",
-      oldName = "experimental_build_event_binary_file",
       defaultValue = "",
       documentationCategory = OptionDocumentationCategory.LOGGING,
       effectTags = {OptionEffectTag.AFFECTS_OUTPUTS},
@@ -58,7 +56,6 @@ public class BuildEventStreamOptions extends OptionsBase {
 
   @Option(
       name = "build_event_json_file",
-      oldName = "experimental_build_event_json_file",
       defaultValue = "",
       documentationCategory = OptionDocumentationCategory.LOGGING,
       effectTags = {OptionEffectTag.AFFECTS_OUTPUTS},

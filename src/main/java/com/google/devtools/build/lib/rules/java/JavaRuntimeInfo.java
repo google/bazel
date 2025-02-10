@@ -16,7 +16,6 @@ package com.google.devtools.build.lib.rules.java;
 
 import static com.google.devtools.build.lib.packages.BuildType.LABEL;
 import static com.google.devtools.build.lib.skyframe.BzlLoadValue.keyForBuild;
-import static com.google.devtools.build.lib.skyframe.BzlLoadValue.keyForBuiltins;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableList;
@@ -46,8 +45,6 @@ import net.starlark.java.eval.StarlarkInt;
 @Immutable
 public final class JavaRuntimeInfo extends StarlarkInfoWrapper {
 
-  public static final StarlarkProviderWrapper<JavaRuntimeInfo> LEGACY_BUILTINS_PROVIDER =
-      new BuiltinsProvider();
   public static final StarlarkProviderWrapper<JavaRuntimeInfo> RULES_JAVA_PROVIDER =
       new RulesJavaProvider();
   public static final StarlarkProviderWrapper<JavaRuntimeInfo> WORKSPACE_PROVIDER =
@@ -104,8 +101,6 @@ public final class JavaRuntimeInfo extends StarlarkInfoWrapper {
     com.google.devtools.build.lib.packages.Provider.Key key = info.getProvider().getKey();
     if (key.equals(PROVIDER.getKey())) {
       return PROVIDER.wrap(info);
-    } else if (key.equals(LEGACY_BUILTINS_PROVIDER.getKey())) {
-      return LEGACY_BUILTINS_PROVIDER.wrap(info);
     } else if (key.equals(RULES_JAVA_PROVIDER.getKey())) {
       return RULES_JAVA_PROVIDER.wrap(info);
     } else if (key.equals(WORKSPACE_PROVIDER.getKey())) {
@@ -148,14 +143,6 @@ public final class JavaRuntimeInfo extends StarlarkInfoWrapper {
 
   public int version() throws RuleErrorException {
     return getUnderlyingValue("version", StarlarkInt.class).toIntUnchecked();
-  }
-
-  private static class BuiltinsProvider extends Provider {
-    private BuiltinsProvider() {
-      super(
-          keyForBuiltins(
-              Label.parseCanonicalUnchecked("@_builtins//:common/java/java_runtime.bzl")));
-    }
   }
 
   private static class RulesJavaProvider extends Provider {

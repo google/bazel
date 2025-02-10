@@ -1,5 +1,4 @@
 load("@rules_java//java:defs.bzl", "java_library")
-load("//src:build_defs.bzl", "java_11_library")
 
 # Description:
 #   A devtools-common options parser.
@@ -34,13 +33,13 @@ java_library(
     ],
 )
 
-java_11_library(
+java_library(
     name = "options",
     exported_plugins = ["//src/main/java/com/google/devtools/common/options/processor:options_preprocessor"],
     exports = [":options_internal"],
 )
 
-java_11_library(
+java_library(
     name = "options_internal",
     srcs = glob(
         ["*.java"],

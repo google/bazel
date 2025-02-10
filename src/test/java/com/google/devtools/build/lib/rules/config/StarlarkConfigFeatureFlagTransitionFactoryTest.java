@@ -16,9 +16,17 @@ package com.google.devtools.build.lib.rules.config;
 
 import static com.google.common.truth.Truth.assertThat;
 
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableSortedSet;
 import com.google.devtools.build.lib.analysis.ConfiguredRuleClassProvider;
+import com.google.devtools.build.lib.analysis.config.BuildOptions;
+import com.google.devtools.build.lib.analysis.config.FragmentOptions;
+import com.google.devtools.build.lib.analysis.util.AnalysisMock;
 import com.google.devtools.build.lib.analysis.util.BuildViewTestCase;
+import com.google.devtools.build.lib.skyframe.PrecomputedValue;
+import com.google.devtools.build.lib.skyframe.SequencedSkyframeExecutor;
 import com.google.devtools.build.lib.testutil.TestRuleClassProvider;
+import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -26,6 +34,26 @@ import org.junit.runners.JUnit4;
 /** Starlark-integration Tests for the ConfigFeatureFlagTransitionFactory. */
 @RunWith(JUnit4.class)
 public final class StarlarkConfigFeatureFlagTransitionFactoryTest extends BuildViewTestCase {
+
+  @Before
+  public final void initializeSkyframExecutor() throws Exception {
+    AnalysisMock analysisMock = AnalysisMock.get();
+
+    ConfiguredRuleClassProvider ruleClassProvider = analysisMock.createRuleClassProvider();
+    ImmutableSortedSet<Class<? extends FragmentOptions>> buildOptionClasses =
+        ruleClassProvider.getFragmentRegistry().getOptionsClasses();
+
+    SequencedSkyframeExecutor skyframeExecutor = getSkyframeExecutor();
+    BuildOptions defaultBuildOptions =
+        BuildOptions.getDefaultBuildOptionsForFragments(buildOptionClasses).clone();
+    skyframeExecutor.injectExtraPrecomputedValues(
+        new ImmutableList.Builder<PrecomputedValue.Injected>()
+            .add(
+                PrecomputedValue.injected(
+                    PrecomputedValue.BASELINE_CONFIGURATION, defaultBuildOptions))
+            .addAll(analysisMock.getPrecomputedValues())
+            .build());
+  }
 
   @Override
   protected ConfiguredRuleClassProvider createRuleClassProvider() {

@@ -15,7 +15,6 @@
 package com.google.devtools.build.lib.analysis.actions;
 
 import static com.google.common.base.Preconditions.checkState;
-import static java.nio.charset.StandardCharsets.ISO_8859_1;
 
 import com.google.common.io.ByteStreams;
 import com.google.devtools.build.lib.actions.ActionExecutionContext;
@@ -225,7 +224,7 @@ public abstract class FileWriteAction extends AbstractFileWriteAction
 
     @Override
     public DeterministicWriter newDeterministicWriter(ActionExecutionContext ctx) {
-      return out -> out.write(getFileContents().getBytes(ISO_8859_1));
+      return out -> out.write(StringUnsafe.getInstance().getInternalStringBytes(getFileContents()));
     }
 
     @Override

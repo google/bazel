@@ -590,7 +590,8 @@ public final class FunctionTest {
         def _f(x):
           return x * _y
 
-        g = _f""");
+        g = _f
+        """);
     var f = (StarlarkFunction) ev.lookup("_f");
     assertThat(ev.lookup("g")).isSameInstanceAs(f); // "g" is an alias for "_f"
 
@@ -606,7 +607,8 @@ public final class FunctionTest {
     ev.exec(
         """
         x = lambda v: "--" + v
-        y = x""");
+        y = x
+        """);
     var x = (StarlarkFunction) ev.lookup("x");
     assertThat(ev.lookup("y")).isSameInstanceAs(x); // "y" is an alias for "x"
 
@@ -658,5 +660,22 @@ public final class FunctionTest {
                     x = lambda v: v + 2
                     """));
     assertThat(thrown).hasMessageThat().contains("'x' redeclared at top level");
+  }
+
+  // Regression test for b/385394075
+  @Test
+  public void positionalOnlyCall_setsKeywordArgsVarargsAndKwargs() throws Exception {
+    ev.exec(
+        """
+        def f(a, b, *args, k = 42, **kwargs):
+            kwargs["mutable"] = True  # verify that **kwargs is a mutable dict
+            return "k=%s args=%s kwargs=%s" % (repr(k), repr(args), repr(kwargs))
+        """);
+    StarlarkFunction f = (StarlarkFunction) ev.lookup("f");
+    try (Mutability mu = Mutability.create("test")) {
+      StarlarkThread thread = StarlarkThread.createTransient(mu, StarlarkSemantics.DEFAULT);
+      assertThat((String) Starlark.positionalOnlyCall(thread, f, "a", "b", "c", "d"))
+          .isEqualTo("k=42 args=(\"c\", \"d\") kwargs={\"mutable\": True}");
+    }
   }
 }

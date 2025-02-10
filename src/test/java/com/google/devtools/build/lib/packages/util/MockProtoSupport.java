@@ -44,7 +44,6 @@ public final class MockProtoSupport {
   }
 
   private static void registerProtoToolchain(MockToolsConfig config) throws IOException {
-    config.append("WORKSPACE", "register_toolchains('//tools/proto/toolchains:all')");
     config.append("MODULE.bazel", "register_toolchains('//tools/proto/toolchains:all')");
     config.create(
         "tools/proto/toolchains/BUILD",
@@ -406,7 +405,6 @@ public final class MockProtoSupport {
               + ProtoConstants.DEFAULT_PROTOC_LABEL
               + "')");
       config.overwrite("proto_bazel_features_workspace/BUILD");
-      config.overwrite("proto_bazel_features_workspace/WORKSPACE");
       config.overwrite(
           "proto_bazel_features_workspace/features.bzl",
           "bazel_features = struct(",

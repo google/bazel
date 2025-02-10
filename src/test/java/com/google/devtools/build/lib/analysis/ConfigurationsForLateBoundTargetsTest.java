@@ -17,8 +17,6 @@ package com.google.devtools.build.lib.analysis;
 import static com.google.common.truth.Truth.assertThat;
 import static com.google.devtools.build.lib.packages.Attribute.attr;
 import static com.google.devtools.build.lib.packages.BuildType.LABEL;
-import static com.google.devtools.build.lib.testutil.TestConstants.PLATFORM_LABEL;
-import static com.google.devtools.build.lib.testutil.TestConstants.PLATFORM_LABEL_ALIAS;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
@@ -155,7 +153,7 @@ public class ConfigurationsForLateBoundTargetsTest extends AnalysisTestCase {
         ImmutableList.copyOf(
             SkyframeExecutorTestUtils.getExistingConfiguredTargets(
                 skyframeExecutor, Label.parseCanonical("//foo:latebound_dep")));
-    assertThat(deps).hasSize(PLATFORM_LABEL_ALIAS.equals(PLATFORM_LABEL) ? 1 : 2);
+    assertThat(deps).hasSize(1);
     assertThat(deps.stream().allMatch(d -> getConfiguration(d).isExecConfiguration())).isTrue();
   }
 }

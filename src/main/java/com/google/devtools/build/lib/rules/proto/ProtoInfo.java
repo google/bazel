@@ -25,6 +25,7 @@ import com.google.devtools.build.lib.packages.Info;
 import com.google.devtools.build.lib.packages.RuleClass.ConfiguredTargetFactory.RuleErrorException;
 import com.google.devtools.build.lib.packages.StarlarkInfo;
 import com.google.devtools.build.lib.packages.StarlarkProviderWrapper;
+import com.google.devtools.build.lib.skyframe.BzlLoadValue;
 import net.starlark.java.eval.EvalException;
 import net.starlark.java.eval.Sequence;
 
@@ -40,7 +41,11 @@ public final class ProtoInfo {
   public static class ProtoInfoProvider extends StarlarkProviderWrapper<ProtoInfo> {
 
     public ProtoInfoProvider() {
-      super(ProtoConstants.PROTO_INFO_KEY, "ProtoInfo");
+      this(ProtoConstants.PROTO_INFO_KEY);
+    }
+
+    public ProtoInfoProvider(BzlLoadValue.Key key) {
+      super(key, "ProtoInfo");
     }
 
     @Override

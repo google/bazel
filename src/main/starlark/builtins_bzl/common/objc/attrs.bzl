@@ -17,13 +17,6 @@
 load(":common/cc/cc_info.bzl", "CcInfo")
 load(":common/objc/semantics.bzl", "semantics")
 
-# TODO(b/288421584): necessary because IDE aspect can't see toolchains
-_CC_TOOLCHAIN_RULE = {
-    "_cc_toolchain": attr.label(
-        default = "@" + semantics.get_repo() + "//tools/cpp:current_cc_toolchain",
-    ),
-}
-
 _COMPILING_RULE = {
     "srcs": attr.label_list(
         allow_files = True,
@@ -46,7 +39,7 @@ build to avoid missing symbol linker errors.""",
         flags = ["DIRECT_COMPILE_TIME_INPUT"],
         doc = """
 The list of Objective-C files that are processed to create the
-library target that DO NOT use ARC.
+library target that DO NOT use Automatic Reference Counting (ARC).
 The files in this attribute are treated very similar to those in the
 srcs attribute, but are compiled without ARC enabled.""",
     ),
@@ -175,6 +168,26 @@ it depends, or those which depend on it.
 Note that for the generated Xcode project, directory paths specified using "-I" flags in
 copts are parsed out, prepended with "$(WORKSPACE_ROOT)/" if they are relative paths, and
 added to the header search paths for the associated Xcode target."""),
+    "conlyopts": attr.string_list(doc = """
+Extra flags to pass to the compiler for C files.
+Subject to <a href="${link make-variables}">"Make variable"</a> substitution and
+<a href="${link common-definitions#sh-tokenization}">Bourne shell tokenization</a>.
+These flags will only apply to this target, and not those upon which
+it depends, or those which depend on it.
+<p>
+Note that for the generated Xcode project, directory paths specified using "-I" flags in
+copts are parsed out, prepended with "$(WORKSPACE_ROOT)/" if they are relative paths, and
+added to the header search paths for the associated Xcode target."""),
+    "cxxopts": attr.string_list(doc = """
+Extra flags to pass to the compiler for Objective-C++ and C++ files.
+Subject to <a href="${link make-variables}">"Make variable"</a> substitution and
+<a href="${link common-definitions#sh-tokenization}">Bourne shell tokenization</a>.
+These flags will only apply to this target, and not those upon which
+it depends, or those which depend on it.
+<p>
+Note that for the generated Xcode project, directory paths specified using "-I" flags in
+copts are parsed out, prepended with "$(WORKSPACE_ROOT)/" if they are relative paths, and
+added to the header search paths for the associated Xcode target."""),
 }
 
 _ALWAYSLINK_RULE = {
@@ -197,7 +210,6 @@ def _union(*dictionaries):
 common_attrs = struct(
     union = _union,
     ALWAYSLINK_RULE = _ALWAYSLINK_RULE,
-    CC_TOOLCHAIN_RULE = _CC_TOOLCHAIN_RULE,
     COMPILING_RULE = _COMPILING_RULE,
     COMPILE_DEPENDENCY_RULE = _COMPILE_DEPENDENCY_RULE,
     COPTS_RULE = _COPTS_RULE,

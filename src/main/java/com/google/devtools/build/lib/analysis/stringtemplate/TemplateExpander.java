@@ -38,7 +38,7 @@ public final class TemplateExpander {
    */
   @Nullable
   public static String expandSingleVariable(String expression, TemplateContext context)
-      throws ExpansionException, InterruptedException {
+      throws ExpansionException {
     String var = new TemplateExpander(expression).getSingleVariable();
     return (var != null) ? context.lookupVariable(var) : null;
   }
@@ -53,7 +53,7 @@ public final class TemplateExpander {
    * @throws ExpansionException if "expr" contained undefined or ill-formed variables references
    */
   public static Expansion expand(String expression, TemplateContext context)
-      throws ExpansionException, InterruptedException {
+      throws ExpansionException {
     if (expression.indexOf('$') < 0) {
       return Expansion.create(expression, ImmutableSet.of());
     }
@@ -62,7 +62,7 @@ public final class TemplateExpander {
 
   // Helper method for counting recursion depth.
   private static Expansion expand(String expression, TemplateContext context, int depth)
-      throws ExpansionException, InterruptedException {
+      throws ExpansionException {
     if (depth > 10) { // plenty!
       throw new ExpansionException(
           String.format("potentially unbounded recursion during expansion of '%s'", expression));
@@ -70,8 +70,7 @@ public final class TemplateExpander {
     return new TemplateExpander(expression).expand(context, depth);
   }
 
-  private Expansion expand(TemplateContext context, int depth)
-      throws ExpansionException, InterruptedException {
+  private Expansion expand(TemplateContext context, int depth) throws ExpansionException {
     StringBuilder result = new StringBuilder();
     ImmutableSet.Builder<String> lookedUpVariables = ImmutableSet.builder();
     while (offset < length) {

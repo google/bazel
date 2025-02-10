@@ -40,6 +40,8 @@ import com.google.devtools.build.lib.actions.Artifact;
 import com.google.devtools.build.lib.actions.Artifact.SpecialArtifact;
 import com.google.devtools.build.lib.actions.Artifact.TreeFileArtifact;
 import com.google.devtools.build.lib.actions.FileArtifactValue;
+import com.google.devtools.build.lib.actions.FileContentsProxy;
+import com.google.devtools.build.lib.actions.InputMetadataProvider;
 import com.google.devtools.build.lib.actions.cache.OutputMetadataStore;
 import com.google.devtools.build.lib.actions.cache.VirtualActionInput;
 import com.google.devtools.build.lib.events.Reporter;
@@ -87,6 +89,17 @@ public abstract class AbstractActionInputPrefetcher implements ActionInputPrefet
     PERMANENTLY_WRITABLE,
     TEMPORARILY_WRITABLE,
     OUTPUT_PERMISSIONS
+  }
+
+  /**
+   * Returns the metadata for an {@link ActionInput}.
+   *
+   * <p>This will generally call through to a {@link InputMetadataProvider} and ask for the metadata
+   * of either an input or an output artifact.
+   */
+  @VisibleForTesting
+  public interface MetadataSupplier {
+    FileArtifactValue getMetadata(ActionInput actionInput) throws IOException, InterruptedException;
   }
 
   /**
@@ -242,14 +255,14 @@ public abstract class AbstractActionInputPrefetcher implements ActionInputPrefet
       Path tempPath,
       PathFragment execPath,
       FileArtifactValue metadata,
-      Priority priority)
+      Priority priority,
+      Reason reason)
       throws IOException;
 
   protected void prefetchVirtualActionInput(VirtualActionInput input) throws IOException {}
 
   /**
-   * Fetches remotely stored action outputs, that are inputs to this spawn, and stores them under
-   * their path in the output base.
+   * Fetches remotely stored action outputs and stores them under their path in the output base.
    *
    * <p>The {@code inputs} may not contain any unexpanded directories.
    *
@@ -262,8 +275,34 @@ public abstract class AbstractActionInputPrefetcher implements ActionInputPrefet
   public ListenableFuture<Void> prefetchFiles(
       ActionExecutionMetadata action,
       Iterable<? extends ActionInput> inputs,
+      InputMetadataProvider metadataProvider,
+      Priority priority,
+      Reason reason) {
+    return prefetchFilesInterruptibly(
+        action, inputs, metadataProvider::getInputMetadata, priority, reason);
+  }
+
+  /**
+   * Fetches remotely stored action outputs and stores them under their path in the output base.
+   *
+   * <p>The {@code inputs} may not contain any unexpanded directories.
+   *
+   * <p>This method is safe to be called concurrently from spawn runners before running any local
+   * spawn.
+   *
+   * <p>This method is similar to #prefetchFiles() above, but note that {@code metadataSupplier} may
+   * throw {@link InterruptedException}. If it does, this method will propagate this exception in
+   * the returned future.
+   *
+   * @return a future that is completed once all downloads have finished.
+   */
+  @VisibleForTesting
+  public ListenableFuture<Void> prefetchFilesInterruptibly(
+      ActionExecutionMetadata action,
+      Iterable<? extends ActionInput> inputs,
       MetadataSupplier metadataSupplier,
-      Priority priority) {
+      Priority priority,
+      Reason reason) {
     List<ActionInput> files = new ArrayList<>();
 
     for (ActionInput input : inputs) {
@@ -297,7 +336,8 @@ public abstract class AbstractActionInputPrefetcher implements ActionInputPrefet
     try (var s = Profiler.instance().profile("compose prefetches")) {
       for (var file : files) {
         transfers.add(
-            prefetchFile(action, dirsWithOutputPermissions, metadataSupplier, file, priority));
+            prefetchFile(
+                action, dirsWithOutputPermissions, metadataSupplier, file, priority, reason));
       }
     }
 
@@ -328,7 +368,8 @@ public abstract class AbstractActionInputPrefetcher implements ActionInputPrefet
       Set<Path> dirsWithOutputPermissions,
       MetadataSupplier metadataSupplier,
       ActionInput input,
-      Priority priority) {
+      Priority priority,
+      Reason reason) {
     try {
       if (input instanceof VirtualActionInput virtualActionInput) {
         prefetchVirtualActionInput(virtualActionInput);
@@ -360,7 +401,8 @@ public abstract class AbstractActionInputPrefetcher implements ActionInputPrefet
               dirsWithOutputPermissions,
               input,
               metadata,
-              priority);
+              priority,
+              reason);
 
       if (symlink != null) {
         result = result.andThen(plantSymlink(symlink));
@@ -378,7 +420,7 @@ public abstract class AbstractActionInputPrefetcher implements ActionInputPrefet
    *
    * <p>Some artifacts (notably, those created by {@code ctx.actions.symlink}) are materialized in
    * the output tree as a symlink to another artifact, as indicated by the {@link
-   * FileArtifactValue#getMaterializationExecPath()} field in their metadata.
+   * FileArtifactValue#getResolvedPath()} field in their metadata.
    */
   @Nullable
   private PathFragment maybeGetTreeRoot(
@@ -399,7 +441,11 @@ public abstract class AbstractActionInputPrefetcher implements ActionInputPrefet
       throw new IllegalStateException(
           String.format("input %s belongs to a tree artifact whose metadata is missing", treeFile));
     }
-    return treeMetadata.getMaterializationExecPath().orElse(treeArtifact.getExecPath());
+    PathFragment resolvedPath = treeMetadata.getResolvedPath();
+    if (resolvedPath != null) {
+      return resolvedPath.relativeTo(execRoot.asFragment());
+    }
+    return treeArtifact.getExecPath();
   }
 
   /**
@@ -408,8 +454,7 @@ public abstract class AbstractActionInputPrefetcher implements ActionInputPrefet
    *
    * <p>Some artifacts (notably, those created by {@code ctx.actions.symlink}) are materialized in
    * the output tree as a symlink to another artifact, as indicated by the {@link
-   * FileArtifactValue#getMaterializationExecPath()} field in their (or their parent tree
-   * artifact's) metadata.
+   * FileArtifactValue#getResolvedPath()} field in their (or their parent tree artifact's) metadata.
    */
   @Nullable
   private Symlink maybeGetSymlink(
@@ -435,9 +480,12 @@ public abstract class AbstractActionInputPrefetcher implements ActionInputPrefet
       return maybeGetSymlink(action, treeArtifact, treeMetadata, metadataSupplier);
     }
     PathFragment execPath = input.getExecPath();
-    PathFragment materializationExecPath = metadata.getMaterializationExecPath().orElse(execPath);
-    if (!materializationExecPath.equals(execPath)) {
-      return Symlink.of(execPath, materializationExecPath);
+    PathFragment resolvedExecPath = execPath;
+    if (metadata.getResolvedPath() != null) {
+      resolvedExecPath = metadata.getResolvedPath().relativeTo(execRoot.asFragment());
+    }
+    if (!resolvedExecPath.equals(execPath)) {
+      return Symlink.of(execPath, resolvedExecPath);
     }
     return null;
   }
@@ -479,11 +527,12 @@ public abstract class AbstractActionInputPrefetcher implements ActionInputPrefet
       Set<Path> dirsWithOutputPermissions,
       ActionInput actionInput,
       FileArtifactValue metadata,
-      Priority priority) {
+      Priority priority,
+      Reason reason) {
     // If the path to be prefetched is a non-dangling symlink, prefetch its target path instead.
     // Note that this only applies to symlinks created by spawns (or, currently, with the internal
     // version of BwoB); symlinks created in-process through an ActionFileSystem should have already
-    // been resolved into their materializationExecPath in maybeGetSymlink.
+    // been canonicalized by maybeGetSymlink.
     try {
       if (treeRoot != null) {
         var treeRootRelativePath = path.relativeTo(treeRoot);
@@ -524,11 +573,13 @@ public abstract class AbstractActionInputPrefetcher implements ActionInputPrefet
                                 tempPath,
                                 finalPath.relativeTo(execRoot),
                                 metadata,
-                                priority),
+                                priority,
+                                reason),
                         directExecutor())
                     .doOnComplete(
                         () -> {
-                          finalizeDownload(tempPath, finalPath, dirsWithOutputPermissions);
+                          finalizeDownload(
+                              metadata, tempPath, finalPath, dirsWithOutputPermissions);
                           alreadyDeleted.set(true);
                         })
                     .doOnError(
@@ -550,7 +601,8 @@ public abstract class AbstractActionInputPrefetcher implements ActionInputPrefet
             }));
   }
 
-  private void finalizeDownload(Path tmpPath, Path finalPath, Set<Path> dirsWithOutputPermissions)
+  private void finalizeDownload(
+      FileArtifactValue metadata, Path tmpPath, Path finalPath, Set<Path> dirsWithOutputPermissions)
       throws IOException {
     Path parentDir = checkNotNull(finalPath.getParentDirectory());
 
@@ -580,6 +632,9 @@ public abstract class AbstractActionInputPrefetcher implements ActionInputPrefet
     // for artifacts produced by local actions.
     tmpPath.chmod(outputPermissions.getPermissionsMode());
     FileSystemUtils.moveFile(tmpPath, finalPath);
+
+    // Set the contents proxy when supported, to make future modification checks cheaper.
+    metadata.setContentsProxy(FileContentsProxy.create(finalPath.stat()));
   }
 
   private interface TaskWithTempPath {
@@ -686,8 +741,12 @@ public abstract class AbstractActionInputPrefetcher implements ActionInputPrefet
     if (!outputsToDownload.isEmpty()) {
       try (var s = Profiler.instance().profile(ProfilerTask.REMOTE_DOWNLOAD, "Download outputs")) {
         getFromFuture(
-            prefetchFiles(
-                action, outputsToDownload, outputMetadataStore::getOutputMetadata, Priority.HIGH));
+            prefetchFilesInterruptibly(
+                action,
+                outputsToDownload,
+                outputMetadataStore::getOutputMetadata,
+                Priority.HIGH,
+                Reason.OUTPUTS));
       }
     }
   }

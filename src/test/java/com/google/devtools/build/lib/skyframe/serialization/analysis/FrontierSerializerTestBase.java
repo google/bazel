@@ -18,19 +18,27 @@ import static com.google.common.collect.ImmutableSet.toImmutableSet;
 import static com.google.common.truth.Truth.assertThat;
 import static com.google.common.truth.Truth.assertWithMessage;
 import static com.google.devtools.build.lib.cmdline.Label.parseCanonicalUnchecked;
+import static java.util.stream.Collectors.joining;
 import static org.junit.Assert.assertThrows;
 import static org.junit.Assume.assumeTrue;
 
 import com.google.common.base.Ascii;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Sets;
+import com.google.devtools.build.lib.actions.ActionLookupData;
 import com.google.devtools.build.lib.actions.ActionLookupKey;
+import com.google.devtools.build.lib.analysis.BlazeDirectories;
 import com.google.devtools.build.lib.analysis.ConfiguredTargetValue;
 import com.google.devtools.build.lib.buildtool.BuildTool;
 import com.google.devtools.build.lib.buildtool.util.BuildIntegrationTestCase;
+import com.google.devtools.build.lib.cmdline.Label;
 import com.google.devtools.build.lib.cmdline.PackageIdentifier;
 import com.google.devtools.build.lib.pkgcache.LoadingFailedException;
+import com.google.devtools.build.lib.runtime.BlazeModule;
+import com.google.devtools.build.lib.runtime.BlazeRuntime;
+import com.google.devtools.build.lib.runtime.WorkspaceBuilder;
 import com.google.devtools.build.lib.runtime.commands.CqueryCommand;
 import com.google.devtools.build.lib.runtime.commands.TestCommand;
 import com.google.devtools.build.lib.skyframe.AspectKeyCreator.AspectBaseKey;
@@ -39,25 +47,37 @@ import com.google.devtools.build.lib.skyframe.RemoteConfiguredTargetValue;
 import com.google.devtools.build.lib.skyframe.SkyFunctions;
 import com.google.devtools.build.lib.skyframe.serialization.FingerprintValueService;
 import com.google.devtools.build.lib.skyframe.serialization.analysis.FrontierSerializer.SelectionMarking;
+import com.google.devtools.build.lib.util.io.RecordingOutErr;
+import com.google.devtools.build.lib.vfs.Dirent;
+import com.google.devtools.build.lib.vfs.FileStatus;
+import com.google.devtools.build.lib.vfs.Path;
+import com.google.devtools.build.lib.vfs.Symlinks;
+import com.google.devtools.build.lib.vfs.SyscallCache;
 import com.google.devtools.build.skyframe.InMemoryGraph;
 import com.google.devtools.build.skyframe.SkyKey;
 import com.google.errorprone.annotations.ForOverride;
 import com.google.perftools.profiles.ProfileProto.Profile;
 import com.google.protobuf.ExtensionRegistry;
+import java.io.IOException;
 import java.nio.file.Files;
-import java.nio.file.Path;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
+import javax.annotation.Nullable;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.TestName;
 
 public abstract class FrontierSerializerTestBase extends BuildIntegrationTestCase {
+  @Rule public TestName testName = new TestName();
 
   protected FingerprintValueService service;
+  private final ClearCountingSyscallCache syscallCache = new ClearCountingSyscallCache();
 
   @Before
   public void setup() {
@@ -65,6 +85,11 @@ public abstract class FrontierSerializerTestBase extends BuildIntegrationTestCas
     // don't share state. This instance will then last the lifetime of the test case, regardless
     // of the number of command invocations.
     service = createFingerprintValueService();
+
+    // TODO: b/367284400 - replace this with a barebones diffawareness check that works in Bazel
+    // integration tests (e.g. making LocalDiffAwareness supported and not return
+    // EVERYTHING_MODIFIED) for baseline diffs.
+    addOptions("--experimental_frontier_violation_check=disabled_for_testing");
   }
 
   @ForOverride
@@ -95,10 +120,12 @@ public abstract class FrontierSerializerTestBase extends BuildIntegrationTestCas
     write(
         "foo/PROJECT.scl",
         """
-        active_directories = {"default": ["foo"] }
-        """);
+project = {
+  "active_directories": { "default": ["foo"] },
+}
+""");
     addOptions("--experimental_remote_analysis_cache_mode=upload");
-    assertThat(buildTarget("//foo:empty").getSuccess()).isTrue();
+    buildTarget("//foo:empty");
   }
 
   @Test
@@ -111,8 +138,10 @@ public abstract class FrontierSerializerTestBase extends BuildIntegrationTestCas
     write(
         "foo/PROJECT.scl",
         """
-        active_directories = {"default": ["foo"] }
-        """);
+project = {
+  "active_directories": { "default": ["foo"] },
+}
+""");
 
     write(
         "bar/BUILD",
@@ -122,8 +151,10 @@ public abstract class FrontierSerializerTestBase extends BuildIntegrationTestCas
     write(
         "bar/PROJECT.scl",
         """
-        active_directories = {"default": ["bar"] }
-        """);
+project = {
+  "active_directories": { "default": ["bar"] },
+}
+""");
 
     addOptions("--experimental_remote_analysis_cache_mode=upload");
     LoadingFailedException exception =
@@ -132,7 +163,7 @@ public abstract class FrontierSerializerTestBase extends BuildIntegrationTestCas
         .hasMessageThat()
         .contains(
             "This build doesn't support automatic project resolution. Targets have different"
-                + " project settings.");
+                + " project settings:");
   }
 
   @Test
@@ -151,16 +182,18 @@ public abstract class FrontierSerializerTestBase extends BuildIntegrationTestCas
     write(
         "foo/PROJECT.scl",
         """
-        active_directories = {"default": ["foo"] }
-        """);
+project = {
+  "active_directories": { "default": ["foo"] },
+}
+""");
 
     addOptions("--experimental_remote_analysis_cache_mode=upload");
-    assertThat(buildTarget("//foo:empty", "//foo/bar:empty").getSuccess()).isTrue();
+    buildTarget("//foo:empty", "//foo/bar:empty");
   }
 
   @Test
   public void activeAspect_activatesBaseConfiguredTarget() throws Exception {
-    setupScenarioWithAspects("--experimental_remote_analysis_cache_mode=upload");
+    setupScenarioWithAspects();
     InMemoryGraph graph = getSkyframeExecutor().getEvaluator().getInMemoryGraph();
 
     ConfiguredTargetKey generateYKey =
@@ -190,7 +223,7 @@ public abstract class FrontierSerializerTestBase extends BuildIntegrationTestCas
             parseCanonicalUnchecked("//bar:PROJECT.scl"),
             getSkyframeExecutor(),
             getCommandEnvironment().getReporter());
-    ConcurrentHashMap<SkyKey, SelectionMarking> selection =
+    ImmutableMap<SkyKey, SelectionMarking> selection =
         FrontierSerializer.computeSelection(
             graph, (PackageIdentifier pkgId) -> matcher.includes(pkgId.getPackageFragment()));
 
@@ -227,11 +260,32 @@ public abstract class FrontierSerializerTestBase extends BuildIntegrationTestCas
 
   @Test
   public void buildCommandWithSkymeld_uploadsFrontierBytesWithUploadMode() throws Exception {
+    runSkymeldScenario();
+    // Validate that Skymeld did run.
+    assertThat(getCommandEnvironment().withMergedAnalysisAndExecutionSourceOfTruth()).isTrue();
+
+    var listener = getCommandEnvironment().getRemoteAnalysisCachingEventListener();
+    assertThat(listener.getSerializedKeysCount()).isAtLeast(1);
+    assertThat(listener.getSkyfunctionCounts().count(SkyFunctions.CONFIGURED_TARGET)).isAtLeast(1);
+
+    assertContainsEvent("Waiting for write futures took an additional");
+  }
+
+  @Test
+  public void buildCommandWithSkymeld_doesNotClearCacheMidBuild() throws Exception {
+    runSkymeldScenario();
+
+    assertThat(getSyscallCacheClearCount()).isEqualTo(2);
+  }
+
+  private void runSkymeldScenario() throws Exception {
     write(
         "foo/PROJECT.scl",
         """
-        active_directories = {"default": ["foo"] }
-        """);
+project = {
+  "active_directories": { "default": ["foo"] },
+}
+""");
     write(
         "foo/BUILD",
         """
@@ -249,25 +303,15 @@ public abstract class FrontierSerializerTestBase extends BuildIntegrationTestCas
         "--experimental_merged_skyframe_analysis_execution" // forces Skymeld.
         );
     assertThat(buildTarget("//foo:all").getSuccess()).isTrue();
-
-    // Validate that Skymeld did run.
-    assertThat(getCommandEnvironment().withMergedAnalysisAndExecutionSourceOfTruth()).isTrue();
-
-    var listener = getCommandEnvironment().getRemoteAnalysisCachingEventListener();
-    assertThat(listener.getSerializedKeysCount()).isAtLeast(1);
-    assertThat(listener.getSkyfunctionCounts().count(SkyFunctions.CONFIGURED_TARGET)).isAtLeast(1);
-
-    assertContainsEvent("Waiting for write futures took an additional");
   }
 
   @Test
   public void buildCommand_serializedFrontierProfileContainsExpectedClasses() throws Exception {
     @SuppressWarnings("UnnecessarilyFullyQualified") // to avoid confusion with vfs Paths
-    Path profilePath = Files.createTempFile(null, "profile");
+    java.nio.file.Path profilePath = Files.createTempFile(null, "profile");
 
-    setupScenarioWithAspects(
-        "--experimental_remote_analysis_cache_mode=upload",
-        "--serialized_frontier_profile=" + profilePath);
+    addOptions("--serialized_frontier_profile=" + profilePath);
+    setupScenarioWithAspects();
 
     // The proto parses successfully from the file.
     var proto =
@@ -321,7 +365,7 @@ public abstract class FrontierSerializerTestBase extends BuildIntegrationTestCas
         .doesNotContain("com.google.devtools.build.lib.skyframe.NonRuleConfiguredTargetValue");
   }
 
-  protected final void setupScenarioWithAspects(String... options) throws Exception {
+  protected final void setupScenarioWithAspects() throws Exception {
     write(
         "foo/provider.bzl",
         """
@@ -361,7 +405,9 @@ file_count_aspect = aspect(
     write(
         "bar/PROJECT.scl",
         """
-active_directories = {"default": ["foo"] }
+project = {
+  "active_directories": { "default": ["foo"] },
+}
 """);
 
     write(
@@ -405,8 +451,7 @@ genrule(
 """);
 
     addOptions("--nobuild", "--aspects=//foo:file_count.bzl%file_count_aspect");
-    addOptions(options);
-    assertThat(buildTarget("//bar:one").getSuccess()).isTrue();
+    upload("//bar:one");
   }
 
   @Test
@@ -415,11 +460,12 @@ genrule(
     write(
         "foo/PROJECT.scl",
         """
-active_directories = { "default": ["foo"] }
+project = {
+  "active_directories": { "default": ["foo"] },
+}
 """);
     // Cache-writing build.
-    addOptions("--experimental_remote_analysis_cache_mode=upload");
-    buildTarget("//foo:A");
+    upload("//foo:A");
 
     // TODO: b/367287783 - RemoteConfiguredTargetValue cannot be deserialized successfully with
     // Bazel yet. Return early.
@@ -430,8 +476,7 @@ active_directories = { "default": ["foo"] }
     getCommandEnvironment().getSkyframeExecutor().resetEvaluator();
 
     // Cache reading build.
-    addOptions("--experimental_remote_analysis_cache_mode=download");
-    buildTarget("//foo:A");
+    download("//foo:A");
 
     var listener = getCommandEnvironment().getRemoteAnalysisCachingEventListener();
     // //bar:C, //bar:H, //bar:E
@@ -447,12 +492,13 @@ active_directories = { "default": ["foo"] }
     write(
         "foo/PROJECT.scl",
         """
-active_directories = { "default": ["foo"] }
+project = {
+  "active_directories": { "default": ["foo"] },
+}
 """);
 
     // Cache-writing build.
-    addOptions("--experimental_remote_analysis_cache_mode=upload");
-    buildTarget("//foo:A");
+    upload("//foo:A");
 
     // TODO: b/367287783 - RemoteConfiguredTargetValue cannot be deserialized successfully with
     // Bazel yet. Return early.
@@ -463,8 +509,7 @@ active_directories = { "default": ["foo"] }
     getCommandEnvironment().getSkyframeExecutor().resetEvaluator();
 
     // Cache reading build.
-    addOptions("--experimental_remote_analysis_cache_mode=download");
-    buildTarget("//foo:A");
+    download("//foo:A");
 
     var graph = getSkyframeExecutor().getEvaluator().getInMemoryGraph();
     Function<String, ConfiguredTargetKey> ctKeyOfLabel =
@@ -501,11 +546,12 @@ active_directories = { "default": ["foo"] }
     write(
         "foo/PROJECT.scl",
         """
-active_directories = { "default": ["foo"] }
+project = {
+  "active_directories": { "default": ["foo"] },
+}
 """);
 
-    addOptions("--experimental_remote_analysis_cache_mode=upload");
-    buildTarget("//foo:A");
+    upload("//foo:A");
 
     var serializedConfiguredTargetCount =
         getCommandEnvironment()
@@ -537,11 +583,48 @@ filegroup(name = "G")                                # unchanged.
   }
 
   @Test
+  public void downloadedConfiguredTarget_doesNotDownloadTargetPackage() throws Exception {
+    setupScenarioWithConfiguredTargets();
+    write(
+        "foo/PROJECT.scl",
+        """
+project = {
+  "active_directories": { "default": ["foo"] },
+}
+""");
+    // Cache-writing build.
+    upload("//foo:D");
+
+    var graph = getSkyframeExecutor().getEvaluator().getInMemoryGraph();
+    var fooKey = PackageIdentifier.createUnchecked(/* repository= */ "", "foo");
+    var barKey = PackageIdentifier.createUnchecked(/* repository= */ "", "bar");
+    // Building for the first time necessarily loads both package foo and bar.
+    assertThat(graph.getIfPresent(fooKey)).isNotNull();
+    assertThat(graph.getIfPresent(barKey)).isNotNull();
+
+    // TODO: b/367287783 - RemoteConfiguredTargetValue cannot be deserialized successfully with
+    // Bazel yet. Return early.
+    assumeTrue(
+        Ascii.equalsIgnoreCase(getCommandEnvironment().getRuntime().getProductName(), "blaze"));
+
+    // Reset the graph.
+    getCommandEnvironment().getSkyframeExecutor().resetEvaluator();
+
+    // Cache reading build.
+    download("//foo:D");
+
+    graph = getSkyframeExecutor().getEvaluator().getInMemoryGraph();
+    assertThat(graph.getIfPresent(fooKey)).isNotNull();
+    // Package bar is not required if //bar:H is downloaded.
+    assertThat(graph.getIfPresent(barKey)).isNull();
+  }
+
+  @Test
   public void cquery_succeedsAndDoesNotTriggerUpload() throws Exception {
     setupScenarioWithConfiguredTargets();
     addOptions("--experimental_remote_analysis_cache_mode=upload");
     runtimeWrapper.newCommand(CqueryCommand.class);
-    buildTarget("//foo:A"); // passes, even though there's no PROJECT.scl
+    buildTarget("//foo:A"); // succeeds, even though there's no PROJECT.scl
     assertThat(
             getCommandEnvironment()
                 .getRemoteAnalysisCachingEventListener()
@@ -555,7 +638,9 @@ filegroup(name = "G")                                # unchanged.
     write(
         "foo/PROJECT.scl",
         """
-active_directories = { "default": ["foo"] }
+project = {
+  "active_directories": { "default": ["foo"] },
+}
 """);
     addOptions("--experimental_remote_analysis_cache_mode=upload");
     runtimeWrapper.newCommand(CqueryCommand.class);
@@ -573,7 +658,9 @@ active_directories = { "default": ["foo"] }
     write(
         "mytest/PROJECT.scl",
         """
-active_directories = { "default": ["mytest"] }
+project = {
+  "active_directories": { "default": ["mytest"] },
+}
 """);
     write("mytest/mytest.sh", "exit 0").setExecutable(true);
     write(
@@ -618,6 +705,49 @@ active_directories = { "default": ["mytest"] }
     assertThat(versionFromBuild).isEqualTo(versionFromTest);
   }
 
+  @Test
+  public void dumpUploadManifestOnlyMode_writesManifestToStdOut() throws Exception {
+    setupScenarioWithConfiguredTargets();
+    addOptions("--experimental_remote_analysis_cache_mode=dump_upload_manifest_only");
+    write(
+        "foo/PROJECT.scl",
+        """
+project = {
+  "active_directories": { "default": ["foo"] },
+}
+""");
+    RecordingOutErr outErr = new RecordingOutErr();
+    this.outErr = outErr;
+
+    buildTarget("//foo:A");
+
+    // BuildConfigurationKey is omitted to avoid too much specificity.
+    var expected =
+        """
+FRONTIER_CANDIDATE: CONFIGURED_TARGET:ConfiguredTargetKey{label=//bar:C,
+FRONTIER_CANDIDATE: CONFIGURED_TARGET:ConfiguredTargetKey{label=//bar:E,
+FRONTIER_CANDIDATE: CONFIGURED_TARGET:ConfiguredTargetKey{label=//bar:H,
+ACTIVE: CONFIGURED_TARGET:ConfiguredTargetKey{label=//bar:F,
+ACTIVE: CONFIGURED_TARGET:ConfiguredTargetKey{label=//foo:A,
+ACTIVE: CONFIGURED_TARGET:ConfiguredTargetKey{label=//foo:A,
+ACTIVE: CONFIGURED_TARGET:ConfiguredTargetKey{label=//foo:B,
+ACTIVE: CONFIGURED_TARGET:ConfiguredTargetKey{label=//foo:D,
+ACTIVE: CONFIGURED_TARGET:ConfiguredTargetKey{label=//foo:G,
+"""
+            .lines()
+            .collect(toImmutableList());
+
+    expected.forEach(line -> assertThat(outErr.outAsLatin1()).contains(line));
+    assertThat(outErr.outAsLatin1().lines()).hasSize(expected.size());
+
+    // Nothing serialized
+    assertThat(
+            getCommandEnvironment()
+                .getRemoteAnalysisCachingEventListener()
+                .getSerializedKeysCount())
+        .isEqualTo(0);
+  }
+
   protected void setupScenarioWithConfiguredTargets() throws Exception {
     // ┌───────┐     ┌───────┐
     // │ bar:C │ ◀── │ foo:A │
@@ -657,5 +787,298 @@ filegroup(name = "F", srcs = ["//foo:G"])
 filegroup(name = "H")
 filegroup(name = "I")
 """);
+  }
+
+  protected static <T> ImmutableSet<T> filterKeys(Set<SkyKey> from, Class<? extends T> klass) {
+    return from.stream().filter(klass::isInstance).map(klass::cast).collect(toImmutableSet());
+  }
+
+  protected static ImmutableSet<Label> getLabels(Set<ActionLookupKey> from) {
+    return from.stream().map(ActionLookupKey::getLabel).collect(toImmutableSet());
+  }
+
+  protected static ImmutableSet<Label> getOwningLabels(Set<ActionLookupData> from) {
+    return from.stream()
+        .map(data -> data.getActionLookupKey().getLabel())
+        .collect(toImmutableSet());
+  }
+
+  @Test
+  public void actionLookupKey_ownedByActiveSetAndUnderFrontier_areNotUploaded() throws Exception {
+    setupGenruleGraph();
+    upload("//A");
+    var serializedKeys =
+        getCommandEnvironment().getRemoteAnalysisCachingEventListener().getSerializedKeys();
+    ImmutableSet<Label> labels = getLabels(filterKeys(serializedKeys, ActionLookupKey.class));
+
+    // Active set
+    assertThat(labels).doesNotContain(parseCanonicalUnchecked("//A"));
+
+    // Frontier
+    assertThat(labels)
+        .containsAtLeast(
+            parseCanonicalUnchecked("//C:C.txt"), // output file CT
+            parseCanonicalUnchecked("//E"));
+
+    // Under the frontier
+    assertThat(labels).doesNotContain(parseCanonicalUnchecked("//C"));
+    assertThat(labels).doesNotContain(parseCanonicalUnchecked("//D"));
+
+    // Different top level target
+    assertThat(labels).doesNotContain(parseCanonicalUnchecked("//B"));
+  }
+
+  @Test
+  public void frontierSelectionSucceeds_forTopLevelGenruleConfiguredTargetWithUniqueName()
+      throws Exception {
+    setupGenruleGraph();
+    write(
+        "A/BUILD",
+        """
+        genrule(
+            name = "copy_of_A", # renamed
+            srcs = ["in.txt", "//C:C.txt", "//E"],
+            outs = ["A"],
+            cmd = "cat $(SRCS) > $@",
+        )
+        """);
+    upload("//A");
+    var serializedKeys =
+        getCommandEnvironment().getRemoteAnalysisCachingEventListener().getSerializedKeys();
+    ImmutableSet<Label> labels = getLabels(filterKeys(serializedKeys, ActionLookupKey.class));
+
+    // Active set
+    assertThat(labels).doesNotContain(parseCanonicalUnchecked("//A"));
+    assertThat(labels).doesNotContain(parseCanonicalUnchecked("//A:copy_of_A"));
+    assertThat(labels).doesNotContain(parseCanonicalUnchecked("//A:in.txt"));
+
+    // Frontier
+    assertThat(labels)
+        .containsAtLeast(parseCanonicalUnchecked("//C:C.txt"), parseCanonicalUnchecked("//E"));
+
+    // Under the frontier
+    assertThat(labels).doesNotContain(parseCanonicalUnchecked("//C"));
+    assertThat(labels).doesNotContain(parseCanonicalUnchecked("//D"));
+
+    // Different top level target
+    assertThat(labels).doesNotContain(parseCanonicalUnchecked("//B"));
+  }
+
+  @Test
+  public void dumpUploadManifestOnlyMode_forTopLevelGenruleConfiguredTarget() throws Exception {
+    setupGenruleGraph();
+    write(
+        "A/BUILD",
+        """
+        genrule(
+            name = "copy_of_A",
+            srcs = ["in.txt", "//C:C.txt", "//E"],
+            outs = ["A"],
+            cmd = "cat $(SRCS) > $@",
+        )
+        """);
+
+    addOptions("--experimental_remote_analysis_cache_mode=dump_upload_manifest_only");
+
+    RecordingOutErr outErr = new RecordingOutErr();
+    this.outErr = outErr;
+
+    buildTarget("//A");
+
+    // Note that there are two //A:A - one each for target and exec configuration. The
+    // BuildConfigurationKey is omitted because it's too specific, but we test for the
+    // exact number of entries in the manifest later, so the two //A:A configured targets will be
+    // counted correctly.
+    var expectedActiveSet =
+        """
+ACTIVE: CONFIGURED_TARGET:ConfiguredTargetKey{label=//A:copy_of_A, config=
+ACTIVE: CONFIGURED_TARGET:ConfiguredTargetKey{label=//A:A, config=
+ACTIVE: CONFIGURED_TARGET:ConfiguredTargetKey{label=//A:A, config=
+ACTIVE: CONFIGURED_TARGET:ConfiguredTargetKey{label=//A:in.txt, config=null}
+ACTION_EXECUTION:ActionLookupData0{actionLookupKey=ConfiguredTargetKey{label=//A:copy_of_A, config=
+"""
+            .lines()
+            .collect(toImmutableList());
+
+    var actualActiveSet =
+        outErr.outAsLatin1().lines().filter(l -> l.startsWith("ACTIVE:")).collect(joining("\n"));
+
+    expectedActiveSet.forEach(line -> assertThat(actualActiveSet).contains(line));
+
+    assertThat(actualActiveSet.lines()).hasSize(expectedActiveSet.size());
+  }
+
+  @Test
+  public void actionLookupData_ownedByActiveSet_areNotUploaded() throws Exception {
+    setupGenruleGraph();
+    upload("//A");
+    var serializedKeys =
+        getCommandEnvironment().getRemoteAnalysisCachingEventListener().getSerializedKeys();
+    var actionLookupDatas = filterKeys(serializedKeys, ActionLookupData.class);
+    var owningLabels = getOwningLabels(actionLookupDatas);
+
+    // Active set
+    assertThat(owningLabels).doesNotContain(parseCanonicalUnchecked("//A"));
+
+    // Frontier
+    assertThat(owningLabels)
+        .containsAtLeast(parseCanonicalUnchecked("//C"), parseCanonicalUnchecked("//E"));
+
+    // Under the frontier
+    assertThat(owningLabels).contains(parseCanonicalUnchecked("//D"));
+
+    // Different top level target
+    assertThat(owningLabels).doesNotContain(parseCanonicalUnchecked("//B"));
+  }
+
+  @Test
+  public void disjointDirectoriesWithCanonicalProject_uploadsSuccessfully() throws Exception {
+    setupGenruleGraph();
+    write(
+        "B/PROJECT.scl",
+        """
+project = { "actual": "//A:PROJECT.scl" }
+""");
+    upload("//A", "//B");
+  }
+
+  protected final void setupGenruleGraph() throws IOException {
+    // /--> E
+    // A -> C -> D
+    // B ---^
+    write("A/in.txt", "A");
+    write(
+        "A/BUILD",
+        """
+        genrule(
+            name = "A",
+            srcs = ["in.txt", "//C:C.txt", "//E"],
+            outs = ["A"],
+            cmd = "cat $(SRCS) > $@",
+        )
+        """);
+    write("B/in.txt", "B");
+    write(
+        "B/BUILD",
+        """
+        genrule(
+            name = "B",
+            srcs = ["in.txt", "//C:C.txt"],
+            outs = ["B"],
+            cmd = "cat $(SRCS) > $@",
+        )
+        """);
+    write("C/in.txt", "C");
+    write(
+        "C/BUILD",
+        """
+        genrule(
+            name = "C",
+            srcs = ["in.txt", "//D:D.txt"],
+            outs = ["C.txt"],
+            cmd = "cat $(SRCS) > $@",
+        )
+        """);
+    write("D/in.txt", "D");
+    write(
+        "D/BUILD",
+        """
+        genrule(
+            name = "D",
+            srcs = ["in.txt"],
+            outs = ["D.txt"],
+            cmd = "cat $(SRCS) > $@",
+        )
+        """);
+    write("E/in.txt", "E");
+    write(
+        "E/BUILD",
+        """
+        genrule(
+            name = "E",
+            srcs = ["in.txt"],
+            outs = ["E.txt"],
+            cmd = "cat $(SRCS) > $@",
+        )
+        """);
+    write(
+        "A/PROJECT.scl",
+        """
+project = { "active_directories": {"default": ["A"]} }
+""");
+  }
+
+  protected final void roundtrip(String... targets) throws Exception {
+    getSkyframeExecutor().resetEvaluator();
+    upload(targets);
+    getSkyframeExecutor().resetEvaluator();
+    download(targets);
+  }
+
+  protected final void upload(String... targets) throws Exception {
+    addOptions("--experimental_remote_analysis_cache_mode=upload");
+    buildTarget(targets);
+    assertWithMessage("expected to serialize at least one Skyframe node")
+        .that(getCommandEnvironment().getRemoteAnalysisCachingEventListener().getSerializedKeys())
+        .isNotEmpty();
+  }
+
+  protected final void download(String... targets) throws Exception {
+    addOptions("--experimental_remote_analysis_cache_mode=download");
+    buildTarget(targets);
+    assertWithMessage("expected to deserialize at least one Skyframe node")
+        .that(getCommandEnvironment().getRemoteAnalysisCachingEventListener().getCacheHits())
+        .isNotEmpty();
+  }
+
+  @Override
+  protected BlazeRuntime.Builder getRuntimeBuilder() throws Exception {
+    var builder = super.getRuntimeBuilder();
+    if (testUsesSyscallCacheClearCount()) {
+      // There isn't really a good way to apply this conditionally during @Before in Junit.
+      builder.addBlazeModule(new SyscallCacheInjectingModule());
+    }
+    return builder;
+  }
+
+  boolean testUsesSyscallCacheClearCount() {
+    return testName.getMethodName().equals("buildCommandWithSkymeld_doesNotClearCacheMidBuild");
+  }
+
+  int getSyscallCacheClearCount() {
+    return syscallCache.clearCount.get();
+  }
+
+  static class ClearCountingSyscallCache implements SyscallCache {
+    private final AtomicInteger clearCount = new AtomicInteger(0);
+
+    @Override
+    public Collection<Dirent> readdir(Path path) throws IOException {
+      return path.readdir(Symlinks.NOFOLLOW);
+    }
+
+    @Nullable
+    @Override
+    public FileStatus statIfFound(Path path, Symlinks symlinks) throws IOException {
+      return path.statIfFound(symlinks);
+    }
+
+    @Override
+    public DirentTypeWithSkip getType(Path path, Symlinks symlinks) {
+      return DirentTypeWithSkip.FILESYSTEM_OP_SKIPPED;
+    }
+
+    @Override
+    public void clear() {
+      clearCount.incrementAndGet();
+    }
+  }
+
+  class SyscallCacheInjectingModule extends BlazeModule {
+    @Override
+    public void workspaceInit(
+        BlazeRuntime runtime, BlazeDirectories directories, WorkspaceBuilder builder) {
+      builder.setSyscallCache(syscallCache);
+    }
   }
 }

@@ -16,6 +16,7 @@ package com.google.devtools.build.lib.skyframe.packages;
 import com.google.common.base.Suppliers;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Maps;
 import com.google.devtools.build.lib.analysis.ConfiguredRuleClassProvider;
 import com.google.devtools.build.lib.bazel.BazelRepositoryModule;
 import com.google.devtools.build.lib.bazel.bzlmod.BazelDepGraphFunction;
@@ -54,7 +55,6 @@ import com.google.devtools.build.lib.vfs.SyscallCache;
 import com.google.devtools.build.skyframe.SkyFunction;
 import com.google.devtools.build.skyframe.SkyFunctionName;
 import com.google.errorprone.annotations.CanIgnoreReturnValue;
-import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
@@ -150,11 +150,9 @@ public class BazelPackageLoader extends AbstractPackageLoader {
             new ModuleFileFunction(
                 ruleClassProvider.getBazelStarlarkEnvironment(),
                 directories.getWorkspace(),
-                ModuleFileFunction.getBuiltinModules(directories.getEmbeddedBinariesRoot())
-                    .entrySet()
-                    .stream()
-                    .filter(e -> e.getKey().equals("bazel_tools"))
-                    .collect(ImmutableMap.toImmutableMap(Map.Entry::getKey, Map.Entry::getValue)));
+                ImmutableMap.copyOf(
+                    Maps.filterKeys(
+                        ModuleFileFunction.getBuiltinModules(), "bazel_tools"::equals)));
 
         addExtraSkyFunctions(ImmutableMap.of(SkyFunctions.MODULE_FILE, moduleFileFunction));
         moduleFileFunction.setDownloadManager(downloadManager);

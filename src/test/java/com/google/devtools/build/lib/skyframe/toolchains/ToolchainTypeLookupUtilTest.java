@@ -179,6 +179,8 @@ public class ToolchainTypeLookupUtilTest extends ToolchainTestCase {
     assertContainsEvent("no such package 'fake': BUILD file not found");
   }
 
+  // TODO: b/381396141 - Add a regression test for failure to find the second Skyframe value.
+
   // Calls ToolchainTypeLookupUtil.getToolchainTypeInfo.
   private static final SkyFunctionName GET_TOOLCHAIN_TYPE_INFO_FUNCTION =
       SkyFunctionName.createHermetic("GET_TOOLCHAIN_TYPE_INFO_FUNCTION");

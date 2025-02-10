@@ -94,7 +94,7 @@ public class ServerWatcherRunnableTest {
   }
 
   @Test
-  public void runLowAsboluteLowPercentageMemoryCheck() throws Exception {
+  public void runLowAbsoluteLowPercentageMemoryCheck() throws Exception {
     if (!usingLinux()) {
       return;
     }

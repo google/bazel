@@ -300,7 +300,7 @@ public class JavaStarlarkCommon
                   }
                   return true;
                 })
-            .map(artifact -> artifact.getRootRelativePath().getParentDirectory().getPathString())
+            .map(artifact -> artifact.getRunfilesPath().getParentDirectory().getPathString())
             .distinct()
             .collect(toImmutableList());
     return StarlarkList.immutableCopyOf(uniqueDirs);
@@ -366,13 +366,6 @@ public class JavaStarlarkCommon
     return thread
         .getSemantics()
         .getBool(BuildLanguageOptions.INCOMPATIBLE_JAVA_INFO_MERGE_RUNTIME_MODULE_FLAGS);
-  }
-
-  @Override
-  public JavaInfo wrapJavaInfo(Info javaInfo, StarlarkThread thread)
-      throws EvalException, RuleErrorException {
-    checkPrivateAccess(thread);
-    return JavaInfo.wrap(javaInfo);
   }
 
   @Override

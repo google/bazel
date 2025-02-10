@@ -40,7 +40,7 @@
 
 namespace {
 
-using bazel::tools::cpp::runfiles::Runfiles;
+using rules_cc::cc::runfiles::Runfiles;
 using singlejar_test_util::CreateTextFile;
 using singlejar_test_util::GetEntryContents;
 using singlejar_test_util::OutputFilePath;

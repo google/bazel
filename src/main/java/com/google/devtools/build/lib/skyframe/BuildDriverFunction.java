@@ -324,6 +324,7 @@ public class BuildDriverFunction implements SkyFunction {
       ImmutableSet.Builder<Artifact> artifactsToBuild = ImmutableSet.builder();
       List<SkyKey> aspectCompletionKeys = new ArrayList<>();
 
+      // Do not trigger Skyframe restarts in this loop (see comments below).
       for (Map.Entry<AspectKey, AspectValue> entry :
           ((TopLevelAspectsValue) topLevelSkyValue).getTopLevelAspectsMap().entrySet()) {
         AspectKey aspectKey = entry.getKey();
@@ -339,13 +340,20 @@ public class BuildDriverFunction implements SkyFunction {
         NestedSet<Package> transitivePackagesForSymlinkPlanting =
             aspectValue.getTransitivePackages();
         if (transitivePackagesForSymlinkPlanting != null) {
-          postEventIfNecessary(
-              postedEventsTypes,
-              env,
-              TopLevelTargetReadyForSymlinkPlanting.create(transitivePackagesForSymlinkPlanting));
+          // This event should be sent out exactly once per aspect in this BuildDriverKey, even with
+          // resets. We achieve this by marking the event type as sent only after sending the event
+          // for all aspects, but must avoid triggering Skyframe restarts while doing so.
+          if (!postedEventsTypes.contains(
+              TopLevelStatusEvents.Type.TOP_LEVEL_TARGET_READY_FOR_SYMLINK_PLANTING)) {
+            env.getListener()
+                .post(
+                    TopLevelTargetReadyForSymlinkPlanting.create(
+                        transitivePackagesForSymlinkPlanting));
+          }
         }
         aspectCompletionKeys.add(AspectCompletionKey.create(aspectKey, topLevelArtifactContext));
       }
+      postedEventsTypes.add(TopLevelStatusEvents.Type.TOP_LEVEL_TARGET_READY_FOR_SYMLINK_PLANTING);
 
       if (!additionalPostAnalysisDepsRequestedAndAvailable.request(env, actionLookupKey)) {
         return null;

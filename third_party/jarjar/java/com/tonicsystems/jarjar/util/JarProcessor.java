@@ -26,9 +26,8 @@ public interface JarProcessor {
    * entry can be removed from the jar file in a future time. Return <code>false</code> for the
    * entries which do not have been changed and there fore are not to be deleted
    *
-   * @param struct
+   * @param struct the struct
    * @return <code>true</code> if he process chain can continue after this process
-   * @throws IOException
    */
   boolean process(EntryStruct struct) throws IOException;
 }

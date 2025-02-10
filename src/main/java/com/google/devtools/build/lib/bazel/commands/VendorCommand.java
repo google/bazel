@@ -35,7 +35,6 @@ import com.google.devtools.build.lib.cmdline.LabelConstants;
 import com.google.devtools.build.lib.cmdline.RepositoryName;
 import com.google.devtools.build.lib.events.Event;
 import com.google.devtools.build.lib.events.Reporter;
-import com.google.devtools.build.lib.packages.semantics.BuildLanguageOptions;
 import com.google.devtools.build.lib.pkgcache.PackageOptions;
 import com.google.devtools.build.lib.rules.repository.RepositoryDelegatorFunction;
 import com.google.devtools.build.lib.rules.repository.RepositoryDirectoryValue;
@@ -193,11 +192,6 @@ public final class VendorCommand implements BlazeCommand {
 
   @Nullable
   private BlazeCommandResult validateOptions(CommandEnvironment env, OptionsParsingResult options) {
-    if (!options.getOptions(BuildLanguageOptions.class).enableBzlmod) {
-      return createFailedBlazeCommandResult(
-          env.getReporter(),
-          "Bzlmod has to be enabled for vendoring to work, run with --enable_bzlmod");
-    }
     if (options.getOptions(RepositoryOptions.class).vendorDirectory == null) {
       return createFailedBlazeCommandResult(
           env.getReporter(),

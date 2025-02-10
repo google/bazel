@@ -169,7 +169,7 @@ public final class PlatformMappingFunctionTest extends BuildViewTestCase {
   @Test
   public void mapFromPlatform_fromAlternatePackagePath() throws Exception {
     scratch.setWorkingDir("/other/package/path");
-    scratch.copyFile(rootDirectory.getRelative("WORKSPACE").getPathString(), "WORKSPACE");
+    scratch.copyFile(rootDirectory.getRelative("MODULE.bazel").getPathString(), "MODULE.bazel");
     setPackageOptions("--package_path=/other/package/path");
     scratch.file(
         "my_mapping_file",

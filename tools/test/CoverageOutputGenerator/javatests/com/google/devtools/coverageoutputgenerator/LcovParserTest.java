@@ -180,4 +180,14 @@ public class LcovParserTest {
             BranchCoverage.create(7, 1),
             BranchCoverage.create(7, 2));
   }
+
+  @Test
+  public void testParseFnWithEnd() throws IOException {
+    List<String> traceFile = ImmutableList.of("SF:SOURCE_FILE", "FN:2,3,func", "end_of_record");
+    List<SourceFileCoverage> sourceFiles =
+        LcovParser.parse(new ByteArrayInputStream(Joiner.on("\n").join(traceFile).getBytes(UTF_8)));
+    SourceFileCoverage sourceFile = sourceFiles.get(0);
+
+    assertThat(sourceFile.getAllLineNumbers()).containsExactly(Map.entry("func", 2));
+  }
 }

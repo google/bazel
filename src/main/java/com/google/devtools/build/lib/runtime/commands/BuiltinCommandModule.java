@@ -37,7 +37,6 @@ public class BuiltinCommandModule extends BlazeModule {
         new HelpCommand(),
         new InfoCommand(),
         new PrintActionCommand(),
-        new ProfileCommand(),
         new QueryCommand(),
         runCommand,
         new ShutdownCommand(),

@@ -17,7 +17,6 @@ package com.google.devtools.build.lib.bazel.repository.starlark;
 import static com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.common.base.Throwables;
-import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Maps;
@@ -274,12 +273,7 @@ public final class StarlarkRepositoryFunction extends RepositoryFunction {
       try (SilentCloseable c =
           Profiler.instance()
               .profile(ProfilerTask.STARLARK_REPOSITORY_FN, () -> rule.getLabel().toString())) {
-        result =
-            Starlark.call(
-                thread,
-                function,
-                /* args= */ ImmutableList.of(starlarkRepositoryContext),
-                /* kwargs= */ ImmutableMap.of());
+        result = Starlark.positionalOnlyCall(thread, function, starlarkRepositoryContext);
         starlarkRepositoryContext.markSuccessful();
       }
 

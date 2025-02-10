@@ -267,10 +267,6 @@ public interface SpawnResult {
 
   String getDetailMessage(String message, boolean catastrophe, boolean forciblyRunRemotely);
 
-  /** Returns a file path to the action metadata log. */
-  @Nullable
-  MetadataLog getActionMetadataLog();
-
   /** Whether the spawn result was obtained through remote strategy. */
   boolean wasRemote();
 
@@ -303,7 +299,6 @@ public interface SpawnResult {
     @Nullable private final Long numBlockInputOperations;
     @Nullable private final Long numInvoluntaryContextSwitches;
     @Nullable private final Long memoryKb;
-    @Nullable private final MetadataLog actionMetadataLog;
     private final boolean cacheHit;
     private final String failureMessage;
 
@@ -337,7 +332,6 @@ public interface SpawnResult {
       this.failureMessage = builder.failureMessage;
       this.inMemoryOutputFile = builder.inMemoryOutputFile;
       this.inMemoryContents = builder.inMemoryContents;
-      this.actionMetadataLog = builder.actionMetadataLog;
       this.remote = builder.remote;
       this.digest = builder.digest;
     }
@@ -464,11 +458,6 @@ public interface SpawnResult {
         return inMemoryContents;
       }
       return null;
-    }
-
-    @Override
-    public MetadataLog getActionMetadataLog() {
-      return actionMetadataLog;
     }
 
     @Override
@@ -608,12 +597,6 @@ public interface SpawnResult {
     }
 
     @Override
-    @Nullable
-    public MetadataLog getActionMetadataLog() {
-      return delegate.getActionMetadataLog();
-    }
-
-    @Override
     public boolean wasRemote() {
       return delegate.wasRemote();
     }
@@ -642,7 +625,6 @@ public interface SpawnResult {
     private Long numBlockInputOperations;
     private Long numInvoluntaryContextSwitches;
     private Long memoryInKb;
-    private MetadataLog actionMetadataLog;
     private boolean cacheHit;
     private String failureMessage = "";
 
@@ -794,12 +776,6 @@ public interface SpawnResult {
     }
 
     @CanIgnoreReturnValue
-    Builder setActionMetadataLog(MetadataLog actionMetadataLog) {
-      this.actionMetadataLog = actionMetadataLog;
-      return this;
-    }
-
-    @CanIgnoreReturnValue
     public Builder setRemote(boolean remote) {
       this.remote = remote;
       return this;
@@ -831,25 +807,6 @@ public interface SpawnResult {
                 }
               });
       return this;
-    }
-  }
-
-  /** A {@link Spawn}'s metadata name and {@link Path}. */
-  final class MetadataLog {
-    private final String name;
-    private final Path filePath;
-
-    public MetadataLog(String name, Path filePath) {
-      this.name = name;
-      this.filePath = filePath;
-    }
-
-    public String getName() {
-      return this.name;
-    }
-
-    public Path getFilePath() {
-      return this.filePath;
     }
   }
 }

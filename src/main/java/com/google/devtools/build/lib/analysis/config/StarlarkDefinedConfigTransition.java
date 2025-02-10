@@ -574,9 +574,7 @@ public abstract sealed class StarlarkDefinedConfigTransition implements Configur
         Dict<String, Object> previousSettingsDict =
             createBuildSettingsDict(previousSettings, optionInfoMap, mu);
 
-        result =
-            Starlark.fastcall(
-                thread, impl, new Object[] {previousSettingsDict, attrObject}, new Object[0]);
+        result = Starlark.positionalOnlyCall(thread, impl, previousSettingsDict, attrObject);
       } catch (UnreadableInputSettingException ex) {
         // TODO(blaze-configurability-team): Ideally, the error would happen (and thus location)
         //   at the transition() call during loading phase. Instead, error happens at the impl

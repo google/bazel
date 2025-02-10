@@ -14,6 +14,7 @@
 package com.google.devtools.build.lib.util;
 
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.flogger.GoogleLogger;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -33,6 +34,8 @@ import javax.annotation.Nullable;
 //  for its failure modes, this publishing mechanism and the file it creates can probably be
 //  deleted. We'll need to confirm that nothing other than the Bazel client consumes it.
 public class CustomExitCodePublisher {
+  private static final GoogleLogger logger = GoogleLogger.forEnclosingClass();
+
   private static final String EXIT_CODE_FILENAME = "exit_code_to_use_on_abrupt_exit";
   @Nullable private static volatile Path abruptExitCodeFilePath = null;
 
@@ -40,6 +43,19 @@ public class CustomExitCodePublisher {
 
   public static void setAbruptExitStatusFileDir(String path) {
     abruptExitCodeFilePath = Paths.get(path).resolve(EXIT_CODE_FILENAME);
+  }
+
+  public static void maybeDeleteAbruptExitStatusFile() {
+    if (abruptExitCodeFilePath != null) {
+      try {
+        boolean deleted = Files.deleteIfExists(abruptExitCodeFilePath);
+        if (deleted) {
+          logger.atInfo().log("Deleted old abrupt exit status file");
+        }
+      } catch (IOException ioe) {
+        logger.atWarning().withCause(ioe).log("Failed to delete old abrupt exit status file");
+      }
+    }
   }
 
   @VisibleForTesting

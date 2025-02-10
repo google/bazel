@@ -19,6 +19,7 @@ import static java.util.Objects.requireNonNull;
 
 import com.google.common.collect.ImmutableList;
 import com.google.devtools.build.lib.cmdline.Label;
+import com.google.devtools.build.lib.skyframe.serialization.autocodec.AutoCodec;
 
 /**
  * Specifies that the module should:
@@ -36,6 +37,7 @@ import com.google.devtools.build.lib.cmdline.Label;
  *     list of commands.
  * @param patchStrip The number of path segments to strip from the paths in the supplied patches.
  */
+@AutoCodec
 public record SingleVersionOverride(
     Version version,
     @Override String registry,

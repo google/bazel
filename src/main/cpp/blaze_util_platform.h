@@ -79,7 +79,7 @@ class StartupOptions;
 
 class SignalHandler {
  public:
-  typedef void (* Callback)();
+  typedef void (*Callback)();
 
   static SignalHandler& Get() { return INSTANCE; }
   const ServerProcessInfo* GetServerProcessInfo() const {
@@ -106,7 +106,7 @@ class SignalHandler {
 };
 
 // A signal-safe version of fprintf(stderr, ...).
-void SigPrintf(const char *format, ...);
+void SigPrintf(const char* format, ...);
 
 std::string GetProcessIdAsString();
 
@@ -118,8 +118,8 @@ std::string Which(const std::string& executable);
 // readable.
 std::string GetSelfPath(const char* argv0);
 
-// Returns the directory Bazel can use to store output.
-std::string GetOutputRoot();
+// Returns a directory suitable for storing cached files.
+std::string GetCacheDir();
 
 // Returns the current user's home directory, or the empty string if unknown.
 // On Linux/macOS, this is $HOME. On Windows this is %USERPROFILE%.
@@ -154,12 +154,12 @@ std::string GetJavaBinaryUnderJavabase();
 // Start the Bazel server's JVM in the current directory.
 //
 // Note on Windows: 'server_jvm_args' is NOT expected to be escaped for
-// CreateProcessW.
+// CreateProcessW, and 'run_in_user_cgroup' is ignored.
 //
 // This function does not return on success.
 ATTRIBUTE_NORETURN void ExecuteServerJvm(
     const blaze_util::Path& exe,
-    const std::vector<std::string>& server_jvm_args);
+    const std::vector<std::string>& server_jvm_args, bool run_in_user_cgroup);
 
 // Execute the "bazel run" request in the current directory.
 //
@@ -176,7 +176,6 @@ class BlazeServerStartup {
   virtual ~BlazeServerStartup() {}
   virtual bool IsStillAlive() = 0;
 };
-
 
 // Starts a daemon process with its standard output and standard error
 // redirected (and conditionally appended) to the file "daemon_output". Sets
@@ -207,15 +206,20 @@ enum class LockMode {
   kExclusive,
 };
 
-// Acquires a `mode` lock on `path`, busy-waiting until it becomes available if
-// `block` is true, and releasing it on exec if `batch_mode` is false.
-// Crashes if the lock cannot be acquired. Returns a handle that can be
-// subsequently passed to ReleaseLock as well as the time spent waiting for the
-// lock, if any. The `name` argument is used to distinguish it from other locks
-// in human-readable error messages.
-std::pair<LockHandle, std::optional<DurationMillis>> AcquireLock(
-    const std::string& name, const blaze_util::Path& path, LockMode mode,
-    bool batch_mode, bool block);
+// Acquires a `mode` lock on `path`, creating it if doesn't yet exist.
+// If `block` is true, busy-wait until the lock becomes available.
+// If `batch_mode` is false, release the lock on exec.
+// The `path` is guaranteed to exist when this function returns; if it is
+// deleted concurrently with obtaining the lock, we recreate it and try again.
+// This makes it safe to delete the file under an exclusive lock.
+// The `name` argument is used in human-readable error messages.
+// Returns a handle that can be subsequently passed to ReleaseLock as well as
+// the time spent waiting for the lock, if any.
+// Crashes if an error occurs while attempting to obtain the lock.
+std::pair<LockHandle, DurationMillis> AcquireLock(const std::string& name,
+                                                  const blaze_util::Path& path,
+                                                  LockMode mode,
+                                                  bool batch_mode, bool block);
 
 // Releases a lock previously obtained from AcquireLock.
 void ReleaseLock(LockHandle lock_handle);
@@ -241,10 +245,9 @@ void ExcludePathFromBackup(const blaze_util::Path& path);
 blaze_util::Path GetHashedBaseDir(const blaze_util::Path& root,
                                   const std::string& hashable);
 
-// Create a safe installation directory where we keep state, installations etc.
-// This method ensures that the directory is created, is owned by the current
-// user, and not accessible to anyone else.
-void CreateSecureOutputRoot(const blaze_util::Path& path);
+// Creates a directory while making sure it is owned by the current user and
+// not accessible to anyone else.
+void CreateSecureDirectory(const blaze_util::Path& path);
 
 std::string GetEnv(const std::string& name);
 

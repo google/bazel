@@ -1,5 +1,4 @@
 load("@rules_java//java:defs.bzl", "java_library")
-load("//src:build_defs.bzl", "java_11_library")
 
 package(
     default_applicable_licenses = ["//:license"],
@@ -118,6 +117,7 @@ java_library(
         "//src/main/java/com/google/devtools/build/lib/sandbox:sandbox_options",
         "//src/main/java/com/google/devtools/build/lib/sandbox:tree_deleter",
         "//src/main/java/com/google/devtools/build/lib/sandbox/cgroups",
+        "//src/main/java/com/google/devtools/build/lib/util:os",
         "//src/main/java/com/google/devtools/build/lib/vfs",
         "//src/main/java/com/google/devtools/common/options",
         "//third_party:guava",
@@ -125,7 +125,7 @@ java_library(
     ],
 )
 
-java_11_library(
+java_library(
     name = "work_request_handlers",
     srcs = [
         "JsonWorkerMessageProcessor.java",
@@ -204,7 +204,6 @@ java_library(
         "//src/main/java/com/google/devtools/build/lib/vfs",
         "//src/main/java/com/google/devtools/build/lib/vfs:pathfragment",
         "//src/main/protobuf:failure_details_java_proto",
-        "//third_party:apache_commons_pool2",
         "//third_party:flogger",
         "//third_party:guava",
         "//third_party:jsr305",
@@ -228,18 +227,12 @@ java_library(
     srcs = [
         "WorkerPoolConfig.java",
     ],
-    deps = [
-        ":worker_factory",
-        "//third_party:guava",
-    ],
 )
 
 java_library(
     name = "worker_pool_impl",
     srcs = [
-        "SimpleWorkerPool.java",
         "WorkerPoolImpl.java",
-        "WorkerPoolImplLegacy.java",
     ],
     deps = [
         ":worker",
@@ -248,7 +241,6 @@ java_library(
         ":worker_pool",
         ":worker_pool_config",
         ":worker_process_status",
-        "//third_party:apache_commons_pool2",
         "//third_party:flogger",
         "//third_party:guava",
         "//third_party:jsr305",
@@ -310,7 +302,6 @@ java_library(
         "//src/main/java/com/google/devtools/build/lib/vfs",
         "//src/main/java/com/google/devtools/build/lib/vfs:pathfragment",
         "//src/main/protobuf:worker_protocol_java_proto",
-        "//third_party:auto_value",
         "//third_party:flogger",
         "//third_party:guava",
         "//third_party:jsr305",
@@ -366,7 +357,6 @@ java_library(
     srcs = ["ErrorMessage.java"],
     deps = [
         "//src/main/java/com/google/devtools/build/lib/vfs",
-        "//third_party:auto_value",
         "//third_party:flogger",
         "//third_party:guava",
     ],

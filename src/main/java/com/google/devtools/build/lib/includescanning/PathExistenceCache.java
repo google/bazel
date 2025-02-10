@@ -13,12 +13,16 @@
 // limitations under the License.
 package com.google.devtools.build.lib.includescanning;
 
+import com.google.common.util.concurrent.ListenableFuture;
+import com.google.common.util.concurrent.SettableFuture;
+import com.google.common.util.concurrent.Uninterruptibles;
 import com.google.devtools.build.lib.actions.ArtifactFactory;
 import com.google.devtools.build.lib.concurrent.ThreadSafety.ThreadSafe;
 import com.google.devtools.build.lib.vfs.Path;
 import com.google.devtools.build.lib.vfs.PathFragment;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutionException;
 
 /**
  * Cache to store file existence status for include paths. Only paths that are considered immutable
@@ -30,8 +34,10 @@ class PathExistenceCache {
   private final Path execRoot;
   private final ArtifactFactory artifactFactory;
 
-  private final Map<PathFragment, Boolean> fileExistenceCache = new ConcurrentHashMap<>();
-  private final Map<PathFragment, Boolean> directoryExistenceCache = new ConcurrentHashMap<>();
+  private final Map<PathFragment, ListenableFuture<Boolean>> fileExistenceCache =
+      new ConcurrentHashMap<>();
+  private final Map<PathFragment, ListenableFuture<Boolean>> directoryExistenceCache =
+      new ConcurrentHashMap<>();
 
   PathExistenceCache(Path execRoot, ArtifactFactory artifactFactory) {
     this.execRoot = execRoot;
@@ -43,29 +49,37 @@ class PathExistenceCache {
     // This is not using computeIfAbsent() as that can lead to substantial contention. As per the
     // CompactHashMap documentation, the computation for computeIfAbsent() "should be short and
     // simple", which file stat'ing is not.
-    Boolean exists = fileExistenceCache.get(execPath);
-    if (exists != null) {
-      return exists;
+    SettableFuture<Boolean> newFuture = SettableFuture.create();
+    var existingFuture = fileExistenceCache.putIfAbsent(execPath, newFuture);
+    if (existingFuture == null) {
+      existingFuture = newFuture;
+      Path path =
+          isSource
+              ? artifactFactory.getPathFromSourceExecPath(execRoot, execPath)
+              : execRoot.getRelative(execPath);
+      newFuture.set(path.isFile());
     }
-    Path path =
-        isSource
-            ? artifactFactory.getPathFromSourceExecPath(execRoot, execPath)
-            : execRoot.getRelative(execPath);
-    exists = path.isFile();
-    fileExistenceCache.put(execPath, exists);
-    return exists;
+    try {
+      return Uninterruptibles.getUninterruptibly(existingFuture);
+    } catch (ExecutionException e) {
+      throw new AssertionError("Unexpected ExecutionException", e);
+    }
   }
 
   /** Returns true if given path exists and is a directory, false otherwise. */
   boolean directoryExists(PathFragment execPath) {
     // Like for fileExists(), do not use computeIfAbsent() to avoid contention (see comment there).
-    Boolean result = directoryExistenceCache.get(execPath);
-    if (result != null) {
-      return result;
+    SettableFuture<Boolean> newFuture = SettableFuture.create();
+    var existingFuture = directoryExistenceCache.putIfAbsent(execPath, newFuture);
+    if (existingFuture == null) {
+      existingFuture = newFuture;
+      Path path = artifactFactory.getPathFromSourceExecPath(execRoot, execPath);
+      newFuture.set(path.isDirectory());
     }
-    Path path = artifactFactory.getPathFromSourceExecPath(execRoot, execPath);
-    result = path.isDirectory();
-    directoryExistenceCache.put(execPath, result);
-    return result;
+    try {
+      return Uninterruptibles.getUninterruptibly(existingFuture);
+    } catch (ExecutionException e) {
+      throw new AssertionError("Unexpected ExecutionException", e);
+    }
   }
 }

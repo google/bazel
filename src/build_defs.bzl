@@ -14,16 +14,6 @@
 
 """Utility for restricting Java APIs."""
 
-load("@rules_java//java:defs.bzl", "java_library")
-
-# Drop in replacement for java_library that builds the library at Java language level 11.
-def java_11_library(**attrs):
-    javacopts = attrs.pop("javacopts", [])
-    java_library(
-        javacopts = javacopts + ["-source 11", "-target 11"],
-        **attrs
-    )
-
 _java_language_version_8_transition = transition(
     implementation = lambda settings, attr: {
         "//command_line_option:java_language_version": "8",

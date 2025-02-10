@@ -25,9 +25,6 @@ source "${CURRENT_DIR}/../integration_test_setup.sh" \
 
 set -e
 
-# Used to pass --noenable_bzlmod, --enable_workpace flags
-add_to_bazelrc "build $@"
-
 #### TESTS #############################################################
 
 function mock_rules_android() {
@@ -106,10 +103,52 @@ local_repository(
 EOF
 }
 
+function mock_apple_support() {
+  apple_support_workspace="${TEST_TMPDIR}/apple_support_workspace"
+  mkdir -p "${apple_support_workspace}/xcode"
+  touch "${apple_support_workspace}/xcode/BUILD"
+  touch "${apple_support_workspace}/WORKSPACE"
+  cat > "${apple_support_workspace}/MODULE.bazel" << EOF
+module(name = "apple_support", repo_name = "build_bazel_apple_support")
+EOF
+  cat > "${apple_support_workspace}/xcode/xcode_version.bzl" << EOF
+def _impl(ctx):
+  pass
+
+xcode_version = rule(
+  implementation = _impl,
+  attrs = {
+    "version": attr.string(),
+  }
+)
+EOF
+
+  cat >> MODULE.bazel << EOF
+bazel_dep(
+    name = "apple_support",
+    repo_name = "build_bazel_apple_support",
+)
+local_path_override(
+    module_name = "apple_support",
+    path = "${apple_support_workspace}",
+)
+EOF
+
+  cat > WORKSPACE << EOF
+workspace(name = "test")
+local_repository(
+    name = "build_bazel_apple_support",
+    path = "${apple_support_workspace}",
+)
+EOF
+}
+
 function test_missing_necessary_repo_fails() {
   # Intentionally not adding apple_support to MODULE.bazel (and it's not in MODULE.tools)
   cat > WORKSPACE << EOF
 workspace(name = "test")
+# TODO: protobuf's WORKSPACE macro has an unnecessary dependency on build_bazel_apple_support.
+# __SKIP_WORKSPACE_SUFFIX__
 EOF
   cat > BUILD << EOF
 xcode_version(
@@ -118,11 +157,11 @@ xcode_version(
 )
 EOF
   bazel build --incompatible_autoload_externally=xcode_version :xcode_version >&$TEST_log 2>&1 && fail "build unexpectedly succeeded"
-  expect_log "WARNING: Couldn't auto load rules or symbols, because no dependency on module/repository 'apple_support' found. This will result in a failure if there's a reference to those rules or symbols."
+  expect_log "Couldn't auto load 'xcode_version' from '@build_bazel_apple_support//xcode:xcode_version.bzl'. Ensure that you have a 'bazel_dep(name = \"apple_support\", ...)' in your MODULE.bazel file or add an explicit load statement to your BUILD file."
 }
 
 function test_missing_unnecessary_repo_doesnt_fail() {
-  # Intentionally not adding apple_support to MODULE.bazel (and it's not in MODULE.tools)
+  # Intentionally not adding rules_android to MODULE.bazel (and it's not in MODULE.tools)
   cat > WORKSPACE << EOF
 workspace(name = "test")
 EOF
@@ -132,8 +171,7 @@ filegroup(
     srcs = [],
 )
 EOF
-  bazel build --incompatible_autoload_externally=xcode_version :filegroup >&$TEST_log 2>&1 || fail "build failed"
-  expect_log "WARNING: Couldn't auto load rules or symbols, because no dependency on module/repository 'apple_support' found. This will result in a failure if there's a reference to those rules or symbols."
+  bazel build --incompatible_autoload_externally=+@rules_android :filegroup >&$TEST_log 2>&1 || fail "build failed"
 }
 
 function test_removed_rule_loaded() {
@@ -149,6 +187,19 @@ aar_import(
 EOF
 
   bazel build --incompatible_autoload_externally=aar_import :aar >&$TEST_log 2>&1 || fail "build failed"
+}
+
+function test_removed_rule_loaded_from_legacy_repo_name() {
+  setup_module_dot_bazel
+  mock_apple_support
+
+  cat > BUILD << EOF
+xcode_version(
+    name = 'xcode_version',
+    version = "5.1.2",
+)
+EOF
+  bazel build --incompatible_autoload_externally=xcode_version :xcode_version >&$TEST_log 2>&1 || fail "build failed"
 }
 
 function test_removed_rule_loaded_from_bzl() {
@@ -210,7 +261,7 @@ sh_library(
 )
 EOF
   bazel query --incompatible_autoload_externally=+sh_library ':sh_library' --output=build >&$TEST_log 2>&1 || fail "build failed"
-  expect_log "rules_shell./shell/private/sh_library.bzl"
+  expect_log "rules_shell.\\?/shell/private/sh_library.bzl"
 }
 
 function test_existing_rule_is_redirected_in_bzl() {
@@ -227,7 +278,7 @@ macro()
 EOF
 
   bazel query --incompatible_autoload_externally=+sh_library ':sh_library' --output=build >&$TEST_log 2>&1 || fail "build failed"
-  expect_log "rules_shell./shell/private/sh_library.bzl"
+  expect_log "rules_shell.\\?/shell/private/sh_library.bzl"
 }
 
 function test_removed_rule_not_loaded() {

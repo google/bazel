@@ -41,9 +41,7 @@ class OptionProcessorTest : public ::testing::Test {
   void SetUp() override {
     ASSERT_TRUE(blaze_util::MakeDirectories(workspace_, 0755));
     option_processor_.reset(new OptionProcessor(
-        workspace_layout_.get(),
-        std::unique_ptr<StartupOptions>(
-            new BazelStartupOptions(workspace_layout_.get()))));
+        workspace_layout_.get(), std::make_unique<BazelStartupOptions>()));
   }
 
   void TearDown() override {

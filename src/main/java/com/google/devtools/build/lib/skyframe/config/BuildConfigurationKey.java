@@ -17,7 +17,7 @@ package com.google.devtools.build.lib.skyframe.config;
 import com.google.common.base.Preconditions;
 import com.google.devtools.build.lib.analysis.config.BuildOptions;
 import com.google.devtools.build.lib.skyframe.SkyFunctions;
-import com.google.devtools.build.lib.skyframe.serialization.VisibleForSerialization;
+import com.google.devtools.build.lib.skyframe.serialization.DeferredObjectCodec;
 import com.google.devtools.build.lib.skyframe.serialization.autocodec.AutoCodec;
 import com.google.devtools.build.skyframe.SkyFunctionName;
 import com.google.devtools.build.skyframe.SkyKey;
@@ -35,14 +35,9 @@ public final class BuildConfigurationKey implements SkyKey {
    *
    * @param options the {@link BuildOptions} object the {@link BuildOptions} should be rebuilt from
    */
+  @AutoCodec.Instantiator
   public static BuildConfigurationKey create(BuildOptions options) {
     return interner.intern(new BuildConfigurationKey(options));
-  }
-
-  @VisibleForSerialization
-  @AutoCodec.Interner
-  static BuildConfigurationKey intern(BuildConfigurationKey buildConfigurationKey) {
-    return interner.intern(buildConfigurationKey);
   }
 
   private final BuildOptions options;
@@ -89,5 +84,39 @@ public final class BuildConfigurationKey implements SkyKey {
   @Override
   public SkyKeyInterner<BuildConfigurationKey> getSkyKeyInterner() {
     return interner;
+  }
+
+  public static DeferredObjectCodec<BuildConfigurationKey> codec() {
+    return CodecHolder.INSTANCE.codec;
+  }
+
+  /** Enum pattern for avoiding cyclic class loading deadlocks. */
+  private enum CodecHolder {
+    INSTANCE;
+
+    @SuppressWarnings("ImmutableEnumChecker") // it's immutable
+    private final DeferredObjectCodec<BuildConfigurationKey> codec;
+
+    private CodecHolder() {
+      Class<?> codecClass;
+      try {
+        codecClass =
+            Class.forName(
+                "com.google.devtools.build.lib.skyframe.config.BuildConfigurationKey_AutoCodec");
+      } catch (ClassNotFoundException e) {
+        // Okay, the codec class doesn't exist in the bootstrap jar file.
+        this.codec = null;
+        return;
+      }
+      try {
+        @SuppressWarnings("unchecked")
+        var castCodec =
+            (DeferredObjectCodec<BuildConfigurationKey>)
+                codecClass.getDeclaredConstructor().newInstance();
+        this.codec = castCodec;
+      } catch (ReflectiveOperationException e) {
+        throw new IllegalStateException("couldn't instantiate BuildConfigurationKey_AutoCodec", e);
+      }
+    }
   }
 }

@@ -16,7 +16,7 @@
 
 #include <string>
 
-#include "tools/cpp/runfiles/runfiles.h"
+#include "rules_cc/cc/runfiles/runfiles.h"
 
 namespace singlejar_test_util {
   using std::string;

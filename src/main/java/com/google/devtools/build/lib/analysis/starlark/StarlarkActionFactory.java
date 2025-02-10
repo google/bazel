@@ -482,7 +482,12 @@ public class StarlarkActionFactory implements StarlarkActionFactoryApi {
   }
 
   private void validateActionCreation() throws EvalException {
-    if (getRuleContext().getRule().getRuleClassObject().isDependencyResolutionRule()) {
+    // We check if the rule is a dependency resolution rule but allow aspects attached to them.
+    // The idea is that dependency resolution rules should not depend on anything other than
+    // dependency resolution rules but since there is no such thing as "dependency resolution
+    // aspect", there is no risk of that with aspects.
+    if (getRuleContext().getAspectDescriptors().isEmpty()
+        && getRuleContext().getRule().getRuleClassObject().isDependencyResolutionRule()) {
       throw Starlark.errorf("rules that can be required for materializers shouldn't have actions");
     }
 
@@ -827,8 +832,7 @@ public class StarlarkActionFactory implements StarlarkActionFactoryApi {
       builder.setShadowedAction(Optional.of((Action) shadowedActionUnchecked));
     }
 
-    if (getSemantics().getBool(BuildLanguageOptions.EXPERIMENTAL_ACTION_RESOURCE_SET)
-        && resourceSetUnchecked != Starlark.NONE) {
+    if (resourceSetUnchecked != Starlark.NONE) {
       validateResourceSetBuilder(resourceSetUnchecked);
       builder.setResources(
           new StarlarkActionResourceSetBuilder(
@@ -861,11 +865,7 @@ public class StarlarkActionFactory implements StarlarkActionFactoryApi {
                 mu, semantics, "resource_set callback", SymbolGenerator.createTransient());
         StarlarkInt inputInt = StarlarkInt.of(inputsSize);
         Object response =
-            Starlark.call(
-                thread,
-                this.fn,
-                ImmutableList.of(os.getCanonicalName(), inputInt),
-                ImmutableMap.of());
+            Starlark.positionalOnlyCall(thread, this.fn, os.getCanonicalName(), inputInt);
         Map<String, Object> resourceSetMapRaw =
             Dict.cast(response, String.class, Object.class, "resource_set");
 

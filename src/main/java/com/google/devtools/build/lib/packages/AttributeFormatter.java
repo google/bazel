@@ -22,6 +22,7 @@ import static com.google.devtools.build.lib.packages.BuildType.LABEL;
 import static com.google.devtools.build.lib.packages.BuildType.LABEL_DICT_UNARY;
 import static com.google.devtools.build.lib.packages.BuildType.LABEL_KEYED_STRING_DICT;
 import static com.google.devtools.build.lib.packages.BuildType.LABEL_LIST;
+import static com.google.devtools.build.lib.packages.BuildType.LABEL_LIST_DICT;
 import static com.google.devtools.build.lib.packages.BuildType.LICENSE;
 import static com.google.devtools.build.lib.packages.BuildType.NODEP_LABEL;
 import static com.google.devtools.build.lib.packages.BuildType.NODEP_LABEL_LIST;
@@ -36,6 +37,7 @@ import static com.google.devtools.build.lib.packages.Types.INTEGER_LIST;
 import static com.google.devtools.build.lib.packages.Types.STRING_DICT;
 import static com.google.devtools.build.lib.packages.Types.STRING_LIST;
 import static com.google.devtools.build.lib.packages.Types.STRING_LIST_DICT;
+import static com.google.devtools.build.lib.util.StringEncoding.internalToUnicode;
 
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableSet;
@@ -131,7 +133,7 @@ public class AttributeFormatter {
       boolean includeAttributeSourceAspects,
       LabelPrinter labelPrinter) {
     Build.Attribute.Builder attrPb = Build.Attribute.newBuilder();
-    attrPb.setName(name);
+    attrPb.setName(internalToUnicode(name));
     attrPb.setExplicitlySpecified(explicitlySpecified);
     maybeSetNoDep(type, attrPb);
 
@@ -149,7 +151,7 @@ public class AttributeFormatter {
 
     if (includeAttributeSourceAspects) {
       attrPb.setSourceAspectName(
-          sourceAspect != null ? sourceAspect.getAspectClass().getName() : "");
+          sourceAspect != null ? internalToUnicode(sourceAspect.getAspectClass().getName()) : "");
     }
 
     return attrPb.build();
@@ -174,7 +176,7 @@ public class AttributeFormatter {
     for (Selector<?> selector : selectorList.getSelectors()) {
       Build.Attribute.Selector.Builder selectorBuilder =
           Build.Attribute.Selector.newBuilder()
-              .setNoMatchError(selector.getNoMatchError())
+              .setNoMatchError(internalToUnicode(selector.getNoMatchError()))
               .setHasDefaultValue(selector.hasDefault());
 
       // Note that the order of entries returned by selector.getEntries is stable. The map's
@@ -184,7 +186,7 @@ public class AttributeFormatter {
           (condition, conditionValue) -> {
             SelectorEntry.Builder selectorEntryBuilder =
                 SelectorEntry.newBuilder()
-                    .setLabel(labelPrinter.toString(condition))
+                    .setLabel(internalToUnicode(labelPrinter.toString(condition)))
                     .setIsDefaultValue(!selector.isValueSet(condition));
 
             if (conditionValue != null) {
@@ -211,16 +213,16 @@ public class AttributeFormatter {
     if (type == INTEGER) {
       builder.setIntValue(((StarlarkInt) value).toIntUnchecked());
     } else if (type == STRING || type == STRING_NO_INTERN) {
-      builder.setStringValue(value.toString());
+      builder.setStringValue(internalToUnicode(value.toString()));
     } else if (type == LABEL
         || type == NODEP_LABEL
         || type == OUTPUT
         || type == GENQUERY_SCOPE_TYPE
         || type == DORMANT_LABEL) {
-      builder.setStringValue(labelPrinter.toString((Label) value));
+      builder.setStringValue(internalToUnicode(labelPrinter.toString((Label) value)));
     } else if (type == STRING_LIST || type == DISTRIBUTIONS) {
       for (Object entry : (Collection<?>) value) {
-        builder.addStringListValue(entry.toString());
+        builder.addStringListValue(internalToUnicode(entry.toString()));
       }
     } else if (type == LABEL_LIST
         || type == NODEP_LABEL_LIST
@@ -228,7 +230,7 @@ public class AttributeFormatter {
         || type == GENQUERY_SCOPE_TYPE_LIST
         || type == DORMANT_LABEL_LIST) {
       for (Label entry : (Collection<Label>) value) {
-        builder.addStringListValue(labelPrinter.toString(entry));
+        builder.addStringListValue(internalToUnicode(labelPrinter.toString(entry)));
       }
     } else if (type == INTEGER_LIST) {
       for (Object elem : (Collection<?>) value) {
@@ -242,10 +244,10 @@ public class AttributeFormatter {
       License license = (License) value;
       Build.License.Builder licensePb = Build.License.newBuilder();
       for (License.LicenseType licenseType : license.getLicenseTypes()) {
-        licensePb.addLicenseType(licenseType.toString());
+        licensePb.addLicenseType(internalToUnicode(licenseType.toString()));
       }
       for (Label exception : license.getExceptions()) {
-        licensePb.addException(exception.toString());
+        licensePb.addException(internalToUnicode(exception.toString()));
       }
       builder.setLicense(licensePb);
     } else if (type == STRING_DICT) {
@@ -253,17 +255,17 @@ public class AttributeFormatter {
       for (Map.Entry<String, String> keyValueList : dict.entrySet()) {
         StringDictEntry.Builder entry =
             StringDictEntry.newBuilder()
-                .setKey(keyValueList.getKey())
-                .setValue(keyValueList.getValue());
+                .setKey(internalToUnicode(keyValueList.getKey()))
+                .setValue(internalToUnicode(keyValueList.getValue()));
         builder.addStringDictValue(entry);
       }
-    } else if (type == STRING_LIST_DICT) {
-      Map<String, List<String>> dict = (Map<String, List<String>>) value;
-      for (Map.Entry<String, List<String>> dictEntry : dict.entrySet()) {
+    } else if (type == STRING_LIST_DICT || type == LABEL_LIST_DICT) {
+      Map<String, List<Object>> dict = (Map<String, List<Object>>) value;
+      for (Map.Entry<String, List<Object>> dictEntry : dict.entrySet()) {
         StringListDictEntry.Builder entry =
-            StringListDictEntry.newBuilder().setKey(dictEntry.getKey());
+            StringListDictEntry.newBuilder().setKey(internalToUnicode(dictEntry.getKey()));
         for (Object dictEntryValue : dictEntry.getValue()) {
-          entry.addValue(dictEntryValue.toString());
+          entry.addValue(internalToUnicode(dictEntryValue.toString()));
         }
         builder.addStringListDictValue(entry);
       }
@@ -272,8 +274,8 @@ public class AttributeFormatter {
       for (Map.Entry<String, Label> dictEntry : dict.entrySet()) {
         LabelDictUnaryEntry.Builder entry =
             LabelDictUnaryEntry.newBuilder()
-                .setKey(dictEntry.getKey())
-                .setValue(labelPrinter.toString(dictEntry.getValue()));
+                .setKey(internalToUnicode(dictEntry.getKey()))
+                .setValue(internalToUnicode(labelPrinter.toString(dictEntry.getValue())));
         builder.addLabelDictUnaryValue(entry);
       }
     } else if (type == LABEL_KEYED_STRING_DICT) {
@@ -281,8 +283,8 @@ public class AttributeFormatter {
       for (Map.Entry<Label, String> dictEntry : dict.entrySet()) {
         LabelKeyedStringDictEntry.Builder entry =
             LabelKeyedStringDictEntry.newBuilder()
-                .setKey(labelPrinter.toString(dictEntry.getKey()))
-                .setValue(dictEntry.getValue());
+                .setKey(internalToUnicode(labelPrinter.toString(dictEntry.getKey())))
+                .setValue(internalToUnicode(dictEntry.getValue()));
         builder.addLabelKeyedStringDictValue(entry);
       }
     } else {

@@ -26,7 +26,6 @@ public abstract class AbstractMockJavaSupport {
         @Override
         public void setupRulesJava(
             MockToolsConfig config, Function<String, String> runfilesResolver) throws IOException {
-          config.create("rules_java_workspace/WORKSPACE", "workspace(name = 'rules_java')");
           config.create("rules_java_workspace/MODULE.bazel", "module(name = 'rules_java')");
           PathFragment rulesJavaRoot =
               PathFragment.create(runfilesResolver.apply("rules_java/java/defs.bzl"))
@@ -110,6 +109,15 @@ java_plugin = _java_plugin
               load("@rules_java//java/private:java_info.bzl", _JavaPluginInfo = "JavaPluginInfo")
               JavaPluginInfo = _JavaPluginInfo
               """);
+          config.overwrite(
+              "rules_java_workspace/java/private/proto_support.bzl",
+              """
+load("@rules_java//java/private:java_common.bzl", "java_common")
+def compile(*, injecting_rule_kind, enable_jspecify, include_compilation_info, **kwargs):
+    return java_common.compile(**kwargs)
+def merge(providers, *, merge_java_outputs = True, merge_source_jars = True):
+    return java_common.merge(providers)
+""");
           // mocks
           config.create("rules_java_workspace/toolchains/BUILD");
           config.create(

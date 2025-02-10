@@ -88,11 +88,3 @@ def create_intermediate_artifacts(ctx):
         generate_umbrella_header = False,
         enforce_always_link = False,
     )
-
-def j2objc_create_intermediate_artifacts(ctx):
-    return _create_closure_struct(
-        ctx = ctx,
-        archive_file_name_suffix = "_j2objc",
-        generate_umbrella_header = True,
-        enforce_always_link = True,
-    )

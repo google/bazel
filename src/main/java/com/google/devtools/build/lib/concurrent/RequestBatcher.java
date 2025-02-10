@@ -29,6 +29,7 @@ import com.google.common.util.concurrent.AbstractFuture;
 import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.devtools.build.lib.unsafe.UnsafeProvider;
+
 import com.google.errorprone.annotations.CanIgnoreReturnValue;
 import java.lang.ref.Cleaner;
 import java.util.List;
@@ -208,6 +209,7 @@ public final class RequestBatcher<RequestT, ResponseT> {
    * <p>Caller owns memory addresses used by {@code queue} and cleanup of memory at {@code
    * countersAddress}.
    */
+  // TODO: b/386384684 - remove Unsafe usage
   @VisibleForTesting
   RequestBatcher(
       Executor responseDistributionExecutor,
@@ -241,6 +243,7 @@ public final class RequestBatcher<RequestT, ResponseT> {
    * <p>Callers should consider processing the response on a different executor if processing is
    * expensive to avoid delaying work pending other responses in the batch.
    */
+  // TODO: b/386384684 - remove Unsafe usage
   public ListenableFuture<ResponseT> submit(RequestT request) {
     var requestResponse = new RequestResponse<RequestT, ResponseT>(request);
 
@@ -294,6 +297,7 @@ public final class RequestBatcher<RequestT, ResponseT> {
     }
   }
 
+  // TODO: b/386384684 - remove Unsafe usage
   @Override
   public String toString() {
     int snapshot = UNSAFE.getIntVolatile(null, countersAddress);
@@ -352,6 +356,7 @@ public final class RequestBatcher<RequestT, ResponseT> {
    *
    * @param requestResponse an element to add to the batch.
    */
+  // TODO: b/386384684 - remove Unsafe usage
   private ImmutableList<RequestResponse<RequestT, ResponseT>> populateBatch(
       RequestResponse<RequestT, ResponseT> requestResponse) {
     var accumulator =
@@ -380,6 +385,7 @@ public final class RequestBatcher<RequestT, ResponseT> {
    * <p>Tries to process the next batch if enqueued requests are available. Otherwise, stops working
    * and decrements the active worker count.
    */
+  // TODO: b/386384684 - remove Unsafe usage
   private void continueToNextBatchOrBecomeIdle() {
     while (true) {
       int snapshot = UNSAFE.getIntVolatile(null, countersAddress);

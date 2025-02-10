@@ -15,15 +15,26 @@ package com.google.devtools.build.lib.analysis;
 
 import static com.google.common.truth.Truth.assertThat;
 import static com.google.devtools.build.lib.rules.python.PythonTestUtils.getPyLoad;
+import static com.google.devtools.build.lib.skyframe.serialization.SerializationRegistrySetupHelpers.createAnalysisCodecRegistrySupplier;
+import static com.google.devtools.build.lib.skyframe.serialization.SerializationRegistrySetupHelpers.makeReferenceConstants;
+import static com.google.devtools.build.lib.skyframe.serialization.testutils.Dumper.dumpStructureWithEquivalenceReduction;
+import static com.google.devtools.build.lib.skyframe.serialization.testutils.RoundTripping.roundTripWithSkyframe;
 
+import com.google.common.collect.ImmutableClassToInstanceMap;
 import com.google.common.collect.ImmutableSet;
 import com.google.devtools.build.lib.actions.Artifact;
+import com.google.devtools.build.lib.actions.Artifact.ArtifactSerializationContext;
 import com.google.devtools.build.lib.analysis.configuredtargets.RuleConfiguredTarget;
 import com.google.devtools.build.lib.analysis.util.BuildViewTestCase;
 import com.google.devtools.build.lib.analysis.util.DummyTestFragment;
 import com.google.devtools.build.lib.cmdline.Label;
 import com.google.devtools.build.lib.events.Event;
+import com.google.devtools.build.lib.packages.RuleClassProvider;
+import com.google.devtools.build.lib.skyframe.PrerequisitePackageFunction;
+import com.google.devtools.build.lib.skyframe.serialization.FingerprintValueService;
+import com.google.devtools.build.lib.skyframe.serialization.ObjectCodecs;
 import com.google.devtools.build.lib.testutil.TestRuleClassProvider;
+import com.google.devtools.build.lib.vfs.Root;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -712,5 +723,49 @@ public final class RuleConfiguredTargetTest extends BuildViewTestCase {
     assertContainsEvent(
         "in liar_rule_with_starlark_provider rule //p:my_target: rule advertised the 'STARLARK_P1'"
             + " provider, but this provider was not among those returned");
+  }
+
+  @Test
+  public void testCodec() throws Exception {
+    scratch.file(
+        "foo/BUILD", "genrule(name = 'gen', outs = ['sub/out', 'out'], cmd = 'touch $(OUTS)')");
+    var original = (RuleConfiguredTarget) getConfiguredTarget("//foo:gen");
+
+    // TODO: b/364831651 - consider factoring out the ObjectCodecs setup to a common location.
+    var deserialized =
+        roundTripWithSkyframe(
+            new ObjectCodecs(
+                createAnalysisCodecRegistrySupplier(
+                        getRuleClassProvider(),
+                        makeReferenceConstants(
+                            directories,
+                            getRuleClassProvider(),
+                            directories.getWorkspace().getBaseName()))
+                    .get(),
+                ImmutableClassToInstanceMap.builder()
+                    .put(
+                        ArtifactSerializationContext.class,
+                        getSkyframeExecutor().getSkyframeBuildView().getArtifactFactory()
+                            ::getSourceArtifact)
+                    .put(RuleClassProvider.class, getRuleClassProvider())
+                    // We need a RootCodecDependencies but don't care about the likely roots.
+                    .put(Root.RootCodecDependencies.class, new Root.RootCodecDependencies())
+                    // This is needed to determine TargetData for a ConfiguredTarget during
+                    // serialization.
+                    .put(
+                        PrerequisitePackageFunction.class,
+                        getSkyframeExecutor()::getExistingPackage)
+                    .build()),
+            FingerprintValueService.createForTesting(),
+            key -> {
+              try {
+                return getSkyframeExecutor().getEvaluator().getExistingValue(key);
+              } catch (InterruptedException e) {
+                throw new IllegalStateException(e);
+              }
+            },
+            original);
+    assertThat(dumpStructureWithEquivalenceReduction(original))
+        .isEqualTo(dumpStructureWithEquivalenceReduction(deserialized));
   }
 }

@@ -18,8 +18,6 @@ This is used to generate the compilation command line and to the supply informat
 into the compilation info provider.
 """
 
-load(":common/cc/cc_common.bzl", "cc_common")
-
 def _objc_compilation_context_info_init(
         defines = [],
         public_hdrs = [],
@@ -69,21 +67,3 @@ ObjcCompilationContextInfo, _new_objccompilationcontextinfo = provider(
     },
     init = _objc_compilation_context_info_init,
 )
-
-def create_cc_compilation_context(objc_compilation_context_info):
-    return cc_common.create_compilation_context(
-        defines = depset(objc_compilation_context_info.defines),
-        headers = depset(
-            objc_compilation_context_info.public_hdrs +
-            objc_compilation_context_info.private_hdrs +
-            objc_compilation_context_info.public_textual_hdrs,
-        ),
-        direct_public_headers = objc_compilation_context_info.public_hdrs,
-        direct_private_headers = objc_compilation_context_info.private_hdrs,
-        direct_textual_headers = objc_compilation_context_info.public_textual_hdrs,
-        includes = depset(objc_compilation_context_info.includes),
-        system_includes = depset(objc_compilation_context_info.system_includes),
-        quote_includes = depset(objc_compilation_context_info.quote_includes),
-        dependent_cc_compilation_contexts = objc_compilation_context_info.cc_compilation_contexts,
-        exported_dependent_cc_compilation_contexts = objc_compilation_context_info.direct_cc_compilation_contexts,
-    )

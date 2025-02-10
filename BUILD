@@ -83,8 +83,9 @@ genrule(
         "MODULE.bazel",
         "//third_party/remoteapis:MODULE.bazel",
         "//third_party:BUILD",
-        "//third_party:rules_jvm_external_6.0.patch",
+        "//third_party:rules_jvm_external_6.5.patch",
         "//third_party:rules_graalvm_fix.patch",
+        "//third_party:rules_graalvm_unicode.patch",
     ],
     outs = ["MODULE.bazel.lock.dist"],
     cmd = " && ".join([
@@ -110,6 +111,7 @@ pkg_tar(
     srcs = [
         "//third_party/googleapis:dist_jars",
         "//third_party/grpc-java:grpc_jars",
+        "@async_profiler//file",
         "@com_google_protobuf//:protobuf_java",
         "@com_google_protobuf//:protobuf_java_util",
         "@com_google_protobuf//:protobuf_javalite",

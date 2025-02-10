@@ -65,7 +65,7 @@ import com.google.devtools.build.lib.actions.BasicActionLookupValue;
 import com.google.devtools.build.lib.actions.BuildFailedException;
 import com.google.devtools.build.lib.actions.FileArtifactValue;
 import com.google.devtools.build.lib.actions.FileStateValue;
-import com.google.devtools.build.lib.actions.RemoteArtifactChecker;
+import com.google.devtools.build.lib.actions.OutputChecker;
 import com.google.devtools.build.lib.actions.ResourceManager;
 import com.google.devtools.build.lib.actions.util.ActionsTestUtil;
 import com.google.devtools.build.lib.actions.util.DummyExecutor;
@@ -2004,7 +2004,7 @@ public final class SequencedSkyframeExecutorTest extends BuildViewTestCase {
                       options,
                       null,
                       null,
-                      RemoteArtifactChecker.IGNORE_ALL));
+                      OutputChecker.TRUST_LOCAL_ONLY));
       // The catastrophic exception should be propagated into the BuildFailedException whether or
       // not --keep_going is set.
       assertThat(e.getDetailedExitCode()).isEqualTo(CatastrophicAction.expectedDetailedExitCode);
@@ -2141,7 +2141,7 @@ public final class SequencedSkyframeExecutorTest extends BuildViewTestCase {
                       options,
                       null,
                       null,
-                      RemoteArtifactChecker.IGNORE_ALL));
+                      OutputChecker.TRUST_LOCAL_ONLY));
       // The catastrophic exception should be propagated into the BuildFailedException whether or
       // not --keep_going is set.
       assertThat(e.getDetailedExitCode()).isEqualTo(CatastrophicAction.expectedDetailedExitCode);
@@ -2274,7 +2274,7 @@ public final class SequencedSkyframeExecutorTest extends BuildViewTestCase {
                               ImmutableList.of(),
                               OutputGroupInfo.ValidationMode.OUTPUT_GROUP,
                               /* shouldRunTests= */ false)),
-                      RemoteArtifactChecker.IGNORE_ALL));
+                      OutputChecker.TRUST_LOCAL_ONLY));
       // The catastrophic exception should be propagated into the BuildFailedException whether or
       // not --keep_going is set.
       assertThat(e.getDetailedExitCode()).isEqualTo(CatastrophicAction.expectedDetailedExitCode);
@@ -2390,7 +2390,7 @@ public final class SequencedSkyframeExecutorTest extends BuildViewTestCase {
                       options,
                       null,
                       null,
-                      RemoteArtifactChecker.IGNORE_ALL));
+                      OutputChecker.TRUST_LOCAL_ONLY));
       // The catastrophic exception should be propagated into the BuildFailedException whether or
       // not --keep_going is set.
       assertThat(e.getDetailedExitCode()).isEqualTo(CatastrophicAction.expectedDetailedExitCode);
@@ -2497,7 +2497,7 @@ public final class SequencedSkyframeExecutorTest extends BuildViewTestCase {
                     options,
                     null,
                     null,
-                    RemoteArtifactChecker.IGNORE_ALL));
+                    OutputChecker.TRUST_LOCAL_ONLY));
     // The exit code should be propagated into the BuildFailedException whether or not --keep_going
     // is set.
     assertThat(e.getDetailedExitCode()).isEqualTo(USER_DETAILED_EXIT_CODE);
@@ -2594,7 +2594,7 @@ public final class SequencedSkyframeExecutorTest extends BuildViewTestCase {
                     options,
                     null,
                     null,
-                    RemoteArtifactChecker.IGNORE_ALL));
+                    OutputChecker.TRUST_LOCAL_ONLY));
     // The exit code should be propagated into the BuildFailedException whether or not --keep_going
     // is set.
     assertThat(e.getDetailedExitCode()).isEqualTo(INFRA_DETAILED_EXIT_CODE);
@@ -2671,7 +2671,7 @@ public final class SequencedSkyframeExecutorTest extends BuildViewTestCase {
         options,
         null,
         null,
-        RemoteArtifactChecker.IGNORE_ALL);
+        OutputChecker.TRUST_LOCAL_ONLY);
     MoreAsserts.assertContainsEvent(
         eventCollector, Pattern.compile(".*during scanning.*\n.*Scanning.*\n.*Test dir/top.*"));
     MoreAsserts.assertNotContainsEvent(

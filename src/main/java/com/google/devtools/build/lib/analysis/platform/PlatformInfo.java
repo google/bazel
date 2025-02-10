@@ -51,12 +51,18 @@ public class PlatformInfo extends NativeInfo
   /** Name used in Starlark for accessing this provider. */
   public static final String STARLARK_NAME = "PlatformInfo";
 
-  /** Empty {@link PlatformInfo} instance representing an invalid or empty platform. */
+  /**
+   * Empty {@link PlatformInfo} instance for a invalid or empty (e.g. builtin) actions. See also
+   * src/main/starlark/builtins_bzl/platforms/BUILD#empty
+   */
   public static final PlatformInfo EMPTY_PLATFORM_INFO;
 
   static {
     try {
-      EMPTY_PLATFORM_INFO = PlatformInfo.builder().build();
+      EMPTY_PLATFORM_INFO =
+          PlatformInfo.builder()
+              .setLabel(Label.parseCanonicalUnchecked(PlatformConstants.INTERNAL_PLATFORM))
+              .build();
     } catch (DuplicateConstraintException | ExecPropertiesException e) {
       // This can never happen since we're not passing any values to the builder.
       throw new VerifyException(e);

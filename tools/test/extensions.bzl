@@ -19,9 +19,9 @@ load("//tools/build_defs/repo:http.bzl", "http_archive")
 def _remote_coverage_tools_extension_impl(ctx):
     http_archive(
         name = "remote_coverage_tools",
-        sha256 = "7006375f6756819b7013ca875eab70a541cf7d89142d9c511ed78ea4fefa38af",
+        sha256 = "172be177db06b16632335f27d50cee0786fb1873df344852db71b2171cd6d996",
         urls = [
-            "https://mirror.bazel.build/bazel_coverage_output_generator/releases/coverage_output_generator-v2.6.zip",
+            "https://mirror.bazel.build/bazel_coverage_output_generator/releases/coverage_output_generator-v2.8.zip",
         ],
     )
     return ctx.extension_metadata(reproducible = True)

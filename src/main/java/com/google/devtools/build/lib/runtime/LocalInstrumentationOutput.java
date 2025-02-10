@@ -15,7 +15,6 @@ package com.google.devtools.build.lib.runtime;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 
-import com.google.common.annotations.VisibleForTesting;
 import com.google.devtools.build.lib.buildtool.BuildResult.BuildToolLogCollection;
 import com.google.devtools.build.lib.vfs.Path;
 import com.google.devtools.build.lib.vfs.PathFragment;
@@ -31,18 +30,21 @@ final class LocalInstrumentationOutput implements InstrumentationOutput {
   @Nullable private final String convenienceName;
   @Nullable private final Boolean append;
   @Nullable private final Boolean internal;
+  private final boolean createParent;
 
   LocalInstrumentationOutput(
       String name,
       Path path,
       @Nullable String convenienceName,
       @Nullable Boolean append,
-      @Nullable Boolean internal) {
+      @Nullable Boolean internal,
+      boolean createParent) {
     this.name = name;
     this.path = path;
     this.convenienceName = convenienceName;
     this.append = append;
     this.internal = internal;
+    this.createParent = createParent;
   }
 
   @Override
@@ -60,6 +62,9 @@ final class LocalInstrumentationOutput implements InstrumentationOutput {
 
   @Override
   public OutputStream createOutputStream() throws IOException {
+    if (createParent) {
+      path.getParentDirectory().createDirectoryAndParents();
+    }
     if (append != null && internal != null) {
       return path.getOutputStream(append, internal);
     }
@@ -69,9 +74,9 @@ final class LocalInstrumentationOutput implements InstrumentationOutput {
     return path.getOutputStream();
   }
 
-  @VisibleForTesting
-  public Path getPath() {
-    return path;
+  @Override
+  public String getPathString() {
+    return path.getPathString();
   }
 
   /** Builder for {@link LocalInstrumentationOutput}. */
@@ -81,6 +86,7 @@ final class LocalInstrumentationOutput implements InstrumentationOutput {
     @Nullable private String convenienceName;
     @Nullable private Boolean append;
     @Nullable private Boolean internal;
+    private boolean createParent;
 
     @CanIgnoreReturnValue
     @Override
@@ -119,6 +125,13 @@ final class LocalInstrumentationOutput implements InstrumentationOutput {
       return this;
     }
 
+    @CanIgnoreReturnValue
+    @Override
+    public Builder setCreateParent(boolean createParent) {
+      this.createParent = createParent;
+      return this;
+    }
+
     @Override
     public LocalInstrumentationOutput build() {
       return new LocalInstrumentationOutput(
@@ -126,7 +139,8 @@ final class LocalInstrumentationOutput implements InstrumentationOutput {
           checkNotNull(path, "Cannot create LocalInstrumentationOutputBuilder without path"),
           convenienceName,
           append,
-          internal);
+          internal,
+          createParent);
     }
   }
 }

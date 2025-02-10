@@ -112,5 +112,5 @@ cc_binary(
         "//conditions:default": ["cpu_profiler_unimpl.cc"],
     }),
     linkshared = 1,
-    deps = ["@bazel_tools//tools/jdk:jni"],
+    deps = ["@rules_java//toolchains:jni"],
 )

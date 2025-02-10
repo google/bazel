@@ -88,12 +88,13 @@ public class RepositoryMapping {
   }
 
   public static RepositoryMapping create(
-      Map<String, RepositoryName> entries, RepositoryName ownerRepo) {
+      ImmutableMap<String, RepositoryName> entries, RepositoryName ownerRepo) {
     return new RepositoryMapping(
         Preconditions.checkNotNull(entries), Preconditions.checkNotNull(ownerRepo));
   }
 
-  public static RepositoryMapping createAllowingFallback(Map<String, RepositoryName> entries) {
+  public static RepositoryMapping createAllowingFallback(
+      ImmutableMap<String, RepositoryName> entries) {
     return new RepositoryMapping(Preconditions.checkNotNull(entries), null);
   }
 
@@ -101,10 +102,15 @@ public class RepositoryMapping {
    * Create a new {@link RepositoryMapping} instance based on existing repo mappings and given
    * additional mappings. If there are conflicts, existing mappings will take precedence.
    */
-  public RepositoryMapping withAdditionalMappings(Map<String, RepositoryName> additionalMappings) {
-    HashMap<String, RepositoryName> allMappings = new HashMap<>(additionalMappings);
-    allMappings.putAll(entries());
-    return new RepositoryMapping(allMappings, ownerRepo());
+  public RepositoryMapping withAdditionalMappings(
+      ImmutableMap<String, RepositoryName> additionalMappings) {
+    return new RepositoryMapping(
+        ImmutableMap.<String, RepositoryName>builderWithExpectedSize(
+                entries().size() + additionalMappings.size())
+            .putAll(additionalMappings)
+            .putAll(entries())
+            .buildKeepingLast(),
+        ownerRepo());
   }
 
   /**

@@ -29,6 +29,7 @@ import com.google.devtools.build.lib.server.FailureDetails.Crash;
 import com.google.devtools.build.lib.server.FailureDetails.Crash.Code;
 import com.google.devtools.build.lib.server.FailureDetails.FailureDetail;
 import com.google.devtools.build.lib.server.IdleTask;
+import com.google.devtools.build.lib.server.InstallBaseGarbageCollectorIdleTask;
 import com.google.devtools.build.lib.testutil.ManualClock;
 import com.google.devtools.build.lib.util.DetailedExitCode;
 import com.google.devtools.build.lib.vfs.DigestHashFunction;
@@ -37,13 +38,13 @@ import com.google.devtools.build.lib.vfs.FileSystem;
 import com.google.devtools.build.lib.vfs.Symlinks;
 import com.google.devtools.build.lib.vfs.SyscallCache;
 import com.google.devtools.build.lib.vfs.inmemoryfs.InMemoryFileSystem;
-import com.google.devtools.common.options.OptionsBase;
 import com.google.devtools.common.options.OptionsParser;
 import com.google.devtools.common.options.OptionsParsingResult;
 import com.google.protobuf.Any;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.BytesValue;
 import com.google.protobuf.StringValue;
+import java.time.Duration;
 import java.util.Arrays;
 import java.util.concurrent.atomic.AtomicReference;
 import org.junit.Test;
@@ -54,11 +55,24 @@ import org.junit.runners.JUnit4;
 @RunWith(JUnit4.class)
 public class BlazeRuntimeTest {
 
+  private final ManualClock clock = new ManualClock();
+  private final FileSystem fs = new InMemoryFileSystem(clock, DigestHashFunction.SHA256);
+  private final ServerDirectories serverDirectories =
+      new ServerDirectories(
+          fs.getPath("/install"), fs.getPath("/output"), fs.getPath("/output_user"));
+  private final BlazeDirectories blazeDirectories =
+      new BlazeDirectories(
+          serverDirectories, fs.getPath("/workspace"), fs.getPath("/system_javabase"), "blaze");
+  private final OptionsParser optionsParser =
+      OptionsParser.builder()
+          .optionsClasses(ImmutableList.of(CommonCommandOptions.class, ClientOptions.class))
+          .build();
+  private final Thread commandThread = mock(Thread.class);
+  private final AtomicReference<String> shutdownReason = new AtomicReference<>();
+
   @Test
   public void manageProfiles() throws Exception {
-    var clock = new ManualClock();
-    var fs = new InMemoryFileSystem(clock, DigestHashFunction.SHA256);
-    var dir = fs.getPath("/output_base");
+    var dir = fs.getPath("/output");
     dir.createDirectory();
     dir.getChild("foo").createDirectory();
     dir.getChild("bar").getOutputStream().close();
@@ -116,51 +130,11 @@ public class BlazeRuntimeTest {
     assertThat(options.getOtherArgs()).containsExactly("build");
   }
 
-  private static final ImmutableList<Class<? extends OptionsBase>> COMMAND_ENV_REQUIRED_OPTIONS =
-      ImmutableList.of(CommonCommandOptions.class, ClientOptions.class);
-
   @Test
   public void crashTest() throws Exception {
-    FileSystem fs = new InMemoryFileSystem(DigestHashFunction.SHA256);
-    ServerDirectories serverDirectories =
-        new ServerDirectories(
-            fs.getPath("/install"), fs.getPath("/output"), fs.getPath("/output_user"));
-    BlazeRuntime runtime =
-        new BlazeRuntime.Builder()
-            .setFileSystem(fs)
-            .setProductName("foo product")
-            .setServerDirectories(serverDirectories)
-            .setStartupOptionsProvider(mock(OptionsParsingResult.class))
-            .build();
-    AtomicReference<String> shutdownMessage = new AtomicReference<>();
-    BlazeDirectories directories =
-        new BlazeDirectories(
-            serverDirectories, fs.getPath("/workspace"), fs.getPath("/system_javabase"), "blaze");
-    BlazeWorkspace workspace = runtime.initWorkspace(directories, BinTools.empty(directories));
-    EventBus eventBus = mock(EventBus.class);
-    OptionsParser options =
-        OptionsParser.builder().optionsClasses(COMMAND_ENV_REQUIRED_OPTIONS).build();
-    Thread commandThread = mock(Thread.class);
-    CommandEnvironment env =
-        new CommandEnvironment(
-            runtime,
-            workspace,
-            eventBus,
-            commandThread,
-            VersionCommand.class.getAnnotation(Command.class),
-            options,
-            InvocationPolicy.getDefaultInstance(),
-            /* packageLocator= */ null,
-            SyscallCache.NO_CACHE,
-            QuiescingExecutorsImpl.forTesting(),
-            /* warnings= */ ImmutableList.of(),
-            /* waitTimeInMs= */ 0L,
-            /* commandStartTime= */ 0L,
-            /* commandExtensions= */ ImmutableList.of(),
-            shutdownMessage::set,
-            NO_OP_COMMAND_EXTENSION_REPORTER,
-            /* attemptNumber= */ 1);
-    runtime.beforeCommand(env, options.getOptions(CommonCommandOptions.class));
+    BlazeRuntime runtime = createRuntime();
+    CommandEnvironment env = createCommandEnvironment(runtime);
+    runtime.beforeCommand(env, optionsParser.getOptions(CommonCommandOptions.class));
     DetailedExitCode oom =
         DetailedExitCode.of(
             FailureDetail.newBuilder()
@@ -179,45 +153,13 @@ public class BlazeRuntimeTest {
         .isEqualTo(oom);
     // Confirm that runtime interrupted the command thread.
     verify(commandThread).interrupt();
-    assertThat(shutdownMessage.get()).isEqualTo("foo product is crashing: ");
+    assertThat(shutdownReason.get()).isEqualTo("foo product is crashing: ");
   }
 
   @Test
   public void addsResponseExtensions() throws Exception {
-    FileSystem fs = new InMemoryFileSystem(DigestHashFunction.SHA256);
-    ServerDirectories serverDirectories =
-        new ServerDirectories(
-            fs.getPath("/install"), fs.getPath("/output"), fs.getPath("/output_user"));
-    BlazeRuntime runtime =
-        new BlazeRuntime.Builder()
-            .setFileSystem(fs)
-            .setProductName("bazel")
-            .setServerDirectories(serverDirectories)
-            .setStartupOptionsProvider(mock(OptionsParsingResult.class))
-            .build();
-    BlazeDirectories directories =
-        new BlazeDirectories(
-            serverDirectories, fs.getPath("/workspace"), fs.getPath("/system_javabase"), "blaze");
-    BlazeWorkspace workspace = runtime.initWorkspace(directories, BinTools.empty(directories));
-    CommandEnvironment env =
-        new CommandEnvironment(
-            runtime,
-            workspace,
-            mock(EventBus.class),
-            Thread.currentThread(),
-            VersionCommand.class.getAnnotation(Command.class),
-            OptionsParser.builder().optionsClasses(COMMAND_ENV_REQUIRED_OPTIONS).build(),
-            InvocationPolicy.getDefaultInstance(),
-            /* packageLocator= */ null,
-            SyscallCache.NO_CACHE,
-            QuiescingExecutorsImpl.forTesting(),
-            /* warnings= */ ImmutableList.of(),
-            /* waitTimeInMs= */ 0L,
-            /* commandStartTime= */ 0L,
-            /* commandExtensions= */ ImmutableList.of(),
-            /* shutdownReasonConsumer= */ s -> {},
-            NO_OP_COMMAND_EXTENSION_REPORTER,
-            /* attemptNumber= */ 1);
+    BlazeRuntime runtime = createRuntime();
+    CommandEnvironment env = createCommandEnvironment(runtime);
     Any anyFoo = Any.pack(StringValue.of("foo"));
     Any anyBar = Any.pack(BytesValue.of(ByteString.copyFromUtf8("bar")));
     env.addResponseExtensions(ImmutableList.of(anyFoo, anyBar));
@@ -230,41 +172,37 @@ public class BlazeRuntimeTest {
   }
 
   @Test
-  public void addsIdleTasks() throws Exception {
-    FileSystem fs = new InMemoryFileSystem(DigestHashFunction.SHA256);
-    ServerDirectories serverDirectories =
-        new ServerDirectories(
-            fs.getPath("/install"), fs.getPath("/output"), fs.getPath("/output_user"));
-    BlazeRuntime runtime =
-        new BlazeRuntime.Builder()
-            .setFileSystem(fs)
-            .setProductName("bazel")
-            .setServerDirectories(serverDirectories)
-            .setStartupOptionsProvider(mock(OptionsParsingResult.class))
-            .build();
-    BlazeDirectories directories =
-        new BlazeDirectories(
-            serverDirectories, fs.getPath("/workspace"), fs.getPath("/system_javabase"), "blaze");
-    BlazeWorkspace workspace = runtime.initWorkspace(directories, BinTools.empty(directories));
-    CommandEnvironment env =
-        new CommandEnvironment(
-            runtime,
-            workspace,
-            mock(EventBus.class),
-            Thread.currentThread(),
-            VersionCommand.class.getAnnotation(Command.class),
-            OptionsParser.builder().optionsClasses(COMMAND_ENV_REQUIRED_OPTIONS).build(),
-            InvocationPolicy.getDefaultInstance(),
-            /* packageLocator= */ null,
-            SyscallCache.NO_CACHE,
-            QuiescingExecutorsImpl.forTesting(),
-            /* warnings= */ ImmutableList.of(),
-            /* waitTimeInMs= */ 0L,
-            /* commandStartTime= */ 0L,
-            /* commandExtensions= */ ImmutableList.of(),
-            /* shutdownReasonConsumer= */ s -> {},
-            NO_OP_COMMAND_EXTENSION_REPORTER,
-            /* attemptNumber= */ 1);
+  public void doesNotAddInstallBaseGcIdleTaskWhenDisabled() throws Exception {
+    BlazeRuntime runtime = createRuntime();
+    CommandEnvironment env = createCommandEnvironment(runtime);
+    CommonCommandOptions options = new CommonCommandOptions();
+    options.installBaseGcMaxAge = Duration.ZERO;
+    runtime.beforeCommand(env, options);
+    assertThat(env.getIdleTasks()).isEmpty();
+  }
+
+  @Test
+  public void addsInstallBaseGcIdleTaskWhenEnabled() throws Exception {
+    BlazeRuntime runtime = createRuntime();
+    CommandEnvironment env = createCommandEnvironment(runtime);
+    CommonCommandOptions options = new CommonCommandOptions();
+    options.installBaseGcMaxAge = Duration.ofDays(365);
+    runtime.beforeCommand(env, options);
+    assertThat(env.getIdleTasks()).hasSize(1);
+    assertThat(env.getIdleTasks().get(0)).isInstanceOf(InstallBaseGarbageCollectorIdleTask.class);
+    var idleTask = (InstallBaseGarbageCollectorIdleTask) env.getIdleTasks().get(0);
+    assertThat(idleTask.delay()).isEqualTo(Duration.ZERO);
+    assertThat(idleTask.getGarbageCollector().getRoot())
+        .isEqualTo(blazeDirectories.getInstallBase().getParentDirectory());
+    assertThat(idleTask.getGarbageCollector().getOwnInstallBase())
+        .isEqualTo(blazeDirectories.getInstallBase());
+    assertThat(idleTask.getGarbageCollector().getMaxAge()).isEqualTo(Duration.ofDays(365));
+  }
+
+  @Test
+  public void addsIdleTasksFromModules() throws Exception {
+    BlazeRuntime runtime = createRuntime();
+    CommandEnvironment env = createCommandEnvironment(runtime);
     IdleTask fooTask = () -> {};
     IdleTask barTask = () -> {};
     env.addIdleTask(fooTask);
@@ -279,23 +217,48 @@ public class BlazeRuntimeTest {
 
   @Test
   public void addsCommandsFromModules() throws Exception {
-    FileSystem fs = new InMemoryFileSystem(DigestHashFunction.SHA256);
-    ServerDirectories serverDirectories =
-        new ServerDirectories(
-            fs.getPath("/install"), fs.getPath("/output"), fs.getPath("/output_user"));
-    BlazeRuntime runtime =
-        new BlazeRuntime.Builder()
-            .addBlazeModule(new FooCommandModule())
-            .addBlazeModule(new BarCommandModule())
-            .setFileSystem(fs)
-            .setProductName("bazel")
-            .setServerDirectories(serverDirectories)
-            .setStartupOptionsProvider(mock(OptionsParsingResult.class))
-            .build();
+    BlazeRuntime runtime = createRuntime(new FooCommandModule(), new BarCommandModule());
 
     assertThat(runtime.getCommandMap().keySet()).containsExactly("foo", "bar").inOrder();
     assertThat(runtime.getCommandMap().get("foo")).isInstanceOf(FooCommandModule.FooCommand.class);
     assertThat(runtime.getCommandMap().get("bar")).isInstanceOf(BarCommandModule.BarCommand.class);
+  }
+
+  private BlazeRuntime createRuntime(BlazeModule... modules) throws Exception {
+    var builder =
+        new BlazeRuntime.Builder()
+            .setFileSystem(fs)
+            .setProductName("foo product")
+            .setServerDirectories(serverDirectories)
+            .setStartupOptionsProvider(mock(OptionsParsingResult.class));
+    for (var module : modules) {
+      builder.addBlazeModule(module);
+    }
+    return builder.build();
+  }
+
+  private CommandEnvironment createCommandEnvironment(BlazeRuntime runtime) throws Exception {
+    BlazeWorkspace workspace =
+        runtime.initWorkspace(blazeDirectories, BinTools.empty(blazeDirectories));
+    return new CommandEnvironment(
+        runtime,
+        workspace,
+        mock(EventBus.class),
+        commandThread,
+        VersionCommand.class.getAnnotation(Command.class),
+        optionsParser,
+        InvocationPolicy.getDefaultInstance(),
+        /* packageLocator= */ null,
+        SyscallCache.NO_CACHE,
+        QuiescingExecutorsImpl.forTesting(),
+        /* warnings= */ ImmutableList.of(),
+        /* waitTimeInMs= */ 0L,
+        /* commandStartTime= */ 0L,
+        /* commandExtensions= */ ImmutableList.of(),
+        /* shutdownReasonConsumer= */ shutdownReason::set,
+        NO_OP_COMMAND_EXTENSION_REPORTER,
+        /* attemptNumber= */ 1,
+        ConfigFlagDefinitions.NONE);
   }
 
   private static class FooCommandModule extends BlazeModule {

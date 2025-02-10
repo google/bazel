@@ -17,7 +17,6 @@ package com.google.devtools.build.lib.rules.cpp;
 import static com.google.common.truth.Truth.assertThat;
 import static com.google.devtools.build.lib.skyframe.BzlLoadValue.keyForBuild;
 
-import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.devtools.build.lib.analysis.ConfiguredTarget;
 import com.google.devtools.build.lib.analysis.test.InstrumentedFilesInfo;
@@ -42,9 +41,7 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * Unit tests for {@code CcToolchainProvider}
- */
+/** Unit tests for {@code CcToolchainProvider} */
 @RunWith(JUnit4.class)
 public class CcToolchainProviderTest extends BuildViewTestCase {
   @Test
@@ -205,11 +202,7 @@ public class CcToolchainProviderTest extends BuildViewTestCase {
       StarlarkThread thread = StarlarkThread.createTransient(mu, StarlarkSemantics.DEFAULT);
       Dict<?, ?> makeVarsDict =
           (Dict<?, ?>)
-              Starlark.call(
-                  thread,
-                  getMakeVariables,
-                  ImmutableList.of(ccToolchainProvider.getValue()),
-                  ImmutableMap.of());
+              Starlark.positionalOnlyCall(thread, getMakeVariables, ccToolchainProvider.getValue());
       return ImmutableMap.copyOf(
           Dict.cast(makeVarsDict, String.class, String.class, "make_vars_for_test"));
     }
@@ -356,7 +349,7 @@ public class CcToolchainProviderTest extends BuildViewTestCase {
         getConfiguredTarget("//a:lib").get(InstrumentedFilesInfo.STARLARK_CONSTRUCTOR);
 
     assertThat(instrumentedFilesInfo.getCoverageEnvironment())
-        .containsEntry("COVERAGE_GCOV_PATH", "");
+        .doesNotContainKey("COVERAGE_GCOV_PATH");
   }
 
   // regression test for b/319501294
@@ -503,7 +496,8 @@ public class CcToolchainProviderTest extends BuildViewTestCase {
             .get(InstrumentedFilesInfo.STARLARK_CONSTRUCTOR)
             .getCoverageEnvironment();
 
-    assertThat(coverageEnv).containsAtLeast("LLVM_COV", "", "LLVM_PROFDATA", "");
+    assertThat(coverageEnv).doesNotContainKey("LLVM_COV");
+    assertThat(coverageEnv).doesNotContainKey("LLVM_PROFDATA");
   }
 
   @Test

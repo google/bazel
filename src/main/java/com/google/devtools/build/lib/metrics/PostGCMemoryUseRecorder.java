@@ -18,6 +18,7 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Supplier;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.ImmutableSortedMap;
 import com.google.common.flogger.GoogleLogger;
 import com.google.devtools.build.lib.analysis.config.BuildConfigurationValue;
 import com.google.devtools.build.lib.bugreport.BugReporter;
@@ -128,7 +129,7 @@ public final class PostGCMemoryUseRecorder implements NotificationListener {
    * Returns the number of bytes garbage collected during this invocation. Broken down by GC space.
    */
   public synchronized ImmutableMap<String, Long> getGarbageStats() {
-    return ImmutableMap.copyOf(garbageStats);
+    return ImmutableSortedMap.copyOf(garbageStats);
   }
 
   public synchronized void reset() {

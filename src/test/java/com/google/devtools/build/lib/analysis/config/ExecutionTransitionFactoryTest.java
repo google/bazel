@@ -47,7 +47,7 @@ public class ExecutionTransitionFactoryTest extends BuildViewTestCase {
                 .attributes(FakeAttributeMapper.empty())
                 .analysisData(
                     getSkyframeExecutor()
-                        .getStarlarkExecTransitionForTesting(targetConfig.getOptions(), reporter))
+                        .getStarlarkExecTransition(targetConfig.getOptions(), reporter))
                 .executionPlatform(execPlatform)
                 .build());
   }

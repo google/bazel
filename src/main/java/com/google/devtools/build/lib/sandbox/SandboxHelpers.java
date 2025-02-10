@@ -52,7 +52,6 @@ import com.google.errorprone.annotations.CanIgnoreReturnValue;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Optional;
@@ -452,10 +451,10 @@ public final class SandboxHelpers {
 
   /** Adds additional bind mounts entries from {@code paths} to {@code bindMounts}. */
   public static void mountAdditionalPaths(
-      List<Entry<String, String>> paths, Path sandboxExecRoot, SortedMap<Path, Path> bindMounts)
+      ImmutableMap<String, String> paths, Path sandboxExecRoot, SortedMap<Path, Path> bindMounts)
       throws UserExecException {
     FileSystem fs = sandboxExecRoot.getFileSystem();
-    for (Map.Entry<String, String> additionalMountPath : paths) {
+    for (Map.Entry<String, String> additionalMountPath : paths.entrySet()) {
       try {
         final Path mountTarget = fs.getPath(additionalMountPath.getValue());
         // If source path is relative, treat it as a relative path inside the execution root

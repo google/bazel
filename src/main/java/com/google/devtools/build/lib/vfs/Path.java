@@ -420,39 +420,34 @@ public class Path implements Comparable<Path>, FileType.HasFileType {
   }
 
   /**
-   * Creates a directory with the name of the current path, not following symbolic links. Returns
-   * normally iff the directory exists after the call: true if the directory was created by this
-   * call, false if the directory was already in existence. Throws an exception if the directory
-   * could not be created for any reason.
+   * Ensures that a directory exists with the name of the current path, not following symbolic
+   * links. If necessary, creates the directory.
    *
-   * @throws IOException if the directory creation failed for any reason
+   * @throws IOException if the directory creation failed
+   * @return whether the directory was created by this call
    */
   public boolean createDirectory() throws IOException {
     return fileSystem.createDirectory(asFragment());
   }
 
   /**
-   * Creates a writable directory or ensures an existing one at current path is writable. Does not
-   * follow symlinks. Returns whether a new directory has been created (including false if it only
-   * adjusts permissions for an existing directory).
+   * Ensures that a directory exists with the name of the current path, not following symbolic
+   * links. If necessary, creates the directory or adjusts permissions on a preexisting one.
    *
-   * <p>Returns normally iff directory at current path exists and is writable.
+   * <p>This operation is not atomic. Concurrent modifications will result in undefined behavior.
    *
-   * <p>This operation is not atomic -- concurrent modifications of the path will result in
-   * undefined behavior.
+   * @throws IOException if the directory creation or permission adjustment failed
+   * @return whether a new directory was created by this call
    */
   public boolean createWritableDirectory() throws IOException {
     return fileSystem.createWritableDirectory(asFragment());
   }
 
   /**
-   * Ensures that the directory with the name of the current path and all its ancestor directories
-   * exist.
+   * Ensures that a directory exists with the name of the current path, following symbolic links. If
+   * necessary, creates the directory and any missing ancestor directories.
    *
-   * <p>Does not return whether the directory already existed or was created by some other
-   * concurrent call to this method.
-   *
-   * @throws IOException if the directory creation failed for any reason
+   * @throws IOException if the directory creation failed
    */
   public void createDirectoryAndParents() throws IOException {
     fileSystem.createDirectoryAndParents(asFragment());

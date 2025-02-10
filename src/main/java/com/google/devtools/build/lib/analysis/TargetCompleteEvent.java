@@ -28,7 +28,6 @@ import com.google.devtools.build.lib.actions.CompletionContext;
 import com.google.devtools.build.lib.actions.CompletionContext.ArtifactReceiver;
 import com.google.devtools.build.lib.actions.EventReportingArtifacts;
 import com.google.devtools.build.lib.actions.FileArtifactValue;
-import com.google.devtools.build.lib.actions.FileArtifactValue.UnresolvedSymlinkArtifactValue;
 import com.google.devtools.build.lib.analysis.TopLevelArtifactHelper.ArtifactsInOutputGroup;
 import com.google.devtools.build.lib.analysis.config.BuildConfigurationValue;
 import com.google.devtools.build.lib.analysis.test.InstrumentedFilesInfo;
@@ -376,10 +375,9 @@ public final class TargetCompleteEvent
                     artifact.getRoot().getExecPath().segments(),
                     StringEncoding::internalToUnicode));
     FileArtifactValue fileArtifactValue = completionContext.getFileArtifactValue(artifact);
-    if (fileArtifactValue instanceof UnresolvedSymlinkArtifactValue) {
+    if (fileArtifactValue != null && fileArtifactValue.getType().isSymlink()) {
       file.setSymlinkTargetPath(
-          StringEncoding.internalToUnicode(
-              ((UnresolvedSymlinkArtifactValue) fileArtifactValue).getSymlinkTarget()));
+          StringEncoding.internalToUnicode(fileArtifactValue.getUnresolvedSymlinkTarget()));
     } else if (fileArtifactValue != null && fileArtifactValue.getType().exists()) {
       byte[] digest = fileArtifactValue.getDigest();
       if (digest != null) {

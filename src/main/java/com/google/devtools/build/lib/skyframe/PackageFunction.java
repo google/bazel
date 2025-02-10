@@ -31,6 +31,8 @@ import com.google.devtools.build.lib.cmdline.PackageIdentifier;
 import com.google.devtools.build.lib.cmdline.RepositoryMapping;
 import com.google.devtools.build.lib.cmdline.RepositoryName;
 import com.google.devtools.build.lib.events.Event;
+import com.google.devtools.build.lib.events.ExtendedEventHandler;
+import com.google.devtools.build.lib.events.StoredEventHandler;
 import com.google.devtools.build.lib.io.FileSymlinkException;
 import com.google.devtools.build.lib.io.InconsistentFilesystemException;
 import com.google.devtools.build.lib.packages.AutoloadSymbols;
@@ -56,6 +58,7 @@ import com.google.devtools.build.lib.server.FailureDetails.FailureDetail;
 import com.google.devtools.build.lib.server.FailureDetails.Filesystem;
 import com.google.devtools.build.lib.server.FailureDetails.PackageLoading;
 import com.google.devtools.build.lib.server.FailureDetails.PackageLoading.Code;
+import com.google.devtools.build.lib.skyframe.IgnoredSubdirectoriesValue.InvalidIgnorePathException;
 import com.google.devtools.build.lib.skyframe.PackageFunctionWithMultipleGlobDeps.SkyframeGlobbingIOException;
 import com.google.devtools.build.lib.skyframe.RepoFileFunction.BadRepoFileException;
 import com.google.devtools.build.lib.skyframe.RepoPackageArgsFunction.RepoPackageArgsValue;
@@ -81,6 +84,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -430,8 +434,18 @@ public abstract class PackageFunction implements SkyFunction {
               env.getValueOrThrow(
                   packageLookupKey,
                   BadRepoFileException.class,
+                  InvalidIgnorePathException.class,
                   BuildFileNotFoundException.class,
                   InconsistentFilesystemException.class);
+    } catch (InvalidIgnorePathException e) {
+      throw PackageFunctionException.builder()
+          .setType(PackageFunctionException.Type.NO_SUCH_PACKAGE)
+          .setTransience(Transience.PERSISTENT)
+          .setPackageIdentifier(packageId)
+          .setMessage(e.getMessage())
+          .setException(e)
+          .setPackageLoadingCode(PackageLoading.Code.BAD_IGNORED_DIRECTORIES)
+          .build();
     } catch (BadRepoFileException e) {
       throw badRepoFileException(e, packageId);
     } catch (BuildFileNotFoundException e) {
@@ -1068,7 +1082,8 @@ public abstract class PackageFunction implements SkyFunction {
                 buildFileRootedPath,
                 buildFileValue,
                 starlarkBuiltinsValue,
-                preludeBindings);
+                preludeBindings,
+                env.getListener());
         state.compiledBuildFile = compiled;
       }
 
@@ -1221,7 +1236,8 @@ public abstract class PackageFunction implements SkyFunction {
       RootedPath buildFilePath,
       FileValue buildFileValue,
       StarlarkBuiltinsValue starlarkBuiltinsValue,
-      @Nullable Map<String, Object> preludeBindings)
+      @Nullable Map<String, Object> preludeBindings,
+      ExtendedEventHandler reporter)
       throws PackageFunctionException {
     // Though it could be in principle, `cpuBoundSemaphore` is not held here as this method does
     // not show up in profiles as being significantly impacted by thrashing. It could be worth doing
@@ -1255,7 +1271,27 @@ public abstract class PackageFunction implements SkyFunction {
       // If control flow reaches here, we're in territory that is deliberately unsound.
       // See the javadoc for ActionOnIOExceptionReadingBuildFile.
     }
-    ParserInput input = ParserInput.fromLatin1(buildFileBytes, inputFile.toString());
+    StoredEventHandler handler = new StoredEventHandler();
+    ParserInput input;
+    try {
+      input =
+          StarlarkUtil.createParserInput(
+              buildFileBytes,
+              inputFile.toString(),
+              semantics.get(BuildLanguageOptions.INCOMPATIBLE_ENFORCE_STARLARK_UTF8),
+              handler);
+    } catch (StarlarkUtil.InvalidUtf8Exception e) {
+      handler.replayOn(reporter);
+      throw PackageFunctionException.builder()
+          .setType(PackageFunctionException.Type.BUILD_FILE_CONTAINS_ERRORS)
+          .setPackageIdentifier(packageId)
+          .setTransience(Transience.PERSISTENT)
+          .setException(e)
+          .setMessage("error reading " + inputFile.toString())
+          .setPackageLoadingCode(PackageLoading.Code.STARLARK_EVAL_ERROR)
+          .build();
+    }
+    handler.replayOn(reporter);
 
     // Options for processing BUILD files.
     FileOptions options =
@@ -1303,7 +1339,7 @@ public abstract class PackageFunction implements SkyFunction {
                 .getUninjectedBuildEnv()
             : starlarkBuiltinsValue.predeclaredForBuild;
     if (preludeBindings != null) {
-      predeclared = new HashMap<>(predeclared);
+      predeclared = new LinkedHashMap<>(predeclared);
       predeclared.putAll(preludeBindings);
     }
     Module module = Module.withPredeclared(semantics, predeclared);

@@ -34,7 +34,6 @@ py_library(
 py_binary(
     name = "aquery_differ",
     srcs = ["aquery_differ.py"],
-    python_version = "PY3",
     deps = [
         ":aquery_differ_main_lib",
     ],
@@ -53,8 +52,6 @@ py_library(
 py_test_alias(
     name = "aquery_differ_test",
     srcs = ["aquery_differ_test.py"],
-    python_version = "PY3",
-    srcs_version = "PY3",
     deps = [
         ":aquery_differ_main_lib",
         "//src/main/protobuf:analysis_v2_py_proto",

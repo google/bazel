@@ -57,6 +57,7 @@ import com.google.devtools.build.lib.shell.SubprocessBuilder;
 import com.google.devtools.build.lib.shell.TerminationStatus;
 import com.google.devtools.build.lib.util.NetUtil;
 import com.google.devtools.build.lib.util.io.FileOutErr;
+import com.google.devtools.build.lib.vfs.FileSystem.PathTransformer;
 import com.google.devtools.build.lib.vfs.Path;
 import com.google.errorprone.annotations.FormatMethod;
 import com.google.errorprone.annotations.FormatString;
@@ -107,7 +108,7 @@ public class LocalSpawnRunner implements SpawnRunner {
       BinTools binTools,
       ProcessWrapper processWrapper,
       RunfilesTreeUpdater runfilesTreeUpdater) {
-    this.execRoot = execRoot;
+    this.execRoot = maybeTransform(execRoot);
     this.processWrapper = processWrapper;
     this.localExecutionOptions = Preconditions.checkNotNull(localExecutionOptions);
     this.hostName = NetUtil.getCachedShortHostName();
@@ -378,8 +379,8 @@ public class LocalSpawnRunner implements SpawnRunner {
 
         SubprocessBuilder subprocessBuilder = new SubprocessBuilder();
         subprocessBuilder.setWorkingDirectory(execRoot.getPathFile());
-        subprocessBuilder.setStdout(outErr.getOutputPath().getPathFile());
-        subprocessBuilder.setStderr(outErr.getErrorPath().getPathFile());
+        subprocessBuilder.setStdout(maybeTransform(outErr.getOutputPath()).getPathFile());
+        subprocessBuilder.setStderr(maybeTransform(outErr.getErrorPath()).getPathFile());
         subprocessBuilder.setEnv(environment);
         ImmutableList<String> args;
         if (processWrapper != null) {
@@ -392,7 +393,7 @@ public class LocalSpawnRunner implements SpawnRunner {
                   .addExecutionInfo(spawn.getExecutionInfo())
                   .setTimeout(context.getTimeout());
           statisticsPath = tmpDir.getRelative("stats.out");
-          commandLineBuilder.setStatisticsPath(statisticsPath);
+          commandLineBuilder.setStatisticsPath(statisticsPath.asFragment());
           args = ImmutableList.copyOf(commandLineBuilder.build());
         } else {
           subprocessBuilder.setTimeoutMillis(context.getTimeout().toMillis());
@@ -493,7 +494,7 @@ public class LocalSpawnRunner implements SpawnRunner {
       }
     }
 
-    private boolean wasTimeout(Duration timeout, Duration wallTime) {
+    private static boolean wasTimeout(Duration timeout, Duration wallTime) {
       return !timeout.isZero() && wallTime.compareTo(timeout) > 0;
     }
 
@@ -535,6 +536,12 @@ public class LocalSpawnRunner implements SpawnRunner {
     }
   }
 
+  private static Path maybeTransform(Path path) {
+    return (path.getFileSystem() instanceof PathTransformer pathTransformer)
+        ? pathTransformer.transformPath(path)
+        : path;
+  }
+
   private static FailureDetail makeFailureDetail(int exitCode, Status status, String actionType) {
     FailureDetails.Spawn.Builder spawnFailure = FailureDetails.Spawn.newBuilder();
     switch (status) {
@@ -562,6 +569,6 @@ public class LocalSpawnRunner implements SpawnRunner {
     PREFETCHING_LOCAL_INPUTS,
     LOCAL_ACTION_RUNNING,
     PERMANENT_ERROR,
-    SUCCESS;
+    SUCCESS
   }
 }

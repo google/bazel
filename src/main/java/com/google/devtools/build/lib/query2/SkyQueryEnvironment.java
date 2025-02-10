@@ -31,6 +31,8 @@ import com.google.common.collect.ImmutableSetMultimap;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Multimap;
+import com.google.common.collect.Sets;
+import com.google.common.collect.Sets.SetView;
 import com.google.common.flogger.GoogleLogger;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
@@ -81,6 +83,7 @@ import com.google.devtools.build.lib.query2.engine.QueryException;
 import com.google.devtools.build.lib.query2.engine.QueryExpression;
 import com.google.devtools.build.lib.query2.engine.QueryExpressionContext;
 import com.google.devtools.build.lib.query2.engine.QueryExpressionMapper;
+import com.google.devtools.build.lib.query2.engine.QueryUtil;
 import com.google.devtools.build.lib.query2.engine.QueryUtil.MinDepthUniquifierImpl;
 import com.google.devtools.build.lib.query2.engine.QueryUtil.NonExceptionalUniquifier;
 import com.google.devtools.build.lib.query2.engine.QueryUtil.ThreadSafeMutableKeyExtractorBackedSetImpl;
@@ -649,6 +652,117 @@ public class SkyQueryEnvironment extends AbstractBlazeQueryEnvironment<Target>
             }
           }
         });
+  }
+
+  @Override
+  public QueryTaskFuture<Void> somePath(
+      QueryExpression fromExpression,
+      QueryExpression toExpression,
+      QueryExpressionContext<Target> context,
+      Callback<Target> callback,
+      QueryExpression caller) {
+    // Note that the body of this method is entirely copied from SomePathFunction, which allows
+    // subclasses of SkyQueryEnvironment to override it.
+    // TODO: b/382066616 - Refactor this and avoid the duplication.
+    final QueryTaskFuture<ThreadSafeMutableSet<Target>> fromValueFuture =
+        QueryUtil.evalAll(this, context, fromExpression);
+    final QueryTaskFuture<ThreadSafeMutableSet<Target>> toValueFuture =
+        QueryUtil.evalAll(this, context, toExpression);
+
+    return whenAllSucceedCall(
+        ImmutableList.of(fromValueFuture, toValueFuture),
+        new QueryTaskCallable<Void>() {
+          @Override
+          public Void call() throws QueryException, InterruptedException {
+            // Implementation strategy: for each x in "from", compute its forward
+            // transitive closure.  If it intersects "to", then do a path search from x
+            // to an arbitrary node in the intersection, and return the path.  This
+            // avoids computing the full transitive closure of "from" in some cases.
+
+            ThreadSafeMutableSet<Target> fromValue = fromValueFuture.getIfSuccessful();
+            ThreadSafeMutableSet<Target> toValue = toValueFuture.getIfSuccessful();
+
+            buildTransitiveClosure(caller, fromValue, OptionalInt.empty());
+
+            for (Target x : fromValue) {
+              // TODO(b/122548314): if x was already seen as part of a previous node's tc, we should
+              // skip it here. That's subsumed by the TODO below.
+              ThreadSafeMutableSet<Target> xSet = createThreadSafeMutableSet();
+              xSet.add(x);
+              // TODO(b/122548314): this transitive closure building should stop at any nodes that
+              // have already been visited.
+              ThreadSafeMutableSet<Target> xtc = getTransitiveClosure(xSet, context);
+              SetView<Target> result;
+              if (xtc.size() > toValue.size()) {
+                result = Sets.intersection(toValue, xtc);
+              } else {
+                result = Sets.intersection(xtc, toValue);
+              }
+              if (!result.isEmpty()) {
+                callback.process(getNodesOnPath(x, result.iterator().next(), context));
+                return null;
+              }
+            }
+            callback.process(ImmutableSet.of());
+            return null;
+          }
+        });
+  }
+
+  @Override
+  public QueryTaskFuture<Void> allPaths(
+      QueryExpression fromExpression,
+      QueryExpression toExpression,
+      QueryExpressionContext<Target> context,
+      Callback<Target> callback,
+      QueryExpression caller) {
+    // Note that the body of this method is entirely copied from AllPathsFunction, which allows
+    // subclasses of SkyQueryEnvironment to override it.
+    // TODO: b/382066616 - Refactor this and avoid the duplication.
+    QueryTaskFuture<ThreadSafeMutableSet<Target>> fromValueFuture =
+        QueryUtil.evalAll(this, context, fromExpression);
+    QueryTaskFuture<ThreadSafeMutableSet<Target>> toValueFuture =
+        QueryUtil.evalAll(this, context, toExpression);
+
+    return whenAllSucceedCall(
+        ImmutableList.of(fromValueFuture, toValueFuture),
+        () -> {
+          // Algorithm: compute "reachableFromX", the forward transitive closure of the "from" set,
+          // then find the intersection of "reachableFromX" with the reverse transitive closure of
+          // the "to" set.  The reverse transitive closure and intersection operations are
+          // interleaved for efficiency. "result" holds the intersection.
+
+          ThreadSafeMutableSet<Target> fromValue = fromValueFuture.getIfSuccessful();
+          ThreadSafeMutableSet<Target> toValue = toValueFuture.getIfSuccessful();
+
+          buildTransitiveClosure(caller, fromValue, OptionalInt.empty());
+
+          Set<Target> reachableFromX = getTransitiveClosure(fromValue, context);
+          Predicate<Target> reachable = Predicates.in(reachableFromX);
+          Uniquifier<Target> uniquifier = createUniquifier();
+          ImmutableList<Target> result = uniquifier.unique(intersection(reachableFromX, toValue));
+          callback.process(result);
+          ImmutableList<Target> worklist = result;
+          while (!worklist.isEmpty()) {
+            Iterable<Target> reverseDeps = getReverseDeps(worklist, context);
+            worklist = uniquifier.unique(Iterables.filter(reverseDeps, reachable));
+            callback.process(worklist);
+          }
+          return null;
+        });
+  }
+
+  /**
+   * Returns a (new, mutable, unordered) set containing the intersection of the two specified sets.
+   */
+  private static <T> Set<T> intersection(Set<T> x, Set<T> y) {
+    Set<T> result = new HashSet<>();
+    if (x.size() > y.size()) {
+      Sets.intersection(y, x).copyInto(result);
+    } else {
+      Sets.intersection(x, y).copyInto(result);
+    }
+    return result;
   }
 
   @Override

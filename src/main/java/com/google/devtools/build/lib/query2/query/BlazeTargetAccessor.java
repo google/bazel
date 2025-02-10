@@ -31,6 +31,7 @@ import com.google.devtools.build.lib.query2.engine.QueryEnvironment.TargetNotFou
 import com.google.devtools.build.lib.query2.engine.QueryException;
 import com.google.devtools.build.lib.query2.engine.QueryExpression;
 import com.google.devtools.build.lib.query2.engine.QueryVisibility;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -156,7 +157,7 @@ public final class BlazeTargetAccessor implements TargetAccessor<Target> {
     } else if (ruleVisibility instanceof PackageGroupsRuleVisibility packageGroupsVisibility) {
       for (Label groupLabel : packageGroupsVisibility.getPackageGroups()) {
         try {
-          maybeConvertGroupVisibility(groupLabel, packageSpecifications);
+          addAllPackageGroups(groupLabel, packageSpecifications);
         } catch (TargetNotFoundException e) {
           queryEnvironment.handleError(
               caller,
@@ -171,22 +172,35 @@ public final class BlazeTargetAccessor implements TargetAccessor<Target> {
    }
   }
 
-  private void maybeConvertGroupVisibility(
+  /**
+   * If {@code groupLabel} refers to a {@code package_group}, recursively add the package
+   * specifications of it and of all other {@code package_group}s transitively in its {@code
+   * includes}.
+   */
+  private void addAllPackageGroups(
       Label groupLabel, ImmutableSet.Builder<QueryVisibility<Target>> packageSpecifications)
       throws QueryException, TargetNotFoundException, InterruptedException {
-    Target groupTarget = queryEnvironment.getTarget(groupLabel);
-    if (groupTarget instanceof PackageGroup) {
-      convertGroupVisibility(
-          (PackageGroup) queryEnvironment.getTarget(groupLabel), packageSpecifications);
-    }
+    addAllPackageGroupsRecursive(groupLabel, packageSpecifications, new HashSet<>());
   }
 
-  private void convertGroupVisibility(
-      PackageGroup group, ImmutableSet.Builder<QueryVisibility<Target>> packageSpecifications)
+  private void addAllPackageGroupsRecursive(
+      Label groupLabel,
+      ImmutableSet.Builder<QueryVisibility<Target>> packageSpecifications,
+      Set<Label> seen)
       throws QueryException, TargetNotFoundException, InterruptedException {
-    for (Label include : group.getIncludes()) {
-      maybeConvertGroupVisibility(include, packageSpecifications);
+    if (!seen.add(groupLabel)) {
+      // Avoid infinite recursion in case of an illegal package_group that includes itself.
+      // The target can't be built, but we'll return a valid result that just ignores the cyclic
+      // reference.
+      return;
     }
-    packageSpecifications.add(new BlazeQueryVisibility(group.getPackageSpecifications()));
+    Target groupTarget = queryEnvironment.getTarget(groupLabel);
+    if (groupTarget instanceof PackageGroup packageGroupTarget) {
+      for (Label include : packageGroupTarget.getIncludes()) {
+        addAllPackageGroupsRecursive(include, packageSpecifications, seen);
+      }
+      packageSpecifications.add(
+          new BlazeQueryVisibility(packageGroupTarget.getPackageSpecifications()));
+    }
   }
 }

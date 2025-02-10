@@ -882,7 +882,7 @@ public class BzlLoadFunction implements SkyFunction {
     // including the label and a reified copy of the load DAG.
     BazelModuleContext bazelModuleContext =
         BazelModuleContext.create(
-            label,
+            key,
             repoMapping,
             prog.getFilename(),
             ImmutableList.copyOf(loadMap.values()),

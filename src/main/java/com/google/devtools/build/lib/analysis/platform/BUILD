@@ -11,6 +11,11 @@ filegroup(
     visibility = ["//src:__subpackages__"],
 )
 
+java_library(
+    name = "constants",
+    srcs = ["PlatformConstants.java"],
+)
+
 # Description:
 #   Providers defined for platforms, constraints, and toolchains.
 java_library(
@@ -27,6 +32,7 @@ java_library(
         "ToolchainTypeInfo.java",
     ],
     deps = [
+        ":constants",
         "//src/main/java/com/google/devtools/build/lib/analysis:config/config_matching_provider",
         "//src/main/java/com/google/devtools/build/lib/analysis:resolved_toolchain_data",
         "//src/main/java/com/google/devtools/build/lib/analysis:transitive_info_provider",
@@ -39,6 +45,7 @@ java_library(
         "//src/main/java/com/google/devtools/build/lib/skyframe/serialization/autocodec",
         "//src/main/java/com/google/devtools/build/lib/starlarkbuildapi/platform",
         "//src/main/java/com/google/devtools/build/lib/util",
+        "//src/main/java/com/google/devtools/build/lib/util:hash_codes",
         "//src/main/java/com/google/devtools/build/lib/util:string",
         "//src/main/java/com/google/devtools/build/skyframe:skyframe-objects",
         "//src/main/java/net/starlark/java/eval",

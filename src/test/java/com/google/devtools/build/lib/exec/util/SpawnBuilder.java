@@ -139,7 +139,7 @@ public final class SpawnBuilder {
   }
 
   @CanIgnoreReturnValue
-  public SpawnBuilder withExecProperties(ImmutableMap<String, String> execProperties) {
+  public SpawnBuilder withCombinedExecProperties(ImmutableMap<String, String> execProperties) {
     this.execProperties = execProperties;
     return this;
   }

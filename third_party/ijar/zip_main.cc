@@ -59,8 +59,8 @@ class UnzipProcessor : public ZipExtractorProcessor {
 
   virtual ~UnzipProcessor() {}
 
-  virtual void Process(const char* filename, const u4 attr,
-                       const u1* data, const size_t size);
+  virtual void Process(const char *filename, u4 attr, const u1 *data,
+                       size_t size);
   virtual bool Accept(const char* filename, const u4 attr) {
     // All entry files are accepted by default.
     if (file_names.empty()) {

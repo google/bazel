@@ -265,7 +265,8 @@ class ActionGraphTextOutputFormatterCallback extends AqueryThreadsafeCallback {
                   action.getOwner().getConfigurationChecksum(),
                   action.getExecutionPlatform() != null
                       ? action.getExecutionPlatform().label()
-                      : null))
+                      : null,
+                  /* spawnRunner= */ null))
           .append("\n");
     }
 

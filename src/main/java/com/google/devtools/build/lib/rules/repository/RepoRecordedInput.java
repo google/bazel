@@ -36,6 +36,7 @@ import com.google.devtools.build.lib.skyframe.DirectoryListingValue;
 import com.google.devtools.build.lib.skyframe.DirectoryTreeDigestValue;
 import com.google.devtools.build.lib.skyframe.PrecomputedValue;
 import com.google.devtools.build.lib.skyframe.RepositoryMappingValue;
+import com.google.devtools.build.lib.skyframe.serialization.autocodec.AutoCodec;
 import com.google.devtools.build.lib.util.Fingerprint;
 import com.google.devtools.build.lib.vfs.Path;
 import com.google.devtools.build.lib.vfs.PathFragment;
@@ -67,7 +68,7 @@ import javax.annotation.Nullable;
  * input is stored as a string, with a prefix denoting its type, followed by a colon, and then the
  * information identifying that specific input.
  */
-public abstract class RepoRecordedInput implements Comparable<RepoRecordedInput> {
+public abstract sealed class RepoRecordedInput implements Comparable<RepoRecordedInput> {
   /** Represents a parser for a specific type of recorded inputs. */
   public abstract static class Parser {
     /**
@@ -96,13 +97,13 @@ public abstract class RepoRecordedInput implements Comparable<RepoRecordedInput>
    * Parses a recorded input from its string representation.
    *
    * @param s the string representation
-   * @return The parsed recorded input object, or {@link #NEVER_UP_TO_DATE} if the string
-   *     representation is invalid
+   * @return The parsed recorded input object, or {@link
+   *     NeverUpToDateRepoRecordedInput#PARSE_FAILURE} if the string representation is invalid
    */
   public static RepoRecordedInput parse(String s) {
     List<String> parts = Splitter.on(':').limit(2).splitToList(s);
     if (parts.size() < 2) {
-      return NEVER_UP_TO_DATE;
+      return NeverUpToDateRepoRecordedInput.PARSE_FAILURE;
     }
     for (Parser parser :
         new Parser[] {
@@ -112,7 +113,7 @@ public abstract class RepoRecordedInput implements Comparable<RepoRecordedInput>
         return parser.parse(parts.get(1));
       }
     }
-    return NEVER_UP_TO_DATE;
+    return NeverUpToDateRepoRecordedInput.PARSE_FAILURE;
   }
 
   /**
@@ -120,7 +121,7 @@ public abstract class RepoRecordedInput implements Comparable<RepoRecordedInput>
    * missing, the return value should be ignored; callers are responsible for checking {@code
    * env.valuesMissing()} and triggering a Skyframe restart if needed.
    */
-  public static boolean areAllValuesUpToDate(
+  public static Optional<String> isAnyValueOutdated(
       Environment env,
       BlazeDirectories directories,
       Map<? extends RepoRecordedInput, String> recordedInputValues)
@@ -130,17 +131,17 @@ public abstract class RepoRecordedInput implements Comparable<RepoRecordedInput>
             .map(rri -> rri.getSkyKey(directories))
             .collect(toImmutableSet()));
     if (env.valuesMissing()) {
-      return false;
+      return UNDECIDED;
     }
     for (Map.Entry<? extends RepoRecordedInput, String> recordedInputValue :
         recordedInputValues.entrySet()) {
-      if (!recordedInputValue
-          .getKey()
-          .isUpToDate(env, directories, recordedInputValue.getValue())) {
-        return false;
+      Optional<String> reason =
+          recordedInputValue.getKey().isOutdated(env, directories, recordedInputValue.getValue());
+      if (reason.isPresent()) {
+        return reason;
       }
     }
-    return true;
+    return Optional.empty();
   }
 
   @Override
@@ -168,54 +169,22 @@ public abstract class RepoRecordedInput implements Comparable<RepoRecordedInput>
   /** Returns the parser object for this type of recorded inputs. */
   public abstract Parser getParser();
 
-  /** Returns the {@link SkyKey} that is necessary to determine {@link #isUpToDate}. */
+  /** Returns the {@link SkyKey} that is necessary to determine {@link #isOutdated}. */
   public abstract SkyKey getSkyKey(BlazeDirectories directories);
 
   /**
-   * Returns whether the given {@code oldValue} is still up-to-date for this recorded input. This
-   * method can assume that {@link #getSkyKey(BlazeDirectories)} is already evaluated; it can
-   * request further Skyframe evaluations, and if any values are missing, this method can return any
-   * value (doesn't matter what) and will be reinvoked after a Skyframe restart.
+   * Returns a human-readable reason for why the given {@code oldValue} is no longer up-to-date for
+   * this recorded input, or an empty Optional if it is still up-to-date. This method can assume
+   * that {@link #getSkyKey(BlazeDirectories)} is already evaluated; it can request further Skyframe
+   * evaluations, and if any values are missing, this method can return any value (doesn't matter
+   * what, although {@link #UNDECIDED} is recommended for clarity) and will be reinvoked after a
+   * Skyframe restart.
    */
-  public abstract boolean isUpToDate(
+  public abstract Optional<String> isOutdated(
       Environment env, BlazeDirectories directories, @Nullable String oldValue)
       throws InterruptedException;
 
-  /** A sentinel "input" that's always out-of-date to signify parse failure. */
-  public static final RepoRecordedInput NEVER_UP_TO_DATE =
-      new RepoRecordedInput() {
-        @Override
-        public boolean equals(Object obj) {
-          return this == obj;
-        }
-
-        @Override
-        public int hashCode() {
-          return 12345678;
-        }
-
-        @Override
-        public String toStringInternal() {
-          throw new UnsupportedOperationException("this sentinel input should never be serialized");
-        }
-
-        @Override
-        public Parser getParser() {
-          throw new UnsupportedOperationException("this sentinel input should never be parsed");
-        }
-
-        @Override
-        public SkyKey getSkyKey(BlazeDirectories directories) {
-          // Return a random SkyKey to satisfy the contract.
-          return PrecomputedValue.STARLARK_SEMANTICS.getKey();
-        }
-
-        @Override
-        public boolean isUpToDate(
-            Environment env, BlazeDirectories directories, @Nullable String oldValue) {
-          return false;
-        }
-      };
+  private static final Optional<String> UNDECIDED = Optional.of("values missing");
 
   /**
    * Represents a filesystem path stored in a way that is repo-cache-friendly. That is, if the path
@@ -232,6 +201,7 @@ public abstract class RepoRecordedInput implements Comparable<RepoRecordedInput>
    * <p>Of course, when the path is outside the current Bazel workspace, we just store the absolute
    * path.
    */
+  @AutoCodec
   public record RepoCacheFriendlyPath(Optional<RepositoryName> repoName, PathFragment path) {
     public RepoCacheFriendlyPath {
       requireNonNull(repoName, "repoName");
@@ -313,7 +283,7 @@ public abstract class RepoRecordedInput implements Comparable<RepoRecordedInput>
               return new File(RepoCacheFriendlyPath.parse(s));
             } catch (LabelSyntaxException e) {
               // malformed inputs cause refetch
-              return NEVER_UP_TO_DATE;
+              return NeverUpToDateRepoRecordedInput.PARSE_FAILURE;
             }
           }
         };
@@ -373,24 +343,26 @@ public abstract class RepoRecordedInput implements Comparable<RepoRecordedInput>
     }
 
     @Override
-    @Nullable
     public SkyKey getSkyKey(BlazeDirectories directories) {
       return FileValue.key(path.getRootedPath(directories));
     }
 
     @Override
-    public boolean isUpToDate(
+    public Optional<String> isOutdated(
         Environment env, BlazeDirectories directories, @Nullable String oldValue)
         throws InterruptedException {
       var skyKey = getSkyKey(directories);
       try {
         FileValue fileValue = (FileValue) env.getValueOrThrow(skyKey, IOException.class);
         if (fileValue == null) {
-          return false;
+          return UNDECIDED;
         }
-        return oldValue.equals(fileValueToMarkerValue((RootedPath) skyKey.argument(), fileValue));
+        if (!oldValue.equals(fileValueToMarkerValue((RootedPath) skyKey.argument(), fileValue))) {
+          return Optional.of("file info or contents of %s changed".formatted(path));
+        }
+        return Optional.empty();
       } catch (IOException e) {
-        return false;
+        return Optional.of("failed to stat %s: %s".formatted(path, e.getMessage()));
       }
     }
   }
@@ -410,7 +382,7 @@ public abstract class RepoRecordedInput implements Comparable<RepoRecordedInput>
               return new Dirents(RepoCacheFriendlyPath.parse(s));
             } catch (LabelSyntaxException e) {
               // malformed inputs cause refetch
-              return NEVER_UP_TO_DATE;
+              return NeverUpToDateRepoRecordedInput.PARSE_FAILURE;
             }
           }
         };
@@ -453,18 +425,21 @@ public abstract class RepoRecordedInput implements Comparable<RepoRecordedInput>
     }
 
     @Override
-    public boolean isUpToDate(
+    public Optional<String> isOutdated(
         Environment env, BlazeDirectories directories, @Nullable String oldValue)
         throws InterruptedException {
       SkyKey skyKey = getSkyKey(directories);
       if (env.getValue(skyKey) == null) {
-        return false;
+        return UNDECIDED;
       }
       try {
-        return oldValue.equals(
-            getDirentsMarkerValue(((DirectoryListingKey) skyKey).argument().asPath()));
+        if (!oldValue.equals(
+            getDirentsMarkerValue(((DirectoryListingKey) skyKey).argument().asPath()))) {
+          return Optional.of("directory entries of %s changed".formatted(path));
+        }
+        return Optional.empty();
       } catch (IOException e) {
-        return false;
+        return Optional.of("failed to readdir %s: %s".formatted(path, e.getMessage()));
       }
     }
 
@@ -498,7 +473,7 @@ public abstract class RepoRecordedInput implements Comparable<RepoRecordedInput>
               return new DirTree(RepoCacheFriendlyPath.parse(s));
             } catch (LabelSyntaxException e) {
               // malformed inputs cause refetch
-              return NEVER_UP_TO_DATE;
+              return NeverUpToDateRepoRecordedInput.PARSE_FAILURE;
             }
           }
         };
@@ -541,15 +516,18 @@ public abstract class RepoRecordedInput implements Comparable<RepoRecordedInput>
     }
 
     @Override
-    public boolean isUpToDate(
+    public Optional<String> isOutdated(
         Environment env, BlazeDirectories directories, @Nullable String oldValue)
         throws InterruptedException {
       DirectoryTreeDigestValue value =
           (DirectoryTreeDigestValue) env.getValue(getSkyKey(directories));
       if (value == null) {
-        return false;
+        return UNDECIDED;
       }
-      return oldValue.equals(value.hexDigest());
+      if (!oldValue.equals(value.hexDigest())) {
+        return Optional.of("directory tree at %s changed".formatted(path));
+      }
+      return Optional.empty();
     }
   }
 
@@ -612,7 +590,7 @@ public abstract class RepoRecordedInput implements Comparable<RepoRecordedInput>
     }
 
     @Override
-    public boolean isUpToDate(
+    public Optional<String> isOutdated(
         Environment env, BlazeDirectories directories, @Nullable String oldValue)
         throws InterruptedException {
       String v = PrecomputedValue.REPO_ENV.get(env).get(name);
@@ -620,7 +598,15 @@ public abstract class RepoRecordedInput implements Comparable<RepoRecordedInput>
         v = ((ClientEnvironmentValue) env.getValue(getSkyKey(directories))).getValue();
       }
       // Note that `oldValue` can be null if the env var was not set.
-      return Objects.equals(oldValue, v);
+      if (!Objects.equals(oldValue, v)) {
+        return Optional.of(
+            "value of %s changed: %s -> %s"
+                .formatted(
+                    name,
+                    oldValue == null ? "" : "'%s'".formatted(oldValue),
+                    v == null ? "" : "'%s'".formatted(v)));
+      }
+      return Optional.empty();
     }
   }
 
@@ -640,7 +626,7 @@ public abstract class RepoRecordedInput implements Comparable<RepoRecordedInput>
               return new RecordedRepoMapping(RepositoryName.create(parts.get(0)), parts.get(1));
             } catch (LabelSyntaxException | IndexOutOfBoundsException e) {
               // malformed inputs cause refetch
-              return NEVER_UP_TO_DATE;
+              return NeverUpToDateRepoRecordedInput.PARSE_FAILURE;
             }
           }
         };
@@ -691,19 +677,77 @@ public abstract class RepoRecordedInput implements Comparable<RepoRecordedInput>
     }
 
     @Override
-    public boolean isUpToDate(
+    public Optional<String> isOutdated(
         Environment env, BlazeDirectories directories, @Nullable String oldValue)
         throws InterruptedException {
       RepositoryMappingValue repoMappingValue =
           (RepositoryMappingValue) env.getValue(getSkyKey(directories));
+      if (Objects.equals(repoMappingValue, RepositoryMappingValue.NOT_FOUND_VALUE)) {
+        return Optional.of("source repo %s doesn't exist anymore".formatted(sourceRepo));
+      }
+      RepositoryName oldCanonicalName;
       try {
-        return repoMappingValue != RepositoryMappingValue.NOT_FOUND_VALUE
-            && RepositoryName.create(oldValue)
-                .equals(repoMappingValue.repositoryMapping().get(apparentName));
+        oldCanonicalName = RepositoryName.create(oldValue);
       } catch (LabelSyntaxException e) {
         // malformed old value causes refetch
-        return false;
+        return Optional.of("invalid recorded repo name: %s".formatted(e.getMessage()));
       }
+      RepositoryName newCanonicalName = repoMappingValue.repositoryMapping().get(apparentName);
+      if (!oldCanonicalName.equals(newCanonicalName)) {
+        return Optional.of(
+            "canonical name for @%s in %s changed: %s -> %s"
+                .formatted(
+                    apparentName,
+                    sourceRepo,
+                    oldCanonicalName,
+                    newCanonicalName == null ? "<doesn't exist>" : newCanonicalName));
+      }
+      return Optional.empty();
+    }
+  }
+
+  /** A sentinel "input" that's always out-of-date for a given reason. */
+  public static final class NeverUpToDateRepoRecordedInput extends RepoRecordedInput {
+    /** A sentinel "input" that's always out-of-date to signify parse failure. */
+    public static final RepoRecordedInput PARSE_FAILURE =
+        new NeverUpToDateRepoRecordedInput("malformed marker file entry encountered");
+
+    private final String reason;
+
+    public NeverUpToDateRepoRecordedInput(String reason) {
+      this.reason = reason;
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+      return this == obj;
+    }
+
+    @Override
+    public int hashCode() {
+      return 12345678;
+    }
+
+    @Override
+    public String toStringInternal() {
+      throw new UnsupportedOperationException("this sentinel input should never be serialized");
+    }
+
+    @Override
+    public Parser getParser() {
+      throw new UnsupportedOperationException("this sentinel input should never be parsed");
+    }
+
+    @Override
+    public SkyKey getSkyKey(BlazeDirectories directories) {
+      // Return a random SkyKey to satisfy the contract.
+      return PrecomputedValue.STARLARK_SEMANTICS.getKey();
+    }
+
+    @Override
+    public Optional<String> isOutdated(
+        Environment env, BlazeDirectories directories, @Nullable String oldValue) {
+      return Optional.of(reason);
     }
   }
 }

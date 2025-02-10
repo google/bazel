@@ -18,6 +18,7 @@ import static com.google.devtools.build.lib.unsafe.UnsafeProvider.getFieldOffset
 import static com.google.devtools.build.lib.unsafe.UnsafeProvider.unsafe;
 
 import com.google.common.collect.ImmutableList;
+
 import com.google.protobuf.CodedInputStream;
 import com.google.protobuf.CodedOutputStream;
 import java.io.IOException;
@@ -66,6 +67,7 @@ class ImmutableListCodec extends AsyncObjectCodec<ImmutableList> {
     }
   }
 
+  // TODO: b/386384684 - remove Unsafe usage
   @Override
   public ImmutableList deserializeAsync(
       AsyncDeserializationContext context, CodedInputStream codedIn)

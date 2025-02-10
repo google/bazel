@@ -18,8 +18,8 @@ import static org.junit.Assert.assertThrows;
 
 import com.google.devtools.build.lib.testutil.ExternalFileSystemLock;
 import com.google.devtools.build.lib.testutil.TestUtils;
+import com.google.devtools.build.lib.util.FileSystemLock.LockAlreadyHeldException;
 import com.google.devtools.build.lib.vfs.Path;
-import java.io.IOException;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -55,7 +55,8 @@ public final class FileSystemLockTest {
   @Test
   public void getShared_whenLockedForExclusiveUse_fails() throws Exception {
     try (var externalLock = ExternalFileSystemLock.getExclusive(lockPath)) {
-      IOException e = assertThrows(IOException.class, () -> FileSystemLock.getShared(lockPath));
+      LockAlreadyHeldException e =
+          assertThrows(LockAlreadyHeldException.class, () -> FileSystemLock.getShared(lockPath));
       assertThat(e).hasMessageThat().contains("failed to acquire shared filesystem lock");
     }
   }
@@ -70,7 +71,8 @@ public final class FileSystemLockTest {
   @Test
   public void getExclusive_whenLockedForSharedUse_fails() throws Exception {
     try (var externalLock = ExternalFileSystemLock.getShared(lockPath)) {
-      IOException e = assertThrows(IOException.class, () -> FileSystemLock.getExclusive(lockPath));
+      LockAlreadyHeldException e =
+          assertThrows(LockAlreadyHeldException.class, () -> FileSystemLock.getExclusive(lockPath));
       assertThat(e).hasMessageThat().contains("failed to acquire exclusive filesystem lock");
     }
   }
@@ -78,7 +80,8 @@ public final class FileSystemLockTest {
   @Test
   public void getExclusive_whenLockedForExclusiveUse_fails() throws Exception {
     try (var lock = ExternalFileSystemLock.getExclusive(lockPath)) {
-      IOException e = assertThrows(IOException.class, () -> FileSystemLock.getExclusive(lockPath));
+      LockAlreadyHeldException e =
+          assertThrows(LockAlreadyHeldException.class, () -> FileSystemLock.getExclusive(lockPath));
       assertThat(e).hasMessageThat().contains("failed to acquire exclusive filesystem lock");
     }
   }

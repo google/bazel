@@ -21,7 +21,6 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.google.devtools.build.lib.actions.ActionEnvironment;
-import com.google.devtools.build.lib.analysis.BaseRuleClasses;
 import com.google.devtools.build.lib.analysis.ConfiguredRuleClassProvider;
 import com.google.devtools.build.lib.analysis.ConfiguredRuleClassProvider.RuleSet;
 import com.google.devtools.build.lib.analysis.PackageSpecificationProvider;
@@ -253,20 +252,6 @@ public class BazelRuleClassProvider {
         @Override
         public ImmutableList<RuleSet> requires() {
           return ImmutableList.of(CoreRules.INSTANCE);
-        }
-      };
-
-  public static final RuleSet JAVA_PROTO_RULES =
-      new RuleSet() {
-        @Override
-        public void init(ConfiguredRuleClassProvider.Builder builder) {
-          builder.addRuleDefinition(new BaseRuleClasses.EmptyRule("java_proto_library") {});
-          builder.addRuleDefinition(new BaseRuleClasses.EmptyRule("java_lite_proto_library") {});
-        }
-
-        @Override
-        public ImmutableList<RuleSet> requires() {
-          return ImmutableList.of(CoreRules.INSTANCE, JavaRules.INSTANCE);
         }
       };
 

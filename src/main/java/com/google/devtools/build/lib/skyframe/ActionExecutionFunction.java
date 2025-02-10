@@ -187,39 +187,34 @@ public final class ActionExecutionFunction implements SkyFunction {
   @Nullable
   public SkyValue compute(SkyKey skyKey, Environment env)
       throws ActionExecutionFunctionException, InterruptedException {
-    skyframeActionExecutor.maybeAcquireActionExecutionSemaphore();
-    try {
-      ActionLookupData actionLookupData = (ActionLookupData) skyKey.argument();
-      if (actionLookupData.getLabel() != null) {
-        switch (maybeFetchSkyValueRemotely(
-            actionLookupData,
-            env,
-            cachingDependenciesSupplier.get(),
-            StateWithSerializationStateProvider::new)) {
-          case SkyValueRetriever.Restart unused:
-            return null;
-          case SkyValueRetriever.RetrievedValue v:
-            return v.value();
-          case SkyValueRetriever.NoCachedData unused:
-            break;
-        }
+    ActionLookupData actionLookupData = (ActionLookupData) skyKey.argument();
+    if (actionLookupData.getLabel() != null) {
+      switch (maybeFetchSkyValueRemotely(
+          actionLookupData,
+          env,
+          cachingDependenciesSupplier.get(),
+          StateWithSerializationStateProvider::new)) {
+        case SkyValueRetriever.Restart unused:
+          return null;
+        case SkyValueRetriever.RetrievedValue v:
+          return v.value();
+        case SkyValueRetriever.NoCachedData unused:
+          break;
       }
-      Action action = ActionUtils.getActionForLookupData(env, actionLookupData);
-      if (action == null) {
-        return null;
-      }
+    }
+    Action action = ActionUtils.getActionForLookupData(env, actionLookupData);
+    if (action == null) {
+      return null;
+    }
 
-      try {
-        return computeInternal(actionLookupData, action, env);
-      } catch (ActionExecutionFunctionException e) {
-        skyframeActionExecutor.recordExecutionError();
-        throw e;
-      } catch (UndoneInputsException e) {
-        return actionRewindStrategy.patchNestedSetGraphToPropagateError(
-            actionLookupData, action, e.undoneInputs, e.inputDepKeys);
-      }
-    } finally {
-      skyframeActionExecutor.maybeReleaseActionExecutionSemaphore();
+    try {
+      return computeInternal(actionLookupData, action, env);
+    } catch (ActionExecutionFunctionException e) {
+      skyframeActionExecutor.recordExecutionError();
+      throw e;
+    } catch (UndoneInputsException e) {
+      return actionRewindStrategy.patchNestedSetGraphToPropagateError(
+          actionLookupData, action, e.undoneInputs, e.inputDepKeys);
     }
   }
 
@@ -339,7 +334,7 @@ public final class ActionExecutionFunction implements SkyFunction {
       throw new ActionExecutionFunctionException(
           skyframeActionExecutor.processAndGetExceptionToThrow(
               env.getListener(),
-              /*primaryOutputPath=*/ null,
+              /* primaryOutputPath= */ null,
               action,
               e,
               new FileOutErr(),
@@ -363,6 +358,7 @@ public final class ActionExecutionFunction implements SkyFunction {
       }
     }
 
+    skyframeActionExecutor.maybeAcquireActionExecutionSemaphore();
     long actionStartTime = BlazeClock.nanoTime();
     ActionExecutionValue result;
     try {
@@ -396,6 +392,8 @@ public final class ActionExecutionFunction implements SkyFunction {
       // prints the error in the top-level reporter and also dumps the recorded StdErr for the
       // action. Label can be null in the case of, e.g., the SystemActionOwner (for build-info.txt).
       throw new ActionExecutionFunctionException(new AlreadyReportedActionExecutionException(e));
+    } finally {
+      skyframeActionExecutor.maybeReleaseActionExecutionSemaphore();
     }
 
     if (env.valuesMissing()) {
@@ -820,8 +818,7 @@ public final class ActionExecutionFunction implements SkyFunction {
             ImmutableSet.copyOf(action.getOutputs()),
             skyframeActionExecutor.getXattrProvider(),
             tsgm.get(),
-            pathResolver,
-            skyframeActionExecutor.getExecRoot().asFragment());
+            pathResolver);
 
     // We only need to check the action cache if we haven't done it on a previous run.
     if (!state.hasCheckedActionCache()) {
@@ -858,6 +855,7 @@ public final class ActionExecutionFunction implements SkyFunction {
           action.prepareInputDiscovery();
           state.preparedInputDiscovery = true;
         }
+
         try (SilentCloseable c =
             Profiler.instance().profile(ProfilerTask.DISCOVER_INPUTS, "discoverInputs")) {
           state.discoveredInputs =
@@ -869,6 +867,7 @@ public final class ActionExecutionFunction implements SkyFunction {
                   env,
                   state.actionFileSystem);
         }
+
         discoveredInputsDuration = Duration.ofNanos(BlazeClock.nanoTime() - actionStartTime);
         if (env.valuesMissing()) {
           checkState(
@@ -1712,7 +1711,9 @@ public final class ActionExecutionFunction implements SkyFunction {
               input, value.getDetailedExitCode(), action.getOwner().getLabel(), bugReporter));
     }
 
-    /** @throws ActionExecutionException if there is any accumulated exception from the inputs. */
+    /**
+     * @throws ActionExecutionException if there is any accumulated exception from the inputs.
+     */
     void maybeThrowException() throws ActionExecutionException {
       for (LabelCause missingInput : missingArtifactCauses) {
         skyframeActionExecutor.printError(missingInput.getMessage(), action);
@@ -1813,7 +1814,7 @@ public final class ActionExecutionFunction implements SkyFunction {
             codeAndMessage.getSecond(),
             action,
             NestedSetBuilder.wrap(Order.STABLE_ORDER, sourceArtifactErrorCauses),
-            /*catastrophe=*/ false,
+            /* catastrophe= */ false,
             codeAndMessage.getFirst());
     skyframeActionExecutor.printError(ex.getMessage(), action);
     // Don't actually return: throw exception directly so caller can't get it wrong.

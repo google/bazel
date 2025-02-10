@@ -14,6 +14,7 @@
 package com.google.devtools.build.lib.runtime;
 
 import static com.google.common.base.Preconditions.checkNotNull;
+import static com.google.common.base.StandardSystemProperty.JAVA_IO_TMPDIR;
 
 import com.google.devtools.build.lib.buildeventstream.BuildEventArtifactUploader;
 import com.google.devtools.build.lib.events.Event;
@@ -35,17 +36,20 @@ public final class InstrumentationOutputFactory {
   @Nullable
   final Supplier<InstrumentationOutputBuilder> redirectInstrumentationOutputBuilderSupplier;
 
+  private final String localTempLoggingDirPathStr;
+
   private InstrumentationOutputFactory(
       Supplier<LocalInstrumentationOutput.Builder> localInstrumentationOutputBuilderSupplier,
       Supplier<BuildEventArtifactInstrumentationOutput.Builder>
           buildEventArtifactInstrumentationOutputBuilderSupplier,
-      @Nullable
-          Supplier<InstrumentationOutputBuilder> redirectInstrumentationOutputBuilderSupplier) {
+      @Nullable Supplier<InstrumentationOutputBuilder> redirectInstrumentationOutputBuilderSupplier,
+      String localTempLoggingDirPathStr) {
     this.localInstrumentationOutputBuilderSupplier = localInstrumentationOutputBuilderSupplier;
     this.buildEventArtifactInstrumentationOutputBuilderSupplier =
         buildEventArtifactInstrumentationOutputBuilderSupplier;
     this.redirectInstrumentationOutputBuilderSupplier =
         redirectInstrumentationOutputBuilderSupplier;
+    this.localTempLoggingDirPathStr = localTempLoggingDirPathStr;
   }
 
   /**
@@ -69,12 +73,43 @@ public final class InstrumentationOutputFactory {
   }
 
   /** Defines types of directory the {@link InstrumentationOutput} path is relative to. */
+  // TODO: b/379723545 - Eventually, we want to deprecate WORKSPACE_OR_HOME and make path always
+  // relative to user's current working directory.
   public enum DestinationRelativeTo {
     /** Output is relative to the bazel workspace or user's home directory. */
     WORKSPACE_OR_HOME,
 
+    /** Output is relative to user's current working or home directory */
+    WORKING_DIRECTORY_OR_HOME,
+
     /** Output is relative to the {@code output_base} directory. */
-    OUTPUT_BASE
+    OUTPUT_BASE,
+
+    /**
+     * Output is relative to the specified system logging directory.
+     *
+     * <p>Used only when {@link #localTempLoggingDirPathStr} is set.
+     */
+    TEMP_LOGGING_DIRECTORY
+  }
+
+  public InstrumentationOutput createInstrumentationOutput(
+      String name,
+      PathFragment destination,
+      DestinationRelativeTo destinationRelativeTo,
+      CommandEnvironment env,
+      EventHandler eventHandler,
+      @Nullable Boolean append,
+      @Nullable Boolean internal) {
+    return createInstrumentationOutput(
+        name,
+        destination,
+        destinationRelativeTo,
+        env,
+        eventHandler,
+        append,
+        internal,
+        /* createParent= */ false);
   }
 
   /**
@@ -87,6 +122,8 @@ public final class InstrumentationOutputFactory {
    *
    * @param append Whether to open the {@link LocalInstrumentationOutput} file in append mode
    * @param internal Whether the {@link LocalInstrumentationOutput} file is a Bazel internal file.
+   * @param createParent Whether to recursively create parent directories when the file path's
+   *     parent directory does not exist.
    */
   public InstrumentationOutput createInstrumentationOutput(
       String name,
@@ -95,7 +132,8 @@ public final class InstrumentationOutputFactory {
       CommandEnvironment env,
       EventHandler eventHandler,
       @Nullable Boolean append,
-      @Nullable Boolean internal) {
+      @Nullable Boolean internal,
+      boolean createParent) {
     boolean isRedirect =
         env.getOptions()
             .getOptions(CommonCommandOptions.class)
@@ -108,6 +146,7 @@ public final class InstrumentationOutputFactory {
             .setDestination(destination)
             .setDestinationRelatedToType(destinationRelativeTo)
             .setOptions(env.getOptions())
+            .setCreateParent(createParent)
             .build();
       }
       eventHandler.handle(
@@ -117,16 +156,24 @@ public final class InstrumentationOutputFactory {
     }
 
     // Since PathFragmentConverter for flag value replaces prefixed `~/` with user's home path, the
-    // destination is either an absolute path or a path relative to output_base/workspace.
+    // destination path could be (1) an absolute path, or (2) a path relative to
+    // output_base, workspace, cwd or some temporary logging directory.
+    Path localOutputPath =
+        (switch (destinationRelativeTo) {
+              case OUTPUT_BASE -> env.getOutputBase();
+              case WORKSPACE_OR_HOME -> env.getWorkspace();
+              case WORKING_DIRECTORY_OR_HOME -> env.getWorkingDirectory();
+              case TEMP_LOGGING_DIRECTORY ->
+                  env.getRuntime().getFileSystem().getPath(localTempLoggingDirPathStr);
+            })
+            .getRelative(destination);
     return localInstrumentationOutputBuilderSupplier
         .get()
         .setName(name)
-        .setPath(
-            destinationRelativeTo.equals(DestinationRelativeTo.OUTPUT_BASE)
-                ? env.getOutputBase().getRelative(destination)
-                : env.getWorkspace().getRelative(destination))
+        .setPath(localOutputPath)
         .setAppend(append)
         .setInternal(internal)
+        .setCreateParent(createParent)
         .build();
   }
 
@@ -150,6 +197,8 @@ public final class InstrumentationOutputFactory {
 
     @Nullable
     private Supplier<InstrumentationOutputBuilder> redirectInstrumentationOutputBuilderSupplier;
+
+    @Nullable private String localTempLoggingDirPathStr;
 
     @CanIgnoreReturnValue
     public Builder setLocalInstrumentationOutputBuilderSupplier(
@@ -175,6 +224,12 @@ public final class InstrumentationOutputFactory {
       return this;
     }
 
+    @CanIgnoreReturnValue
+    public Builder setLocalTempLoggingDirPathStr(String localTempLoggingDirPathStr) {
+      this.localTempLoggingDirPathStr = localTempLoggingDirPathStr;
+      return this;
+    }
+
     public InstrumentationOutputFactory build() {
       return new InstrumentationOutputFactory(
           checkNotNull(
@@ -183,7 +238,8 @@ public final class InstrumentationOutputFactory {
           checkNotNull(
               buildEventArtifactInstrumentationOutputBuilderSupplier,
               "Cannot create InstrumentationOutputFactory without bepOutputBuilderSupplier"),
-          redirectInstrumentationOutputBuilderSupplier);
+          redirectInstrumentationOutputBuilderSupplier,
+          localTempLoggingDirPathStr != null ? localTempLoggingDirPathStr : JAVA_IO_TMPDIR.value());
     }
   }
 }

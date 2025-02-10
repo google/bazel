@@ -2,6 +2,7 @@
 
 load("@bazel_pip_dev_deps//:requirements.bzl", "requirement")
 load("@bazel_skylib//:bzl_library.bzl", "bzl_library")
+load("@rules_java//java:java_binary.bzl", "java_binary")
 load("@rules_python//python:defs.bzl", "py_binary", "py_library")
 load("//src:build_defs.bzl", "transition_java_language_8_archive")
 load("//src:release_archive.bzl", "release_archive")
@@ -57,9 +58,9 @@ md5_cmd = "set -e -o pipefail && %s $(SRCS) | %s | %s > $@"
 # so we cannot get it from the command-line options.
 genquery(
     name = "java_toolchain_content",
-    expression = "kind(java_toolchain, deps(@bazel_tools//tools/jdk:current_java_toolchain))",
+    expression = "kind(java_toolchain, deps(@rules_java//toolchains:current_java_toolchain))",
     opts = ["--output=xml"],
-    scope = ["@bazel_tools//tools/jdk:current_java_toolchain"],
+    scope = ["@rules_java//toolchains:current_java_toolchain"],
 )
 
 py_library(
@@ -144,7 +145,7 @@ rule_size_test(
     # WARNING: Only adjust the number in `expect` if you are intentionally
     # adding or removing embedded tools. Know that the more embedded tools there
     # are in Bazel, the bigger the binary becomes and the slower Bazel starts.
-    expect = 389,
+    expect = 364,
     margin = 5,  # percentage
 )
 
@@ -449,7 +450,7 @@ genrule(
     ],
     outs = ["derived_java_srcs.zip"],
     cmd = "$(location :combine_derived_java_srcs.sh) $(JAVABASE) $@ $(SRCS)",
-    toolchains = ["@bazel_tools//tools/jdk:current_host_java_runtime"],
+    toolchains = ["@rules_java//toolchains:current_host_java_runtime"],
     tools = ["combine_derived_java_srcs.sh"],
     visibility = ["//:__pkg__"],
 )
@@ -666,4 +667,11 @@ filegroup(
 bzl_library(
     name = "build_defs_bzl",
     srcs = ["build_defs.bzl"],
+)
+
+java_binary(
+    name = "CheckSunJnuEncoding",
+    srcs = ["CheckSunJnuEncoding.java"],
+    env = {"LC_CTYPE": "C.UTF-8"},
+    main_class = "CheckSunJnuEncoding",
 )

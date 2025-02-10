@@ -233,7 +233,7 @@ check_collocated = rule(_impl,
     assertThat(cmdLine)
         .comparingElementsUsing(MATCHES_REGEX)
         .containsExactly(
-            "--plugin=bl?azel?-out/[^/]*-exec-[^/]*/bin/third_party/x/plugin", "-I.", "bar/A.proto")
+            "--plugin=bl?azel?-out/[^/]*-exec[^/]*/bin/third_party/x/plugin", "-I.", "bar/A.proto")
         .inOrder();
     assertThat(spawnAction.getMnemonic()).isEqualTo("MyMnemonic");
     assertThat(spawnAction.getProgressMessage()).isEqualTo("Progress Message //bar:simple");
@@ -345,7 +345,7 @@ check_collocated = rule(_impl,
     assertThat(cmdLine)
         .comparingElementsUsing(MATCHES_REGEX)
         .containsExactly(
-            "--plugin=bl?azel?-out/[^/]*-exec-[^/]*/bin/third_party/x/plugin",
+            "--plugin=bl?azel?-out/[^/]*-exec[^/]*/bin/third_party/x/plugin",
             "-I.",
             "bar/A.proto",
             "--a",
@@ -462,7 +462,7 @@ check_collocated = rule(_impl,
     assertThat(cmdLine)
         .comparingElementsUsing(MATCHES_REGEX)
         .containsExactly(
-            "--plugin=bl?azel?-out/[^/]*-exec-[^/]*/bin/third_party/x/plugin",
+            "--plugin=bl?azel?-out/[^/]*-exec[^/]*/bin/third_party/x/plugin",
             "-I.",
             "--foo",
             "--bar",
@@ -621,7 +621,7 @@ check_collocated = rule(_impl,
     assertThat(cmdLine)
         .comparingElementsUsing(MATCHES_REGEX)
         .containsExactly(
-            "--plugin=bl?azel?-out/[^/]*-exec-[^/]*/bin/third_party/x/plugin", "-I.", "bar/A.proto")
+            "--plugin=bl?azel?-out/[^/]*-exec[^/]*/bin/third_party/x/plugin", "-I.", "bar/A.proto")
         .inOrder();
     assertThat(spawnAction.getMnemonic()).isEqualTo("MyMnemonic");
     assertThat(spawnAction.getProgressMessage()).isEqualTo("My //bar:simple");

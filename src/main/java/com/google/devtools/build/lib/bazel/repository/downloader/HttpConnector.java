@@ -232,7 +232,7 @@ class HttpConnector {
         // We don't respect the Retry-After header (RFC7231 § 7.1.3) because it's rarely used and
         // tends to be too conservative when it is. We're already being good citizens by using
         // exponential backoff with jitter. Furthermore RFC law didn't use the magic word "MUST".
-        double rawTimeout = Math.scalb(MIN_RETRY_DELAY_MS, retries);
+        double rawTimeout = Math.scalb((double) MIN_RETRY_DELAY_MS, retries);
         if (!maxRetryTimeout.isZero()) {
           rawTimeout = Math.min(rawTimeout, (double) maxRetryTimeout.toMillis());
         }

@@ -17,7 +17,6 @@ import static com.google.common.truth.Truth.assertThat;
 import static com.google.devtools.build.lib.packages.Attribute.attr;
 import static com.google.devtools.build.lib.packages.BuildType.LABEL;
 import static com.google.devtools.build.lib.testutil.TestConstants.PLATFORM_LABEL;
-import static com.google.devtools.build.lib.testutil.TestConstants.PLATFORM_LABEL_ALIAS;
 import static org.junit.Assert.assertThrows;
 
 import com.google.common.collect.ImmutableList;
@@ -68,7 +67,7 @@ public abstract class PostAnalysisQueryTest<T> extends AbstractQueryTest<T> {
   // Also filter out platform dependencies.
   @Override
   protected String getDependencyCorrection() {
-    return " - deps(" + PLATFORM_LABEL_ALIAS + ")";
+    return " - deps(" + PLATFORM_LABEL + ")";
   }
 
   static final String DEFAULT_UNIVERSE = "DEFAULT_UNIVERSE";

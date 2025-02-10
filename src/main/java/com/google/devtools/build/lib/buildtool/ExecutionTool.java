@@ -13,7 +13,6 @@
 // limitations under the License.
 package com.google.devtools.build.lib.buildtool;
 
-import static com.google.common.base.Preconditions.checkState;
 import static com.google.common.collect.ImmutableSet.toImmutableSet;
 
 import com.google.common.annotations.VisibleForTesting;
@@ -37,8 +36,8 @@ import com.google.devtools.build.lib.actions.BuildFailedException;
 import com.google.devtools.build.lib.actions.DynamicStrategyRegistry;
 import com.google.devtools.build.lib.actions.Executor;
 import com.google.devtools.build.lib.actions.MachineLoadProvider;
+import com.google.devtools.build.lib.actions.OutputChecker;
 import com.google.devtools.build.lib.actions.PackageRoots;
-import com.google.devtools.build.lib.actions.RemoteArtifactChecker;
 import com.google.devtools.build.lib.actions.ResourceManager;
 import com.google.devtools.build.lib.actions.ResourceSet;
 import com.google.devtools.build.lib.actions.TestExecException;
@@ -186,7 +185,10 @@ public class ExecutionTool {
     actionContextRegistryBuilder.register(
         SymlinkTreeActionContext.class,
         new SymlinkTreeStrategy(
-            env.getOutputService(), env.getBlazeWorkspace().getBinTools(), env.getWorkspaceName()));
+            env.getOutputService(),
+            env.getExecRoot(),
+            env.getBlazeWorkspace().getBinTools(),
+            env.getWorkspaceName()));
     // TODO(philwo) - the ExecutionTool should not add arbitrary dependencies on its own, instead
     // these dependencies should be added to the ActionContextConsumer of the module that actually
     // depends on them.
@@ -270,11 +272,6 @@ public class ExecutionTool {
     boolean localActionsSupported =
         env.getOutputService().actionFileSystemType().shouldDoTopLevelOutputSetup();
 
-    // TODO: b/290617036 - Reconsider this for local action support with virtual roots.
-    checkState(
-        !localActionsSupported || env.getDirectories().getVirtualSourceRoot() == null,
-        "Local actions are incompatible with virtual roots");
-
     try (SilentCloseable c = Profiler.instance().profile("preparingExecroot")) {
       IncrementalPackageRoots incrementalPackageRoots =
           IncrementalPackageRoots.createAndRegisterToEventBus(
@@ -326,14 +323,14 @@ public class ExecutionTool {
 
     skyframeExecutor.drainChangedFiles();
 
-    var remoteArtifactChecker =
+    var outputChecker =
         env.getOutputService() != null
-            ? env.getOutputService().getRemoteArtifactChecker()
-            : RemoteArtifactChecker.IGNORE_ALL;
+            ? env.getOutputService().getOutputChecker()
+            : OutputChecker.TRUST_LOCAL_ONLY;
     skyframeExecutor.detectModifiedOutputFiles(
         modifiedOutputFiles,
         env.getBlazeWorkspace().getLastExecutionTimeRange(),
-        remoteArtifactChecker,
+        outputChecker,
         buildRequestOptions.fsvcThreads);
     try (SilentCloseable c = Profiler.instance().profile("configureActionExecutor")) {
       skyframeExecutor.configureActionExecutor(
@@ -473,10 +470,10 @@ public class ExecutionTool {
       }
 
       Profiler.instance().markPhase(ProfilePhase.EXECUTE);
-      var remoteArtifactChecker =
+      var outputChecker =
           env.getOutputService() != null
-              ? env.getOutputService().getRemoteArtifactChecker()
-              : RemoteArtifactChecker.IGNORE_ALL;
+              ? env.getOutputService().getOutputChecker()
+              : OutputChecker.TRUST_LOCAL_ONLY;
       builder.buildArtifacts(
           env.getReporter(),
           analysisResult.getArtifactsToBuild(),
@@ -489,7 +486,7 @@ public class ExecutionTool {
           request,
           env.getBlazeWorkspace().getLastExecutionTimeRange(),
           topLevelArtifactContext,
-          remoteArtifactChecker);
+          outputChecker);
       buildCompleted = true;
     } catch (BuildFailedException | TestExecException e) {
       buildCompleted = true;

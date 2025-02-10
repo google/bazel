@@ -28,6 +28,7 @@ import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.SettableFuture;
 import com.google.devtools.build.lib.concurrent.RequestBatcher.RequestResponse;
 import com.google.devtools.build.lib.unsafe.UnsafeProvider;
+
 import java.lang.ref.Cleaner;
 import java.util.ArrayList;
 import java.util.List;
@@ -141,6 +142,7 @@ public final class RequestBatcherTest {
     assertThat(response2.get()).isEqualTo(new Response(2));
   }
 
+  // TODO: b/386384684 - remove Unsafe usage
   @Test
   public void concurrentWorkCompletion_startsNewWorker() throws Exception {
     // This covers Step 1B and Step 2B of the documentation.

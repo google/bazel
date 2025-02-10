@@ -386,7 +386,7 @@ public class SpawnIncludeScanner {
             outputs,
             LOCAL_RESOURCES);
 
-    actionExecutionContext.maybeReportSubcommand(spawn);
+    actionExecutionContext.maybeReportSubcommand(spawn, /* spawnRunner= */ null);
 
     // Don't share the originalOutErr across spawnGrep calls. Doing so would not be thread-safe.
     FileOutErr originalOutErr = actionExecutionContext.getFileOutErr();

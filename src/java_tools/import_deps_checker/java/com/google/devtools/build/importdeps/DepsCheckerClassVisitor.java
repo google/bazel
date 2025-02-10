@@ -340,7 +340,7 @@ public class DepsCheckerClassVisitor extends ClassVisitor {
 
     @Override
     public void visitMethodInsn(int opcode, String owner, String name, String desc, boolean itf) {
-      if (!isMethodHandle(opcode, owner, name)) {
+      if (!isMethodHandle(opcode, owner, name) && !isVarHandle(opcode, owner, name)) {
         checkMember(owner, name, desc);
       }
       super.visitMethodInsn(opcode, owner, name, desc, itf);
@@ -356,6 +356,52 @@ public class DepsCheckerClassVisitor extends ClassVisitor {
       switch (name) {
         case "invoke":
         case "invokeExact":
+          break;
+        default:
+          return false;
+      }
+      return true;
+    }
+
+    private boolean isVarHandle(int opcode, String owner, String name) {
+      if (opcode != Opcodes.INVOKEVIRTUAL) {
+        return false;
+      }
+      if (!owner.equals("java/lang/invoke/VarHandle")) {
+        return false;
+      }
+      switch (name) {
+        case "compareAndExchange":
+        case "compareAndExchangeAcquire":
+        case "compareAndExchangeRelease":
+        case "compareAndSet":
+        case "get":
+        case "getAcquire":
+        case "getAndAdd":
+        case "getAndAddAcquire":
+        case "getAndAddRelease":
+        case "getAndBitwiseAnd":
+        case "getAndBitwiseAndAcquire":
+        case "getAndBitwiseAndRelease":
+        case "getAndBitwiseOr":
+        case "getAndBitwiseOrAcquire":
+        case "getAndBitwiseOrRelease":
+        case "getAndBitwiseXor":
+        case "getAndBitwiseXorAcquire":
+        case "getAndBitwiseXorRelease":
+        case "getAndSet":
+        case "getAndSetAcquire":
+        case "getAndSetRelease":
+        case "getOpaque":
+        case "getVolatile":
+        case "set":
+        case "setOpaque":
+        case "setRelease":
+        case "setVolatile":
+        case "weakCompareAndSet":
+        case "weakCompareAndSetAcquire":
+        case "weakCompareAndSetPlain":
+        case "weakCompareAndSetRelease":
           break;
         default:
           return false;

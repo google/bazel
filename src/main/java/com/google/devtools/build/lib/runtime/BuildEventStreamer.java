@@ -498,12 +498,10 @@ public class BuildEventStreamer {
     BuildEvent event = configuration == null ? NullConfiguration.INSTANCE : configuration;
     BuildEventId id = event.getEventId();
     synchronized (this) {
-      if (configurationsPosted.contains(id)) {
-        return;
+      if (configurationsPosted.add(id)) {
+        post(event);
       }
-      configurationsPosted.add(id);
     }
-    post(event);
   }
 
   @Subscribe
@@ -870,10 +868,6 @@ public class BuildEventStreamer {
     }
     if (event.getException() != null) {
       // Publish failed actions
-      return true;
-    }
-    if (!event.getActionMetadataLogs().isEmpty()) {
-      // Publish all new logs with inputs and input sizes
       return true;
     }
     return event.getAction() instanceof ExtraAction;

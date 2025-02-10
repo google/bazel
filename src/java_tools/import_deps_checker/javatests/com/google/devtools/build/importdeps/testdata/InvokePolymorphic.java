@@ -15,9 +15,11 @@
 package com.google.devtools.build.importdeps.testdata;
 
 import java.lang.invoke.MethodHandle;
+import java.lang.invoke.VarHandle;
 
 public class InvokePolymorphic {
-  void f(MethodHandle mh) throws Throwable {
+  void f(MethodHandle mh, VarHandle vh) throws Throwable {
     mh.invoke(true, "hello", 42);
+    vh.setRelease("foo", 1);
   }
 }

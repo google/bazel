@@ -15,9 +15,10 @@ package com.google.devtools.build.lib.collect.nestedset;
 
 import static com.google.common.truth.Truth.assertThat;
 import static com.google.common.util.concurrent.Futures.immediateFailedFuture;
-import static com.google.common.util.concurrent.Futures.immediateVoidFuture;
 import static com.google.common.util.concurrent.MoreExecutors.directExecutor;
 import static com.google.devtools.build.lib.skyframe.serialization.PackedFingerprint.getFingerprintForTesting;
+import static com.google.devtools.build.lib.skyframe.serialization.WriteStatuses.immediateFailedWriteStatus;
+import static com.google.devtools.build.lib.skyframe.serialization.WriteStatuses.immediateWriteStatus;
 import static java.util.Objects.requireNonNull;
 import static org.junit.Assert.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
@@ -52,6 +53,8 @@ import com.google.devtools.build.lib.skyframe.serialization.SerializationContext
 import com.google.devtools.build.lib.skyframe.serialization.SerializationDependencyProvider;
 import com.google.devtools.build.lib.skyframe.serialization.SerializationException;
 import com.google.devtools.build.lib.skyframe.serialization.SerializationResult;
+import com.google.devtools.build.lib.skyframe.serialization.WriteStatuses.SettableWriteStatus;
+import com.google.devtools.build.lib.skyframe.serialization.WriteStatuses.WriteStatus;
 import com.google.devtools.build.lib.util.io.AnsiTerminal.Color;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.CodedInputStream;
@@ -101,7 +104,7 @@ public final class NestedSetCodecTest {
           final FingerprintValueStore delegate = FingerprintValueStore.inMemoryStore();
 
           @Override
-          public ListenableFuture<Void> put(KeyBytesProvider fingerprint, byte[] serializedBytes) {
+          public WriteStatus put(KeyBytesProvider fingerprint, byte[] serializedBytes) {
             return delegate.put(fingerprint, serializedBytes);
           }
 
@@ -148,8 +151,8 @@ public final class NestedSetCodecTest {
     FingerprintValueStore fingerprintValueStore =
         new FingerprintValueStore() {
           @Override
-          public ListenableFuture<Void> put(KeyBytesProvider fingerprint, byte[] serializedBytes) {
-            return immediateVoidFuture();
+          public WriteStatus put(KeyBytesProvider fingerprint, byte[] serializedBytes) {
+            return immediateWriteStatus();
           }
 
           @Override
@@ -184,8 +187,8 @@ public final class NestedSetCodecTest {
     FingerprintValueStore fingerprintValueStore =
         new FingerprintValueStore() {
           @Override
-          public ListenableFuture<Void> put(KeyBytesProvider fingerprint, byte[] serializedBytes) {
-            return immediateFailedFuture(e);
+          public WriteStatus put(KeyBytesProvider fingerprint, byte[] serializedBytes) {
+            return immediateFailedWriteStatus(e);
           }
 
           @Override
@@ -212,8 +215,8 @@ public final class NestedSetCodecTest {
     FingerprintValueStore fingerprintValueStore =
         new FingerprintValueStore() {
           @Override
-          public ListenableFuture<Void> put(KeyBytesProvider fingerprint, byte[] serializedBytes) {
-            return immediateVoidFuture();
+          public WriteStatus put(KeyBytesProvider fingerprint, byte[] serializedBytes) {
+            return immediateWriteStatus();
           }
 
           @Override
@@ -250,8 +253,8 @@ public final class NestedSetCodecTest {
     FingerprintValueStore mockStorage = mock(FingerprintValueStore.class);
     FingerprintValueService fingerprintValueService =
         FingerprintValueService.createForTesting(mockStorage);
-    SettableFuture<Void> innerWrite = SettableFuture.create();
-    SettableFuture<Void> outerWrite = SettableFuture.create();
+    var innerWrite = new SettableWriteStatus();
+    var outerWrite = new SettableWriteStatus();
     when(mockStorage.put(any(), any()))
         // The write of the inner NestedSet {"a", "b"}
         .thenReturn(innerWrite)
@@ -270,9 +273,9 @@ public final class NestedSetCodecTest {
     SerializationResult<ByteString> result =
         objectCodecs.serializeMemoizedAndBlocking(
             fingerprintValueService, nestedNestedSet, /* profileCollector= */ null);
-    outerWrite.set(null);
+    outerWrite.markSuccess();
     assertThat(result.getFutureToBlockWritesOn().isDone()).isFalse();
-    innerWrite.set(null);
+    innerWrite.markSuccess();
     assertThat(result.getFutureToBlockWritesOn().isDone()).isTrue();
   }
 
@@ -281,17 +284,17 @@ public final class NestedSetCodecTest {
     FingerprintValueStore mockStorage = mock(FingerprintValueStore.class);
     FingerprintValueService fingerprintValueService =
         FingerprintValueService.createForTesting(mockStorage);
-    SettableFuture<Void> sharedInnerWrite = SettableFuture.create();
-    SettableFuture<Void> outerWrite = SettableFuture.create();
+    var sharedInnerWrite = new SettableWriteStatus();
+    var outerWrite = new SettableWriteStatus();
     when(mockStorage.put(any(), any()))
         // The write of the shared inner NestedSet {"a", "b"}
         .thenReturn(sharedInnerWrite)
         // The write of the inner NestedSet {"c", "d"}
-        .thenReturn(immediateVoidFuture())
+        .thenReturn(immediateWriteStatus())
         // The write of the outer NestedSet {{"a", "b"}, {"c", "d"}}
         .thenReturn(outerWrite)
         // The write of the inner NestedSet {"e", "f"}
-        .thenReturn(immediateVoidFuture());
+        .thenReturn(immediateWriteStatus());
     ObjectCodecs objectCodecs = createCodecs(createStore(mockStorage));
 
     NestedSet<String> sharedInnerNestedSet = NestedSetBuilder.create(Order.STABLE_ORDER, "a", "b");
@@ -312,10 +315,10 @@ public final class NestedSetCodecTest {
     SerializationResult<ByteString> result2 =
         objectCodecs.serializeMemoizedAndBlocking(
             fingerprintValueService, nestedNestedSet2, /* profileCollector= */ null);
-    outerWrite.set(null);
+    outerWrite.markSuccess();
     assertThat(result1.getFutureToBlockWritesOn().isDone()).isFalse();
     assertThat(result2.getFutureToBlockWritesOn().isDone()).isFalse();
-    sharedInnerWrite.set(null);
+    sharedInnerWrite.markSuccess();
     assertThat(result1.getFutureToBlockWritesOn().isDone()).isTrue();
     assertThat(result2.getFutureToBlockWritesOn().isDone()).isTrue();
   }
@@ -519,9 +522,9 @@ public final class NestedSetCodecTest {
             .getSharedValueSerializationContextForTesting(
                 FingerprintValueService.createForTesting());
 
-    SettableFuture<Void> bottomReadFuture = SettableFuture.create();
-    SettableFuture<Void> middleReadFuture = SettableFuture.create();
-    SettableFuture<Void> topReadFuture = SettableFuture.create();
+    var bottomReadFuture = new SettableWriteStatus();
+    var middleReadFuture = new SettableWriteStatus();
+    var topReadFuture = new SettableWriteStatus();
     when(mockWriter.put(any(), any()))
         .thenReturn(bottomReadFuture, middleReadFuture, topReadFuture);
 
@@ -550,13 +553,13 @@ public final class NestedSetCodecTest {
     assertThat(middleWriteFuture.isDone()).isFalse();
     assertThat(topWriteFuture.isDone()).isFalse();
 
-    topReadFuture.set(null);
-    middleReadFuture.set(null);
+    topReadFuture.markSuccess();
+    middleReadFuture.markSuccess();
     assertThat(bottomWriteFuture.isDone()).isFalse();
     assertThat(middleWriteFuture.isDone()).isFalse();
     assertThat(topWriteFuture.isDone()).isFalse();
 
-    bottomReadFuture.set(null);
+    bottomReadFuture.markSuccess();
     assertThat(bottomWriteFuture.isDone()).isTrue();
     assertThat(middleWriteFuture.isDone()).isTrue();
     assertThat(topWriteFuture.isDone()).isTrue();

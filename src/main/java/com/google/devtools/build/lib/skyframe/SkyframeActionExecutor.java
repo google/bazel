@@ -18,6 +18,9 @@ import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.base.Preconditions.checkState;
 import static com.google.common.collect.Comparators.max;
 import static com.google.common.collect.Comparators.min;
+import static com.google.devtools.build.lib.buildtool.BuildRequestOptions.MAX_JOBS;
+import static java.lang.Math.max;
+import static java.lang.Math.min;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
@@ -30,6 +33,7 @@ import com.google.devtools.build.lib.actions.ActionAnalysisMetadata;
 import com.google.devtools.build.lib.actions.ActionCacheChecker;
 import com.google.devtools.build.lib.actions.ActionCacheChecker.Token;
 import com.google.devtools.build.lib.actions.ActionCompletionEvent;
+import com.google.devtools.build.lib.actions.ActionConcurrencyMeter;
 import com.google.devtools.build.lib.actions.ActionContext;
 import com.google.devtools.build.lib.actions.ActionContext.ActionContextRegistry;
 import com.google.devtools.build.lib.actions.ActionExecutedEvent;
@@ -68,12 +72,11 @@ import com.google.devtools.build.lib.actions.InputMetadataProvider;
 import com.google.devtools.build.lib.actions.LostInputsActionExecutionException;
 import com.google.devtools.build.lib.actions.NotifyOnActionCacheHit;
 import com.google.devtools.build.lib.actions.NotifyOnActionCacheHit.ActionCachedContext;
+import com.google.devtools.build.lib.actions.OutputChecker;
 import com.google.devtools.build.lib.actions.PackageRootResolver;
-import com.google.devtools.build.lib.actions.RemoteArtifactChecker;
 import com.google.devtools.build.lib.actions.ScanningActionEvent;
 import com.google.devtools.build.lib.actions.SpawnActionExecutionException;
 import com.google.devtools.build.lib.actions.SpawnResult;
-import com.google.devtools.build.lib.actions.SpawnResult.MetadataLog;
 import com.google.devtools.build.lib.actions.StoppedScanningActionEvent;
 import com.google.devtools.build.lib.actions.ThreadStateReceiver;
 import com.google.devtools.build.lib.actions.UserExecException;
@@ -230,6 +233,7 @@ public final class SkyframeActionExecutor {
   private boolean freeDiscoveredInputsAfterExecution;
   private InputMetadataProvider perBuildFileCache;
   private ActionInputPrefetcher actionInputPrefetcher;
+
   /** These variables are nulled out between executions. */
   @Nullable private ProgressSupplier progressSupplier;
 
@@ -248,17 +252,16 @@ public final class SkyframeActionExecutor {
   private boolean useAsyncExecution;
 
   /**
-   * If not null, we use this semaphore to limit the number of concurrent actions instead of
-   * depending on the size of thread pool.
+   * If not null, we use this meter to limit the number of concurrent actions.
    *
    * <p>With internal changes in JDK19, ForkJoinPool can spawn additional threads (work-stealing)
    * which means we couldn't rely on it if we want the number of concurrent actions to be exactly
    * equal to --jobs.
    *
-   * <p>In the future, when async exec is enabled, we also want to use this for limiting parallelism
-   * requested by --jobs.
+   * <p>When async exec is enabled, we execute actions with virtual threads, so there is no thread
+   * pool. Thus, this meter is used to limit the number of concurrent actions.
    */
-  @Nullable private Semaphore actionExecutionSemaphore;
+  @Nullable private ActionConcurrencyMeter actionConcurrencyMeter;
 
   SkyframeActionExecutor(
       ActionKeyContext actionKeyContext,
@@ -338,11 +341,15 @@ public final class SkyframeActionExecutor {
             ? new Semaphore(ResourceUsage.getAvailableProcessors())
             : null;
 
-    // Always use semaphore for jobs if async execution is enabled.
-    this.actionExecutionSemaphore =
-        (this.useAsyncExecution || buildRequestOptions.useSemaphoreForJobs)
-            ? new Semaphore(buildRequestOptions.jobs)
-            : null;
+    if (buildRequestOptions.useSemaphoreForJobs || this.useAsyncExecution) {
+      var minActiveAction = buildRequestOptions.jobs;
+      var maxActiveAction =
+          this.useAsyncExecution
+              ? min(MAX_JOBS, buildRequestOptions.asyncExecutionMaxConcurrentActions)
+              : buildRequestOptions.jobs;
+      this.actionConcurrencyMeter =
+          new ActionConcurrencyMeter(minActiveAction, max(minActiveAction, maxActiveAction));
+    }
   }
 
   public void setActionLogBufferPathGenerator(
@@ -438,6 +445,10 @@ public final class SkyframeActionExecutor {
     this.rewoundActions = null;
     this.actionCacheChecker = null;
     this.outputDirectoryHelper = null;
+    if (this.actionConcurrencyMeter != null) {
+      this.actionConcurrencyMeter.stop();
+      this.actionConcurrencyMeter = null;
+    }
   }
 
   /**
@@ -586,15 +597,17 @@ public final class SkyframeActionExecutor {
     return result;
   }
 
-  void maybeAcquireActionExecutionSemaphore() throws InterruptedException {
-    if (actionExecutionSemaphore != null) {
-      actionExecutionSemaphore.acquire();
+  void maybeAcquireActionExecutionSemaphore() {
+    if (actionConcurrencyMeter != null) {
+      // Acquire uninterruptibly because ActionExecutionFunction is not expected to check for
+      // interrupts. See test SequencedSkyframeExecutorTest#testThreeSharedActionsRacing.
+      actionConcurrencyMeter.acquireUninterruptibly();
     }
   }
 
   void maybeReleaseActionExecutionSemaphore() {
-    if (actionExecutionSemaphore != null) {
-      actionExecutionSemaphore.release();
+    if (actionConcurrencyMeter != null) {
+      actionConcurrencyMeter.release();
     }
   }
 
@@ -676,7 +689,7 @@ public final class SkyframeActionExecutor {
     RemoteOptions remoteOptions;
     SortedMap<String, String> remoteDefaultProperties;
     EventHandler handler;
-    RemoteArtifactChecker remoteArtifactChecker = null;
+    OutputChecker outputChecker = null;
 
     if (cacheHitSemaphore != null) {
       try (SilentCloseable c = profiler.profile(ProfilerTask.ACTION_CHECK, "acquiring semaphore")) {
@@ -689,7 +702,7 @@ public final class SkyframeActionExecutor {
           remoteOptions != null
               ? remoteOptions.getRemoteDefaultExecProperties()
               : ImmutableSortedMap.of();
-      remoteArtifactChecker = outputService.getRemoteArtifactChecker();
+      outputChecker = outputService.getOutputChecker();
       handler =
           options.getOptions(BuildRequestOptions.class).explanationPath != null ? reporter : null;
       token =
@@ -703,7 +716,7 @@ public final class SkyframeActionExecutor {
               outputMetadataStore,
               artifactExpander,
               remoteDefaultProperties,
-              remoteArtifactChecker);
+              outputChecker);
 
       if (token == null) {
         boolean eventPosted = false;
@@ -745,7 +758,7 @@ public final class SkyframeActionExecutor {
                     outputMetadataStore,
                     artifactExpander,
                     remoteDefaultProperties,
-                    remoteArtifactChecker);
+                    outputChecker);
           }
         }
 
@@ -1825,14 +1838,9 @@ public final class SkyframeActionExecutor {
     // Collect MetadataLogs and spawn start times/end times from the Action's SpawnResults.
     ImmutableList<SpawnResult> spawnResults =
         findSpawnResultsInActionResultAndException(actionResult, exception);
-    ImmutableList.Builder<MetadataLog> logs = ImmutableList.builder();
     Instant firstStartTime = Instant.MAX;
     Instant lastEndTime = Instant.MIN;
     for (SpawnResult spawnResult : spawnResults) {
-      MetadataLog log = spawnResult.getActionMetadataLog();
-      if (log != null) {
-        logs.add(log);
-      }
       // Not all SpawnResults have a start time, and some use Instant.MIN/MAX instead of null.
       @Nullable Instant startTime = spawnResult.getStartTime();
       if (startTime != null && !startTime.equals(Instant.MIN) && !startTime.equals(Instant.MAX)) {
@@ -1851,7 +1859,6 @@ public final class SkyframeActionExecutor {
             primaryOutputMetadata,
             stdout,
             stderr,
-            logs.build(),
             errorTiming,
             firstStartTime.equals(Instant.MAX) ? null : firstStartTime,
             lastEndTime.equals(Instant.MIN) ? null : firstStartTime));

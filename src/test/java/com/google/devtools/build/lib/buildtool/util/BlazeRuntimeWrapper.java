@@ -59,6 +59,7 @@ import com.google.devtools.build.lib.runtime.ClientOptions;
 import com.google.devtools.build.lib.runtime.Command;
 import com.google.devtools.build.lib.runtime.CommandEnvironment;
 import com.google.devtools.build.lib.runtime.CommonCommandOptions;
+import com.google.devtools.build.lib.runtime.ConfigFlagDefinitions;
 import com.google.devtools.build.lib.runtime.KeepGoingOption;
 import com.google.devtools.build.lib.runtime.LoadingPhaseThreadsOption;
 import com.google.devtools.build.lib.runtime.UiOptions;
@@ -204,7 +205,8 @@ public class BlazeRuntimeWrapper {
                 extensions.stream().map(Any::pack).collect(toImmutableList()),
                 this.crashMessages::add,
                 NO_OP_COMMAND_EXTENSION_REPORTER,
-                /* attemptNumber= */ 1);
+                /* attemptNumber= */ 1,
+                ConfigFlagDefinitions.NONE);
     return env;
   }
 
@@ -378,7 +380,7 @@ public class BlazeRuntimeWrapper {
           try (SilentCloseable c = Profiler.instance().profile("syncPackageLoading")) {
             env.syncPackageLoading(lastRequest);
           }
-          buildTool.buildTargets(lastRequest, lastResult, null);
+          buildTool.buildTargets(lastRequest, lastResult, null, optionsParser);
           detailedExitCode = DetailedExitCode.success();
         } catch (RuntimeException | Error e) {
           crash = Crash.from(e);

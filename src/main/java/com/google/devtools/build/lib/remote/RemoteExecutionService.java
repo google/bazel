@@ -1280,7 +1280,7 @@ public class RemoteExecutionService {
             combinedCache, digestUtil, context, action.getRemotePathResolver());
 
     // The expiration time for remote cache entries.
-    var expireAtEpochMilli = Instant.now().plus(remoteOptions.remoteCacheTtl).toEpochMilli();
+    var expirationTime = Instant.now().plus(remoteOptions.remoteCacheTtl);
 
     ActionInput inMemoryOutput = null;
     AtomicReference<ByteString> inMemoryOutputData = new AtomicReference<>(null);
@@ -1325,7 +1325,7 @@ public class RemoteExecutionService {
                   file.path().asFragment(),
                   DigestUtil.toBinaryDigest(file.digest()),
                   file.digest().getSizeBytes(),
-                  expireAtEpochMilli);
+                  expirationTime);
         }
 
         if (isInMemoryOutputFile) {
@@ -1373,7 +1373,7 @@ public class RemoteExecutionService {
                     file.path().asFragment(),
                     DigestUtil.toBinaryDigest(file.digest()),
                     file.digest().getSizeBytes(),
-                    expireAtEpochMilli);
+                    expirationTime);
           }
         }
       }

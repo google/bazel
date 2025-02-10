@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// daemonize [-a] -l log_path -p pid_path [-c cgroup] -- binary_path binary_name
-// [args]
+// daemonize [-a] -l log_path -p pid_path [-c cgroup] [-s systemd_wrapper_path]
+// -- binary_path binary_name [args]
 //
 // daemonize spawns a program as a daemon, redirecting all of its output to the
 // given log_path and writing the daemon's PID to pid_path.  binary_path
@@ -112,7 +112,129 @@ static void WritePidFile(pid_t pid, const char* pid_path, int pid_done_fd) {
   close(pid_done_fd);
 }
 
-static void ExecAsDaemon(const char* log_path, bool log_append, int pid_done_fd,
+static bool ShellEscapeNeeded(const char* arg) {
+  static const char kDontNeedShellEscapeChars[] =
+      "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+      "abcdefghijklmnopqrstuvwxyz"
+      "0123456789+-_.=/:,@";
+
+  for (int i = 0; arg[i]; i++) {
+    if (strchr(kDontNeedShellEscapeChars, arg[i]) == NULL) {
+      // If any character is not in the list, we need to escape the string.
+      return true;
+    }
+  }
+  return false;
+}
+
+// Similar to what absl::ShellEscape does. We'd like to escape the arguments
+// passed to the shell script, but we cannot use absl::ShellEscape because we
+// want to keep this tool pure C.
+static char* ShellEscape(const char* arg) {
+  if (!arg) {
+    return NULL;
+  }
+
+  if (!ShellEscapeNeeded(arg)) {
+    return strdup(arg);
+  }
+
+  bool has_single_quotes = false;
+  for (size_t i = 0; arg[i]; i++) {
+    if (arg[i] == '\'') {
+      has_single_quotes = true;
+      break;
+    }
+  }
+
+  if (!has_single_quotes) {
+    // When there are no single quotes, we can just escape the string with
+    // single quotes.
+    char* escaped_string;
+    asprintf(&escaped_string, "'%s'", arg);
+    return escaped_string;
+  }
+
+  // For all other cases, we wrap everything in double quotes.
+  size_t escaped_len = 0;
+
+  for (size_t i = 0; arg[i]; i++) {
+    switch (arg[i]) {
+      case '\\':
+      case '$':
+      case '"':
+      case '`':
+        escaped_len++;
+    }
+    escaped_len++;
+  }
+
+  char* escaped_string = (char*)malloc(
+      escaped_len +
+      3);  // +2 for double quotes, and +1 for the null terminator.
+
+  size_t j = 0;
+  escaped_string[j++] = '"';
+  for (size_t i = 0; arg[i]; i++) {
+    switch (arg[i]) {
+      case '\\':
+      case '$':
+      case '"':
+      case '`':
+        escaped_string[j++] = '\\';
+    }
+    escaped_string[j++] = arg[i];
+  }
+  escaped_string[j++] = '"';
+  escaped_string[j] = '\0';
+
+  return escaped_string;
+}
+
+// Prepares the shell script for systemd-run to execute.
+//
+// We wrap everything inside a shell script file for systemd-run in order to
+// create a transient cgroup for the Java server to use. With a user cgroup
+// created like this, we can control the resources without root permission.
+//
+// We cannot do this directly with a command because we'll get a "Filename too
+// long" error, which indicates that the command is too long as we have almost
+// 100 arguments in the list.
+static void WriteSystemdWrapper(const char* systemd_wrapper_path,
+                                const char* exe, char** argv) {
+  FILE* systemd_wrapper_fp = fopen(systemd_wrapper_path, "w");
+  if (systemd_wrapper_fp == NULL) {
+    err(EXIT_FAILURE, "Failed to create %s", systemd_wrapper_path);
+  }
+
+  char* escaped_argv0 = ShellEscape(argv[0]);
+  if (fprintf(systemd_wrapper_fp, "#!/bin/bash\nexec -a %s %s", escaped_argv0,
+              exe) < 0) {
+    err(EXIT_FAILURE, "Failed to write content to %s", systemd_wrapper_path);
+  }
+  free(escaped_argv0);
+
+  int argc = 1;
+  while (argv[argc]) {
+    char* escaped_arg = ShellEscape(argv[argc]);
+    if (fprintf(systemd_wrapper_fp, " %s", escaped_arg) < 0) {
+      err(EXIT_FAILURE, "Failed to write content to %s", systemd_wrapper_path);
+    }
+    free(escaped_arg);
+    argc++;
+  }
+
+  if (fclose(systemd_wrapper_fp) < 0) {
+    err(EXIT_FAILURE, "Failed to fclose file %s", systemd_wrapper_path);
+  }
+}
+
+static bool IsBinaryExecutable(const char* binary_path) {
+  return access(binary_path, X_OK) == 0;
+}
+
+static void ExecAsDaemon(const char* log_path, bool log_append,
+                         const char* systemd_wrapper_path, int pid_done_fd,
                          const char* exe, char** argv)
     __attribute__((noreturn));
 
@@ -127,7 +249,8 @@ static void ExecAsDaemon(const char* log_path, bool log_append, int pid_done_fd,
 // wait until the parent process has created it.
 //
 // This function never returns.
-static void ExecAsDaemon(const char* log_path, bool log_append, int pid_done_fd,
+static void ExecAsDaemon(const char* log_path, bool log_append,
+                         const char* systemd_wrapper_path, int pid_done_fd,
                          const char* exe, char** argv) {
   char dummy;
   if (read(pid_done_fd, &dummy, sizeof(dummy)) == -1) {
@@ -144,6 +267,33 @@ static void ExecAsDaemon(const char* log_path, bool log_append, int pid_done_fd,
   }
 
   SetupStdio(log_path, log_append);
+
+#ifdef __linux__
+  // When it's running on linux, and the systemd wrapper path is provided, we
+  // try to replace the current process with systemd-run. In all other cases,
+  // including the cases when systemd-run is not available, we replace it with
+  // the original exe.
+  const char* systemd_run_path = "/usr/bin/systemd-run";
+  if (systemd_wrapper_path != NULL && IsBinaryExecutable(systemd_run_path)) {
+    // Even if systemd-run is present and executable, we still need to run a
+    // command first to check if we can use it. There are some cases when the
+    // environment is not set up correctly, e.g. no DBUS available.
+    char* systemd_test_command;
+    asprintf(&systemd_test_command, "%s --user --scope -- /bin/true",
+             systemd_run_path);
+    int status = system(systemd_test_command);
+    free(systemd_test_command);
+
+    if (status == 0) {
+      WriteSystemdWrapper(systemd_wrapper_path, exe, argv);
+
+      execl(systemd_run_path, systemd_run_path, "--user", "--scope", "--",
+            "/bin/bash", systemd_wrapper_path, NULL);
+      err(EXIT_FAILURE, "Failed to execute %s with systemd-run.", exe);
+    }
+  }
+
+#endif
 
   execv(exe, argv);
   err(EXIT_FAILURE, "Failed to execute %s", exe);
@@ -189,7 +339,8 @@ static void MoveToCgroup(pid_t pid, const char* cgroup_path) {
 // contain the program name (which may or may not match the basename of exe).
 static void Daemonize(const char* log_path, bool log_append,
                       const char* pid_path, const char* cgroup_path,
-                      const char* exe, char** argv) {
+                      const char* systemd_wrapper_path, const char* exe,
+                      char** argv) {
   assert(argv[0] != NULL);
 
   int pid_done_fds[2];
@@ -207,7 +358,8 @@ static void Daemonize(const char* log_path, bool log_append,
       MoveToCgroup(pid, cgroup_path);
     }
 #endif
-    ExecAsDaemon(log_path, log_append, pid_done_fds[0], exe, argv);
+    ExecAsDaemon(log_path, log_append, systemd_wrapper_path, pid_done_fds[0],
+                 exe, argv);
     abort();  // NOLINT Unreachable.
   }
   close(pid_done_fds[0]);
@@ -224,8 +376,9 @@ int main(int argc, char** argv) {
   const char* log_path = NULL;
   const char* pid_path = NULL;
   const char* cgroup_path = NULL;
+  const char* systemd_wrapper_path = NULL;
   int opt;
-  while ((opt = getopt(argc, argv, ":al:p:c:")) != -1) {
+  while ((opt = getopt(argc, argv, ":al:p:c:s:")) != -1) {
     switch (opt) {
       case 'a':
         log_append = true;
@@ -241,6 +394,10 @@ int main(int argc, char** argv) {
 
       case 'c':
         cgroup_path = optarg;
+        break;
+
+      case 's':
+        systemd_wrapper_path = optarg;
         break;
 
       case ':':
@@ -264,6 +421,7 @@ int main(int argc, char** argv) {
   if (argc < 2) {
     errx(EXIT_FAILURE, "Must provide at least an executable name and arg0");
   }
-  Daemonize(log_path, log_append, pid_path, cgroup_path, argv[0], argv + 1);
+  Daemonize(log_path, log_append, pid_path, cgroup_path, systemd_wrapper_path,
+            argv[0], argv + 1);
   return EXIT_SUCCESS;
 }

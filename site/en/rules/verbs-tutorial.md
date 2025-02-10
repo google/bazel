@@ -107,10 +107,32 @@ _sphinx_publisher = rule(
 )
 ```
 
-Finally, define the following macro to create targets for both of the above
-rules together:
+Finally, define the following symbolic macro (available in Bazel 8 or newer) to
+create targets for both of the above rules together:
 
-```python
+```starlark
+def _sphinx_site_impl(name, visibility, srcs, **kwargs):
+    # This creates the primary target, producing the Sphinx-generated HTML. We
+    # set `visibility = visibility` to make it visible to callers of the
+    # macro.
+    _sphinx_site(name = name, visibility = visibility, srcs = srcs, **kwargs)
+    # This creates the secondary target, which produces a script for publishing
+    # the site generated above. We don't want it to be visible to callers of
+    # our macro, so we omit visibility for it.
+    _sphinx_publisher(name = "%s.publish" % name, site = name, **kwargs)
+
+sphinx_site = macro(
+    implementation = _sphinx_site_impl,
+    attrs = {"srcs": attr.label_list(allow_files = [".rst"])},
+    # Inherit common attributes like tags and testonly
+    inherit_attrs = "common",
+)
+```
+
+Or, if you need to support Bazel releases older than Bazel 8, you would instead
+define a legacy macro:
+
+```starlark
 def sphinx_site(name, srcs = [], **kwargs):
     # This creates the primary target, producing the Sphinx-generated HTML.
     _sphinx_site(name = name, srcs = srcs, **kwargs)

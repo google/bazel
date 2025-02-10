@@ -17,6 +17,7 @@ import static com.google.common.base.Preconditions.checkArgument;
 import static java.nio.charset.StandardCharsets.UTF_8;
 
 import com.google.devtools.build.lib.skyframe.serialization.proto.FileInvalidationData;
+import com.google.devtools.build.lib.versioning.LongVersionGetter;
 import com.google.devtools.build.lib.vfs.PathFragment;
 import java.math.BigInteger;
 import java.util.Arrays;
@@ -25,7 +26,6 @@ import java.util.Base64;
 /** Constants and methods supporting {@link FileInvalidationData} keys. */
 final class FileDependencyKeySupport {
   static final int MAX_KEY_LENGTH = 250;
-  static final long MTSV_SENTINEL = -1;
 
   private static final byte[] EMPTY_BYTES = new byte[0];
 
@@ -43,7 +43,7 @@ final class FileDependencyKeySupport {
 
   static byte[] encodeMtsv(long mtsv) {
     if (mtsv < 0) {
-      checkArgument(mtsv == MTSV_SENTINEL, mtsv);
+      checkArgument(mtsv == LongVersionGetter.MINIMAL, mtsv);
       return EMPTY_BYTES; // BigInteger.toByteArray is never empty so this is unique.
     }
     // Uses a BigInteger to trim leading 0 bytes.

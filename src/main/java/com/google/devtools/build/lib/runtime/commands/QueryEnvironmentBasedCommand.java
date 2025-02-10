@@ -167,7 +167,7 @@ public abstract class QueryEnvironmentBasedCommand implements BlazeCommand {
             .getLabelPrinter(starlarkSemantics, mainRepoTargetParser.getRepoMapping());
 
     try (QueryRuntimeHelper queryRuntimeHelper =
-        env.getRuntime().getQueryRuntimeHelperFactory().create(env)) {
+        env.getRuntime().getQueryRuntimeHelperFactory().create(env, queryOptions)) {
       Either<BlazeCommandResult, QueryEvalResult> result;
       try (AbstractBlazeQueryEnvironment<Target> queryEnv =
           newQueryEnvironment(

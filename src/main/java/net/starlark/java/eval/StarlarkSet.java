@@ -37,19 +37,40 @@ import net.starlark.java.annot.StarlarkMethod;
     category = "core",
     doc =
         """
-<b>Experimental</b>. This API is experimental and may change at any time. Please do not depend on
-it. It may be enabled on an experimental basis by setting
-<code>--experimental_enable_starlark_set</code>.
+The built-in set type. A set is a mutable, iterable collection of unique values &ndash; the set's
+<em>elements</em>. The <a href="../globals/all#type">type name</a> of a set is <code>"set"</code>.
 
-<p>The built-in mutable set type. Example set expressions:
+<p>Sets provide constant-time operations to insert, remove, or check for the presence of a value.
+Sets are implemented using a hash table, and therefore, just like keys of a
+<a href="../dict">dictionary</a>, elements of a set must be hashable. A value may be used as an
+element of a set if and only if it may be used as a key of a dictionary.
+
+<p>Sets may be constructed using the <a href="../globals/all#set"><code>set()</code></a> built-in
+function, which returns a new set containing the unique elements of its optional argument, which
+must be an iterable. Calling <code>set()</code> without an argument constructs an empty set. Sets
+have no literal syntax.
+
+<p>The <code>in</code> and <code>not in</code> operations check whether a value is (or is not) in a
+set:
 
 <pre class=language-python>
-x = set()           # x is an empty set
-y = set([1, 2, 3])  # y is a set with 3 elements
-3 in y              # True
-0 in y              # False
-len(x)              # 0
-len(y)              # 3
+s = set(["a", "b", "c"])
+"a" in s  # True
+"z" in s  # False
+</pre>
+
+<p>A set is iterable, and thus may be used as the operand of a <code>for</code> loop, a list
+comprehension, and the various built-in functions that operate on iterables. Its length can be
+retrieved using the <a href="../globals/all#len"><code>len()</code></a> built-in function, and the
+order of iteration is the order in which elements were first added to the set:
+
+<pre class=language-python>
+s = set(["z", "y", "z", "y"])
+len(s)       # prints 2
+s.add("x")
+len(s)       # prints 3
+for e in s:
+    print e  # prints "z", "y", "x"
 </pre>
 
 <p>A set used in Boolean context is true if and only if it is non-empty.
@@ -61,81 +82,68 @@ t = set(["x", "y"])
 "non-empty" if t else "empty"  # "non-empty"
 </pre>
 
-<p>The elements of a set must be hashable; <code>x</code> may be an element of a set if and only if
-<code>x</code> may be used as a key of a dict.
-
-<p>A set itself is <em>not</em> hashable; therefore, you cannot have a set with another set as an
-element.
-
-<p>You cannot access the elements of a set by index, but you can iterate over them, and you can
-obtain the list of a set's elements in iteration order using the <code>list()</code> built-in
-function. Just like for lists, it is an error to mutate a set while it is being iterated over. The
-order of iteration matches insertion order:
+<p>Sets may be compared for equality or inequality using <code>==</code> and <code>!=</code>. A set
+<code>s</code> is equal to <code>t</code> if and only if <code>t</code> is a set containing the same
+elements; iteration order is not significant. In particular, a set is <em>not</em> equal to the list
+of its elements. Sets are not ordered with respect to other sets, and an attempt to compare two sets
+using <code>&lt;</code>, <code>&lt;=</code>, <code>&gt;</code>, <code>&gt;=</code>, or to sort a
+sequence of sets, will fail.
 
 <pre class=language-python>
-s = set([3, 1, 3])
-s.add(2)
-# prints 3, 1, 2
-for item in s:
-    print(item)
-list(s)  # [3, 1, 2]
+set() == set()              # True
+set() != []                 # True
+set([1, 2]) == set([2, 1])  # True
+set([1, 2]) != [1, 2]       # True
 </pre>
 
-<p>A set <code>s</code> is equal to <code>t</code> if and only if <code>t</code> is a set containing
-the same elements, possibly with a different iteration order. In particular, a set is
-<code>not</code> equal to its list of elements.
-
-<p>Sets are not ordered; the <code>&lt;</code>, <code>&lt;=</code>, <code>&gt;</code>, and
-<code>&gt;=</code> operations are not defined for sets, and a list of sets cannot be sorted - unlike
-in Python.
-
 <p>The <code>|</code> operation on two sets returns the union of the two sets: a set containing the
-elements found in either one or both of the original sets. The <code>|</code> operation has an
-augmented assignment version; <code>s |= t</code> adds to <code>s</code> all the elements of
-<code>t</code>.
+elements found in either one or both of the original sets.
 
 <pre class=language-python>
 set([1, 2]) | set([3, 2])  # set([1, 2, 3])
-s = set([1, 2])
-s |= set([2, 3, 4])        # s now equals set([1, 2, 3, 4])
 </pre>
 
 <p>The <code>&amp;</code> operation on two sets returns the intersection of the two sets: a set
-containing only the elements found in both of the original sets. The <code>&amp;</code> operation
-has an augmented assignment version; <code>s &amp;= t</code> removes from <code>s</code> all the
-elements not found in <code>t</code>.
+containing only the elements found in both of the original sets.
 
 <pre class=language-python>
-set([1, 2]) & set([2, 3])  # set([2])
-set([1, 2]) & set([3, 4])  # set()
-s = set([1, 2])
-s &amp;= set([0, 1])           # s now equals set([1])
+set([1, 2]) &amp; set([2, 3])  # set([2])
+set([1, 2]) &amp; set([3, 4])  # set()
 </pre>
 
 <p>The <code>-</code> operation on two sets returns the difference of the two sets: a set containing
-the elements found in the left-hand side set but not the right-hand site set. The <code>-</code>
-operation has an augmented assignment version; <code>s -= t</code> removes from <code>s</code> all
-the elements found in <code>t</code>.
+the elements found in the left-hand side set but not the right-hand side set.
 
 <pre class=language-python>
 set([1, 2]) - set([2, 3])  # set([1])
 set([1, 2]) - set([3, 4])  # set([1, 2])
-s = set([1, 2])
-s -= set([0, 1])           # s now equals set([2])
 </pre>
 
 <p>The <code>^</code> operation on two sets returns the symmetric difference of the two sets: a set
-containing the elements found in exactly one of the two original sets, but not in both. The
-<code>^</code> operation has an augmented assignment version; <code>s ^= t</code> removes from
-<code>s</code> any element of <code>t</code> found in <code>s</code> and adds to <code>s</code> any
-element of <code>t</code> not found in <code>s</code>.
+containing the elements found in exactly one of the two original sets, but not in both.
 
 <pre class=language-python>
 set([1, 2]) ^ set([2, 3])  # set([1, 3])
 set([1, 2]) ^ set([3, 4])  # set([1, 2, 3, 4])
-s = set([1, 2])
-s ^= set([0, 1])           # s now equals set([2, 0])
 </pre>
+
+<p>In each of the above operations, the elements of the resulting set retain their order from the
+two operand sets, with all elements that were drawn from the left-hand side ordered before any
+element that was only present in the right-hand side.
+
+<p>The corresponding augmented assignments, <code>|=</code>, <code>&amp;=</code>, <code>-=</code>,
+and <code>^=</code>, modify the left-hand set in place.
+
+<pre class=language-python>
+s = set([1, 2])
+s |= set([2, 3, 4])     # s now equals set([1, 2, 3, 4])
+s &amp;= set([0, 1, 2, 3])  # s now equals set([1, 2, 3])
+s -= set([0, 1])        # s now equals set([2, 3])
+s ^= set([3, 4])        # s now equals set([2, 4])
+</pre>
+
+<p>Like all mutable values in Starlark, a set can be frozen, and once frozen, all subsequent
+operations that attempt to update it will fail.
 """)
 public final class StarlarkSet<E> extends AbstractSet<E>
     implements Mutability.Freezable, StarlarkMembershipTestable, StarlarkIterable<E> {
@@ -377,16 +385,20 @@ public final class StarlarkSet<E> extends AbstractSet<E>
           """
 Returns true of this set is a subset of another.
 
+<p>Note that a set is always considered to be a subset of itself.
+
 <p>For example,
 <pre class=language-python>
-set([1, 2]).issubset([1, 2, 3]) == True
-set([1, 2]).issubset([1, 2]) == True
-set([1, 2]).issubset([2, 3]) == False
+set([1, 2]).issubset([1, 2, 3])  # True
+set([1, 2]).issubset([1, 2])     # True
+set([1, 2]).issubset([2, 3])     # False
 </pre>
 """,
-      parameters = {@Param(name = "other", doc = "A set, sequence, or dict.")})
+      parameters = {
+        @Param(name = "other", doc = "A set, a sequence of hashable elements, or a dict.")
+      })
   public boolean isSubset(Object other) throws EvalException {
-    return toCollection(other, "issubset argument").containsAll(this.contents);
+    return toHashableCollection(other, "issubset argument").containsAll(this.contents);
   }
 
   @StarlarkMethod(
@@ -395,16 +407,20 @@ set([1, 2]).issubset([2, 3]) == False
           """
 Returns true of this set is a superset of another.
 
+<p>Note that a set is always considered to be a superset of itself.
+
 <p>For example,
 <pre class=language-python>
-set([1, 2, 3]).issuperset([1, 2]) == True
-set([1, 2, 3]).issuperset([1, 2, 3]) == True
-set([1, 2, 3]).issuperset([2, 3, 4]) == False
+set([1, 2, 3]).issuperset([1, 2])     # True
+set([1, 2, 3]).issuperset([1, 2, 3])  # True
+set([1, 2, 3]).issuperset([2, 3, 4])  # False
 </pre>
 """,
-      parameters = {@Param(name = "other", doc = "A set, sequence, or dict.")})
+      parameters = {
+        @Param(name = "other", doc = "A set, a sequence of hashable elements, or a dict.")
+      })
   public boolean isSuperset(Object other) throws EvalException {
-    return contents.containsAll(toCollection(other, "issuperset argument"));
+    return contents.containsAll(toHashableCollection(other, "issuperset argument"));
   }
 
   @StarlarkMethod(
@@ -415,14 +431,16 @@ Returns true if this set has no elements in common with another.
 
 <p>For example,
 <pre class=language-python>
-set([1, 2]).isdisjoint([3, 4]) == True
-set().isdisjoint(set()) == True
-set([1, 2]).isdisjoint([2, 3]) == False
+set([1, 2]).isdisjoint([3, 4])  # True
+set().isdisjoint(set())         # True
+set([1, 2]).isdisjoint([2, 3])  # False
 </pre>
 """,
-      parameters = {@Param(name = "other", doc = "A set, sequence, or dict.")})
+      parameters = {
+        @Param(name = "other", doc = "A set, a sequence of hashable elements, or a dict.")
+      })
   public boolean isDisjoint(Object other) throws EvalException {
-    return Collections.disjoint(this.contents, toCollection(other, "isdisjoint argument"));
+    return Collections.disjoint(this.contents, toHashableCollection(other, "isdisjoint argument"));
   }
 
   /**
@@ -437,12 +455,20 @@ Adds the elements found in others to this set.
 
 <p>For example,
 <pre class=language-python>
-x = set([1, 2])
-x.update([2, 3], [3, 4])
-# x is now set([1, 2, 3, 4])
+s = set()
+s.update([1, 2])          # None; s is set([1, 2])
+s.update([2, 3], [3, 4])  # None; s is set([1, 2, 3, 4])
 </pre>
+
+<p>If <code>s</code> and <code>t</code> are sets, <code>s.update(t)</code> is equivalent to
+<code>s |= t</code>; however, note that the <code>|=</code> augmented assignment requires both sides
+to be sets, while the <code>update</code> method also accepts sequences and dicts.
+
+<p>It is permissible to call <code>update</code> without any arguments; this leaves the set
+unchanged.
 """,
-      extraPositionals = @Param(name = "others", doc = "Sets, sequences, or dicts."))
+      extraPositionals =
+          @Param(name = "others", doc = "Sets, sequences of hashable elements, or dicts."))
   public void update(Tuple others) throws EvalException {
     Starlark.checkMutable(this);
     for (Object other : others) {
@@ -455,7 +481,16 @@ x.update([2, 3], [3, 4])
 
   @StarlarkMethod(
       name = "add",
-      doc = "Adds an element to the set.",
+      doc =
+          """
+Adds an element to the set.
+
+<p>It is permissible to <code>add</code> a value already present in the set; this leaves the set
+unchanged.
+
+<p>If you need to add multiple elements to a set, see <a href="#update"><code>update</code></a> or
+the <code>|=</code> augmented assignment operation.
+""",
       parameters = {@Param(name = "element", doc = "Element to add.")})
   public void addElement(E element) throws EvalException {
     Starlark.checkMutable(this);
@@ -467,12 +502,22 @@ x.update([2, 3], [3, 4])
       name = "remove",
       doc =
           """
-Removes an element, which must be present in the set, from the set. Fails if the element was not
-present in the set.
+Removes an element, which must be present in the set, from the set.
+
+<p><code>remove</code> fails if the element was not present in the set. If you don't want to fail on
+an attempt to remove a non-present element, use <a href="#discard"><code>discard</code></a> instead.
+If you need to remove multiple elements from a set, see
+<a href="#difference_update"><code>difference_update</code></a> or the <code>-=</code> augmented
+assignment operation.
 """,
-      parameters = {@Param(name = "element", doc = "Element to remove.")})
+      parameters = {
+        @Param(
+            name = "element",
+            doc = "Element to remove. Must be an element of the set (and hashable).")
+      })
   public void removeElement(E element) throws EvalException {
     Starlark.checkMutable(this);
+    Starlark.checkHashable(element);
     if (!contents.remove(element)) {
       throw Starlark.errorf("element %s not found in set", Starlark.repr(element));
     }
@@ -480,16 +525,48 @@ present in the set.
 
   @StarlarkMethod(
       name = "discard",
-      doc = "Removes an element from the set if it is present.",
-      parameters = {@Param(name = "element", doc = "Element to discard.")})
+      doc =
+          """
+Removes an element from the set if it is present.
+
+<p>It is permissible to <code>discard</code> a value not present in the set; this leaves the set
+unchanged. If you want to fail on an attempt to remove a non-present element, use
+<a href="#remove"><code>remove</code></a> instead. If you need to remove multiple elements from a
+set, see <a href="#difference_update"><code>difference_update</code></a> or the <code>-=</code>
+augmented assignment operation.
+
+<p>For example,
+<pre class=language-python>
+s = set(["x", "y"])
+s.discard("y")  # None; s == set(["x"])
+s.discard("y")  # None; s == set(["x"])
+</pre>
+""",
+      parameters = {@Param(name = "element", doc = "Element to discard. Must be hashable.")})
   public void discard(E element) throws EvalException {
     Starlark.checkMutable(this);
+    Starlark.checkHashable(element);
     contents.remove(element);
   }
 
   @StarlarkMethod(
       name = "pop",
-      doc = "Removes and returns the first element of the set. Fails if the set is empty.")
+      doc =
+          """
+Removes and returns the first element of the set (in iteration order, which is the order in which
+elements were first added to the set).
+
+<p>Fails if the set is empty.
+
+<p>For example,
+<pre class=language-python>
+s = set([3, 1, 2])
+s.pop()  # 3; s == set([1, 2])
+s.pop()  # 1; s == set([2])
+s.pop()  # 2; s == set()
+s.pop()  # error: empty set
+</pre>
+""")
   public E pop() throws EvalException {
     Starlark.checkMutable(this);
     if (isEmpty()) {
@@ -512,12 +589,21 @@ present in the set.
           """
 Returns a new mutable set containing the union of this set with others.
 
+<p>If <code>s</code> and <code>t</code> are sets, <code>s.union(t)</code> is equivalent to
+<code>s | t</code>; however, note that the <code>|</code> operation requires both sides to be sets,
+while the <code>union</code> method also accepts sequences and dicts.
+
+<p>It is permissible to call <code>union</code> without any arguments; this returns a copy of the
+set.
+
 <p>For example,
 <pre class=language-python>
-set([1, 2]).union([2, 3, 4], [4, 5]) == set([1, 2, 3, 4, 5])
+set([1, 2]).union([2, 3])                    # set([1, 2, 3])
+set([1, 2]).union([2, 3], {3: "a", 4: "b"})  # set([1, 2, 3, 4])
 </pre>
 """,
-      extraPositionals = @Param(name = "others", doc = "Sets, sequences, or dicts."),
+      extraPositionals =
+          @Param(name = "others", doc = "Sets, sequences of hashable elements, or dicts."),
       useStarlarkThread = true)
   public StarlarkSet<?> union(Tuple others, StarlarkThread thread) throws EvalException {
     LinkedHashSet<Object> newContents = new LinkedHashSet<>(contents);
@@ -533,17 +619,26 @@ set([1, 2]).union([2, 3, 4], [4, 5]) == set([1, 2, 3, 4, 5])
           """
 Returns a new mutable set containing the intersection of this set with others.
 
+<p>If <code>s</code> and <code>t</code> are sets, <code>s.intersection(t)</code> is equivalent to
+<code>s &amp; t</code>; however, note that the <code>&amp;</code> operation requires both sides to
+be sets, while the <code>intersection</code> method also accepts sequences and dicts.
+
+<p>It is permissible to call <code>intersection</code> without any arguments; this returns a copy of
+the set.
+
 <p>For example,
 <pre class=language-python>
-set([1, 2, 3]).intersection([1, 2], [2, 3]) == set([2])
+set([1, 2]).intersection([2, 3])             # set([2])
+set([1, 2, 3]).intersection([0, 1], [1, 2])  # set([1])
 </pre>
 """,
-      extraPositionals = @Param(name = "others", doc = "Sets, sequences, or dicts."),
+      extraPositionals =
+          @Param(name = "others", doc = "Sets, sequences of hashable elements, or dicts."),
       useStarlarkThread = true)
   public StarlarkSet<?> intersection(Tuple others, StarlarkThread thread) throws EvalException {
     LinkedHashSet<Object> newContents = new LinkedHashSet<>(contents);
     for (Object other : others) {
-      newContents.retainAll(toCollection(other, "intersection argument"));
+      newContents.retainAll(toHashableCollection(other, "intersection argument"));
     }
     return wrapOrImmutableCopy(thread.mutability(), newContents);
   }
@@ -554,18 +649,27 @@ set([1, 2, 3]).intersection([1, 2], [2, 3]) == set([2])
           """
 Removes any elements not found in all others from this set.
 
+<p>If <code>s</code> and <code>t</code> are sets, <code>s.intersection_update(t)</code> is
+equivalent to <code>s &amp;= t</code>; however, note that the <code>&amp;=</code> augmented
+assignment requires both sides to be sets, while the <code>intersection_update</code> method also
+accepts sequences and dicts.
+
+<p>It is permissible to call <code>intersection_update</code> without any arguments; this leaves the
+set unchanged.
+
 <p>For example,
 <pre class=language-python>
-x = set([1, 2, 3, 4])
-x.intersection_update([2, 3], [3, 4])
-# x is now set([3])
+s = set([1, 2, 3, 4])
+s.intersection_update([0, 1, 2])       # None; s is set([1, 2])
+s.intersection_update([0, 1], [1, 2])  # None; s is set([1])
 </pre>
 """,
-      extraPositionals = @Param(name = "others", doc = "Sets, sequences, or dicts."))
+      extraPositionals =
+          @Param(name = "others", doc = "Sets, sequences of hashable elements, or dicts."))
   public void intersectionUpdate(Tuple others) throws EvalException {
     Starlark.checkMutable(this);
     for (Object other : others) {
-      contents.retainAll(toCollection(other, "intersection_update argument"));
+      contents.retainAll(toHashableCollection(other, "intersection_update argument"));
     }
   }
 
@@ -575,17 +679,26 @@ x.intersection_update([2, 3], [3, 4])
           """
 Returns a new mutable set containing the difference of this set with others.
 
+<p>If <code>s</code> and <code>t</code> are sets, <code>s.difference(t)</code> is equivalent to
+<code>s - t</code>; however, note that the <code>-</code> operation requires both sides to be sets,
+while the <code>difference</code> method also accepts sequences and dicts.
+
+<p>It is permissible to call <code>difference</code> without any arguments; this returns a copy of
+the set.
+
 <p>For example,
 <pre class=language-python>
-set([1, 2, 3]).intersection([1, 2], [2, 3]) == set([2])
+set([1, 2, 3]).difference([2])             # set([1, 3])
+set([1, 2, 3]).difference([0, 1], [3, 4])  # set([2])
 </pre>
 """,
-      extraPositionals = @Param(name = "others", doc = "Sets, sequences, or dicts."),
+      extraPositionals =
+          @Param(name = "others", doc = "Sets, sequences of hashable elements, or dicts."),
       useStarlarkThread = true)
   public StarlarkSet<?> difference(Tuple others, StarlarkThread thread) throws EvalException {
     LinkedHashSet<Object> newContents = new LinkedHashSet<>(contents);
     for (Object other : others) {
-      newContents.removeAll(toCollection(other, "difference argument"));
+      newContents.removeAll(toHashableCollection(other, "difference argument"));
     }
     return wrapOrImmutableCopy(thread.mutability(), newContents);
   }
@@ -596,18 +709,26 @@ set([1, 2, 3]).intersection([1, 2], [2, 3]) == set([2])
           """
 Removes any elements found in any others from this set.
 
+<p>If <code>s</code> and <code>t</code> are sets, <code>s.difference_update(t)</code> is equivalent
+to <code>s -= t</code>; however, note that the <code>-=</code> augmented assignment requires both
+sides to be sets, while the <code>difference_update</code> method also accepts sequences and dicts.
+
+<p>It is permissible to call <code>difference_update</code> without any arguments; this leaves the
+set unchanged.
+
 <p>For example,
 <pre class=language-python>
-x = set([1, 2, 3, 4])
-x.difference_update([2, 3], [3, 4])
-# x is now set([1])
+s = set([1, 2, 3, 4])
+s.difference_update([2])             # None; s is set([1, 3, 4])
+s.difference_update([0, 1], [4, 5])  # None; s is set([3])
 </pre>
 """,
-      extraPositionals = @Param(name = "others", doc = "Sets, sequences, or dicts."))
+      extraPositionals =
+          @Param(name = "others", doc = "Sets, sequences of hashable elements, or dicts."))
   public void differenceUpdate(Tuple others) throws EvalException {
     Starlark.checkMutable(this);
     for (Object other : others) {
-      contents.removeAll(toCollection(other, "intersection_update argument"));
+      contents.removeAll(toHashableCollection(other, "intersection_update argument"));
     }
   }
 
@@ -618,12 +739,19 @@ x.difference_update([2, 3], [3, 4])
 Returns a new mutable set containing the symmetric difference of this set with another set,
 sequence, or dict.
 
+<p>If <code>s</code> and <code>t</code> are sets, <code>s.symmetric_difference(t)</code> is
+equivalent to <code>s ^ t</code>; however, note that the <code>^</code> operation requires both
+sides to be sets, while the <code>symmetric_difference</code> method also accepts a sequence or a
+dict.
+
 <p>For example,
 <pre class=language-python>
-set([1, 2, 3]).symmetric_difference([2, 3, 4]) == set([1, 4])
+set([1, 2]).symmetric_difference([2, 3])  # set([1, 3])
 </pre>
 """,
-      parameters = {@Param(name = "other", doc = "A set, sequence, or dict.")},
+      parameters = {
+        @Param(name = "other", doc = "A set, a sequence of hashable elements, or a dict.")
+      },
       useStarlarkThread = true)
   public StarlarkSet<?> symmetricDifference(Object other, StarlarkThread thread)
       throws EvalException {
@@ -649,12 +777,20 @@ set([1, 2, 3]).symmetric_difference([2, 3, 4]) == set([1, 4])
 Returns a new mutable set containing the symmetric difference of this set with another set,
 sequence, or dict.
 
+<p>If <code>s</code> and <code>t</code> are sets, <code>s.symmetric_difference_update(t)</code> is
+equivalent to `s ^= t<code>; however, note that the </code>^=` augmented assignment requires both
+sides to be sets, while the <code>symmetric_difference_update</code> method also accepts a sequence
+or a dict.
+
 <p>For example,
 <pre class=language-python>
-set([1, 2, 3]).symmetric_difference([2, 3, 4]) == set([1, 4])
+s = set([1, 2])
+s.symmetric_difference_update([2, 3])  # None; s == set([1, 3])
 </pre>
 """,
-      parameters = {@Param(name = "other", doc = "A set, sequence, or dict.")})
+      parameters = {
+        @Param(name = "other", doc = "A set, a sequence of hashable elements, or a dict.")
+      })
   public void symmetricDifferenceUpdate(Object other) throws EvalException {
     Starlark.checkMutable(this);
     ImmutableSet<E> originalContents = ImmutableSet.copyOf(contents);
@@ -670,29 +806,19 @@ set([1, 2, 3]).symmetric_difference([2, 3, 4]) == set([1, 4])
   }
 
   /**
-   * Verifies that {@code other} is either a collection or a map.
+   * Verifies that {@code other} is either a collection of Starlark-hashable elements or a map with
+   * Starlark-hashable keys.
    *
-   * @return {@code other} if it is a collection, or the key set of {@code other} if it is a map.
-   */
-  private static Collection<?> toCollection(Object other, String what) throws EvalException {
-    if (other instanceof Collection) {
-      return (Collection<?>) other;
-    } else if (other instanceof Map) {
-      return ((Map<?, ?>) other).keySet();
-    }
-    throw notSizedIterableError(other, what);
-  }
-
-  /**
-   * A variant of {@link #toCollection} which additionally checks whether the returned collection's
-   * elements are Starlark-hashable.
+   * <p>Note that in the Starlark language spec, this notion is referred to as an "iterable
+   * sequence" of hashable elements; but our {@link Dict} doesn't implement {@link Sequence}, and in
+   * any case, we may need to operate on native Java collections and maps which don't implement
+   * {@link StarlarkIterable} or {@link Sequence}.
    *
    * @return {@code other} if it is a collection, or the key set of {@code other} if it is a map.
    */
   private static Collection<?> toHashableCollection(Object other, String what)
       throws EvalException {
-    if (other instanceof Collection) {
-      Collection<?> collection = (Collection<?>) other;
+    if (other instanceof Collection<?> collection) {
       // Assume that elements of a StarlarkSet have already been checked to be hashable.
       if (!(collection instanceof StarlarkSet)) {
         for (Object element : collection) {
@@ -700,22 +826,19 @@ set([1, 2, 3]).symmetric_difference([2, 3, 4]) == set([1, 4])
         }
       }
       return collection;
-    } else if (other instanceof Map) {
-      Set<?> keySet = ((Map<?, ?>) other).keySet();
+    } else if (other instanceof Map<?, ?> map) {
+      Set<?> keySet = map.keySet();
       // Assume that keys of a Dict have already been checked to be hashable.
-      if (!(other instanceof Dict)) {
+      if (!(map instanceof Dict)) {
         for (Object element : keySet) {
           Starlark.checkHashable(element);
         }
       }
       return keySet;
     }
-    throw notSizedIterableError(other, what);
-  }
-
-  // Starlark doesn't have a "sized iterable" interface - so we enumerate the types we expect.
-  private static EvalException notSizedIterableError(Object other, String what) {
-    return Starlark.errorf(
+    // The Java Starlark interpreter doesn't have a "sized iterable" interface - so we enumerate the
+    // types we expect.
+    throw Starlark.errorf(
         "for %s got value of type '%s', want a set, sequence, or dict", what, Starlark.type(other));
   }
 

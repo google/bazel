@@ -232,18 +232,18 @@ public final class BuildConfigurationValueTest extends ConfigurationTestCase {
             return []
 
         bool_flag = rule(
-            implementation = _basic_impl,
+            implementation = _impl,
             build_setting = config.bool(flag = True),
         )
         """);
     scratch.file(
         "my_starlark_flag/BUILD",
         """
-        load("//:my_starlark_flag:rule_defs.bzl", "bool_flag")
+        load("//my_starlark_flag:rule_defs.bzl", "bool_flag")
 
         bool_flag(
             name = "starlark_flag",
-            build_setting_default = "False",
+            build_setting_default = False,
         )
         """);
     BuildConfigurationValue cfg =
@@ -298,7 +298,7 @@ public final class BuildConfigurationValueTest extends ConfigurationTestCase {
             return []
 
         bool_flag = rule(
-            implementation = _basic_impl,
+            implementation = _impl,
             build_setting = config.bool(flag = True),
         )
         """);
@@ -309,12 +309,12 @@ public final class BuildConfigurationValueTest extends ConfigurationTestCase {
 
         bool_flag(
             name = "starlark_flag",
-            build_setting_default = "False",
+            build_setting_default = False,
         )
 
         bool_flag(
             name = "other_starlark_flag",
-            build_setting_default = "False",
+            build_setting_default = False,
         )
         """);
     BuildConfigurationValue cfg =

@@ -15,11 +15,12 @@ package com.google.devtools.build.lib.skyframe.serialization;
 
 import static com.google.common.truth.Truth.assertThat;
 import static com.google.common.util.concurrent.Futures.immediateFuture;
-import static com.google.common.util.concurrent.Futures.immediateVoidFuture;
 import static com.google.devtools.build.lib.skyframe.serialization.PackedFingerprint.getFingerprintForTesting;
+import static com.google.devtools.build.lib.skyframe.serialization.WriteStatuses.immediateWriteStatus;
 
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.SettableFuture;
+import com.google.devtools.build.lib.skyframe.serialization.WriteStatuses.SettableWriteStatus;
 import com.google.testing.junit.testparameterinjector.TestParameter;
 import com.google.testing.junit.testparameterinjector.TestParameterInjector;
 import javax.annotation.Nullable;
@@ -96,7 +97,7 @@ public final class FingerprintValueCacheTest {
     // Sets the `PutOperation` in `putOp1`, which triggers the first stage of unwrapping and
     // populates the reverse service.
     PackedFingerprint fingerprint = getFingerprintForTesting("foo");
-    SettableFuture<Void> writeStatus = SettableFuture.create();
+    SettableWriteStatus writeStatus = new SettableWriteStatus();
     putOp1.set(new PutOperation(fingerprint, writeStatus));
 
     // A get of `fingerprint` now returns `value` immediately.
@@ -110,7 +111,7 @@ public final class FingerprintValueCacheTest {
     assertThat(putResult).isSameInstanceAs(putOp1);
 
     // Setting the write status fully unwraps the value.
-    writeStatus.set(null);
+    writeStatus.markSuccess();
     putResult = service.getOrClaimPutOperation(value, distinguisher.value(), putOp2);
     assertThat(putResult).isSameInstanceAs(fingerprint);
   }
@@ -143,7 +144,7 @@ public final class FingerprintValueCacheTest {
     // Completing `putOp` overwrites values, but this is benign because `value`s fingerprint should
     // be deterministic.
     PackedFingerprint fingerprint2 = getFingerprintForTesting("foo");
-    putOp.set(new PutOperation(fingerprint2, immediateVoidFuture()));
+    putOp.set(new PutOperation(fingerprint2, immediateWriteStatus()));
 
     SettableFuture<PutOperation> putOp3 = SettableFuture.create();
     putResult = service.getOrClaimPutOperation(value, distinguisher.value(), putOp3);
@@ -160,7 +161,7 @@ public final class FingerprintValueCacheTest {
     PackedFingerprint fingerprint = getFingerprintForTesting("foo");
 
     ListenableFuture<PutOperation> put =
-        immediateFuture(new PutOperation(fingerprint, immediateVoidFuture()));
+        immediateFuture(new PutOperation(fingerprint, immediateWriteStatus()));
 
     Object value1 = new Object();
     Object distinguisher1 = new Object();
@@ -194,7 +195,7 @@ public final class FingerprintValueCacheTest {
         service.getOrClaimPutOperation(
             value,
             distinguisher.value(),
-            immediateFuture(new PutOperation(fingerprint, immediateVoidFuture())));
+            immediateFuture(new PutOperation(fingerprint, immediateWriteStatus())));
     assertThat(result).isNull();
 
     SettableFuture<Object> getOperation = SettableFuture.create();

@@ -375,10 +375,7 @@ public class Main {
       InputStreamReader inputStreamReader = new InputStreamReader(inputStream, UTF_8);
       BufferedReader reader = new BufferedReader(inputStreamReader);
       for (String tracefile = reader.readLine(); tracefile != null; tracefile = reader.readLine()) {
-        // TODO(elenairina): baseline coverage contains some file names that need to be modified
-        if (!tracefile.endsWith("baseline_coverage.dat")) {
-          datFiles.add(new File(tracefile));
-        }
+        datFiles.add(new File(tracefile));
       }
 
     } catch (IOException e) {

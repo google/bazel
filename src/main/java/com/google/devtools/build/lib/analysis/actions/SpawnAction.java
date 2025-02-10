@@ -373,7 +373,11 @@ public class SpawnAction extends AbstractAction implements CommandAction {
       Fingerprint fp)
       throws CommandLineExpansionException, InterruptedException {
     fp.addString(GUID);
-    commandLines.addToFingerprint(actionKeyContext, artifactExpander, outputPathsMode, fp);
+    commandLines.addToFingerprint(
+        actionKeyContext,
+        artifactExpander,
+        PathMappers.getEffectiveOutputPathsMode(outputPathsMode, getMnemonic(), getExecutionInfo()),
+        fp);
     fp.addString(mnemonic);
     env.addTo(fp);
     fp.addStringMap(getExecutionInfo());
@@ -857,13 +861,16 @@ public class SpawnAction extends AbstractAction implements CommandAction {
       return this;
     }
 
+    private static final Interner<ImmutableMap<String, String>> envInterner =
+        BlazeInterners.newWeakInterner();
+
     /**
      * Sets the map of environment variables. Do not use! This makes the builder ignore the 'default
      * shell environment', which is computed from the --action_env command line option.
      */
     @CanIgnoreReturnValue
     public Builder setEnvironment(Map<String, String> environment) {
-      this.environment = ImmutableMap.copyOf(environment);
+      this.environment = envInterner.intern(ImmutableMap.copyOf(environment));
       this.useDefaultShellEnvironment = false;
       return this;
     }

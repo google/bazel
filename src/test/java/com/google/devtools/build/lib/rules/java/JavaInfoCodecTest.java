@@ -19,7 +19,6 @@ import static com.google.common.truth.Truth.assertThat;
 import com.google.devtools.build.lib.analysis.config.BuildOptions.MapBackedChecksumCache;
 import com.google.devtools.build.lib.analysis.config.BuildOptions.OptionsChecksumCache;
 import com.google.devtools.build.lib.analysis.util.BuildViewTestCase;
-import com.google.devtools.build.lib.rules.java.JavaInfo.BuiltinsJavaInfo;
 import com.google.devtools.build.lib.skyframe.serialization.testutils.Dumper;
 import com.google.devtools.build.lib.skyframe.serialization.testutils.SerializationDepsUtils;
 import com.google.devtools.build.lib.skyframe.serialization.testutils.SerializationTester;
@@ -37,18 +36,6 @@ public class JavaInfoCodecTest extends BuildViewTestCase {
     new SerializationTester(JavaInfo.EMPTY_JAVA_INFO_FOR_TESTING)
         .makeMemoizingAndAllowFutureBlocking(/* allowFutureBlocking= */ true)
         .setVerificationFunction((in, out) -> assertThat(in).isEqualTo(out))
-        .runTests();
-  }
-
-  @Test
-  public void emptyBuiltinJavaInfo_canBeSerializedAndDeserialized() throws Exception {
-    new SerializationTester(JavaInfo.EMPTY_BUILTINS_JAVA_INFO_FOR_TESTING)
-        .makeMemoizingAndAllowFutureBlocking(/* allowFutureBlocking= */ true)
-        .setVerificationFunction(
-            (in, out) -> {
-              assertThat(in).isEqualTo(out);
-              assertThat(out.getClass()).isEqualTo(BuiltinsJavaInfo.class);
-            })
         .runTests();
   }
 

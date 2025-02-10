@@ -24,12 +24,16 @@ filegroup(
     ],
 )
 
-# Snapshot of the full site, including stylesheets and images
+# Snapshot of the full site, including stylesheets and images,
+# but excluding _buttons.html since it has a separate target.
 pkg_tar(
     name = "docs",
     srcs = glob(
         ["**"],
-        exclude = ["**/BUILD"],
+        exclude = [
+            "**/BUILD",
+            "_buttons.html",
+        ],
     ),
     strip_prefix = "/site/en",
     visibility = [

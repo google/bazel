@@ -545,8 +545,7 @@ public final class AnalysisTestUtil {
                     .attributes(FakeAttributeMapper.empty())
                     .executionPlatform(targetOptions.get(PlatformOptions.class).hostPlatform)
                     .analysisData(
-                        skyframeExecutor.getStarlarkExecTransitionForTesting(
-                            targetOptions, handler))
+                        skyframeExecutor.getStarlarkExecTransition(targetOptions, handler))
                     .build())
             .apply(new BuildOptionsView(targetOptions, targetOptions.getFragmentClasses()), handler)
             .values());

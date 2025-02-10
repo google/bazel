@@ -61,8 +61,11 @@ public final class ExtraActionFactory implements RuleConfiguredTargetFactory {
     command = command.replace("$(ACTION_ID)", "$$(ACTION_ID)");
     command = command.replace("$(OWNER_LABEL_DIGEST)", "$$(OWNER_LABEL_DIGEST)");
     command = command.replace("$(output ", "$$(output ");
-    ConfigurationMakeVariableContext makeVariableContext = new ConfigurationMakeVariableContext(
-        context, context.getTarget().getPackage(), context.getConfiguration());
+    ConfigurationMakeVariableContext makeVariableContext =
+        new ConfigurationMakeVariableContext(
+            context.getTarget().getPackage(),
+            context.getConfiguration(),
+            context.getDefaultTemplateVariableProviders());
     command = context
         .getExpander(makeVariableContext)
         .withDataExecLocations()

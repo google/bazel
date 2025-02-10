@@ -16,39 +16,39 @@ API to allow current users while denying new ones.
 ## Target visibility {:#target-visibility}
 
 **Target visibility** controls who may depend on your target — that is, who may
-use your target's label inside an attribute such as `deps`.
+use your target's label inside an attribute such as `deps`. A target will fail
+to build during the [analysis](/reference/glossary#analysis-phase) phase if it
+violates the visibility of one of its dependencies.
 
-A target `A` is visible to a target `B` if they are in the same package, or if
-`A` grants visibility to `B`'s package. Thus, packages are the unit of
-granularity for deciding whether or not to allow access. If `B` depends on `A`
-but `A` is not visible to `B`, then any attempt to build `B` fails during
-[analysis](/reference/glossary#analysis-phase).
+Generally, a target `A` is visible to a target `B` if they are in the same
+location, or if `A` grants visibility to `B`'s location. In the absence of
+[symbolic macros](/extending/macros), the term "location" can be simplified
+to just "package"; see [below](#symbolic-macros) for more on symbolic macros.
 
-Note that granting visibility to a package does not by itself grant visibility
-to its subpackages. For more details on package and subpackages, see
-[Concepts and terminology](/concepts/build-ref).
+Visibility is specified by listing allowed packages. Allowing a package does not
+necessarily mean that its subpackages are also allowed. For more details on
+packages and subpackages, see [Concepts and terminology](/concepts/build-ref).
 
 For prototyping, you can disable target visibility enforcement by setting the
-flag `--check_visibility=false`. This should not be done for production usage in
+flag `--check_visibility=false`. This shouldn't be done for production usage in
 submitted code.
 
-The primary way to control visibility is with the
-[`visibility`](/reference/be/common-definitions#common.visibility) attribute on
-rule targets. This section describes the format of this attribute, and how to
-determine a target's visibility.
+The primary way to control visibility is with a rule's
+[`visibility`](/reference/be/common-definitions#common.visibility) attribute.
+The following subsections describe the attribute's format, how to apply it to
+various kinds of targets, and the interaction between the visibility system and
+symbolic macros.
 
 ### Visibility specifications {:#visibility-specifications}
 
 All rule targets have a `visibility` attribute that takes a list of labels. Each
 label has one of the following forms. With the exception of the last form, these
-are just syntactic placeholders that do not correspond to any actual target.
+are just syntactic placeholders that don't correspond to any actual target.
 
-*   `"//visibility:public"`: Grants access to all packages. (May not be combined
-    with any other specification.)
+*   `"//visibility:public"`: Grants access to all packages.
 
 *   `"//visibility:private"`: Does not grant any additional access; only targets
-    in this package can use this target. (May not be combined with any other
-    specification.)
+    in this location's package can use this target.
 
 *   `"//foo/bar:__pkg__"`: Grants access to `//foo/bar` (but not its
     subpackages).
@@ -69,8 +69,9 @@ are just syntactic placeholders that do not correspond to any actual target.
 
 For example, if `//some/package:mytarget` has its `visibility` set to
 `[":__subpackages__", "//tests:__pkg__"]`, then it could be used by any target
-that is part of the `//some/package/...` source tree, as well as targets defined
-in `//tests/BUILD`, but not by targets defined in `//tests/integration/BUILD`.
+that is part of the `//some/package/...` source tree, as well as targets
+declared in `//tests/BUILD`, but not by targets defined in
+`//tests/integration/BUILD`.
 
 **Best practice:** To make several targets visible to the same set
 of packages, use a `package_group` instead of repeating the list in each
@@ -87,92 +88,105 @@ dependency graph" error.
 
 ### Rule target visibility {:#rule-target-visibility}
 
-A rule target's visibility is:
+A rule target's visibility is determined by taking its `visibility` attribute
+-- or a suitable default if not given -- and appending the location where the
+target was declared. For targets not declared in a symbolic macro, if the
+package specifies a [`default_visibility`](/reference/be/functions#package.default_visibility),
+this default is used; for all other packages and for targets declared in a
+symbolic macro, the default is just `["//visibility:private"]`.
 
-1. The value of its `visibility` attribute, if set; or else
+```starlark
+# //mypkg/BUILD
 
-2. The value of the
-[`default_visibility`](/reference/be/functions#package.default_visibility)
-argument of the [`package`](/reference/be/functions#package) statement in the
-target's `BUILD` file, if such a declaration exists; or else
+package(default_visibility = ["//friend:__pkg__"])
 
-3. `//visibility:private`.
+cc_library(
+    name = "t1",
+    ...
+    # No visibility explicitly specified.
+    # Effective visibility is ["//friend:__pkg__", "//mypkg:__pkg__"].
+    # If no default_visibility were given in package(...), the visibility would
+    # instead default to ["//visibility:private"], and the effective visibility
+    # would be ["//mypkg:__pkg__"].
+)
+
+cc_library(
+    name = "t2",
+    ...
+    visibility = [":clients"],
+    # Effective visibility is ["//mypkg:clients, "//mypkg:__pkg__"], which will
+    # expand to ["//another_friend:__subpackages__", "//mypkg:__pkg__"].
+)
+
+cc_library(
+    name = "t3",
+    ...
+    visibility = ["//visibility:private"],
+    # Effective visibility is ["//mypkg:__pkg__"]
+)
+
+package_group(
+    name = "clients",
+    packages = ["//another_friend/..."],
+)
+```
 
 **Best practice:** Avoid setting `default_visibility` to public. It may be
 convenient for prototyping or in small codebases, but the risk of inadvertently
 creating public targets increases as the codebase grows. It's better to be
 explicit about which targets are part of a package's public interface.
 
-#### Example {:#rule-target-visibility-example}
-
-File `//frobber/bin/BUILD`:
-
-```python
-# This target is visible to everyone
-cc_binary(
-    name = "executable",
-    visibility = ["//visibility:public"],
-    deps = [":library"],
-)
-
-# This target is visible only to targets declared in the same package
-cc_library(
-    name = "library",
-    # No visibility -- defaults to private since no
-    # package(default_visibility = ...) was used.
-)
-
-# This target is visible to targets in package //object and //noun
-cc_library(
-    name = "subject",
-    visibility = [
-        "//noun:__pkg__",
-        "//object:__pkg__",
-    ],
-)
-
-# See package group "//frobber:friends" (below) for who can
-# access this target.
-cc_library(
-    name = "thingy",
-    visibility = ["//frobber:friends"],
-)
-```
-
-File `//frobber/BUILD`:
-
-```python
-# This is the package group declaration to which target
-# //frobber/bin:thingy refers.
-#
-# Our friends are packages //frobber, //fribber and any
-# subpackage of //fribber.
-package_group(
-    name = "friends",
-    packages = [
-        "//fribber/...",
-        "//frobber",
-    ],
-)
-```
-
 ### Generated file target visibility {:#generated-file-target-visibility}
 
 A generated file target has the same visibility as the rule target that
 generates it.
 
+```starlark
+# //mypkg/BUILD
+
+java_binary(
+    name = "foo",
+    ...
+    visibility = ["//friend:__pkg__"],
+)
+```
+
+```starlark
+# //friend/BUILD
+
+some_rule(
+    name = "bar",
+    deps = [
+        # Allowed directly by visibility of foo.
+        "//mypkg:foo",
+        # Also allowed. The java_binary's "_deploy.jar" implicit output file
+        # target the same visibility as the rule target itself.
+        "//mypkg:foo_deploy.jar",
+    ]
+    ...
+)
+```
+
 ### Source file target visibility {:#source-file-target-visibility}
 
-You can explicitly set the visibility of a source file target by calling
-[`exports_files`](/reference/be/functions#exports_files). When no `visibility`
-argument is passed to `exports_files`, it makes the visibility public.
-`exports_files` may not be used to override the visibility of a generated file.
+Source file targets can either be explicitly declared using
+[`exports_files`](/reference/be/functions#exports_files), or implicitly created
+by referring to their filename in a label attribute of a rule (outside of a
+symbolic macro). As with rule targets, the location of the call to
+`exports_files`, or the BUILD file that referred to the input file, is always
+automatically appended to the file's visibility.
 
-For source file targets that do not appear in a call to `exports_files`, the
-visibility depends on the value of the flag
+Files declared by `exports_files` can have their visibility set by the
+`visibility` parameter to that function. If this parameter is not given, the visibility is public.
+
+Note: `exports_files` may not be used to override the visibility of a generated
+file.
+
+For files that do not appear in a call to `exports_files`, the visibility
+depends on the value of the flag
 [`--incompatible_no_implicit_file_export`](https://github.com/bazelbuild/bazel/issues/10225){: .external}:
 
-*   If the flag is set, the visibility is private.
+*   If the flag is true, the visibility is private.
 
 *   Else, the legacy behavior applies: The visibility is the same as the
     `BUILD` file's `default_visibility`, or private if a default visibility is
@@ -190,13 +204,13 @@ should only directly reference source files that live in the same package.
 
 File `//frobber/data/BUILD`:
 
-```python
+```starlark
 exports_files(["readme.txt"])
 ```
 
 File `//frobber/bin/BUILD`:
 
-```python
+```starlark
 cc_binary(
   name = "my-program",
   data = ["//frobber/data:readme.txt"],
@@ -248,6 +262,124 @@ respect to the `cc_library` target.
 If you want to restrict the usage of a rule to certain packages, use
 [load visibility](#load-visibility) instead.
 
+### Visibility and symbolic macros {:#symbolic-macros}
+
+This section describes how the visibility system interacts with
+[symbolic macros](/extending/macros).
+
+#### Locations within symbolic macros {:#locations-within-symbolic-macros}
+
+A key detail of the visibility system is how we determine the location of a
+declaration. For targets that are not declared in a symbolic macro, the location
+is just the package where the target lives -- the package of the `BUILD` file.
+But for targets created in a symbolic macro, the location is the package
+containing the `.bzl` file where the macro's definition (the
+`my_macro = macro(...)` statement) appears. When a target is created inside
+multiple nested targets, it is always the innermost symbolic macro's definition
+that is used.
+
+The same system is used to determine what location to check against a given
+dependency's visibility. If the consuming target was created inside a macro, we
+look at the innermost macro's definition rather than the package the consuming
+target lives in.
+
+This means that all macros whose code is defined in the same package are
+automatically "friends" with one another. Any target directly created by a macro
+defined in `//lib:defs.bzl` can be seen from any other macro defined in `//lib`,
+regardless of what packages the macros are actually instantiated in. Likewise,
+they can see, and can be seen by, targets declared directly in `//lib/BUILD` and
+its legacy macros. Conversely, targets that live in the same package cannot
+necessarily see one another if at least one of them is created by a symbolic
+macro.
+
+Within a symbolic macro's implementation function, the `visibility` parameter
+has the effective value of the macro's `visibility` attribute after appending
+the location where the macro was called. The standard way for a macro to export
+one of its targets to its caller is to forward this value along to the target's
+declaration, as in `some_rule(..., visibility = visibility)`. Targets that omit
+this attribute won't be visible to the caller of the macro unless the caller
+happens to be in the same package as the macro definition. This behavior
+composes, in the sense that a chain of nested calls to submacros may each pass
+`visibility = visibility`, re-exporting the inner macro's exported targets to
+the caller at each level, without exposing any of the macros' implementation
+details.
+
+#### Delegating privileges to a submacro {:#delegating-privileges-to-a-submacro}
+
+The visibility model has a special feature to allow a macro to delegate its
+permissions to a submacro. This is important for factoring and composing macros.
+
+Suppose you have a macro `my_macro` that creates a dependency edge using a rule
+`some_library` from another package:
+
+```starlark
+# //macro/defs.bzl
+load("//lib:defs.bzl", "some_library")
+
+def _impl(name, visibility, ...):
+    ...
+    native.genrule(
+        name = name + "_dependency"
+        ...
+    )
+    some_library(
+        name = name + "_consumer",
+        deps = [name + "_dependency"],
+        ...
+    )
+
+my_macro = macro(implementation = _impl, ...)
+```
+
+```starlark
+# //pkg/BUILD
+
+load("//macro:defs.bzl", "my_macro")
+
+my_macro(name = "foo", ...)
+```
+
+The `//pkg:foo_dependency` target has no `visibility` specified, so it is only
+visible within `//macro`, which works fine for the consuming target. Now, what
+happens if the author of `//lib` refactors `some_library` to instead be
+implemented using a macro?
+
+```starlark
+# //lib:defs.bzl
+
+def _impl(name, visibility, deps, ...):
+    some_rule(
+        # Main target, exported.
+        name = name,
+        visibility = visibility,
+        deps = deps,
+        ...)
+
+some_library = macro(implementation = _impl, ...)
+```
+
+With this change, `//pkg:foo_consumer`'s location is now `//lib` rather than
+`//macro`, so its usage of `//pkg:foo_dependency` violates the dependency's
+visibility. The author of `my_macro` can't be expected to pass
+`visibility = ["//lib"]` to the declaration of the dependency just to work
+around this implementation detail.
+
+For this reason, when a dependency of a target is also an attribute value of the
+macro that declared the target, we check the dependency's visibility against the
+location of the macro instead of the location of the consuming target.
+
+In this example, to validate whether `//pkg:foo_consumer` can see
+`//pkg:foo_dependency`, we see that `//pkg:foo_dependency` was also passed as an
+input to the call to `some_library` inside of `my_macro`, and instead check the
+dependency's visibility against the location of this call, `//macro`.
+
+This process can repeat recursively, as long as a target or macro declaration is
+inside of another symbolic macro taking the dependency's label in one of its
+label-typed attributes.
+
+Note: Visibility delegation does not work for labels that were not passed into
+the macro, such as labels derived by string manipulation.
+
 ## Load visibility {:#load-visibility}
 
 **Load visibility** controls whether a `.bzl` file may be loaded from other
@@ -256,9 +388,9 @@ If you want to restrict the usage of a rule to certain packages, use
 In the same way that target visibility protects source code that is encapsulated
 by targets, load visibility protects build logic that is encapsulated by `.bzl`
 files. For instance, a `BUILD` file author might wish to factor some repetitive
-target definitions into a macro in a `.bzl` file. Without the protection of load
-visibility, they might find their macro reused by other collaborators in the
-same workspace, so that modifying the macro breaks other teams' builds.
+target declarations into a macro in a `.bzl` file. Without the protection of
+load visibility, they might find their macro reused by other collaborators in
+the same workspace, so that modifying the macro breaks other teams' builds.
 
 Note that a `.bzl` file may or may not have a corresponding source file target.
 If it does, there is no guarantee that the load visibility and the target
@@ -292,7 +424,7 @@ new `.bzl` file that is not specifically intended for use outside the package.
 
 ### Example {:#load-visibility-example}
 
-```python
+```starlark
 # //mylib/internal_defs.bzl
 
 # Available to subpackages and to mylib's tests.
@@ -302,7 +434,7 @@ def helper(...):
     ...
 ```
 
-```python
+```starlark
 # //mylib/rules.bzl
 
 load(":internal_defs.bzl", "helper")
@@ -315,7 +447,7 @@ myrule = rule(
 )
 ```
 
-```python
+```starlark
 # //someclient/BUILD
 
 load("//mylib:rules.bzl", "myrule")          # ok
@@ -333,7 +465,7 @@ This section describes tips for managing load visibility declarations.
 When multiple `.bzl` files should have the same visibility, it can be helpful to
 factor their package specifications into a common list. For example:
 
-```python
+```starlark
 # //mylib/internal_defs.bzl
 
 visibility("private")
@@ -345,7 +477,7 @@ clients = [
 ]
 ```
 
-```python
+```starlark
 # //mylib/feature_A.bzl
 
 load(":internal_defs.bzl", "clients")
@@ -354,7 +486,7 @@ visibility(clients)
 ...
 ```
 
-```python
+```starlark
 # //mylib/feature_B.bzl
 
 load(":internal_defs.bzl", "clients")
@@ -376,7 +508,7 @@ composed of multiple smaller allowlists. This is analogous to how a
 Suppose you are deprecating a widely used macro. You want it to be visible only
 to existing users and to the packages owned by your own team. You might write:
 
-```python
+```starlark
 # //mylib/macros.bzl
 
 load(":internal_defs.bzl", "our_packages")
@@ -395,7 +527,7 @@ specifications into a .bzl file, where both kinds of declarations may refer to
 it. Building off the example in [Factoring visibilities](#factoring-visibilities)
 above, you might write:
 
-```python
+```starlark
 # //mylib/BUILD
 
 load(":internal_defs", "clients")
@@ -420,7 +552,7 @@ being loaded.
 
 Luckily, you can combine these two features to get fine-grained control.
 
-```python
+```starlark
 # //mylib/internal_defs.bzl
 
 # Can't be public, because internal_helper shouldn't be exposed to the world.
@@ -435,7 +567,7 @@ def public_util(...):
     ...
 ```
 
-```python
+```starlark
 # //mylib/defs.bzl
 
 load(":internal_defs", "internal_helper", _public_util="public_util")

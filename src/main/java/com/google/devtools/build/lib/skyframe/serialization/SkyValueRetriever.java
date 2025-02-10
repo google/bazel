@@ -28,6 +28,7 @@ import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.devtools.build.lib.skyframe.serialization.FingerprintValueStore.MissingFingerprintValueException;
 import com.google.devtools.build.lib.skyframe.serialization.analysis.ClientId;
+import com.google.devtools.build.lib.skyframe.serialization.proto.DataType;
 import com.google.devtools.build.skyframe.IntVersion;
 import com.google.devtools.build.skyframe.SkyFunction;
 import com.google.devtools.build.skyframe.SkyFunction.Environment;
@@ -36,8 +37,10 @@ import com.google.devtools.build.skyframe.SkyFunction.LookupEnvironment;
 import com.google.devtools.build.skyframe.SkyKey;
 import com.google.devtools.build.skyframe.SkyValue;
 import com.google.protobuf.ByteString;
+import com.google.protobuf.CodedInputStream;
 import java.io.IOException;
 import java.util.Arrays;
+import java.util.HexFormat;
 import java.util.Optional;
 import java.util.concurrent.ExecutionException;
 
@@ -207,17 +210,17 @@ public final class SkyValueRetriever {
                 Futures.addCallback(
                     keyWriteStatus, FutureHelpers.FAILURE_REPORTING_CALLBACK, directExecutor());
               }
-              ListenableFuture<byte[]> valueBytes;
+              ListenableFuture<byte[]> futureValueBytes;
               try {
-                valueBytes =
+                futureValueBytes =
                     fingerprintValueService.get(
                         fingerprintValueService.fingerprint(
                             frontierNodeVersion.concat(keyBytes.getObject().toByteArray())));
               } catch (IOException e) {
                 throw new SerializationException("key lookup failed for " + key, e);
               }
-              nextState = new WaitingForFutureValueBytes(valueBytes);
-              switch (futuresShim.dependOnFuture(valueBytes)) {
+              nextState = new WaitingForFutureValueBytes(futureValueBytes);
+              switch (futuresShim.dependOnFuture(futureValueBytes)) {
                 case DONE:
                   break; // continues to the next state
                 case NOT_DONE:
@@ -243,9 +246,40 @@ public final class SkyValueRetriever {
                 nextState = NoCachedData.NO_CACHED_DATA;
                 break;
               }
-              Object value =
-                  codecs.deserializeWithSkyframe(
-                      fingerprintValueService, ByteString.copyFrom(valueBytes));
+              var codedIn = CodedInputStream.newInstance(valueBytes);
+              // Skips over the invalidation data key.
+              //
+              // TODO: b/364831651 - this code is a temporary and will eventually be removed when
+              // this read is performed in the AnalysisCacheService.
+              try {
+                int dataTypeOrdinal = codedIn.readInt32();
+                switch (DataType.forNumber(dataTypeOrdinal)) {
+                  case DATA_TYPE_EMPTY:
+                    break;
+                  case DATA_TYPE_FILE:
+                  // fall through
+                  case DATA_TYPE_LISTING:
+                    {
+                      var unusedKey = codedIn.readString();
+                      break;
+                    }
+                  case DATA_TYPE_ANALYSIS_NODE, DATA_TYPE_EXECUTION_NODE:
+                    {
+                      var unusedKey = PackedFingerprint.readFrom(codedIn);
+                      break;
+                    }
+                  default:
+                    throw new SerializationException(
+                        String.format(
+                            "for key=%s, got unexpected data type with ordinal %d from value"
+                                + " bytes=%s",
+                            key, dataTypeOrdinal, HexFormat.of().formatHex(valueBytes)));
+                }
+              } catch (IOException e) {
+                throw new SerializationException("Error parsing invalidation data key", e);
+              }
+
+              Object value = codecs.deserializeWithSkyframe(fingerprintValueService, codedIn);
               if (!(value instanceof ListenableFuture)) {
                 nextState = new RetrievedValue((SkyValue) value);
                 break;

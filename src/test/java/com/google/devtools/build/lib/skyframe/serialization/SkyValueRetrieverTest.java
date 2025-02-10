@@ -19,6 +19,7 @@ import static com.google.devtools.build.lib.skyframe.serialization.SkyValueRetri
 import static com.google.devtools.build.lib.skyframe.serialization.SkyValueRetriever.ObservedFutureStatus.DONE;
 import static com.google.devtools.build.lib.skyframe.serialization.SkyValueRetriever.ObservedFutureStatus.NOT_DONE;
 import static com.google.devtools.build.lib.skyframe.serialization.SkyValueRetriever.Restart.RESTART;
+import static com.google.devtools.build.lib.skyframe.serialization.testutils.FakeInvalidationDataHelper.prependFakeInvalidationData;
 import static org.junit.Assert.assertThrows;
 
 import com.google.common.collect.ImmutableList;
@@ -681,7 +682,7 @@ public final class SkyValueRetrieverTest implements SerializationStateProvider {
             .put(
                 fingerprintValueService.fingerprint(
                     version.concat(keyBytes.getObject().toByteArray())),
-                valueBytes.getObject().toByteArray())
+                prependFakeInvalidationData(valueBytes.getObject()).toByteArray())
             .get();
   }
 

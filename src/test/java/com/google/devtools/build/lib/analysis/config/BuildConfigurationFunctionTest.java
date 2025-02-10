@@ -292,7 +292,7 @@ public final class BuildConfigurationFunctionTest extends BuildViewTestCase {
         simple(name = "root")
         """);
 
-    useConfiguration("--experimental_output_directory_naming_scheme=diff_against_baseline");
+    useConfiguration("--experimental_output_directory_naming_scheme=diff_against_dynamic_baseline");
     ConfiguredTarget test = getConfiguredTarget("//test");
 
     assertThat(getMnemonic(test)).doesNotContain("-ST-");

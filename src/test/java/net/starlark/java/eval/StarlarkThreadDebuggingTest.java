@@ -14,11 +14,14 @@
 
 package net.starlark.java.eval;
 
+import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.google.common.truth.Truth.assertThat;
 import static org.junit.Assert.assertThrows;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Iterables;
+import javax.annotation.Nullable;
 import net.starlark.java.eval.Debug.ReadyToPause;
 import net.starlark.java.eval.Debug.Stepping;
 import net.starlark.java.syntax.FileOptions;
@@ -56,34 +59,73 @@ public class StarlarkThreadDebuggingTest {
     assertThat(thread.getCallStack()).isEmpty();
   }
 
+  /**
+   * A callable which captures the Starlark call stack at the time of the last call to it.
+   *
+   * <p>In Starlark, returns the first positional arg if supplied, or None otherwise.
+   */
+  private static final class StackTracer implements StarlarkCallable {
+    private final String name;
+    // Debug.Frame values are mutable (and are expected to mutate during the execution of a thread),
+    // so we capture their formatted string form instead. (The string form also makes test failures
+    // more informative.)
+    @Nullable private ImmutableList<String> debugStack;
+    @Nullable private ImmutableList<StarlarkThread.CallStackEntry> liteStack;
+
+    private StackTracer(String name) {
+      this.name = name;
+    }
+
+    @Nullable
+    public ImmutableList<String> getDebugStack() {
+      return debugStack;
+    }
+
+    @Nullable
+    public String getCallerDebugFrame() {
+      return debugStack != null ? debugStack.get(debugStack.size() - 2) : null;
+    }
+
+    @Nullable
+    public ImmutableList<StarlarkThread.CallStackEntry> getLiteStack() {
+      return liteStack;
+    }
+
+    @Override
+    public String getName() {
+      return name;
+    }
+
+    @Override
+    public Object call(StarlarkThread thread, Tuple args, Dict<String, Object> kwargs) {
+      debugStack =
+          Debug.getCallStack(thread).stream()
+              .map(this::formatDebugFrame)
+              .collect(toImmutableList());
+      liteStack = thread.getCallStack();
+      return Iterables.getFirst(args, Starlark.NONE);
+    }
+
+    private String formatDebugFrame(Debug.Frame fr) {
+      return String.format(
+          "%s @ %s local=%s", fr.getFunction().getName(), fr.getLocation(), fr.getLocals());
+    }
+
+    @Override
+    public Location getLocation() {
+      return Location.BUILTIN;
+    }
+
+    @Override
+    public String toString() {
+      return "<stack tracer>";
+    }
+  }
+
   @Test
   public void testListFramesFromBuiltin() throws Exception {
     // f is a built-in that captures the stack using the Debugger API.
-    Object[] result = {null, null};
-    StarlarkCallable f =
-        new StarlarkCallable() {
-          @Override
-          public String getName() {
-            return "f";
-          }
-
-          @Override
-          public Object fastcall(StarlarkThread thread, Object[] positional, Object[] named) {
-            result[0] = Debug.getCallStack(thread);
-            result[1] = thread.getCallStack();
-            return Starlark.NONE;
-          }
-
-          @Override
-          public Location getLocation() {
-            return Location.fromFileLineColumn("builtin", 12, 0);
-          }
-
-          @Override
-          public String toString() {
-            return "<debug function>";
-          }
-        };
+    StackTracer f = new StackTracer("f");
 
     // Set up global environment.
     Module module =
@@ -92,40 +134,71 @@ public class StarlarkThreadDebuggingTest {
     // Execute a small file that calls f.
     ParserInput input =
         ParserInput.fromString(
-            "def g(a, y, z):\n" // shadows global a
-                + "  f()\n"
-                + "g(4, 5, 6)",
+            """
+def g(a, y, z):  # shadows global a
+    f()
+
+g(4, 5, 6)
+""",
             "main.star");
     Starlark.execFile(input, FileOptions.DEFAULT, module, newThread());
 
-    @SuppressWarnings("unchecked")
-    ImmutableList<Debug.Frame> stack = (ImmutableList<Debug.Frame>) result[0];
-
-    // Check the stack captured by f.
-    // We compare printed string forms, as it gives more informative assertion failures.
-    StringBuilder buf = new StringBuilder();
-    for (Debug.Frame fr : stack) {
-      buf.append(
-          String.format(
-              "%s @ %s local=%s\n", fr.getFunction().getName(), fr.getLocation(), fr.getLocals()));
-    }
-    assertThat(buf.toString())
-        .isEqualTo(
-            ""
-                // location is paren of g(4, 5, 6) call:
-                + "<toplevel> @ main.star:3:2 local={}\n"
-                // location is paren of "f()" call:
-                + "g @ main.star:2:4 local={a=4, y=5, z=6}\n"
-                // location is "current PC" in f.
-                + "f @ builtin:12 local={}\n");
+    assertThat(f.getDebugStack())
+        .containsExactly(
+            // location is paren of g(4, 5, 6) call:
+            "<toplevel> @ main.star:4:2 local={}",
+            // location is paren of "f()" call:
+            "g @ main.star:2:6 local={a=4, y=5, z=6}",
+            // location is "current PC" in f.
+            "f @ <builtin> local={}")
+        .inOrder();
 
     // Same, with "lite" stack API.
-    assertThat(result[1].toString()) // an ImmutableList<StarlarkThread.CallStackEntry>
-        .isEqualTo("[<toplevel>@main.star:3:2, g@main.star:2:4, f@builtin:12]");
+    assertThat(f.getLiteStack().toString()) // an ImmutableList<StarlarkThread.CallStackEntry>
+        .isEqualTo("[<toplevel>@main.star:4:2, g@main.star:2:6, f@<builtin>]");
 
     // TODO(adonovan): more tests:
     // - a stack containing functions defined in different modules.
     // - changing environment at various program points within a function.
+  }
+
+  @Test
+  public void comprehensionVariables() throws Exception {
+    // Tracers for capturing the stack using the Debugger API.
+    StackTracer f = new StackTracer("f");
+    StackTracer g = new StackTracer("g");
+    StackTracer h = new StackTracer("h");
+    StackTracer i = new StackTracer("i");
+    StackTracer j = new StackTracer("j");
+    StackTracer k = new StackTracer("k");
+
+    Module module =
+        Module.withPredeclared(
+            StarlarkSemantics.DEFAULT,
+            ImmutableMap.of("f", f, "g", g, "h", h, "i", i, "j", j, "k", k));
+
+    ParserInput input =
+        ParserInput.fromString(
+            """
+def foo(x):
+    x += [[j(x) for x in i(x)] + h(x) for x in f(x) if g(x)]
+    return k(x)
+
+foo([[1]])
+""",
+            "main.star");
+    Starlark.execFile(input, FileOptions.DEFAULT, module, newThread());
+    // f is in the outer comprehension's first for clause, and sees foo's local x
+    assertThat(f.getCallerDebugFrame()).isEqualTo("foo @ main.star:2:49 local={x=[[1]]}");
+    // g and h see the outer comprehension's x
+    assertThat(g.getCallerDebugFrame()).isEqualTo("foo @ main.star:2:57 local={x=[1]}");
+    assertThat(h.getCallerDebugFrame()).isEqualTo("foo @ main.star:2:35 local={x=[1]}");
+    // i is in the inner comprehension's first for clause, and so sees the outer comprehension's x
+    assertThat(i.getCallerDebugFrame()).isEqualTo("foo @ main.star:2:27 local={x=[1]}");
+    // j sees the inner comprehension's x
+    assertThat(j.getCallerDebugFrame()).isEqualTo("foo @ main.star:2:13 local={x=1}");
+    // k is outside the comprehensions' scope, and sees the final value of foo's local x
+    assertThat(k.getCallerDebugFrame()).isEqualTo("foo @ main.star:3:13 local={x=[[1], [1, 1]]}");
   }
 
   @Test

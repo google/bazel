@@ -2015,7 +2015,8 @@ EOF
   # Verify file contents if we can decode base64-encoded data.
   if which base64 >/dev/null; then
     sed -nr 's/^ *FileWriteContents: \[(.*)\]/echo \1 | base64 -d/p' output | \
-       sh | tee -a "$TEST_log"  | assert_contains "$pkg/foo\.sh" -
+       sh | tee -a "$TEST_log"  > contents
+    assert_contains "$pkg/foo\.sh" contents
   fi
 }
 

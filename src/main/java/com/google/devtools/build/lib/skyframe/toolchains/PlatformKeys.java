@@ -16,6 +16,7 @@ package com.google.devtools.build.lib.skyframe.toolchains;
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.google.common.collect.ImmutableSet.toImmutableSet;
 
+import com.google.common.base.Predicates;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
@@ -125,12 +126,18 @@ record PlatformKeys(
       RegisteredExecutionPlatformsValue registeredExecutionPlatforms =
           (RegisteredExecutionPlatformsValue)
               environment.getValueOrThrow(
-                  RegisteredExecutionPlatformsValue.key(configurationKey),
+                  RegisteredExecutionPlatformsValue.key(
+                      configurationKey, debugPrinter.debugEnabled()),
                   InvalidPlatformException.class,
                   InvalidExecutionPlatformLabelException.class);
       if (registeredExecutionPlatforms == null) {
         throw new ToolchainResolutionFunction.ValueMissingException();
       }
+
+      // If debugging, describe rejected execution platforms.
+      Optional.ofNullable(registeredExecutionPlatforms.rejectedPlatforms())
+          .filter(Predicates.not(Map::isEmpty))
+          .ifPresent(debugPrinter::reportRejectedExecutionPlatforms);
 
       this.executionPlatformKeys = new ArrayList<>();
       executionPlatformKeys.addAll(registeredExecutionPlatforms.registeredExecutionPlatformKeys());

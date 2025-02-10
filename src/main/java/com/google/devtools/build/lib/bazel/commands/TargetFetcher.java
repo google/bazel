@@ -53,7 +53,7 @@ public class TargetFetcher {
             .setStartTimeMillis(env.getCommandStartTime())
             .build();
 
-    BuildResult result = new BuildTool(env).processRequest(request, null);
+    BuildResult result = new BuildTool(env).processRequest(request, null, options);
     if (!result.getSuccess()) {
       throw new TargetFetcherException(
           "Fetching some target dependencies failed with errors: "

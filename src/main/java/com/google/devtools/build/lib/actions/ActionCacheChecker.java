@@ -27,7 +27,6 @@ import com.google.devtools.build.lib.actions.Artifact.ArchivedTreeArtifact;
 import com.google.devtools.build.lib.actions.Artifact.SourceArtifact;
 import com.google.devtools.build.lib.actions.Artifact.SpecialArtifact;
 import com.google.devtools.build.lib.actions.Artifact.TreeFileArtifact;
-import com.google.devtools.build.lib.actions.FileArtifactValue.RemoteFileArtifactValue;
 import com.google.devtools.build.lib.actions.cache.ActionCache;
 import com.google.devtools.build.lib.actions.cache.ActionCache.Entry.SerializableTreeArtifactValue;
 import com.google.devtools.build.lib.actions.cache.MetadataDigestUtils;
@@ -184,7 +183,7 @@ public class ActionCacheChecker {
    * @param checkOutput true to validate output artifacts, Otherwise, just validate inputs.
    * @param cachedOutputMetadata a set of cached metadata that should be used instead of loading
    *     from {@code outputMetadataStore}.
-   * @param remoteArtifactChecker used to check whether remote metadata should be trusted.
+   * @param outputChecker used to check whether remote metadata should be trusted.
    * @return true if at least one artifact has changed, false - otherwise.
    */
   private static boolean validateArtifacts(
@@ -195,7 +194,7 @@ public class ActionCacheChecker {
       OutputMetadataStore outputMetadataStore,
       boolean checkOutput,
       @Nullable CachedOutputMetadata cachedOutputMetadata,
-      @Nullable RemoteArtifactChecker remoteArtifactChecker)
+      @Nullable OutputChecker outputChecker)
       throws InterruptedException {
     Map<String, FileArtifactValue> mdMap = new HashMap<>();
     if (checkOutput) {
@@ -205,7 +204,7 @@ public class ActionCacheChecker {
           if (treeMetadata == null) {
             treeMetadata = getOutputTreeMetadataMaybe(outputMetadataStore, artifact);
           }
-          if (shouldTrustTreeMetadata(artifact, treeMetadata, remoteArtifactChecker)) {
+          if (shouldTrustTreeMetadata(artifact, treeMetadata, outputChecker)) {
             mdMap.put(
                 artifact.getExecPathString(),
                 treeMetadata != null ? treeMetadata.getMetadata() : null);
@@ -218,7 +217,7 @@ public class ActionCacheChecker {
           if (metadata == null) {
             metadata = getOutputMetadataMaybe(outputMetadataStore, artifact);
           }
-          if (shouldTrustMetadata(artifact, metadata, remoteArtifactChecker)) {
+          if (shouldTrustMetadata(artifact, metadata, outputChecker)) {
             mdMap.put(artifact.getExecPathString(), metadata);
           } else {
             mdMap.put(artifact.getExecPathString(), null);
@@ -236,21 +235,20 @@ public class ActionCacheChecker {
   private static boolean shouldTrustMetadata(
       Artifact artifact,
       @Nullable FileArtifactValue metadata,
-      @Nullable RemoteArtifactChecker remoteArtifactChecker) {
+      @Nullable OutputChecker outputChecker) {
     checkArgument(!artifact.isTreeArtifact());
-    if (remoteArtifactChecker == null || metadata == null || !metadata.isRemote()) {
+    if (outputChecker == null || metadata == null) {
       return true;
     }
-    return remoteArtifactChecker.shouldTrustRemoteArtifact(
-        artifact, (RemoteFileArtifactValue) metadata);
+    return outputChecker.shouldTrustArtifact(artifact, metadata);
   }
 
   private static boolean shouldTrustTreeMetadata(
       Artifact artifact,
       @Nullable TreeArtifactValue treeMetadata,
-      @Nullable RemoteArtifactChecker remoteArtifactChecker) {
+      @Nullable OutputChecker outputChecker) {
     checkArgument(artifact.isTreeArtifact());
-    if (remoteArtifactChecker == null || treeMetadata == null) {
+    if (outputChecker == null || treeMetadata == null) {
       return true;
     }
     if (treeMetadata.getArchivedRepresentation().isPresent()) {
@@ -264,9 +262,7 @@ public class ActionCacheChecker {
               .getArchivedRepresentation()
               .map(ArchivedRepresentation::archivedFileValue)
               .orElseThrow();
-      if (archivedMetadata.isRemote()
-          && !remoteArtifactChecker.shouldTrustRemoteArtifact(
-              archivedArtifact, (RemoteFileArtifactValue) archivedMetadata)) {
+      if (!outputChecker.shouldTrustArtifact(archivedArtifact, archivedMetadata)) {
         return false;
       }
     }
@@ -274,11 +270,7 @@ public class ActionCacheChecker {
         treeMetadata.getChildValues().entrySet()) {
       TreeFileArtifact child = entry.getKey();
       FileArtifactValue childMetadata = entry.getValue();
-      if (!childMetadata.isRemote()) {
-        continue;
-      }
-      if (!remoteArtifactChecker.shouldTrustRemoteArtifact(
-          child, (RemoteFileArtifactValue) childMetadata)) {
+      if (!outputChecker.shouldTrustArtifact(child, childMetadata)) {
         return false;
       }
     }
@@ -455,7 +447,7 @@ public class ActionCacheChecker {
 
         mergedTreeMetadata.put(parent, merged.build());
       } else {
-        RemoteFileArtifactValue cachedMetadata = entry.getOutputFile(artifact);
+        FileArtifactValue cachedMetadata = entry.getOutputFile(artifact);
         if (cachedMetadata == null) {
           continue;
         }
@@ -505,7 +497,7 @@ public class ActionCacheChecker {
       OutputMetadataStore outputMetadataStore,
       ArtifactExpander artifactExpander,
       Map<String, String> remoteDefaultPlatformProperties,
-      @Nullable RemoteArtifactChecker remoteArtifactChecker)
+      @Nullable OutputChecker outputChecker)
       throws InterruptedException {
     // TODO(bazel-team): (2010) For RunfilesAction/SymlinkAction and similar actions that
     // produce only symlinks we should not check whether inputs are valid at all - all that matters
@@ -556,7 +548,7 @@ public class ActionCacheChecker {
         outputPermissions,
         remoteDefaultPlatformProperties,
         cachedOutputMetadata,
-        remoteArtifactChecker)) {
+        outputChecker)) {
       if (entry != null) {
         removeCacheEntry(action);
       }
@@ -589,7 +581,7 @@ public class ActionCacheChecker {
       OutputPermissions outputPermissions,
       Map<String, String> remoteDefaultPlatformProperties,
       @Nullable CachedOutputMetadata cachedOutputMetadata,
-      @Nullable RemoteArtifactChecker remoteArtifactChecker)
+      @Nullable OutputChecker outputChecker)
       throws InterruptedException {
     // Unconditional execution can be applied only for actions that are allowed to be executed.
     if (unconditionalExecution(action)) {
@@ -619,7 +611,7 @@ public class ActionCacheChecker {
         outputMetadataStore,
         true,
         cachedOutputMetadata,
-        remoteArtifactChecker)) {
+        outputChecker)) {
       reportChanged(handler, action);
       actionCache.accountMiss(MissReason.DIFFERENT_FILES);
       return true;
@@ -851,7 +843,7 @@ public class ActionCacheChecker {
       OutputMetadataStore outputMetadataStore,
       ArtifactExpander artifactExpander,
       Map<String, String> remoteDefaultPlatformProperties,
-      @Nullable RemoteArtifactChecker remoteArtifactChecker)
+      @Nullable OutputChecker outputChecker)
       throws InterruptedException {
     if (action != null) {
       removeCacheEntry(action);
@@ -866,7 +858,7 @@ public class ActionCacheChecker {
         outputMetadataStore,
         artifactExpander,
         remoteDefaultPlatformProperties,
-        remoteArtifactChecker);
+        outputChecker);
   }
 
   /**

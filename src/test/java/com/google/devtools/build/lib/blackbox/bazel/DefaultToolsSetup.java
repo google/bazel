@@ -54,8 +54,6 @@ public class DefaultToolsSetup implements ToolsSetup {
       lines.add("build --jvmopt=-Djava.net.preferIPv6Addresses");
     }
 
-    lines.add("common --noenable_workspace");
-
     context.write(".bazelrc", lines);
   }
 }

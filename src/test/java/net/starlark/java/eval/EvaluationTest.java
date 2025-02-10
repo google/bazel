@@ -104,9 +104,9 @@ public final class EvaluationTest {
     }
 
     @Override
-    public Object fastcall(StarlarkThread thread, Object[] positional, Object[] named) {
+    public Object call(StarlarkThread thread, Tuple args, Dict<String, Object> kwargs) {
       callCount++;
-      if (positional.length > 0 && Starlark.truth(positional[0])) {
+      if (!args.isEmpty() && Starlark.truth(args.get(0))) {
         Thread.currentThread().interrupt();
       }
       return Starlark.NONE;
@@ -228,10 +228,10 @@ public final class EvaluationTest {
           }
 
           @Override
-          public StarlarkInt fastcall(StarlarkThread thread, Object[] positional, Object[] named)
+          public StarlarkInt call(StarlarkThread thread, Tuple args, Dict<String, Object> kwargs)
               throws EvalException {
             StarlarkInt sum = StarlarkInt.of(0);
-            for (Object arg : positional) {
+            for (Object arg : args) {
               sum = StarlarkInt.add(sum, (StarlarkInt) arg);
             }
             return sum;

@@ -21,7 +21,6 @@ import static com.google.common.truth.Truth.assertWithMessage;
 import static com.google.devtools.build.lib.actions.util.ActionsTestUtil.baseArtifactNames;
 import static com.google.devtools.build.lib.rules.objc.CompilationSupport.ABSOLUTE_INCLUDES_PATH_FORMAT;
 import static com.google.devtools.build.lib.rules.objc.CompilationSupport.BOTH_MODULE_NAME_AND_MODULE_MAP_SPECIFIED;
-import static com.google.devtools.build.lib.skyframe.BzlLoadValue.keyForBuiltins;
 import static org.junit.Assert.assertThrows;
 
 import com.google.common.base.Joiner;
@@ -46,14 +45,10 @@ import com.google.devtools.build.lib.analysis.configuredtargets.RuleConfiguredTa
 import com.google.devtools.build.lib.analysis.test.InstrumentedFilesInfo;
 import com.google.devtools.build.lib.analysis.util.AnalysisMock;
 import com.google.devtools.build.lib.analysis.util.ScratchAttributeWriter;
-import com.google.devtools.build.lib.cmdline.Label;
 import com.google.devtools.build.lib.cmdline.LabelSyntaxException;
 import com.google.devtools.build.lib.collect.nestedset.NestedSet;
 import com.google.devtools.build.lib.packages.NoSuchTargetException;
-import com.google.devtools.build.lib.packages.Provider;
 import com.google.devtools.build.lib.packages.StarlarkInfo;
-import com.google.devtools.build.lib.packages.StarlarkProvider;
-import com.google.devtools.build.lib.packages.StructImpl;
 import com.google.devtools.build.lib.packages.util.MockObjcSupport;
 import com.google.devtools.build.lib.rules.cpp.CcCompilationContext;
 import com.google.devtools.build.lib.rules.cpp.CcInfo;
@@ -696,6 +691,77 @@ public class ObjcLibraryTest extends ObjcRuleTestCase {
     List<String> bArgs = compileAction("//lib:lib", "b.o").getArguments();
     assertThat(bArgs).containsAtLeast("-fobjc-arc", "-foo", "-bar").inOrder();
     assertThat(bArgs).doesNotContain("-cxxfoo");
+  }
+
+  @Test
+  public void testMultipleLanguagesCopts() throws Exception {
+    useConfiguration("--apple_platform_type=ios", "--platforms=" + MockObjcSupport.IOS_ARM64);
+
+    scratch.file(
+        "objc/defs.bzl",
+        """
+        def _var_providing_rule_impl(ctx):
+            return [
+                platform_common.TemplateVariableInfo({
+                    "FOO": "$(BAR)",
+                    "BAR": ctx.attr.var_value,
+                    "BAZ": "$(FOO)",
+                }),
+            ]
+
+        var_providing_rule = rule(
+            implementation = _var_providing_rule_impl,
+            attrs = {"var_value": attr.string()},
+        )
+        """);
+
+    scratch.file(
+        "objc/BUILD",
+        """
+        load("//objc:defs.bzl", "var_providing_rule")
+
+        var_providing_rule(
+            name = "set_foo_to_bar",
+            var_value = "bar",
+        )
+
+        objc_library(
+            name = "lib",
+            srcs = [
+                "c.c",
+                "cpp.cpp",
+                "objc.m",
+                "objcpp.mm",
+            ],
+            copts = ["-DFROM_SHARED=$(FOO),$(BAR),$(BAZ)"],
+            conlyopts = ["-DFROM_CONLYOPTS=$(FOO),$(BAR),$(BAZ)"],
+            cxxopts = ["-DFROM_CXXOPTS=$(FOO),$(BAR),$(BAZ)"],
+            toolchains = [":set_foo_to_bar"],
+        )
+        """);
+
+    CommandAction cCompileAction = compileAction("//objc:lib", "c.o");
+    assertThat(cCompileAction.getArguments())
+        .containsAtLeast("-DFROM_SHARED=bar,bar,bar", "-DFROM_CONLYOPTS=bar,bar,bar")
+        .inOrder();
+    assertThat(cCompileAction.getArguments()).doesNotContain("-DFROM_CXXOPTS=bar,bar,bar");
+
+    CommandAction objcCompileAction = compileAction("//objc:lib", "objc.o");
+    assertThat(objcCompileAction.getArguments()).contains("-DFROM_SHARED=bar,bar,bar");
+    assertThat(objcCompileAction.getArguments()).doesNotContain("-DFROM_CONLYOPTS=bar,bar,bar");
+    assertThat(objcCompileAction.getArguments()).doesNotContain("-DFROM_CXXOPTS=bar,bar,bar");
+
+    CommandAction objcppCompileAction = compileAction("//objc:lib", "objcpp.o");
+    assertThat(objcppCompileAction.getArguments())
+        .containsAtLeast("-DFROM_SHARED=bar,bar,bar", "-DFROM_CXXOPTS=bar,bar,bar")
+        .inOrder();
+    assertThat(objcppCompileAction.getArguments()).doesNotContain("-DFROM_CONLYOPTS=bar,bar,bar");
+
+    CommandAction cppCompileAction = compileAction("//objc:lib", "cpp.o");
+    assertThat(cppCompileAction.getArguments())
+        .containsAtLeast("-DFROM_SHARED=bar,bar,bar", "-DFROM_CXXOPTS=bar,bar,bar")
+        .inOrder();
+    assertThat(cppCompileAction.getArguments()).doesNotContain("-DFROM_CONLYOPTS=bar,bar,bar");
   }
 
   @Test
@@ -1540,24 +1606,6 @@ public class ObjcLibraryTest extends ObjcRuleTestCase {
     CommandAction action = compileAction("//objc:lib", "a.o");
 
     assertAppleSdkPlatformEnv(action, "iPhoneOS");
-  }
-
-  private static StructImpl getJ2ObjcInfoFromTarget(
-      ConfiguredTarget configuredTarget, String providerName) throws Exception {
-    Provider.Key key =
-        new StarlarkProvider.Key(
-            keyForBuiltins(Label.parseCanonical("@_builtins//:common/objc/providers.bzl")),
-            providerName);
-    return (StructImpl) configuredTarget.get(key);
-  }
-
-  @Test
-  public void testExportsJ2ObjcProviders() throws Exception {
-    ConfiguredTarget lib = createLibraryTargetWriter("//a:lib").write();
-    StructImpl j2ObjcEntryClassInfo = getJ2ObjcInfoFromTarget(lib, "J2ObjcEntryClassInfo");
-    StructImpl j2ObjcMappingFileInfo = getJ2ObjcInfoFromTarget(lib, "J2ObjcMappingFileInfo");
-    assertThat(j2ObjcEntryClassInfo).isNotNull();
-    assertThat(j2ObjcMappingFileInfo).isNotNull();
   }
 
   @Test

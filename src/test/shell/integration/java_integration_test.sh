@@ -28,7 +28,16 @@ source "${CURRENT_DIR}/java_integration_test_utils.sh" \
   || { echo "java_integration_test_utils.sh not found!" >&2; exit 1; }
 set -eu
 
-declare -r runfiles_relative_javabase="$1"
+JAVABASE="$1"
+if [[ "$TEST_WORKSPACE" == "_main" ]]; then
+  # For Bazel
+  RUNFILES_JAVABASE=${JAVABASE#external/}
+  RUNFILES_JAVABASE="$(dirname $(dirname $(rlocation $RUNFILES_JAVABASE/bin/java)))"
+else
+  # For Blaze
+  RUNFILES_JAVABASE=${BAZEL_RUNFILES}/${JAVABASE}
+fi
+
 add_to_bazelrc "build --package_path=%workspace%"
 
 function set_up() {
@@ -39,7 +48,7 @@ function set_up() {
 
 function setup_local_jdk() {
   local -r dest="$1"
-  local -r src="${BAZEL_RUNFILES}/${runfiles_relative_javabase}"
+  local -r src="${RUNFILES_JAVABASE}"
 
   mkdir -p "$dest" || fail "mkdir -p $dest"
   cp -LR "${src}"/* "$dest" || fail "cp -LR \"${src}\"/* \"$dest\""
@@ -260,7 +269,7 @@ function assert_singlejar_works() {
     ln -s "my_jdk" "$pkg/my_jdk.symlink"
     local -r javabase="$(get_real_path "$pkg/my_jdk.symlink")"
   else
-    local -r javabase="${BAZEL_RUNFILES}/${runfiles_relative_javabase}"
+    local -r javabase="${RUNFILES_JAVABASE}"
   fi
 
   mkdir -p "$pkg/jvm"

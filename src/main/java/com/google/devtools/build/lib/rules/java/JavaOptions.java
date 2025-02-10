@@ -472,15 +472,6 @@ public class JavaOptions extends FragmentOptions {
   public List<Label> pluginList;
 
   @Option(
-      name = "incompatible_disallow_resource_jars",
-      defaultValue = "true",
-      documentationCategory = OptionDocumentationCategory.UNDOCUMENTED,
-      effectTags = {OptionEffectTag.UNKNOWN},
-      metadataTags = {OptionMetadataTag.INCOMPATIBLE_CHANGE},
-      help = "No-op, kept only for backwards compatibility")
-  public boolean disallowResourceJars;
-
-  @Option(
       name = "experimental_java_header_input_pruning",
       defaultValue = "false",
       documentationCategory = OptionDocumentationCategory.UNDOCUMENTED,

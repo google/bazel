@@ -44,7 +44,6 @@ class BazelLockfileTest(test_base.TestBase):
         [
             # In ipv6 only network, this has to be enabled.
             # 'startup --host_jvm_args=-Djava.net.preferIPv6Addresses=true',
-            'build --noenable_workspace',
             'build --experimental_isolated_extension_usages',
             'build --registry=' + self.main_registry.getURL(),
             # We need to have BCR here to make sure built-in modules like
@@ -661,10 +660,8 @@ class BazelLockfileTest(test_base.TestBase):
     self.assertIn(
         (
             'ERROR: MODULE.bazel.lock is no longer up-to-date because: The '
-            'implementation of the extension '
-            "'ModuleExtensionId[bzlFileLabel=//:extension.bzl, "
-            "extensionName=lockfile_ext, isolationKey=Optional.empty]' or one "
-            'of its transitive .bzl files has changed. Please run'
+            "implementation of the extension '@@//:extension.bzl%lockfile_ext' "
+            'or one of its transitive .bzl files has changed. Please run'
             ' `bazel mod deps --lockfile_mode=update` to update your lockfile.'
         ),
         stderr,
@@ -760,7 +757,7 @@ class BazelLockfileTest(test_base.TestBase):
     self.AssertNotExitCode(exit_code, 0, stderr)
     self.assertIn(
         (
-            'ERROR: module extension "other_ext" from "//:extension.bzl" does '
+            'ERROR: module extension @@//:extension.bzl%other_ext does '
             'not generate repository "hello", yet it is imported as '
             '"other_ext_hello" in the usage at '
             + module_file_path
@@ -845,8 +842,7 @@ class BazelLockfileTest(test_base.TestBase):
         (
             'ERROR: MODULE.bazel.lock is no longer up-to-date because: The'
             ' environment variables the extension'
-            " 'ModuleExtensionId[bzlFileLabel=//:extension.bzl,"
-            " extensionName=lockfile_ext, isolationKey=Optional.empty]' depends"
+            " '@@//:extension.bzl%lockfile_ext' depends"
             ' on (or their values) have changed. Please run'
             ' `bazel mod deps --lockfile_mode=update` to update your lockfile.'
         ),
@@ -991,7 +987,7 @@ class BazelLockfileTest(test_base.TestBase):
         stderr,
     )
     self.assertIn(
-        'ERROR: module extension "lockfile_ext" from "//:extension.bzl" does'
+        'ERROR: module extension @@//:extension.bzl%lockfile_ext does'
         ' not generate repository "invalid_dep"',
         stderr,
     )
@@ -1018,7 +1014,7 @@ class BazelLockfileTest(test_base.TestBase):
         stderr,
     )
     self.assertIn(
-        'ERROR: module extension "lockfile_ext" from "//:extension.bzl" does'
+        'ERROR: module extension @@//:extension.bzl%lockfile_ext does'
         ' not generate repository "invalid_dep"',
         stderr,
     )
@@ -1052,7 +1048,7 @@ class BazelLockfileTest(test_base.TestBase):
         stderr,
     )
     self.assertNotIn(
-        'ERROR: module extension "lockfile_ext" from "//:extension.bzl" does'
+        'ERROR: module extension @@//:extension.bzl%lockfile_ext does'
         ' not generate repository "invalid_dep"',
         stderr,
     )
@@ -1883,6 +1879,95 @@ class BazelLockfileTest(test_base.TestBase):
     self.assertNotIn('ran the extension!', stderr)
     self.assertIn('STR=@@bar+//:lib_foo', stderr)
 
+  def testExtensionRepoMappingChange_tag(self):
+    # Regression test for #20721
+    self.main_registry.createCcModule('foo', '1.0')
+    self.main_registry.createCcModule('bar', '1.0')
+    self.ScratchFile(
+        'MODULE.bazel',
+        [
+            'bazel_dep(name="foo",version="1.0",repo_name="repo_name")',
+            'bazel_dep(name="bar",version="1.0")',
+            'ext = use_extension(":ext.bzl", "ext")',
+            'ext.tag(label = "@repo_name//:lib_foo")',
+            'use_repo(ext, "repo")',
+        ],
+    )
+    self.ScratchFile(
+        'BUILD.bazel',
+        [
+            'load("@repo//:defs.bzl", "STR")',
+            'print("STR="+STR)',
+            'filegroup(name="lol")',
+        ],
+    )
+    self.ScratchFile(
+        'ext.bzl',
+        [
+            'def _repo_impl(rctx):',
+            '  rctx.file("BUILD")',
+            '  rctx.file("defs.bzl", "STR = " + repr(str(rctx.attr.value)))',
+            'repo = repository_rule(_repo_impl,attrs={"value":attr.label()})',
+            'def _ext_impl(mctx):',
+            '  print("ran the extension!")',
+            '  repo(name = "repo", value = mctx.modules[0].tags.tag[0].label)',
+            'tag = tag_class(',
+            '  attrs = {',
+            '    "label": attr.label(),',
+            '  },',
+            ')',
+            'ext = module_extension(_ext_impl, tag_classes={"tag": tag})',
+        ],
+    )
+
+    _, _, stderr = self.RunBazel(['build', ':lol'])
+    self.assertIn('STR=@@foo+//:lib_foo', '\n'.join(stderr))
+
+    # Shutdown bazel to make sure we rely on the lockfile and not skyframe
+    self.RunBazel(['shutdown'])
+    _, _, stderr = self.RunBazel(['build', ':lol'])
+    self.assertNotIn('ran the extension!', '\n'.join(stderr))
+
+    # Shutdown bazel to make sure we rely on the lockfile and not skyframe
+    self.RunBazel(['shutdown'])
+    # Now, for something spicy: let repo_name point to bar and change nothing
+    # else. The extension should rerun despite the lockfile being present, and
+    # no usages or .bzl files having changed.
+    self.ScratchFile(
+        'MODULE.bazel',
+        [
+            'bazel_dep(name="foo",version="1.0")',
+            'bazel_dep(name="bar",version="1.0",repo_name="repo_name")',
+            'ext = use_extension(":ext.bzl", "ext")',
+            'ext.tag(label = "@repo_name//:lib_foo")',
+            'use_repo(ext, "repo")',
+        ],
+    )
+    _, _, stderr = self.RunBazel(['build', ':lol'])
+    stderr = '\n'.join(stderr)
+    self.assertIn('ran the extension!', stderr)
+    self.assertIn('STR=@@bar+//:lib_foo', stderr)
+
+    # Shutdown bazel to make sure we rely on the lockfile and not skyframe
+    self.RunBazel(['shutdown'])
+    # More spicy! change the repo_name of foo, but nothing else.
+    # The extension should NOT rerun, since it never used the @other_name repo
+    # mapping.
+    self.ScratchFile(
+        'MODULE.bazel',
+        [
+            'bazel_dep(name="foo",version="1.0",repo_name="other_name")',
+            'bazel_dep(name="bar",version="1.0",repo_name="repo_name")',
+            'ext = use_extension(":ext.bzl", "ext")',
+            'ext.tag(label = "@repo_name//:lib_foo")',
+            'use_repo(ext, "repo")',
+        ],
+    )
+    _, _, stderr = self.RunBazel(['build', ':lol'])
+    stderr = '\n'.join(stderr)
+    self.assertNotIn('ran the extension!', stderr)
+    self.assertIn('STR=@@bar+//:lib_foo', stderr)
+
   def testExtensionRepoMappingChange_loadsAndRepoRelativeLabels(self):
     # Regression test for #20721; same test as above, except that the call to
     # Label() in ext.bzl is now moved to @{foo,bar}//:defs.bzl and doesn't
@@ -2024,50 +2109,6 @@ class BazelLockfileTest(test_base.TestBase):
     self.assertIn('ran the extension!', stderr)
     self.assertIn('STR=@@foo+//:lib_foo', stderr)
 
-  def testExtensionRepoMappingChange_mainRepoEvalCycleWithWorkspace(self):
-    # Regression test for #20942
-    self.main_registry.createCcModule('foo', '1.0')
-    self.ScratchFile(
-        'MODULE.bazel',
-        [
-            'bazel_dep(name="foo",version="1.0")',
-            'ext = use_extension(":ext.bzl", "ext")',
-            'use_repo(ext, "repo")',
-        ],
-    )
-    self.ScratchFile(
-        'BUILD.bazel',
-        [
-            'load("@repo//:defs.bzl", "STR")',
-            'print("STR="+STR)',
-            'filegroup(name="lol")',
-        ],
-    )
-    self.ScratchFile(
-        'ext.bzl',
-        [
-            'def _repo_impl(rctx):',
-            '  rctx.file("BUILD")',
-            '  rctx.file("defs.bzl", "STR = " + repr(str(rctx.attr.value)))',
-            'repo = repository_rule(_repo_impl,attrs={"value":attr.label()})',
-            'def _ext_impl(mctx):',
-            '  print("ran the extension!")',
-            '  repo(name = "repo", value = Label("@foo//:lib_foo"))',
-            'ext = module_extension(_ext_impl)',
-        ],
-    )
-    # any `load` in WORKSPACE should trigger the bug
-    self.ScratchFile('WORKSPACE.bzlmod', ['load("@repo//:defs.bzl","STR")'])
-
-    _, _, stderr = self.RunBazel(['build', '--enable_workspace', ':lol'])
-    self.assertIn('STR=@@foo+//:lib_foo', '\n'.join(stderr))
-
-    # Shutdown bazel to make sure we rely on the lockfile and not skyframe
-    self.RunBazel(['shutdown'])
-    # Build again. This should _NOT_ trigger a failure!
-    _, _, stderr = self.RunBazel(['build', '--enable_workspace', ':lol'])
-    self.assertNotIn('ran the extension!', '\n'.join(stderr))
-
   def testReproducibleExtensionsIgnoredInLockfile(self):
     self.ScratchFile(
         'MODULE.bazel',
@@ -2186,9 +2227,7 @@ class BazelLockfileTest(test_base.TestBase):
         ['build', '@repo//:all', '--lockfile_mode=error'], allow_failure=True
     )
     self.assertIn(
-        'ERROR: The module extension '
-        "'ModuleExtensionId[bzlFileLabel=//:extension.bzl, "
-        "extensionName=ext, isolationKey=Optional.empty]' does "
+        "ERROR: The module extension '@@//:extension.bzl%ext' does "
         'not exist in the lockfile',
         stderr,
     )

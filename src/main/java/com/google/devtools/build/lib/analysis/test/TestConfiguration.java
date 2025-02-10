@@ -21,10 +21,12 @@ import com.google.common.collect.Lists;
 import com.google.devtools.build.lib.analysis.OptionsDiffPredicate;
 import com.google.devtools.build.lib.analysis.config.BuildOptions;
 import com.google.devtools.build.lib.analysis.config.CoreOptionConverters.LabelConverter;
+import com.google.devtools.build.lib.analysis.config.CoreOptions;
 import com.google.devtools.build.lib.analysis.config.Fragment;
 import com.google.devtools.build.lib.analysis.config.FragmentOptions;
 import com.google.devtools.build.lib.analysis.config.PerLabelOptions;
 import com.google.devtools.build.lib.analysis.config.RequiresOptions;
+import com.google.devtools.build.lib.analysis.config.RunUnder;
 import com.google.devtools.build.lib.analysis.test.CoverageConfiguration.CoverageOptions;
 import com.google.devtools.build.lib.analysis.test.TestShardingStrategy.ShardingStrategyConverter;
 import com.google.devtools.build.lib.cmdline.Label;
@@ -32,6 +34,7 @@ import com.google.devtools.build.lib.packages.TestSize;
 import com.google.devtools.build.lib.packages.TestTimeout;
 import com.google.devtools.build.lib.util.Pair;
 import com.google.devtools.build.lib.util.RegexFilter;
+import com.google.devtools.common.options.Converters;
 import com.google.devtools.common.options.Option;
 import com.google.devtools.common.options.OptionDefinition;
 import com.google.devtools.common.options.OptionDocumentationCategory;
@@ -44,6 +47,7 @@ import java.time.Duration;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
 /** Test-related options. */
 @RequiresOptions(options = {TestConfiguration.TestOptions.class})
@@ -54,13 +58,21 @@ public class TestConfiguration extends Fragment {
           // changes in --trim_test_configuration itself or related flags always prompt invalidation
           return true;
         }
+        // LINT.IfChange
         Class<? extends FragmentOptions> affectedOptionsClass =
             changedOption.getDeclaringClass(FragmentOptions.class);
         if (!affectedOptionsClass.equals(TestOptions.class)
             && !affectedOptionsClass.equals(CoverageOptions.class)) {
-          // options outside of TestOptions always prompt invalidation
+          // options outside of TestOptions always prompt invalidation, except for --run_under.
+          if (affectedOptionsClass.equals(CoreOptions.class)
+              && changedOption.getOptionName().equals("run_under")) {
+            return !Objects.equals(
+                RunUnder.trimForNonTestConfiguration((RunUnder) oldValue),
+                RunUnder.trimForNonTestConfiguration((RunUnder) newValue));
+          }
           return true;
         }
+        // LINT.ThenChange(TestTrimmingLogic.java)
         // other options in TestOptions require invalidation when --trim_test_configuration is off
         return !options.get(TestOptions.class).trimTestConfiguration;
       };
@@ -72,6 +84,21 @@ public class TestConfiguration extends Fragment {
             OptionsParser.getOptionDefinitionByName(TestOptions.class, "trim_test_configuration"),
             OptionsParser.getOptionDefinitionByName(
                 TestOptions.class, "experimental_retain_test_configuration_across_testonly"));
+
+    @Option(
+        name = "test_env",
+        converter = Converters.OptionalAssignmentConverter.class,
+        allowMultiple = true,
+        defaultValue = "null",
+        documentationCategory = OptionDocumentationCategory.TESTING,
+        effectTags = {OptionEffectTag.TEST_RUNNER},
+        help =
+            "Specifies additional environment variables to be injected into the test runner "
+                + "environment. Variables can be either specified by name, in which case its value "
+                + "will be read from the Bazel client environment, or by the name=value pair. "
+                + "This option can be used multiple times to specify several variables. "
+                + "Used only by the 'bazel test' command.")
+    public List<Map.Entry<String, String>> testEnvironment;
 
     @Option(
         name = "test_timeout",
@@ -335,6 +362,13 @@ public class TestConfiguration extends Fragment {
         effectTags = {OptionEffectTag.EXECUTION},
         help = "If true, Bazel will allow local tests to run.")
     public boolean allowLocalTests;
+
+    @Override
+    public TestOptions getNormalized() {
+      TestOptions result = (TestOptions) clone();
+      result.testEnvironment = normalizeEntries(testEnvironment);
+      return result;
+    }
   }
 
   private final TestOptions options;

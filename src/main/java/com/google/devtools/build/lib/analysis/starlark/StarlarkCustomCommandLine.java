@@ -41,7 +41,6 @@ import com.google.devtools.build.lib.actions.FilesetOutputTree;
 import com.google.devtools.build.lib.actions.FilesetOutputTree.RelativeSymlinkBehaviorWithoutError;
 import com.google.devtools.build.lib.actions.PathMapper;
 import com.google.devtools.build.lib.actions.SingleStringArgFormatter;
-import com.google.devtools.build.lib.analysis.actions.PathMappers;
 import com.google.devtools.build.lib.analysis.config.CoreOptions;
 import com.google.devtools.build.lib.cmdline.Label;
 import com.google.devtools.build.lib.cmdline.RepositoryMapping;
@@ -575,7 +574,7 @@ public class StarlarkCustomCommandLine extends CommandLine {
             maybeExpandDirectories(
                 artifactExpander,
                 arguments.subList(argi, argi + count),
-                PathMappers.forActionKey(outputPathsMode));
+                PathMapper.forActionKey(outputPathsMode));
         argi += count;
         if (mapEach != null) {
           // TODO(b/160181927): If artifactExpander == null (which happens in the analysis phase)
@@ -590,7 +589,7 @@ public class StarlarkCustomCommandLine extends CommandLine {
               fingerprint::addString,
               location,
               artifactExpander,
-              PathMappers.forActionKey(outputPathsMode),
+              PathMapper.forActionKey(outputPathsMode),
               starlarkSemantics);
         } else {
           for (Object value : maybeExpandedValues) {
@@ -1034,7 +1033,7 @@ public class StarlarkCustomCommandLine extends CommandLine {
   public void addToFingerprint(
       ActionKeyContext actionKeyContext,
       @Nullable ArtifactExpander artifactExpander,
-      CoreOptions.OutputPathsMode outputPathsMode,
+      CoreOptions.OutputPathsMode effectiveOutputPathsMode,
       Fingerprint fingerprint)
       throws CommandLineExpansionException, InterruptedException {
     List<Object> arguments = rawArgsAsList();
@@ -1057,7 +1056,7 @@ public class StarlarkCustomCommandLine extends CommandLine {
                     actionKeyContext,
                     fingerprint,
                     artifactExpander,
-                    outputPathsMode);
+                    effectiveOutputPathsMode);
       } else if (arg == SingleFormattedArg.MARKER) {
         argi = SingleFormattedArg.addToFingerprint(arguments, argi, fingerprint);
       } else {
@@ -1205,7 +1204,7 @@ public class StarlarkCustomCommandLine extends CommandLine {
           args,
           location,
           artifactExpander,
-          PathMappers.forActionKey(outputPathsMode),
+          PathMapper.forActionKey(outputPathsMode),
           starlarkSemantics);
     }
 
@@ -1215,7 +1214,7 @@ public class StarlarkCustomCommandLine extends CommandLine {
       }
 
       return VectorArg.expandDirectories(
-          artifactExpander, ImmutableList.of(object), PathMappers.forActionKey(outputPathsMode));
+          artifactExpander, ImmutableList.of(object), PathMapper.forActionKey(outputPathsMode));
     }
 
     @Override

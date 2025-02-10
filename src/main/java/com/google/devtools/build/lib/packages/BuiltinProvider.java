@@ -66,6 +66,11 @@ public abstract class BuiltinProvider<T extends Info> implements Provider {
   }
 
   @Override
+  public void checkHashable() {
+    // The hash code is based on the class, so it is hashable.
+  }
+
+  @Override
   public boolean isExported() {
     return true;
   }

@@ -18,6 +18,7 @@ import static java.util.concurrent.Executors.newSingleThreadExecutor;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.util.concurrent.ListenableFuture;
+import com.google.devtools.build.lib.skyframe.serialization.WriteStatuses.WriteStatus;
 import com.google.devtools.common.options.OptionsParsingResult;
 import com.google.protobuf.ByteString;
 import java.io.IOException;
@@ -97,7 +98,7 @@ public final class FingerprintValueService {
   }
 
   /** Delegates to {@link FingerprintValueStore#put}. */
-  public ListenableFuture<Void> put(KeyBytesProvider fingerprint, byte[] serializedBytes) {
+  public WriteStatus put(KeyBytesProvider fingerprint, byte[] serializedBytes) {
     return store.put(fingerprint, serializedBytes);
   }
 

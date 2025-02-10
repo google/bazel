@@ -14,13 +14,11 @@
 
 package com.google.devtools.build.lib.actions;
 
-import static com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.common.base.MoreObjects;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import com.google.common.flogger.GoogleLogger;
-import com.google.devtools.build.lib.actions.SpawnResult.MetadataLog;
 import com.google.devtools.build.lib.buildeventstream.BuildEvent;
 import com.google.devtools.build.lib.buildeventstream.BuildEvent.LocalFile.LocalFileType;
 import com.google.devtools.build.lib.buildeventstream.BuildEventContext;
@@ -54,7 +52,6 @@ public final class ActionExecutedEvent implements BuildEventWithConfiguration {
   @Nullable private final FileArtifactValue primaryOutputMetadata;
   private final Path stdout;
   private final Path stderr;
-  private final ImmutableList<MetadataLog> actionMetadataLogs;
   private final ErrorTiming timing;
 
   /** Timestamp of the action starting; if no timestamp is available will be {@code null}. */
@@ -72,7 +69,6 @@ public final class ActionExecutedEvent implements BuildEventWithConfiguration {
       @Nullable FileArtifactValue primaryOutputMetadata,
       Path stdout,
       Path stderr,
-      ImmutableList<MetadataLog> actionMetadataLogs,
       ErrorTiming timing,
       @Nullable Instant startTime,
       @Nullable Instant endTime) {
@@ -85,7 +81,6 @@ public final class ActionExecutedEvent implements BuildEventWithConfiguration {
     this.stdout = stdout;
     this.stderr = stderr;
     this.timing = timing;
-    this.actionMetadataLogs = checkNotNull(actionMetadataLogs, this);
     this.startTime = startTime;
     this.endTime = endTime;
     Preconditions.checkState(
@@ -121,10 +116,6 @@ public final class ActionExecutedEvent implements BuildEventWithConfiguration {
       return null;
     }
     return stderr.toString();
-  }
-
-  public ImmutableList<MetadataLog> getActionMetadataLogs() {
-    return actionMetadataLogs;
   }
 
   @Nullable
@@ -169,11 +160,6 @@ public final class ActionExecutedEvent implements BuildEventWithConfiguration {
     }
     if (stderr != null) {
       localFiles.add(new LocalFile(stderr, LocalFileType.STDERR, /* artifactMetadata= */ null));
-    }
-    for (MetadataLog actionMetadataLog : actionMetadataLogs) {
-      localFiles.add(
-          new LocalFile(
-              actionMetadataLog.getFilePath(), LocalFileType.LOG, /* artifactMetadata= */ null));
     }
     if (exception == null) {
       localFiles.add(
@@ -235,16 +221,6 @@ public final class ActionExecutedEvent implements BuildEventWithConfiguration {
         configuration = NullConfiguration.INSTANCE;
       }
       actionBuilder.setConfiguration(configuration.getEventId().getConfiguration());
-    }
-    for (MetadataLog actionMetadataLog : actionMetadataLogs) {
-      String uri = pathConverter.apply(actionMetadataLog.getFilePath());
-      if (uri != null) {
-        actionBuilder.addActionMetadataLogs(
-            BuildEventStreamProtos.File.newBuilder()
-                .setName(actionMetadataLog.getName())
-                .setUri(uri)
-                .build());
-      }
     }
     if (exception == null) {
       String uri = pathConverter.apply(primaryOutput);

@@ -23,8 +23,10 @@ import com.google.devtools.build.lib.events.Event;
 import com.google.devtools.build.lib.packages.BazelStarlarkEnvironment;
 import com.google.devtools.build.lib.packages.DotBazelFileSyntaxChecker;
 import com.google.devtools.build.lib.packages.VendorThreadContext;
+import com.google.devtools.build.lib.packages.semantics.BuildLanguageOptions;
 import com.google.devtools.build.lib.rules.repository.RepositoryDelegatorFunction;
 import com.google.devtools.build.lib.skyframe.PrecomputedValue;
+import com.google.devtools.build.lib.skyframe.StarlarkUtil;
 import com.google.devtools.build.lib.util.StringEncoding;
 import com.google.devtools.build.lib.vfs.FileSystemUtils;
 import com.google.devtools.build.lib.vfs.Path;
@@ -115,7 +117,7 @@ public class VendorFileFunction implements SkyFunction {
       Environment env, SkyKey skyKey, Path vendorFilePath, StarlarkSemantics starlarkSemantics)
       throws VendorFileFunctionException, InterruptedException {
     try (Mutability mu = Mutability.create("vendor file")) {
-      StarlarkFile vendorFile = readAndParseVendorFile(vendorFilePath, env);
+      StarlarkFile vendorFile = readAndParseVendorFile(vendorFilePath, env, starlarkSemantics);
       new DotBazelFileSyntaxChecker("VENDOR.bazel files", /* canLoadBzl= */ false)
           .check(vendorFile);
       net.starlark.java.eval.Module predeclaredEnv =
@@ -147,7 +149,8 @@ public class VendorFileFunction implements SkyFunction {
     }
   }
 
-  private static StarlarkFile readAndParseVendorFile(Path path, Environment env)
+  private static StarlarkFile readAndParseVendorFile(
+      Path path, Environment env, StarlarkSemantics starlarkSemantics)
       throws VendorFileFunctionException {
     byte[] contents;
     try {
@@ -156,8 +159,21 @@ public class VendorFileFunction implements SkyFunction {
       throw new VendorFileFunctionException(
           new IOException("error reading VENDOR.bazel file", e), Transience.TRANSIENT);
     }
-    StarlarkFile starlarkFile =
-        StarlarkFile.parse(ParserInput.fromLatin1(contents, path.getPathString()));
+    ParserInput parserInput;
+    try {
+      parserInput =
+          StarlarkUtil.createParserInput(
+              contents,
+              path.getPathString(),
+              starlarkSemantics.get(BuildLanguageOptions.INCOMPATIBLE_ENFORCE_STARLARK_UTF8),
+              env.getListener());
+    } catch (
+        @SuppressWarnings("UnusedException") // createParserInput() reports its own error message
+        StarlarkUtil.InvalidUtf8Exception e) {
+      throw new VendorFileFunctionException(
+          new BadVendorFileException("error reading VENDOR.bazel file"), Transience.PERSISTENT);
+    }
+    StarlarkFile starlarkFile = StarlarkFile.parse(parserInput);
     if (!starlarkFile.ok()) {
       Event.replayEventsOn(env.getListener(), starlarkFile.errors());
       throw new VendorFileFunctionException(

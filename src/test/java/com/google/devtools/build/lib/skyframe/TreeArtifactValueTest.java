@@ -28,7 +28,6 @@ import com.google.devtools.build.lib.actions.Artifact.TreeFileArtifact;
 import com.google.devtools.build.lib.actions.ArtifactRoot;
 import com.google.devtools.build.lib.actions.ArtifactRoot.RootType;
 import com.google.devtools.build.lib.actions.FileArtifactValue;
-import com.google.devtools.build.lib.actions.FileArtifactValue.RemoteFileArtifactValue;
 import com.google.devtools.build.lib.actions.util.ActionsTestUtil;
 import com.google.devtools.build.lib.skyframe.TreeArtifactValue.ArchivedRepresentation;
 import com.google.devtools.build.lib.testutil.Scratch;
@@ -124,15 +123,15 @@ public final class TreeArtifactValueTest {
   }
 
   @Test
-  public void createsCorrectValueWithmaterializationExecPath() {
-    PathFragment targetPath = PathFragment.create("some/target/path");
+  public void createsCorrectValueWithResolvedPath() {
+    PathFragment targetPath = PathFragment.create("/some/target/path");
     SpecialArtifact parent = createTreeArtifact("bin/tree");
 
     TreeArtifactValue tree =
-        TreeArtifactValue.newBuilder(parent).setMaterializationExecPath(targetPath).build();
+        TreeArtifactValue.newBuilder(parent).setResolvedPath(targetPath).build();
 
-    assertThat(tree.getMaterializationExecPath()).hasValue(targetPath);
-    assertThat(tree.getMetadata().getMaterializationExecPath()).hasValue(targetPath);
+    assertThat(tree.getResolvedPath()).hasValue(targetPath);
+    assertThat(tree.getMetadata().getResolvedPath()).isEqualTo(targetPath);
   }
 
   @Test
@@ -832,8 +831,7 @@ public final class TreeArtifactValueTest {
   }
 
   private static FileArtifactValue metadataWithId(int id) {
-    return RemoteFileArtifactValue.create(
-        new byte[] {(byte) id}, id, id, /* expireAtEpochMilli= */ -1);
+    return FileArtifactValue.createForRemoteFile(new byte[] {(byte) id}, id, id);
   }
 
   private static FileArtifactValue metadataWithIdNoDigest(int id) {

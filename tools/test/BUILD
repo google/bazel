@@ -76,7 +76,7 @@ cc_library(
             "//src/main/native/windows:lib-file",
             "//src/main/native/windows:lib-process",
             "//third_party/ijar:zip",
-            "@bazel_tools//tools/cpp/runfiles",
+            "@rules_cc//cc/runfiles",
         ],
         "//conditions:default": [],
     }),

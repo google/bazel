@@ -162,16 +162,15 @@ public class RegisteredToolchainsFunction implements SkyFunction {
             key.debug()
                 ? message ->
                     rejectedToolchains.put(
-                        toolchain.toolchainType().typeLabel(), toolchain.toolchainLabel(), message)
+                        toolchain.toolchainType().typeLabel(), toolchain.targetLabel(), message)
                 : null;
         if (ConfigMatchingUtil.validate(
-            toolchain.toolchainLabel(), toolchain.targetSettings(), errorHandler)) {
+            toolchain.targetLabel(), toolchain.targetSettings(), errorHandler)) {
           validToolchains.add(toolchain);
         }
       } catch (InvalidConfigurationException e) {
         throw new RegisteredToolchainsFunctionException(
-            new InvalidToolchainLabelException(toolchain.toolchainLabel(), e),
-            Transience.PERSISTENT);
+            new InvalidToolchainLabelException(toolchain.targetLabel(), e), Transience.PERSISTENT);
       }
     }
 

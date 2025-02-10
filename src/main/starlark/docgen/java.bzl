@@ -13,6 +13,7 @@
 # limitations under the License.
 """Java"""
 
+load("@rules_java//java:java_single_jar.bzl", _java_single_jar = "java_single_jar")
 load("@rules_java//java/bazel/rules:bazel_java_binary.bzl", _java_binary = "java_binary")
 load("@rules_java//java/bazel/rules:bazel_java_import.bzl", _java_import = "java_import")
 load("@rules_java//java/bazel/rules:bazel_java_library.bzl", _java_library = "java_library")
@@ -42,4 +43,5 @@ other_rules = struct(
     java_plugin = _java_plugin,
     java_runtime = _java_runtime,
     java_toolchain = _java_toolchain,
+    java_single_jar = _java_single_jar,
 )

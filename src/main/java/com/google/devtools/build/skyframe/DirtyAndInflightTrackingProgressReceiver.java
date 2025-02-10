@@ -81,6 +81,11 @@ public class DirtyAndInflightTrackingProgressReceiver implements InflightTrackin
     }
   }
 
+  @Override
+  public void changePruned(SkyKey skyKey) {
+    progressReceiver.changePruned(skyKey);
+  }
+
   /**
    * Called when a node was requested to be enqueued but wasn't because either an interrupt or an
    * error (in nokeep_going mode) had occurred.

@@ -258,5 +258,5 @@ public class StarlarkSemantics {
   public static final String ALLOW_RECURSION = "-allow_recursion";
 
   /** Whether StarlarkSet objects may be constructed by the interpreter. */
-  public static final String EXPERIMENTAL_ENABLE_STARLARK_SET = "-experimental_enable_starlark_set";
+  public static final String EXPERIMENTAL_ENABLE_STARLARK_SET = "+experimental_enable_starlark_set";
 }

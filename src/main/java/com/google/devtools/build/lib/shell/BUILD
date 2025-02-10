@@ -1,12 +1,14 @@
 load("@rules_java//java:defs.bzl", "java_library")
-load("//tools/build_rules:java_rules_skylark.bzl", "bootstrap_java_library")
 
-package(default_visibility = ["//src:__subpackages__"])
+package(
+    default_applicable_licenses = ["//:license"],
+    default_visibility = ["//src:__subpackages__"],
+)
 
 filegroup(
     name = "srcs",
     srcs = glob(["**"]),
-    visibility = ["//src/main/java/com/google/devtools/build/lib:__pkg__"],
+    visibility = ["//src:__subpackages__"],
 )
 
 # Library for dealing with executable commands, including their arguments and runtime environment
@@ -28,30 +30,6 @@ java_library(
         "//third_party:auto_value",
         "//third_party:flogger",
         "//third_party:guava",
-    ],
-)
-
-# Bootstrapping SingleJar using Starlark rules
-#
-
-bootstrap_java_library(
-    name = "shell-starlark",
-    srcs = glob(
-        ["*.java"],
-        exclude = ["ExecutionStatistics.java"],
-    ),
-    jars = [
-        "//src/main/java/com/google/devtools/build/lib/actions:commandline_item",
-        "//src/main/java/com/google/devtools/build/lib/jni",
-        "//src/main/java/com/google/devtools/build/lib/util:describable_execution_unit",
-        "//src/main/java/com/google/devtools/build/lib/util:filetype",
-        "//src/main/java/com/google/devtools/build/lib/util:os",
-        "//src/main/java/com/google/devtools/build/lib/util:string",
-        "//src/main/java/com/google/devtools/build/lib/util:string_encoding",
-        "//src/main/java/com/google/devtools/build/lib/vfs:pathfragment",
-        "//src/main/java/com/google/devtools/build/lib/windows:processes",
-        "//third_party:auto_value-jars",
-        "//third_party:flogger-jars",
-        "//third_party:bootstrap_guava_and_error_prone-jars",
+        "//third_party:jsr305",
     ],
 )

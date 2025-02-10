@@ -50,7 +50,6 @@ import java.util.EnumSet;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.UUID;
@@ -58,6 +57,7 @@ import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import javax.annotation.Nullable;
 import net.starlark.java.eval.EvalException;
+import net.starlark.java.eval.Printer;
 import net.starlark.java.eval.Sequence;
 import net.starlark.java.eval.Starlark;
 import net.starlark.java.eval.StarlarkSemantics;
@@ -356,7 +356,7 @@ public final class Runfiles implements RunfilesApi {
       EventKind kind =
           switch (conflictType) {
             case NESTED_RUNFILES_TREE -> EventKind.ERROR;
-            case ROOT_SYMLINK, PREFIX_CONFLICT ->
+            case PREFIX_CONFLICT ->
                 conflictPolicy == ConflictPolicy.ERROR ? EventKind.ERROR : EventKind.WARNING;
             default ->
                 switch (conflictPolicy) {
@@ -386,7 +386,6 @@ public final class Runfiles implements RunfilesApi {
         conflictPolicy == ConflictPolicy.IGNORE
             ? EnumSet.of(
                 ConflictType.NESTED_RUNFILES_TREE,
-                ConflictType.ROOT_SYMLINK,
                 ConflictType.PREFIX_CONFLICT)
             : EnumSet.allOf(ConflictType.class);
 
@@ -401,7 +400,7 @@ public final class Runfiles implements RunfilesApi {
     Map<PathFragment, Artifact> manifest = getSymlinksAsMap(checker);
     // Add artifacts (committed to inclusion on construction of runfiles).
     for (Artifact artifact : artifacts.toList()) {
-      checker.put(manifest, artifact.getRunfilesPath(), artifact, ConflictType.OTHER);
+      checker.put(manifest, artifact.getRunfilesPath(), artifact);
     }
 
     manifest =
@@ -412,7 +411,7 @@ public final class Runfiles implements RunfilesApi {
 
     // TODO(bazel-team): Create /dev/null-like Artifact to avoid nulls?
     for (PathFragment extraPath : emptyFilesSupplier.getExtraPaths(manifest.keySet())) {
-      checker.put(manifest, extraPath, null, ConflictType.OTHER);
+      checker.put(manifest, extraPath, null);
     }
 
     // Copy manifest map to another manifest map, prepending the workspace name to every path.
@@ -423,11 +422,7 @@ public final class Runfiles implements RunfilesApi {
     builder.addUnderWorkspace(manifest, checker);
     builder.addRootSymlinks(getRootSymlinksAsMap(checker), checker);
     if (repoMappingManifest != null) {
-      checker.put(
-          builder.manifest,
-          REPO_MAPPING_PATH_FRAGMENT,
-          repoMappingManifest,
-          ConflictType.ROOT_SYMLINK);
+      checker.put(builder.manifest, REPO_MAPPING_PATH_FRAGMENT, repoMappingManifest);
     }
     return builder.build();
   }
@@ -463,15 +458,13 @@ public final class Runfiles implements RunfilesApi {
         PathFragment path = entry.getKey();
         if (isUnderWorkspace(path)) {
           sawWorkspaceName = true;
-          checker.put(
-              manifest, workspaceName.getRelative(path), entry.getValue(), ConflictType.OTHER);
+          checker.put(manifest, workspaceName.getRelative(path), entry.getValue());
         } else {
           if (legacyExternalRunfiles) {
-            checker.put(
-                manifest, getLegacyExternalPath(path), entry.getValue(), ConflictType.OTHER);
+            checker.put(manifest, getLegacyExternalPath(path), entry.getValue());
           }
           // Always add the non-legacy .runfiles/repo/whatever path.
-          checker.put(manifest, getExternalPath(path), entry.getValue(), ConflictType.OTHER);
+          checker.put(manifest, getExternalPath(path), entry.getValue());
         }
       }
     }
@@ -480,11 +473,7 @@ public final class Runfiles implements RunfilesApi {
     public void addRootSymlinks(
         Map<PathFragment, Artifact> inputManifest, ConflictChecker checker) {
       for (Map.Entry<PathFragment, Artifact> entry : inputManifest.entrySet()) {
-        checker.put(
-            manifest,
-            checkForWorkspace(entry.getKey()),
-            entry.getValue(),
-            ConflictType.ROOT_SYMLINK);
+        checker.put(manifest, checkForWorkspace(entry.getKey()), entry.getValue());
       }
     }
 
@@ -606,7 +595,7 @@ public final class Runfiles implements RunfilesApi {
     Map<PathFragment, Artifact> map = new LinkedHashMap<>();
     for (SymlinkEntry entry : entrySet.toList()) {
       // ConflictType does not matter, we ignore conflicts here
-      checker.put(map, entry.getPath(), entry.getArtifact(), ConflictType.OTHER);
+      checker.put(map, entry.getPath(), entry.getArtifact());
     }
     return map;
   }
@@ -627,8 +616,6 @@ public final class Runfiles implements RunfilesApi {
   public enum ConflictType {
     NESTED_RUNFILES_TREE, // A runfiles tree artifact in a runfiles tree
     PREFIX_CONFLICT, // An entry is the prefix of another
-    ROOT_SYMLINK, // A root symlink conflicts with something else
-    OTHER // Everything else
   };
 
   /** Checks for conflicts between entries in a runfiles tree while putting them in a map. */
@@ -655,11 +642,7 @@ public final class Runfiles implements RunfilesApi {
      * @param path Path fragment to use as key in map.
      * @param artifact Artifact to store in map. This may be null to indicate an empty file.
      */
-    void put(
-        Map<PathFragment, Artifact> map,
-        PathFragment path,
-        Artifact artifact,
-        ConflictType conflictType) {
+    void put(Map<PathFragment, Artifact> map, PathFragment path, Artifact artifact) {
       if (artifact != null && artifact.isRunfilesTree()) {
         if (conflictsToReport.contains(ConflictType.NESTED_RUNFILES_TREE)) {
           receiver.accept(
@@ -669,23 +652,6 @@ public final class Runfiles implements RunfilesApi {
         return;
       }
 
-      if (map.containsKey(path) && conflictsToReport.contains(conflictType)) {
-        // Previous and new entry might have value of null
-        Artifact previous = map.get(path);
-        if (!Objects.equals(previous, artifact)) {
-          String previousStr =
-              (previous == null) ? "empty file" : previous.getExecPath().toString();
-          String artifactStr =
-              (artifact == null) ? "empty file" : artifact.getExecPath().toString();
-          if (!previousStr.equals(artifactStr)) {
-            String message =
-                String.format(
-                    "overwrote runfile %s, was symlink to %s, now symlink to %s",
-                    path.getSafePathString(), previousStr, artifactStr);
-            receiver.accept(conflictType, message);
-          }
-        }
-      }
       map.put(path, artifact);
     }
   }
@@ -1149,5 +1115,18 @@ public final class Runfiles implements RunfilesApi {
                     : RUNFILES_AND_EXEC_PATH_MAP_FN,
                 artifacts))
         + String.format("emptyFilesSupplier: %s\n", emptyFilesSupplier.getClass().getName());
+  }
+
+  @Override
+  public void debugPrint(Printer printer, StarlarkThread thread) {
+    printer.append("Runfiles(empty_files = ");
+    printer.debugPrint(getEmptyFilenamesForStarlark(), thread);
+    printer.append(", files = ");
+    printer.debugPrint(getArtifactsForStarlark(), thread);
+    printer.append(", root_symlinks = ");
+    printer.debugPrint(getRootSymlinksForStarlark(), thread);
+    printer.append(", symlinks = ");
+    printer.debugPrint(getSymlinksForStarlark(), thread);
+    printer.append(")");
   }
 }

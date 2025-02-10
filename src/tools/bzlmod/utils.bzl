@@ -14,9 +14,10 @@
 
 """Helper functions for Bzlmod build"""
 
-load(":blazel_utils.bzl", _get_canonical_repo_name = "get_canonical_repo_name")
+load(":blazel_utils.bzl", _get_canonical_repo_name = "get_canonical_repo_name", _get_repo_root = "get_repo_root")
 
 get_canonical_repo_name = _get_canonical_repo_name
+get_repo_root = _get_repo_root
 
 def extract_url(attributes):
     """Extracts the url from the given attributes.

@@ -28,7 +28,7 @@ import com.google.devtools.build.lib.actions.EnvironmentalExecException;
 import com.google.devtools.build.lib.actions.ExecException;
 import com.google.devtools.build.lib.actions.FilesetOutputTree;
 import com.google.devtools.build.lib.actions.LostInputsActionExecutionException;
-import com.google.devtools.build.lib.actions.RemoteArtifactChecker;
+import com.google.devtools.build.lib.actions.OutputChecker;
 import com.google.devtools.build.lib.actions.cache.OutputMetadataStore;
 import com.google.devtools.build.lib.events.EventHandler;
 import com.google.devtools.build.lib.util.AbruptExitException;
@@ -131,8 +131,8 @@ public interface OutputService {
     return false;
   }
 
-  default RemoteArtifactChecker getRemoteArtifactChecker() {
-    return RemoteArtifactChecker.TRUST_ALL;
+  default OutputChecker getOutputChecker() {
+    return OutputChecker.TRUST_ALL;
   }
 
   /**

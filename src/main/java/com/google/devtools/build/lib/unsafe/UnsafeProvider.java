@@ -14,6 +14,7 @@
 
 package com.google.devtools.build.lib.unsafe;
 
+
 import java.lang.reflect.Field;
 import java.security.AccessController;
 import java.security.PrivilegedActionException;
@@ -33,6 +34,7 @@ public class UnsafeProvider {
     return UNSAFE;
   }
 
+  // TODO: b/386384684 - remove Unsafe usage
   public static long getFieldOffset(Class<?> type, String fieldName) throws NoSuchFieldException {
     return UNSAFE.objectFieldOffset(type.getDeclaredField(fieldName));
   }

@@ -107,4 +107,10 @@ public interface ObjcConfigurationApi extends StarlarkValue {
           "Returns whether executable strip action should use flag -x, which does not break "
               + "dynamic symbol resolution.")
   boolean stripExecutableSafely();
+
+  @StarlarkMethod(
+      name = "builtin_objc_strip_action",
+      structField = true,
+      doc = "Returns whether to emit a strip action as part of objc linking.")
+  boolean builtinObjcStripAction();
 }

@@ -6,6 +6,8 @@ Book: /_book.yaml
 
 # Legacy Macros
 
+{% include "_buttons.html" %}
+
 Legacy macros are unstructured functions called from `BUILD` files that can
 create targets. By the end of the
 [loading phase](/extending/concepts#evaluation-model), legacy macros don't exist

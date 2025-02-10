@@ -287,7 +287,7 @@ public class ProtoOutputFormatterCallbackTest extends ConfiguredTargetQueryTest 
     Configuration depRuleConfiguration =
         getConfigurationForId(configurations, depRuleProto.getConfigurationId());
     assertThat(depRuleConfiguration.getPlatformName()).isEqualTo("k8");
-    assertThat(depRuleConfiguration.getMnemonic()).matches("k8-opt-exec-.*");
+    assertThat(depRuleConfiguration.getMnemonic()).matches("k8-opt-exec.*");
     assertThat(depRuleConfiguration.getIsTool()).isTrue();
 
     CqueryNode depRule = getKeyedTargetByLabel(keyedTargets, "//test:dep");

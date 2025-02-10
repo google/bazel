@@ -16,7 +16,6 @@
 import os
 import unittest
 
-# Do not edit this line. Copybara replaces it with PY2 migration helper.
 from src.test.py.bazel import test_base
 from tools.android import junction
 

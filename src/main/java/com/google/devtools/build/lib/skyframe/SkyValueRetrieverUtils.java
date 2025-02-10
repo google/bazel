@@ -25,6 +25,7 @@ import com.google.devtools.build.lib.skyframe.serialization.SkyValueRetriever.De
 import com.google.devtools.build.lib.skyframe.serialization.SkyValueRetriever.RetrievalResult;
 import com.google.devtools.build.lib.skyframe.serialization.SkyValueRetriever.SerializableSkyKeyComputeState;
 import com.google.devtools.build.lib.skyframe.serialization.analysis.RemoteAnalysisCachingDependenciesProvider;
+import com.google.devtools.build.lib.skyframe.serialization.analysis.RemoteAnalysisCachingOptions.RemoteAnalysisCacheMode;
 import com.google.devtools.build.skyframe.SkyFunction.Environment;
 import com.google.devtools.build.skyframe.SkyKey;
 import java.util.function.Supplier;
@@ -41,7 +42,7 @@ public final class SkyValueRetrieverUtils {
       RemoteAnalysisCachingDependenciesProvider analysisCachingDeps,
       Supplier<? extends SerializableSkyKeyComputeState> stateSupplier)
       throws InterruptedException {
-    if (!analysisCachingDeps.enabled()) {
+    if (analysisCachingDeps.mode() != RemoteAnalysisCacheMode.DOWNLOAD) {
       return NO_CACHED_DATA;
     }
 

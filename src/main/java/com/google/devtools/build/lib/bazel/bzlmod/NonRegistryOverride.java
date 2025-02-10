@@ -17,6 +17,7 @@ package com.google.devtools.build.lib.bazel.bzlmod;
 
 import com.google.common.collect.ImmutableSet;
 import com.google.devtools.build.lib.skyframe.serialization.autocodec.AutoCodec;
+import java.util.Objects;
 
 /**
  * An override specifying that the module should not be retrieved from a registry or participate in
@@ -30,5 +31,26 @@ public record NonRegistryOverride(RepoSpec repoSpec) implements ModuleOverride {
   // non-registry overrides and thus must be loaded without relying on any other modules or the main
   // repo mapping.
   public static final ImmutableSet<RepoRuleId> BOOTSTRAP_REPO_RULES =
-      ImmutableSet.of(ArchiveRepoSpecBuilder.HTTP_ARCHIVE, GitRepoSpecBuilder.GIT_REPOSITORY);
+      ImmutableSet.of(
+          ArchiveRepoSpecBuilder.HTTP_ARCHIVE,
+          GitRepoSpecBuilder.GIT_REPOSITORY,
+          LocalPathRepoSpecs.LOCAL_REPOSITORY);
+
+  /**
+   * A special "sentinel" override for the {@code bazel_tools} repo, which is hardcoded to come from
+   * the {@code embedded_tools} directory bundled with Bazel. It has a null repo spec, which is not
+   * normally allowed.
+   *
+   * <p>Note that this override is never actually inspected, so it can contain an arbitrary repo
+   * spec. In {@code RepositoryDelegatorFunction}, the logic to fetch {@code bazel_tools} exits
+   * before reading the repo spec.
+   */
+  // TODO: wyv@ - refactor so that the builtin modules don't need a repo spec. This should be
+  //   possible once we remove the local_config_platform builtin module, and will reduce confusion.
+  public static final NonRegistryOverride BAZEL_TOOLS_OVERRIDE = new NonRegistryOverride(null);
+
+  @Override
+  public RepoSpec repoSpec() {
+    return Objects.requireNonNull(repoSpec, "The bazel_tools override should never be inspected");
+  }
 }

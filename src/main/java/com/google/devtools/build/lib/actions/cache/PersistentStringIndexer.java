@@ -20,7 +20,6 @@ import com.google.devtools.build.lib.clock.Clock;
 import com.google.devtools.build.lib.concurrent.ThreadSafety.ConditionallyThreadSafe;
 import com.google.devtools.build.lib.util.PersistentMap;
 import com.google.devtools.build.lib.util.StringIndexer;
-import com.google.devtools.build.lib.vfs.FileSystemUtils;
 import com.google.devtools.build.lib.vfs.Path;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
@@ -47,10 +46,9 @@ final class PersistentStringIndexer implements StringIndexer {
   private static final int INITIAL_CAPACITY = 8192;
 
   /** Instantiates and loads instance of the persistent string indexer. */
-  static PersistentStringIndexer create(Path dataPath, Clock clock) throws IOException {
-    PersistentIndexMap stringToInt =
-        new PersistentIndexMap(
-            dataPath, FileSystemUtils.replaceExtension(dataPath, ".journal"), clock);
+  static PersistentStringIndexer create(Path dataPath, Path journalPath, Clock clock)
+      throws IOException {
+    PersistentIndexMap stringToInt = new PersistentIndexMap(dataPath, journalPath, clock);
 
     // INITIAL_CAPACITY or the next power of two greater than the size.
     int capacity = max(INITIAL_CAPACITY, Integer.highestOneBit(stringToInt.size()) << 1);

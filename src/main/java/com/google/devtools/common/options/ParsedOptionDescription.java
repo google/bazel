@@ -195,7 +195,10 @@ public final class ParsedOptionDescription {
   }
 
   public boolean isExplicit() {
-    return origin.getExpandedFrom() == null && origin.getImplicitDependent() == null;
+    return origin.getExpandedFrom() == null
+        && origin.getImplicitDependent() == null
+        // Exclude options from PROJECT.scl files, which are not considered explicit.
+        && !(origin.getSource() != null && origin.getSource().endsWith("PROJECT.scl"));
   }
 
   public Object getConvertedValue() throws OptionsParsingException {

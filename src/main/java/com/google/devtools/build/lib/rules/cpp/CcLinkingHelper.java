@@ -713,7 +713,7 @@ public final class CcLinkingHelper {
               ccLinkingContext.getLibraries(),
               linkingMode != LinkingMode.DYNAMIC,
               dynamicLinkType.isDynamicLibrary(),
-              featureConfiguration);
+              featureConfiguration.isEnabled(CppRuleClasses.SUPPORTS_DYNAMIC_LINKER));
       // LINT.ThenChange(//src/main/starlark/builtins_bzl/common/cc/link/convert_linker_inputs.bzl)
       ImmutableList<CcLinkingContext.Linkstamp> linkstamps =
           ccLinkingContext.getLinkstamps().toList();
@@ -889,11 +889,11 @@ public final class CcLinkingHelper {
   }
 
   // LINT.IfChange
-  private static ImmutableList<LibraryInput> convertLibraryToLinkListToLinkerInputList(
+  public static ImmutableList<LibraryInput> convertLibraryToLinkListToLinkerInputList(
       NestedSet<LibraryToLink> librariesToLink,
       boolean staticMode,
       boolean forDynamicLibrary,
-      FeatureConfiguration featureConfiguration) {
+      boolean supportsDynamicLinker) {
     ImmutableList.Builder<LibraryInput> libraryInputsBuilder = ImmutableList.builder();
     for (LibraryToLink libraryToLink : librariesToLink.toList()) {
       LibraryInput staticLibraryInput =
@@ -930,8 +930,7 @@ public final class CcLinkingHelper {
         } else if (libraryToLink.getDynamicLibrary() != null) {
           libraryInputToUse = libraryToLink.getDynamicLibraryInput();
         }
-        if (libraryInputToUse == null
-            || !featureConfiguration.isEnabled(CppRuleClasses.SUPPORTS_DYNAMIC_LINKER)) {
+        if (libraryInputToUse == null || !supportsDynamicLinker) {
           if (forDynamicLibrary) {
             if (picStaticLibraryInput != null) {
               libraryInputToUse = picStaticLibraryInput;

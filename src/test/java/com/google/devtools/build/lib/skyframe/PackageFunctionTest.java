@@ -25,7 +25,6 @@ import static org.mockito.Mockito.reset;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import com.google.common.base.Predicates;
 import com.google.common.collect.HashMultiset;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
@@ -981,27 +980,6 @@ public class PackageFunctionTest extends BuildViewTestCase {
         reporter);
     assertContainsEvent(
         "visibility() can only be used during .bzl initialization (top-level evaluation)");
-  }
-
-  @Test
-  public void testBadWorkspaceFile() throws Exception {
-    setBuildLanguageOptions("--enable_workspace");
-    Path workspacePath = scratch.overwriteFile("WORKSPACE", "junk");
-    SkyKey skyKey = PackageIdentifier.createInMainRepo("external");
-    getSkyframeExecutor()
-        .invalidate(
-            Predicates.equalTo(
-                FileStateValue.key(
-                    RootedPath.toRootedPath(
-                        Root.fromPath(workspacePath.getParentDirectory()),
-                        PathFragment.create(workspacePath.getBaseName())))));
-
-    reporter.removeHandler(failFastHandler);
-    EvaluationResult<PackageValue> result =
-        SkyframeExecutorTestUtils.evaluate(
-            getSkyframeExecutor(), skyKey, /*keepGoing=*/ false, reporter);
-    assertThat(result.hasError()).isFalse();
-    assertThat(result.get(skyKey).getPackage().containsErrors()).isTrue();
   }
 
   // Regression test for the two ugly consequences of a bug where GlobFunction incorrectly matched

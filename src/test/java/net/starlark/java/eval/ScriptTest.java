@@ -228,14 +228,7 @@ public final class ScriptTest {
         Starlark.addMethods(predeclared, new ScriptTest()); // e.g. assert_eq
         predeclared.put("json", Json.INSTANCE);
 
-        // TODO(b/376078033): remove special set.star handling once Starlark sets are enabled by
-        // default.
-        StarlarkSemantics semantics =
-            name.equals("set.star")
-                ? StarlarkSemantics.builder()
-                    .setBool(StarlarkSemantics.EXPERIMENTAL_ENABLE_STARLARK_SET, true)
-                    .build()
-                : StarlarkSemantics.DEFAULT;
+        StarlarkSemantics semantics = StarlarkSemantics.DEFAULT;
         Module module = Module.withPredeclared(semantics, predeclared.buildOrThrow());
         try (Mutability mu = Mutability.createAllowingShallowFreeze("test")) {
           StarlarkThread thread = StarlarkThread.createTransient(mu, semantics);

@@ -92,7 +92,6 @@ public final class BazelMockPythonSupport extends MockPythonSupport {
         "rules_python_workspace/python/BUILD",
         "alias(name = 'toolchain_type', actual = '@bazel_tools//tools/python:toolchain_type')",
         "toolchain_type(name = 'exec_tools_toolchain_type')");
-    config.overwrite("rules_python_workspace/WORKSPACE", "workspace(name = 'rules_python')");
     config.overwrite("rules_python_workspace/MODULE.bazel", "module(name = 'rules_python')");
     config.overwrite(
         "rules_python_workspace/python/private/BUILD",

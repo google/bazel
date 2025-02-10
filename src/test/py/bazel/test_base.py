@@ -103,10 +103,6 @@ class TestBase(absltest.TestCase):
         # pylint: disable=line-too-long
         f.write('common --extra_toolchains=@bazel_tools//tools/python:autodetecting_toolchain\n')
 
-      # Disable WORKSPACE in python tests by default
-      # TODO(pcloudy): Remove when --enable_workspace defaults to false
-      f.write('common --noenable_workspace\n')
-
     # An empty MODULE.bazel and a corresponding MODULE.bazel.lock will prevent
     # tests from accessing BCR
     self.ScratchFile('MODULE.bazel')
@@ -115,11 +111,6 @@ class TestBase(absltest.TestCase):
         'MODULE.bazel.lock',
     )
     os.chdir(self._test_cwd)
-
-  def DisableBzlmod(self):
-    with open(self._test_bazelrc, 'at') as f:
-      f.write('common --noenable_bzlmod\n')
-      f.write('common --enable_workspace\n')
 
   def tearDown(self):
     self.RunBazel(['shutdown'])

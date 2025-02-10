@@ -15,7 +15,6 @@ package com.google.devtools.build.lib.analysis.starlark;
 
 import com.google.common.base.Joiner;
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import com.google.devtools.build.lib.analysis.actions.Substitution;
@@ -134,12 +133,7 @@ public class TemplateDict implements TemplateDictApi {
         List<String> parts = new ArrayList<>(values.size());
         for (Object val : values) {
           try {
-            Object ret =
-                Starlark.call(
-                    execThread,
-                    mapEach,
-                    /*args=*/ ImmutableList.of(val),
-                    /*kwargs=*/ ImmutableMap.of());
+            Object ret = Starlark.positionalOnlyCall(execThread, mapEach, val);
             if (ret instanceof String string) {
               parts.add(string);
             } else if (ret instanceof Sequence<?> sequence) {

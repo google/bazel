@@ -33,7 +33,6 @@ import com.google.devtools.build.lib.actions.Artifact.SpecialArtifact;
 import com.google.devtools.build.lib.actions.Artifact.TreeFileArtifact;
 import com.google.devtools.build.lib.actions.ArtifactPathResolver;
 import com.google.devtools.build.lib.actions.FileArtifactValue;
-import com.google.devtools.build.lib.actions.FileArtifactValue.RemoteFileArtifactValue;
 import com.google.devtools.build.lib.actions.FileStateType;
 import com.google.devtools.build.lib.actions.FileStateValue;
 import com.google.devtools.build.lib.actions.FileStatusWithMetadata;
@@ -86,16 +85,14 @@ final class ActionOutputMetadataStore implements OutputMetadataStore {
       ImmutableSet<Artifact> outputs,
       XattrProvider xattrProvider,
       TimestampGranularityMonitor tsgm,
-      ArtifactPathResolver artifactPathResolver,
-      PathFragment execRoot) {
+      ArtifactPathResolver artifactPathResolver) {
     return new ActionOutputMetadataStore(
         archivedTreeArtifactsEnabled,
         outputPermissions,
         outputs,
         xattrProvider,
         tsgm,
-        artifactPathResolver,
-        execRoot);
+        artifactPathResolver);
   }
 
   private final boolean archivedTreeArtifactsEnabled;
@@ -104,7 +101,6 @@ final class ActionOutputMetadataStore implements OutputMetadataStore {
   private final XattrProvider xattrProvider;
   private final TimestampGranularityMonitor tsgm;
   private final ArtifactPathResolver artifactPathResolver;
-  private final PathFragment execRoot;
 
   private final AtomicBoolean executionMode = new AtomicBoolean(false);
 
@@ -120,15 +116,13 @@ final class ActionOutputMetadataStore implements OutputMetadataStore {
       ImmutableSet<Artifact> outputs,
       XattrProvider xattrProvider,
       TimestampGranularityMonitor tsgm,
-      ArtifactPathResolver artifactPathResolver,
-      PathFragment execRoot) {
+      ArtifactPathResolver artifactPathResolver) {
     this.archivedTreeArtifactsEnabled = archivedTreeArtifactsEnabled;
     this.outputPermissions = outputPermissions;
     this.outputs = checkNotNull(outputs);
     this.xattrProvider = xattrProvider;
     this.tsgm = checkNotNull(tsgm);
     this.artifactPathResolver = checkNotNull(artifactPathResolver);
-    this.execRoot = checkNotNull(execRoot);
   }
 
   private void putArtifactData(Artifact artifact, FileArtifactValue value) {
@@ -308,13 +302,19 @@ final class ActionOutputMetadataStore implements OutputMetadataStore {
       }
     }
 
-    // Same rationale as for constructFileArtifactValue.
-    if (anyRemote.get() && treeDir.isSymbolicLink() && stat instanceof FileStatusWithMetadata) {
-      FileArtifactValue metadata = ((FileStatusWithMetadata) stat).getMetadata();
-      tree.setMaterializationExecPath(
-          metadata
-              .getMaterializationExecPath()
-              .orElse(treeDir.resolveSymbolicLinks().asFragment().relativeTo(execRoot)));
+    // If the artifact was materialized in the filesystem as as symlink to another artifact, record
+    // the real path in the metadata so that it can be recreated as such later.
+    // See {@link FileArtifactValue#getResolvedPath} for why this is useful.
+    // TODO(tjgq): Actually check whether the path matches one of the action inputs. The presence
+    // of a FileStatusWithMetadata happens to coincide, but seems a little brittle.
+    if (stat instanceof FileStatusWithMetadata statWithMetadata && treeDir.isSymbolicLink()) {
+      FileArtifactValue metadata = statWithMetadata.getMetadata();
+      PathFragment resolvedPath = metadata.getResolvedPath();
+      if (resolvedPath != null) {
+        tree.setResolvedPath(resolvedPath);
+      } else {
+        tree.setResolvedPath(treeDir.resolveSymbolicLinks().asFragment());
+      }
     }
 
     return tree.build();
@@ -410,20 +410,6 @@ final class ActionOutputMetadataStore implements OutputMetadataStore {
             // and potentially delaying the build for no reason.
             artifact.isConstantMetadata() ? null : tsgm);
     var value = statAndValue.fileArtifactValue();
-
-    // If the artifact is stored remotely but it was materialized in the filesystem as a symlink,
-    // store the original path in the metadata so it can later be recreated as such to avoid
-    // downloading multiple copies.
-    //
-    // This only affects Bazel when building without the bytes. In Blaze, without an action
-    // filesystem, metadata is always local (isRemote() is false); and with an action filesystem,
-    // createSymbolicLink() is implemented as a file copy (isSymbolicLink() is false).
-    if (value.isRemote() && statAndValue.statNoFollow().isSymbolicLink()) {
-      value =
-          RemoteFileArtifactValue.createFromExistingWithMaterializationPath(
-              (RemoteFileArtifactValue) value,
-              statAndValue.realPath().asFragment().relativeTo(execRoot));
-    }
 
     // Ensure that we don't have both an injected digest and a digest from the filesystem.
     byte[] fileDigest = value.getDigest();
@@ -557,6 +543,18 @@ final class ActionOutputMetadataStore implements OutputMetadataStore {
     FileStatusWithDigest realStatWithDigest = FileStatusWithDigestAdapter.maybeAdapt(realStat);
     var fileArtifactValue =
         fileArtifactValueFromStat(realRootedPath, realStatWithDigest, xattrProvider, tsgm);
+
+    // If the artifact was materialized in the filesystem as as symlink to another artifact, record
+    // the real path in the metadata so that it can be recreated as such later.
+    // See {@link FileArtifactValue#getResolvedPath} for why this is useful.
+    // TODO(tjgq): Actually check whether the path matches one of the action inputs. The presence
+    // of a FileStatusWithMetadata happens to coincide, but seems a little brittle.
+    if (realStat instanceof FileStatusWithMetadata && fileArtifactValue.getResolvedPath() == null) {
+      fileArtifactValue =
+          FileArtifactValue.createFromExistingWithResolvedPath(
+              fileArtifactValue, realRootedPath.asPath().asFragment());
+    }
+
     return FileArtifactStatAndValue.create(pathNoFollow, realPath, statNoFollow, fileArtifactValue);
   }
 

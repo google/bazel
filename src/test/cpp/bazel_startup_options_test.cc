@@ -19,7 +19,7 @@
 #include <memory>
 
 #include "src/main/cpp/blaze_util_platform.h"
-#include "src/main/cpp/workspace_layout.h"
+#include "src/main/cpp/util/file_platform.h"
 #include "src/test/cpp/test_util.h"
 #include "googletest/include/gtest/gtest.h"
 
@@ -27,9 +27,6 @@ namespace blaze {
 
 class BazelStartupOptionsTest : public ::testing::Test {
  protected:
-  BazelStartupOptionsTest() : workspace_layout_(new WorkspaceLayout()) {}
-  ~BazelStartupOptionsTest() = default;
-
   void SetUp() override {
     // This knowingly ignores the possibility of these environment variables
     // being unset because we expect our test runner to set them in all cases.
@@ -43,11 +40,13 @@ class BazelStartupOptionsTest : public ::testing::Test {
 
   // Recreates startup_options_ after changes to the environment.
   void ReinitStartupOptions() {
-    startup_options_.reset(new BazelStartupOptions(workspace_layout_.get()));
+    startup_options_ = std::make_unique<BazelStartupOptions>();
   }
 
- private:
-  std::unique_ptr<WorkspaceLayout> workspace_layout_;
+  // Calls UpdateConfiguration with some default values.
+  void UpdateConfiguration() {
+    startup_options_->UpdateConfiguration("deadbeef", "workspace", false);
+  }
 
  protected:
   std::unique_ptr<BazelStartupOptions> startup_options_;
@@ -84,6 +83,145 @@ TEST_F(BazelStartupOptionsTest, EmptyFlagsAreInvalid) {
   EXPECT_FALSE(startup_options_->IsUnary(""));
   EXPECT_FALSE(startup_options_->IsUnary("--"));
 }
+
+#ifdef __linux
+TEST_F(BazelStartupOptionsTest, UpdateConfigurationOnLinuxWithTestTmpdir) {
+  SetEnv("USER", "gandalf");
+  SetEnv("HOME", "/nonexistent/home");
+  SetEnv("XDG_CACHE_HOME", "/nonexistent/cache");
+  SetEnv("TEST_TMPDIR", "/nonexistent/tmpdir");
+  ReinitStartupOptions();
+  UpdateConfiguration();
+
+  ASSERT_EQ(blaze_util::Path("/nonexistent/tmpdir/_bazel_gandalf"),
+            startup_options_->output_user_root);
+  ASSERT_EQ(
+      blaze_util::Path("/nonexistent/tmpdir/_bazel_gandalf/install/deadbeef"),
+      startup_options_->install_base);
+  ASSERT_EQ(blaze_util::Path("/nonexistent/tmpdir/_bazel_gandalf/"
+                             "1629dee48cc4e53161f9b2be8614e062"),
+            startup_options_->output_base);
+}
+
+TEST_F(BazelStartupOptionsTest, UpdateConfigurationOnLinuxWithXdgCacheHome) {
+  SetEnv("USER", "gandalf");
+  SetEnv("HOME", "/nonexistent/home");
+  SetEnv("XDG_CACHE_HOME", "/nonexistent/cache");
+  UnsetEnv("TEST_TMPDIR");
+  ReinitStartupOptions();
+  UpdateConfiguration();
+
+  ASSERT_EQ(blaze_util::Path("/nonexistent/cache/bazel/_bazel_gandalf"),
+            startup_options_->output_user_root);
+  ASSERT_EQ(blaze_util::Path(
+                "/nonexistent/cache/bazel/_bazel_gandalf/install/deadbeef"),
+            startup_options_->install_base);
+  ASSERT_EQ(blaze_util::Path("/nonexistent/cache/bazel/_bazel_gandalf/"
+                             "1629dee48cc4e53161f9b2be8614e062"),
+            startup_options_->output_base);
+}
+
+TEST_F(BazelStartupOptionsTest, UpdateConfigurationOnLinuxWithHome) {
+  SetEnv("USER", "gandalf");
+  SetEnv("HOME", "/nonexistent/home");
+  UnsetEnv("TEST_TMPDIR");
+  UnsetEnv("XDG_CACHE_HOME");
+  ReinitStartupOptions();
+  UpdateConfiguration();
+
+  ASSERT_EQ(blaze_util::Path("/nonexistent/home/.cache/bazel/_bazel_gandalf"),
+            startup_options_->output_user_root);
+  ASSERT_EQ(
+      blaze_util::Path(
+          "/nonexistent/home/.cache/bazel/_bazel_gandalf/install/deadbeef"),
+      startup_options_->install_base);
+  ASSERT_EQ(blaze_util::Path("/nonexistent/home/.cache/bazel/_bazel_gandalf/"
+                             "1629dee48cc4e53161f9b2be8614e062"),
+            startup_options_->output_base);
+}
+
+TEST_F(BazelStartupOptionsTest, UpdateConfigurationOnLinuxNoShellExpansion) {
+  SetEnv("USER", "gandalf");
+  SetEnv("TEST_TMPDIR", "~/\"$foo/test\"");
+  SetEnv("XDG_CACHE_HOME", "~/cache${bar}");
+  SetEnv("HOME", "~/home$(echo baz)");
+
+  ReinitStartupOptions();
+  UpdateConfiguration();
+
+  ASSERT_EQ(blaze_util::Path(blaze_util::GetCwd() + "/~/\"$foo/test\"" +
+                             "/_bazel_gandalf"),
+            startup_options_->output_user_root);
+
+  UnsetEnv("TEST_TMPDIR");
+  ReinitStartupOptions();
+  UpdateConfiguration();
+
+  ASSERT_EQ(blaze_util::Path(blaze_util::GetCwd() +
+                             "/~/cache${bar}/bazel/_bazel_gandalf"),
+            startup_options_->output_user_root);
+
+  UnsetEnv("XDG_CACHE_HOME");
+  ReinitStartupOptions();
+  UpdateConfiguration();
+
+  ASSERT_EQ(blaze_util::Path(blaze_util::GetCwd() +
+                             "/~/home$(echo baz)/.cache/bazel/_bazel_gandalf"),
+            startup_options_->output_user_root);
+}
+#endif  // __linux
+
+#ifdef __APPLE__
+TEST_F(BazelStartupOptionsTest, UpdateConfigurationOnDarwin) {
+  SetEnv("USER", "gandalf");
+  SetEnv("HOME", "/nonexistent/home");
+  UnsetEnv("TEST_TMPDIR");
+  ReinitStartupOptions();
+  UpdateConfiguration();
+
+  ASSERT_EQ(blaze_util::Path("/var/tmp/_bazel_gandalf"),
+            startup_options_->output_user_root);
+  ASSERT_EQ(blaze_util::Path("/var/tmp/_bazel_gandalf/install/deadbeef"),
+            startup_options_->install_base);
+  ASSERT_EQ(blaze_util::Path("/var/tmp/_bazel_gandalf/"
+                             "1629dee48cc4e53161f9b2be8614e062"),
+            startup_options_->output_base);
+}
+#endif  // __APPLE__
+
+#if defined(__WIN32__) || defined(__CYGWIN__)
+TEST_F(BazelStartupOptionsTest, UpdateConfigurationOnWindowsWithHome) {
+  SetEnv("USER", "gandalf");
+  SetEnv("HOME", "C:\\Users\\gandalf");
+  UnsetEnv("TEST_TMPDIR");
+  ReinitStartupOptions();
+  UpdateConfiguration();
+
+  ASSERT_EQ(blaze_util::Path("C:/Users/gandalf/_bazel_gandalf"),
+            startup_options_->output_user_root);
+  ASSERT_EQ(blaze_util::Path("C:/Users/gandalf/install/deadbeef"),
+            startup_options_->install_base);
+  ASSERT_EQ(blaze_util::Path("C:/Users/gandalf/_bazel_gandalf/"
+                             "1629dee48cc4e53161f9b2be8614e062"),
+            startup_options_->output_base);
+}
+
+TEST_F(BazelStartupOptionsTest, UpdateConfigurationOnWindowsWithUserProfile) {
+  UnsetEnv("HOME");
+  SetEnv("USERPROFILE", "C:\\Users\\gandalf");
+  UnsetEnv("TEST_TMPDIR");
+  ReinitStartupOptions();
+  UpdateConfiguration();
+
+  ASSERT_EQ(blaze_util::Path("C:/Users/gandalf/_bazel_gandalf"),
+            startup_options_->output_user_root);
+  ASSERT_EQ(blaze_util::Path("C:/Users/gandalf/install/deadbeef"),
+            startup_options_->install_base);
+  ASSERT_EQ(blaze_util::Path("C:/Users/gandalf/_bazel_gandalf/"
+                             "1629dee48cc4e53161f9b2be8614e062"),
+            startup_options_->output_base);
+}
+#endif  // __WIN32__ || __CYGWIN__
 
 // TODO(#4502 related cleanup) This test serves as a catalog of the valid
 // options - make this test check that the list is complete, that no options are
@@ -207,6 +345,10 @@ TEST_F(BazelStartupOptionsTest, FinalValueOfIgnoreIsUsedForWarning) {
       startup_options_.get(),
       {"--ignore_all_rc_files", "--noignore_all_rc_files"},
       "");
+}
+
+TEST_F(BazelStartupOptionsTest, LockInstallBase) {
+  EXPECT_TRUE(startup_options_->lock_install_base);
 }
 
 }  // namespace blaze

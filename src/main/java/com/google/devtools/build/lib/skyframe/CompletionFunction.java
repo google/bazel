@@ -29,20 +29,20 @@ import com.google.devtools.build.lib.actions.ActionInput;
 import com.google.devtools.build.lib.actions.ActionInputMap;
 import com.google.devtools.build.lib.actions.ActionInputPrefetcher;
 import com.google.devtools.build.lib.actions.ActionInputPrefetcher.Priority;
+import com.google.devtools.build.lib.actions.ActionInputPrefetcher.Reason;
 import com.google.devtools.build.lib.actions.Artifact;
 import com.google.devtools.build.lib.actions.Artifact.DerivedArtifact;
 import com.google.devtools.build.lib.actions.CompletionContext;
 import com.google.devtools.build.lib.actions.CompletionContext.PathResolverFactory;
 import com.google.devtools.build.lib.actions.EventReportingArtifacts;
 import com.google.devtools.build.lib.actions.FileArtifactValue;
-import com.google.devtools.build.lib.actions.FileArtifactValue.RemoteFileArtifactValue;
 import com.google.devtools.build.lib.actions.FilesetOutputTree;
 import com.google.devtools.build.lib.actions.ImportantOutputHandler;
 import com.google.devtools.build.lib.actions.ImportantOutputHandler.ImportantOutputException;
 import com.google.devtools.build.lib.actions.ImportantOutputHandler.LostArtifacts;
 import com.google.devtools.build.lib.actions.InputFileErrorException;
 import com.google.devtools.build.lib.actions.InputMetadataProvider;
-import com.google.devtools.build.lib.actions.RemoteArtifactChecker;
+import com.google.devtools.build.lib.actions.OutputChecker;
 import com.google.devtools.build.lib.actions.TopLevelOutputException;
 import com.google.devtools.build.lib.analysis.ConfiguredObjectValue;
 import com.google.devtools.build.lib.analysis.ConfiguredTarget;
@@ -398,22 +398,20 @@ public final class CompletionFunction<
     }
 
     var outputService = skyframeActionExecutor.getOutputService();
-    var remoteArtifactChecker = outputService.getRemoteArtifactChecker();
-    if (remoteArtifactChecker == RemoteArtifactChecker.TRUST_ALL) {
+    var outputChecker = outputService.getOutputChecker();
+    if (outputChecker == OutputChecker.TRUST_ALL) {
       return;
     }
 
     var futures = new ArrayList<ListenableFuture<Void>>();
 
     for (var artifact : importantArtifacts) {
-      downloadArtifact(
-          env, remoteArtifactChecker, actionInputPrefetcher, inputMap, artifact, futures);
+      downloadArtifact(env, outputChecker, actionInputPrefetcher, inputMap, artifact, futures);
     }
 
     for (var runfileTree : inputMap.getRunfilesTrees()) {
       for (var artifact : runfileTree.getArtifacts().toList()) {
-        downloadArtifact(
-            env, remoteArtifactChecker, actionInputPrefetcher, inputMap, artifact, futures);
+        downloadArtifact(env, outputChecker, actionInputPrefetcher, inputMap, artifact, futures);
       }
     }
 
@@ -436,7 +434,7 @@ public final class CompletionFunction<
 
   private void downloadArtifact(
       Environment env,
-      RemoteArtifactChecker remoteArtifactChecker,
+      OutputChecker outputChecker,
       ActionInputPrefetcher actionInputPrefetcher,
       ActionInputMap inputMap,
       Artifact artifact,
@@ -458,9 +456,7 @@ public final class CompletionFunction<
       for (var child : treeMetadata.getChildValues().entrySet()) {
         var treeFile = child.getKey();
         var metadata = child.getValue();
-        if (metadata.isRemote()
-            && !remoteArtifactChecker.shouldTrustRemoteArtifact(
-                treeFile, (RemoteFileArtifactValue) metadata)) {
+        if (!outputChecker.shouldTrustArtifact(treeFile, metadata)) {
           filesToDownload.add(treeFile);
         }
       }
@@ -469,7 +465,7 @@ public final class CompletionFunction<
             ActionUtils.getActionForLookupData(env, derivedArtifact.getGeneratingActionKey());
         var future =
             actionInputPrefetcher.prefetchFiles(
-                action, filesToDownload, inputMap::getInputMetadata, Priority.LOW);
+                action, filesToDownload, inputMap, Priority.LOW, Reason.OUTPUTS);
         futures.add(future);
       }
     } else {
@@ -478,14 +474,12 @@ public final class CompletionFunction<
         return;
       }
 
-      if (metadata.isRemote()
-          && !remoteArtifactChecker.shouldTrustRemoteArtifact(
-              artifact, (RemoteFileArtifactValue) metadata)) {
+      if (!outputChecker.shouldTrustArtifact(artifact, metadata)) {
         var action =
             ActionUtils.getActionForLookupData(env, derivedArtifact.getGeneratingActionKey());
         var future =
             actionInputPrefetcher.prefetchFiles(
-                action, ImmutableList.of(artifact), inputMap::getInputMetadata, Priority.LOW);
+                action, ImmutableList.of(artifact), inputMap, Priority.LOW, Reason.OUTPUTS);
         futures.add(future);
       }
     }

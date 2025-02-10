@@ -27,7 +27,6 @@ import com.google.devtools.build.lib.actions.Artifact;
 import com.google.devtools.build.lib.actions.CommandLineExpansionException;
 import com.google.devtools.build.lib.actions.ExecException;
 import com.google.devtools.build.lib.actions.UserExecException;
-import com.google.devtools.build.lib.analysis.config.BuildConfigurationValue;
 import com.google.devtools.build.lib.analysis.config.PerLabelOptions;
 import com.google.devtools.build.lib.analysis.config.RunUnder;
 import com.google.devtools.build.lib.analysis.config.RunUnder.CommandRunUnder;
@@ -58,7 +57,6 @@ import com.google.devtools.build.lib.view.test.TestStatus.TestResultData;
 import java.io.Closeable;
 import java.io.IOException;
 import java.io.InputStream;
-import java.time.Duration;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -147,7 +145,7 @@ public abstract class TestStrategy implements TestActionContext {
   }
 
   /** Removes directory if it exists and recreates it. */
-  private void recreateDirectory(Path directory) throws IOException {
+  private static void recreateDirectory(Path directory) throws IOException {
     directory.deleteTree();
     directory.createDirectoryAndParents();
   }
@@ -309,19 +307,6 @@ public abstract class TestStrategy implements TestActionContext {
     return defaultTestAttempts;
   }
 
-  /**
-   * Returns timeout value in seconds that should be used for the given test action. We always use
-   * the "categorical timeouts" which are based on the --test_timeout flag. A rule picks its timeout
-   * but ends up with the same effective value as all other rules in that bucket.
-   */
-  protected static final Duration getTimeout(TestRunnerAction testAction) {
-    BuildConfigurationValue configuration = testAction.getConfiguration();
-    return configuration
-        .getFragment(TestConfiguration.class)
-        .getTestTimeout()
-        .get(testAction.getTestProperties().getTimeout());
-  }
-
   /*
    * Finalize test run: persist the result, and post on the event bus.
    */
@@ -459,8 +444,8 @@ public abstract class TestStrategy implements TestActionContext {
   }
 
   /**
-   * For an given environment, returns a subset containing all variables in the given list if they
-   * are defined in the given environment.
+   * Returns a subset containing all variables in the given list if they are defined in the given
+   * environment.
    */
   @VisibleForTesting
   public static Map<String, String> getMapping(

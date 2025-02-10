@@ -14,6 +14,8 @@
 
 package com.google.devtools.build.lib.rules;
 
+import static com.google.devtools.build.lib.packages.Attribute.attr;
+
 import com.google.devtools.build.lib.actions.ActionConflictException;
 import com.google.devtools.build.lib.analysis.BaseRuleClasses;
 import com.google.devtools.build.lib.analysis.ConfiguredTarget;
@@ -27,6 +29,7 @@ import com.google.devtools.build.lib.analysis.RunfilesProvider;
 import com.google.devtools.build.lib.analysis.platform.ToolchainTypeInfo;
 import com.google.devtools.build.lib.packages.RuleClass;
 import com.google.devtools.build.lib.packages.RuleClass.ToolchainResolutionMode;
+import com.google.devtools.build.lib.packages.Type;
 import javax.annotation.Nullable;
 
 /**
@@ -39,7 +42,10 @@ public class ToolchainType implements RuleConfiguredTargetFactory {
   public ConfiguredTarget create(RuleContext ruleContext)
       throws ActionConflictException, InterruptedException {
 
-    ToolchainTypeInfo toolchainTypeInfo = ToolchainTypeInfo.create(ruleContext.getLabel());
+    String noMatchError = ruleContext.attributes().get("no_match_error", Type.STRING);
+    ToolchainTypeInfo toolchainTypeInfo =
+        ToolchainTypeInfo.create(
+            ruleContext.getLabel(), noMatchError.isEmpty() ? null : noMatchError);
 
     return new RuleConfiguredTargetBuilder(ruleContext)
         .addProvider(RunfilesProvider.simple(Runfiles.EMPTY))
@@ -58,6 +64,12 @@ public class ToolchainType implements RuleConfiguredTargetFactory {
           .removeAttribute("licenses")
           .removeAttribute("distribs")
           .removeAttribute(":action_listener")
+          /*<!-- #BLAZE_RULE(toolchain_type).ATTRIBUTE(no_match_error) -->
+          A custom error message to display when no matching toolchain is found for this type.
+          <!-- #END_BLAZE_RULE.ATTRIBUTE -->*/
+          .add(
+              attr("no_match_error", Type.STRING)
+                  .nonconfigurable("low-level attribute, used in platform configuration"))
           .build();
     }
 

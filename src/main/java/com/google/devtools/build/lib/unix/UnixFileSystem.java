@@ -13,7 +13,6 @@
 // limitations under the License.
 package com.google.devtools.build.lib.unix;
 
-import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 import com.google.devtools.build.lib.concurrent.ThreadSafety.ThreadSafe;
@@ -21,6 +20,7 @@ import com.google.devtools.build.lib.profiler.Profiler;
 import com.google.devtools.build.lib.profiler.ProfilerTask;
 import com.google.devtools.build.lib.unix.NativePosixFiles.Dirents;
 import com.google.devtools.build.lib.unix.NativePosixFiles.ReadTypes;
+import com.google.devtools.build.lib.unix.NativePosixFiles.StatErrorHandling;
 import com.google.devtools.build.lib.util.Blocker;
 import com.google.devtools.build.lib.util.StringEncoding;
 import com.google.devtools.build.lib.vfs.AbstractFileSystemWithCustomStat;
@@ -51,83 +51,16 @@ public class UnixFileSystem extends AbstractFileSystemWithCustomStat {
   }
 
   public static Dirent.Type getDirentFromMode(int mode) {
-    if (com.google.devtools.build.lib.unix.FileStatus.isSpecialFile(mode)) {
+    if (UnixFileStatus.isSpecialFile(mode)) {
       return Dirent.Type.UNKNOWN;
-    } else if (com.google.devtools.build.lib.unix.FileStatus.isFile(mode)) {
+    } else if (UnixFileStatus.isFile(mode)) {
       return Dirent.Type.FILE;
-    } else if (com.google.devtools.build.lib.unix.FileStatus.isDirectory(mode)) {
+    } else if (UnixFileStatus.isDirectory(mode)) {
       return Dirent.Type.DIRECTORY;
-    } else if (com.google.devtools.build.lib.unix.FileStatus.isSymbolicLink(mode)) {
+    } else if (UnixFileStatus.isSymbolicLink(mode)) {
       return Dirent.Type.SYMLINK;
     } else {
       return Dirent.Type.UNKNOWN;
-    }
-  }
-
-  /**
-   * Eager implementation of FileStatus for file systems that have an atomic stat(2) syscall. A
-   * proxy for {@link com.google.devtools.build.lib.unix.FileStatus}. Note that isFile has a
-   * slightly different meaning between UNIX and VFS.
-   */
-  @VisibleForTesting
-  protected static class UnixFileStatus implements FileStatus {
-
-    private final com.google.devtools.build.lib.unix.FileStatus status;
-
-    UnixFileStatus(com.google.devtools.build.lib.unix.FileStatus status) {
-      this.status = status;
-    }
-
-    @Override
-    public boolean isFile() {
-      return !isDirectory() && !isSymbolicLink();
-    }
-
-    @Override
-    public boolean isDirectory() {
-      return status.isDirectory();
-    }
-
-    @Override
-    public boolean isSymbolicLink() {
-      return status.isSymbolicLink();
-    }
-
-    @Override
-    public boolean isSpecialFile() {
-      return isFile() && !status.isRegularFile();
-    }
-
-    @Override
-    public long getSize() {
-      return status.getSize();
-    }
-
-    @Override
-    public long getLastModifiedTime() {
-      return status.getLastModifiedTime();
-    }
-
-    @Override
-    public long getLastChangeTime() {
-      return status.getLastChangeTime();
-    }
-
-    @Override
-    public long getNodeId() {
-      // Note that we may want to include more information in this id number going forward,
-      // especially the device number.
-      return status.getInodeNumber();
-    }
-
-    @Override
-    public int getPermissions() {
-      return status.getPermissions();
-    }
-
-    @Override
-    public String toString() {
-      return status.toString();
     }
   }
 
@@ -193,18 +126,13 @@ public class UnixFileSystem extends AbstractFileSystemWithCustomStat {
 
   @Override
   protected FileStatus stat(PathFragment path, boolean followSymlinks) throws IOException {
-    return statInternal(path, followSymlinks);
-  }
-
-  @VisibleForTesting
-  protected UnixFileStatus statInternal(PathFragment path, boolean followSymlinks)
-      throws IOException {
     String name = path.getPathString();
     long startTime = Profiler.nanoTimeMaybe();
     var comp = Blocker.begin();
     try {
-      return new UnixFileStatus(
-          followSymlinks ? NativePosixFiles.stat(name) : NativePosixFiles.lstat(name));
+      return followSymlinks
+          ? NativePosixFiles.stat(name, StatErrorHandling.ALWAYS_THROW)
+          : NativePosixFiles.lstat(name, StatErrorHandling.ALWAYS_THROW);
     } finally {
       Blocker.end(comp);
       profiler.logSimpleTask(startTime, ProfilerTask.VFS_STAT, name);
@@ -221,9 +149,11 @@ public class UnixFileSystem extends AbstractFileSystemWithCustomStat {
     long startTime = Profiler.nanoTimeMaybe();
     var comp = Blocker.begin();
     try {
-      ErrnoFileStatus stat =
-          followSymlinks ? NativePosixFiles.errnoStat(name) : NativePosixFiles.errnoLstat(name);
-      return stat.hasError() ? null : new UnixFileStatus(stat);
+      return followSymlinks
+          ? NativePosixFiles.stat(name, StatErrorHandling.NEVER_THROW)
+          : NativePosixFiles.lstat(name, StatErrorHandling.NEVER_THROW);
+    } catch (IOException e) {
+      throw new IllegalStateException("unexpected exception", e);
     } finally {
       Blocker.end(comp);
       profiler.logSimpleTask(startTime, ProfilerTask.VFS_STAT, name);
@@ -246,21 +176,9 @@ public class UnixFileSystem extends AbstractFileSystemWithCustomStat {
     long startTime = Profiler.nanoTimeMaybe();
     var comp = Blocker.begin();
     try {
-      ErrnoFileStatus stat =
-          followSymlinks ? NativePosixFiles.errnoStat(name) : NativePosixFiles.errnoLstat(name);
-      if (!stat.hasError()) {
-        return new UnixFileStatus(stat);
-      }
-      int errno = stat.getErrno();
-      if (errno == ErrnoFileStatus.ENOENT || errno == ErrnoFileStatus.ENOTDIR) {
-        return null;
-      }
-      // This should not return -- we are calling stat here just to throw the proper exception.
-      // However, since there may be transient IO errors, we cannot guarantee that an exception will
-      // be thrown.
-      // TODO(bazel-team): Extract the exception-construction code and make it visible separately in
-      // FilesystemUtils to avoid having to do a duplicate stat call.
-      return stat(path, followSymlinks);
+      return followSymlinks
+          ? NativePosixFiles.stat(name, StatErrorHandling.THROW_UNLESS_NOT_FOUND)
+          : NativePosixFiles.lstat(name, StatErrorHandling.THROW_UNLESS_NOT_FOUND);
     } finally {
       Blocker.end(comp);
       profiler.logSimpleTask(startTime, ProfilerTask.VFS_STAT, name);
@@ -269,17 +187,17 @@ public class UnixFileSystem extends AbstractFileSystemWithCustomStat {
 
   @Override
   protected boolean isReadable(PathFragment path) throws IOException {
-    return (statInternal(path, true).getPermissions() & 0400) != 0;
+    return (stat(path, true).getPermissions() & 0400) != 0;
   }
 
   @Override
   protected boolean isWritable(PathFragment path) throws IOException {
-    return (statInternal(path, true).getPermissions() & 0200) != 0;
+    return (stat(path, true).getPermissions() & 0200) != 0;
   }
 
   @Override
   protected boolean isExecutable(PathFragment path) throws IOException {
-    return (statInternal(path, true).getPermissions() & 0100) != 0;
+    return (stat(path, true).getPermissions() & 0100) != 0;
   }
 
   /**
@@ -291,7 +209,7 @@ public class UnixFileSystem extends AbstractFileSystemWithCustomStat {
    */
   private void modifyPermissionBits(PathFragment path, int permissionBits, boolean add)
       throws IOException {
-    int oldMode = statInternal(path, true).getPermissions();
+    int oldMode = stat(path, true).getPermissions();
     int newMode = add ? (oldMode | permissionBits) : (oldMode & ~permissionBits);
     var comp = Blocker.begin();
     try {

@@ -13,17 +13,16 @@
 // limitations under the License.
 package com.google.devtools.build.lib.skyframe;
 
-import static com.google.common.collect.ImmutableMap.toImmutableMap;
 import static com.google.devtools.build.skyframe.SkyFunctionException.Transience.PERSISTENT;
 
 import com.google.common.collect.ImmutableMap;
+import com.google.devtools.build.lib.cmdline.Label;
+import com.google.devtools.build.lib.cmdline.LabelSyntaxException;
 import com.google.devtools.build.skyframe.SkyFunction;
 import com.google.devtools.build.skyframe.SkyFunctionException;
 import com.google.devtools.build.skyframe.SkyKey;
 import com.google.devtools.build.skyframe.SkyValue;
-import java.util.Arrays;
 import java.util.Collection;
-import java.util.Map;
 import java.util.Map.Entry;
 import javax.annotation.Nullable;
 import net.starlark.java.eval.Dict;
@@ -33,9 +32,11 @@ public class ProjectFunction implements SkyFunction {
 
   /** The top level reserved globals in the PROJECT.scl file. */
   private enum ReservedGlobals {
-    OWNED_CODE_PATHS("owned_code_paths"),
-
-    ACTIVE_DIRECTORIES("active_directories");
+    /**
+     * Forward-facing PROJECT.scl structure: a single top-level "project" variable that contains all
+     * project data in nested data structures.
+     */
+    PROJECT("project");
 
     private final String key;
 
@@ -67,9 +68,45 @@ public class ProjectFunction implements SkyFunction {
       return null;
     }
 
-    Object activeDirectoriesRaw =
-        bzlLoadValue.getModule().getGlobal(ReservedGlobals.ACTIVE_DIRECTORIES.getKey());
+    Object projectRaw = bzlLoadValue.getModule().getGlobal(ReservedGlobals.PROJECT.getKey());
+    ImmutableMap<String, Object> project =
+        switch (projectRaw) {
+          case null -> {
+            throw new ProjectFunctionException(
+                new TypecheckFailureException(
+                    "Project files must define exactly one top-level variable called \"project\""));
+          }
+          case Dict<?, ?> dict -> {
+            ImmutableMap.Builder<String, Object> projectBuilder = ImmutableMap.builder();
+            for (Object k : dict.keySet()) {
+              if (!(k instanceof String stringKey)) {
+                throw new ProjectFunctionException(
+                    new TypecheckFailureException(
+                        String.format(
+                            "%s variable: expected string key, got element of %s",
+                            ReservedGlobals.PROJECT.getKey(), k.getClass())));
+              }
+              projectBuilder.put(stringKey, dict.get(stringKey));
+            }
+            yield projectBuilder.buildOrThrow();
+          }
+          default ->
+              throw new ProjectFunctionException(
+                  new TypecheckFailureException(
+                      String.format(
+                          "%s variable: expected a map of string to objects, got %s",
+                          ReservedGlobals.PROJECT.getKey(), projectRaw.getClass())));
+        };
 
+    Label actualProjectFile = maybeResolveAlias(key.getProjectFile(), project, bzlLoadValue);
+    if (!actualProjectFile.equals(key.getProjectFile())) {
+      // This is an alias for another project file. Delegate there.
+      // TODO: b/382265245 - handle cycles, including self references.
+      return env.getValueOrThrow(
+          new ProjectValue.Key(actualProjectFile), ProjectFunctionException.class);
+    }
+
+    Object activeDirectoriesRaw = project.get("active_directories");
     // Crude typechecking to prevent server crashes.
     // TODO: all of these typechecking should probably be handled by a proto spec.
     @SuppressWarnings("unchecked")
@@ -115,21 +152,52 @@ public class ProjectFunction implements SkyFunction {
                           + activeDirectoriesRaw.getClass()));
         };
 
-    ImmutableMap<String, Object> residualGlobals =
-        bzlLoadValue.getModule().getGlobals().entrySet().stream()
-            .filter(
-                entry ->
-                    Arrays.stream(ReservedGlobals.values())
-                        .noneMatch(global -> entry.getKey().equals(global.getKey())))
-            .collect(toImmutableMap(Map.Entry::getKey, Map.Entry::getValue));
-
     if (!activeDirectories.isEmpty() && activeDirectories.get("default") == null) {
       throw new ProjectFunctionException(
           new ActiveDirectoriesException(
               "non-empty active_directories must contain the 'default' key"));
     }
 
-    return new ProjectValue(activeDirectories, residualGlobals);
+    return new ProjectValue(actualProjectFile, project, activeDirectories);
+  }
+
+  /**
+   * If this is an alias for another project file, returns its label. Else returns the original
+   * key's label.
+   *
+   * <p>See {@link ProjectValue#maybeResolveAlias} for schema details.
+   *
+   * @throws ProjectFunctionException if the alias schema isn't valid or the actual reference isn't
+   *     a valid label.
+   */
+  private static Label maybeResolveAlias(
+      Label originalProjectFile, ImmutableMap<String, Object> project, BzlLoadValue bzlLoadValue)
+      throws ProjectFunctionException {
+    if (!project.containsKey("actual")) {
+      return originalProjectFile;
+    } else if (!(project.get("actual") instanceof String)) {
+      throw new ProjectFunctionException(
+          new TypecheckFailureException(
+              String.format(
+                  "project[\"actual\"]: expected string, got %s", project.get("actual"))));
+    } else if (project.keySet().size() > 1) {
+      throw new ProjectFunctionException(
+          new TypecheckFailureException(
+              String.format(
+                  "project[\"actual\"] is present, but other keys are present as well: %s",
+                  project.keySet())));
+    } else if (bzlLoadValue.getModule().getGlobals().keySet().size() > 1) {
+      throw new ProjectFunctionException(
+          new TypecheckFailureException(
+              String.format(
+                  "project global variable is present, but other globals are present as well: %s",
+                  bzlLoadValue.getModule().getGlobals().keySet())));
+    }
+    try {
+      return Label.parseCanonical((String) project.get("actual"));
+    } catch (LabelSyntaxException e) {
+      throw new ProjectFunctionException(e);
+    }
   }
 
   private static final class TypecheckFailureException extends Exception {
@@ -144,7 +212,8 @@ public class ProjectFunction implements SkyFunction {
     }
   }
 
-  private static final class ProjectFunctionException extends SkyFunctionException {
+  /** Exception thrown by {@link ProjectFunction}. */
+  public static final class ProjectFunctionException extends SkyFunctionException {
     ProjectFunctionException(TypecheckFailureException cause) {
       super(cause, PERSISTENT);
     }
@@ -155,6 +224,10 @@ public class ProjectFunction implements SkyFunction {
 
     ProjectFunctionException(BzlLoadFailedException e, Transience transience) {
       super(e, transience);
+    }
+
+    ProjectFunctionException(LabelSyntaxException cause) {
+      super(cause, PERSISTENT);
     }
   }
 }

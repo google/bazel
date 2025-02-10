@@ -60,7 +60,7 @@ public class JsonOutputFormatter extends OutputFormatter {
   private JsonObject printExtension(
       ModuleKey key, ModuleExtensionId extensionId, boolean unexpanded) {
     JsonObject json = new JsonObject();
-    json.addProperty("key", extensionId.asTargetString());
+    json.addProperty("key", extensionId.toString());
     json.addProperty("unexpanded", unexpanded);
     if (options.extensionInfo == ExtensionShow.USAGES) {
       return json;

@@ -1965,15 +1965,7 @@ public final class StarlarkAttrTransitionProviderTest extends BuildViewTestCase 
 
     // Until platforms is EXPLICIT_IN_OUTPUT_PATH, it will change here as well.
     // But, nothing else should be different.
-    assertThat(getMnemonic(dep))
-        .endsWith(
-            OutputPathMnemonicComputer.transitionDirectoryNameFragment(
-                ImmutableList.of(
-                    "//command_line_option:platforms="
-                        + getConfiguration(dep)
-                            .getOptions()
-                            .get(PlatformOptions.class)
-                            .platforms)));
+    assertThat(getMnemonic(dep)).endsWith("-exec");
   }
 
   @Test
@@ -2042,16 +2034,7 @@ public final class StarlarkAttrTransitionProviderTest extends BuildViewTestCase 
         .isNotEqualTo(dep.getConfigurationKey().getOptions().get(CppOptions.class).coptList);
     assertThat(getTargetConfiguration().getOptions().get(CppOptions.class).coptList)
         .isNotEqualTo(dep.getConfigurationKey().getOptions().get(CppOptions.class).coptList);
-    assertThat(getMnemonic(dep))
-        .endsWith(
-            OutputPathMnemonicComputer.transitionDirectoryNameFragment(
-                ImmutableList.of(
-                    // Until platforms is EXPLICIT_IN_OUTPUT_PATH, it will change here as well.
-                    "//command_line_option:platforms="
-                        + getConfiguration(dep)
-                            .getOptions()
-                            .get(PlatformOptions.class)
-                            .platforms)));
+    assertThat(getMnemonic(dep)).endsWith("-exec");
   }
 
   // Test that a no-op starlark transition to an already starlark transitioned configuration
@@ -3156,7 +3139,7 @@ public final class StarlarkAttrTransitionProviderTest extends BuildViewTestCase 
     // When --platforms is empty and no platform mapping triggers, PlatformMappingValue sets
     // --platforms to PlatformOptions.computeTargetPlatform(), which defaults to the host.
     assertThat(getConfiguration(dep).getOptions().get(PlatformOptions.class).platforms)
-        .containsExactly(Label.parseCanonicalUnchecked(TestConstants.PLATFORM_LABEL_ALIAS));
+        .containsExactly(Label.parseCanonicalUnchecked(TestConstants.PLATFORM_LABEL));
   }
 
   @Test

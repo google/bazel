@@ -31,7 +31,7 @@ import javax.annotation.Nullable;
 @Immutable
 @ThreadSafe
 public final class RuleConfiguredTargetValue
-    extends BaseRuleConfiguredTargetValue<RuleConfiguredTarget>
+    extends AbstractConfiguredTargetValue<RuleConfiguredTarget>
     implements RuleConfiguredObjectValue, ConfiguredTargetValue {
 
   /**

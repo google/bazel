@@ -19,6 +19,7 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.devtools.build.lib.analysis.OutputGroupInfo;
 import com.google.devtools.build.lib.analysis.RuleDefinitionEnvironment;
+import com.google.devtools.build.lib.analysis.platform.PlatformInfo;
 import com.google.devtools.build.lib.cmdline.Label;
 import com.google.devtools.build.lib.packages.Attribute.LabelListLateBoundDefault;
 import com.google.devtools.build.lib.skyframe.serialization.autocodec.SerializationConstant;
@@ -78,6 +79,6 @@ public interface JavaSemantics {
    */
   PathFragment getDefaultJavaResourcePath(PathFragment path);
 
-  /** Environment variable that sets the UTF-8 charset. */
-  ImmutableMap<String, String> utf8Environment();
+  /** Environment variable that sets the UTF-8 charset for the given execution platform. */
+  ImmutableMap<String, String> utf8Environment(PlatformInfo executionPlatform);
 }

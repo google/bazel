@@ -34,8 +34,9 @@ import javax.annotation.Nullable;
  * A value which represents every toolchain known to Bazel and available for toolchain resolution.
  *
  * @param rejectedToolchains Any toolchains that were rejected, along with a reason. The row keys
- *     are the toolchain type labels, column keys are toolchain implementation labels, and cells are
- *     the reason. Only non-null if {@link RegisteredToolchainsValue.Key#debug} is {@code true}.
+ *     are the toolchain type labels, column keys are toolchain target (not implementation) labels,
+ *     and cells are the reason. Only non-null if {@link RegisteredToolchainsValue.Key#debug} is
+ *     {@code true}.
  */
 @AutoCodec
 public record RegisteredToolchainsValue(

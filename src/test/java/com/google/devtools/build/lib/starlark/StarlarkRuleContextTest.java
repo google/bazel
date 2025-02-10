@@ -409,29 +409,6 @@ public final class StarlarkRuleContextTest extends BuildViewTestCase {
 
   /* The error message for this case used to be wrong. */
   @Test
-  public void testPackageBoundaryError_externalRepository_boundary() throws Exception {
-    // Doesn't work with Bzlmod due to https://github.com/bazelbuild/bazel/issues/22208
-    setBuildLanguageOptions("--enable_workspace");
-    scratch.file("r/WORKSPACE");
-    scratch.file("r/BUILD");
-    scratch.overwriteFile(
-        "WORKSPACE",
-        new ImmutableList.Builder<String>()
-            .addAll(analysisMock.getWorkspaceContents(mockToolsConfig))
-            .add("local_repository(name='r', path='r')")
-            .build());
-    scratch.file("BUILD", "cc_library(name = 'cclib',", "  srcs = ['r/my_sub_lib.h'])");
-    invalidatePackages(
-        /*alsoConfigs=*/ false); // Repository shuffling messes with toolchain labels.
-    reporter.removeHandler(failFastHandler);
-    getConfiguredTarget("//:cclib");
-    assertContainsEvent(
-        "/workspace/BUILD:1:11: Label '//:r/my_sub_lib.h' is invalid because "
-            + "'@@r//' is a subpackage");
-  }
-
-  /* The error message for this case used to be wrong. */
-  @Test
   public void testPackageBoundaryError_externalRepository_entirelyInside() throws Exception {
     scratch.file("/r/MODULE.bazel", "module(name = 'r')");
     scratch.file(
@@ -444,7 +421,7 @@ public final class StarlarkRuleContextTest extends BuildViewTestCase {
     scratch.overwriteFile(
         "MODULE.bazel", "bazel_dep(name = 'r')", "local_path_override(module_name='r', path='/r')");
     invalidatePackages(
-        /*alsoConfigs=*/ false); // Repository shuffling messes with toolchain labels.
+        /* alsoConfigs= */ false); // Repository shuffling messes with toolchain labels.
     reporter.removeHandler(failFastHandler);
     getConfiguredTarget("@@r+//:cclib");
     assertContainsEvent(
@@ -733,7 +710,6 @@ public final class StarlarkRuleContextTest extends BuildViewTestCase {
 
   @Test
   public void testCreateStarlarkActionArgumentsWithResourceSet_success() throws Exception {
-    setBuildLanguageOptions("--experimental_action_resource_set");
     StarlarkRuleContext ruleContext = createRuleContext("//foo:foo");
     setRuleContext(ruleContext);
 
@@ -759,8 +735,7 @@ public final class StarlarkRuleContextTest extends BuildViewTestCase {
   }
 
   @Test
-  public void testCreateStarlarkActionArgumentsWithResourceSet_flagDisabled() throws Exception {
-    setBuildLanguageOptions("--noexperimental_action_resource_set");
+  public void testCreateStarlarkActionArgumentsWithResourceSet_noneResourceSet() throws Exception {
     StarlarkRuleContext ruleContext = createRuleContext("//foo:foo");
     setRuleContext(ruleContext);
 
@@ -772,7 +747,7 @@ public final class StarlarkRuleContextTest extends BuildViewTestCase {
         "ruleContext.actions.run(",
         "  inputs = ruleContext.files.srcs,",
         "  outputs = ruleContext.files.srcs,",
-        "  resource_set = get_resources,",
+        "  resource_set = None,",
         "  executable = 'executable')");
     StarlarkAction action =
         (StarlarkAction)
@@ -785,7 +760,6 @@ public final class StarlarkRuleContextTest extends BuildViewTestCase {
 
   @Test
   public void testCreateStarlarkActionArgumentsWithResourceSet_lambdaForbidden() throws Exception {
-    setBuildLanguageOptions("--experimental_action_resource_set");
     StarlarkRuleContext ruleContext = createRuleContext("//foo:foo");
     setRuleContext(ruleContext);
 
@@ -806,7 +780,6 @@ public final class StarlarkRuleContextTest extends BuildViewTestCase {
 
   @Test
   public void testCreateStarlarkActionArgumentsWithResourceSet_illegalResource() throws Exception {
-    setBuildLanguageOptions("--experimental_action_resource_set");
     StarlarkRuleContext ruleContext = createRuleContext("//foo:foo");
     setRuleContext(ruleContext);
 
@@ -832,7 +805,6 @@ public final class StarlarkRuleContextTest extends BuildViewTestCase {
 
   @Test
   public void testCreateStarlarkActionArgumentsWithResourceSet_defaultValue() throws Exception {
-    setBuildLanguageOptions("--experimental_action_resource_set");
     StarlarkRuleContext ruleContext = createRuleContext("//foo:foo");
     setRuleContext(ruleContext);
 
@@ -855,7 +827,6 @@ public final class StarlarkRuleContextTest extends BuildViewTestCase {
 
   @Test
   public void testCreateStarlarkActionArgumentsWithResourceSet_intDict() throws Exception {
-    setBuildLanguageOptions("--experimental_action_resource_set");
     StarlarkRuleContext ruleContext = createRuleContext("//foo:foo");
     setRuleContext(ruleContext);
 
@@ -878,7 +849,6 @@ public final class StarlarkRuleContextTest extends BuildViewTestCase {
 
   @Test
   public void testCreateStarlarkActionArgumentsWithResourceSet_notDict() throws Exception {
-    setBuildLanguageOptions("--experimental_action_resource_set");
     StarlarkRuleContext ruleContext = createRuleContext("//foo:foo");
     setRuleContext(ruleContext);
 
@@ -904,7 +874,6 @@ public final class StarlarkRuleContextTest extends BuildViewTestCase {
 
   @Test
   public void testCreateStarlarkActionArgumentsWithResourceSet_wrongDict() throws Exception {
-    setBuildLanguageOptions("--experimental_action_resource_set");
     StarlarkRuleContext ruleContext = createRuleContext("//foo:foo");
     setRuleContext(ruleContext);
 
@@ -931,7 +900,6 @@ public final class StarlarkRuleContextTest extends BuildViewTestCase {
   @Test
   public void testCreateStarlarkActionArgumentsWithResourceSet_incorrectSignature()
       throws Exception {
-    setBuildLanguageOptions("--experimental_action_resource_set");
     StarlarkRuleContext ruleContext = createRuleContext("//foo:foo");
     setRuleContext(ruleContext);
 
@@ -1158,7 +1126,6 @@ public final class StarlarkRuleContextTest extends BuildViewTestCase {
     assertThat(fragment.getPathString()).isEqualTo("foo/a/c");
     assertThat(artifact.isTreeArtifact()).isTrue();
   }
-
 
   @Test
   public void testParamFileSuffix() throws Exception {
@@ -1579,24 +1546,23 @@ public final class StarlarkRuleContextTest extends BuildViewTestCase {
           }
         )
         """);
-
     scratch.file(
         "BUILD",
-        "load('//:my_rule.bzl', 'my_rule')",
-        "config_setting(",
-        "   name = 'arm_cpu',",
-        "   values = {'cpu': 'arm'},",
-        ")",
-        "my_rule(name='r',",
-        "        label_list=select({",
-        "    ':arm_cpu': [],",
-        "    '//conditions:default': ['a.txt'],",
-        "}) + select({",
-        "    ':arm_cpu': ['a.txt'],",
-        "    '//conditions:default': [],",
-        "}),",
-        ")");
-
+        """
+        load('//:my_rule.bzl', 'my_rule')
+        constraint_setting(name = "cpu")
+        constraint_value(name = "arm_cpu", constraint_setting = "cpu")
+        my_rule(
+          name="r",
+          label_list = select({
+            ":arm_cpu": [],
+            "//conditions:default": ["a.txt"],
+          }) + select({
+              ":arm_cpu": ["a.txt"],
+              "//conditions:default": [],
+          }),
+        )
+        """);
     invalidatePackages();
     getConfiguredTarget("//:r");
     assertNoEvents();
@@ -1618,23 +1584,23 @@ public final class StarlarkRuleContextTest extends BuildViewTestCase {
           }
         )
         """);
-
     scratch.file(
         "BUILD",
-        "load('//:my_rule.bzl', 'my_rule')",
-        "config_setting(",
-        "   name = 'arm_cpu',",
-        "   values = {'cpu': 'arm'},",
-        ")",
-        "my_rule(name='r',",
-        "        label_list=select({",
-        "    ':arm_cpu': [],",
-        "    '//conditions:default': ['a.txt'],",
-        "}) + select({",
-        "    ':arm_cpu': ['a.txt'],",
-        "    '//conditions:default': ['a.txt'],",
-        "}),",
-        ")");
+        """
+        load('//:my_rule.bzl', 'my_rule')
+        constraint_setting(name = "cpu")
+        constraint_value(name = "arm_cpu", constraint_setting = "cpu")
+        my_rule(
+          name="r",
+          label_list = select({
+            ":arm_cpu": [],
+            "//conditions:default": ["a.txt"],
+          }) + select({
+              ":arm_cpu": ["a.txt"],
+              "//conditions:default": ["a.txt"],
+          }),
+        )
+        """);
 
     invalidatePackages();
     getConfiguredTarget("//:r");
@@ -1751,107 +1717,10 @@ public final class StarlarkRuleContextTest extends BuildViewTestCase {
         "MODULE.bazel", "bazel_dep(name='r')", "local_path_override(module_name='r', path='/r')");
 
     invalidatePackages(
-        /*alsoConfigs=*/ false); // Repository shuffling messes with toolchain labels.
+        /* alsoConfigs= */ false); // Repository shuffling messes with toolchain labels.
     setRuleContext(createRuleContext("@@r+//a:r"));
     Label depLabel = (Label) ev.eval("ruleContext.attr.internal_dep.label");
     assertThat(depLabel).isEqualTo(Label.parseCanonical("//:dep"));
-  }
-
-  @Test
-  public void testExternalWorkspaceLoad() throws Exception {
-    // RepositoryDelegatorFunction deletes and creates symlink for the repository and as such is not
-    // safe to execute in parallel. Disable checks with package loader to avoid parallel
-    // evaluations.
-    initializeSkyframeExecutor(/*doPackageLoadingChecks=*/ false);
-    setBuildLanguageOptions("--enable_workspace");
-    scratch.file(
-        "/r1/BUILD",
-        """
-        filegroup(name = 'test',
-         srcs = ['test.txt'],
-         visibility = ['//visibility:public'],
-        )
-        """);
-    scratch.file("/r1/WORKSPACE");
-    scratch.file("/r2/BUILD", "exports_files(['test.bzl'])");
-    scratch.file(
-        "/r2/test.bzl",
-        """
-        def macro(name, path):
-          native.local_repository(name = name, path = path)
-        """);
-    scratch.file("/r2/WORKSPACE");
-    scratch.file(
-        "/r2/other_test.bzl",
-        """
-        def other_macro(name, path):
-          print(name + ': ' + path)
-        """);
-    scratch.file("BUILD");
-
-    scratch.overwriteFile(
-        "WORKSPACE",
-        new ImmutableList.Builder<String>()
-            .addAll(analysisMock.getWorkspaceContents(mockToolsConfig))
-            .add("local_repository(name='r2', path='/r2')")
-            .add("load('@r2//:test.bzl', 'macro')")
-            .add("macro('r1', '/r1')")
-            .add("NEXT_NAME = 'r3'")
-            // We can still refer to r2 in other chunks:
-            .add("load('@r2//:other_test.bzl', 'other_macro')")
-            .add("macro(NEXT_NAME, '/r2')") // and we can still use macro outside of its chunk.
-            .build());
-
-    invalidatePackages(
-        /*alsoConfigs=*/ false); // Repository shuffling messes with toolchain labels.
-    assertThat(getConfiguredTarget("@r1//:test")).isNotNull();
-  }
-
-  @Test
-  public void testLoadBlockRepositoryRedefinition() throws Exception {
-    setBuildLanguageOptions("--enable_workspace");
-    reporter.removeHandler(failFastHandler);
-    scratch.file("/bar/WORKSPACE");
-    scratch.file("/bar/bar.txt");
-    scratch.file("/bar/BUILD", "filegroup(name = 'baz', srcs = ['bar.txt'])");
-    scratch.file("/baz/WORKSPACE");
-    scratch.file("/baz/baz.txt");
-    scratch.file("/baz/BUILD", "filegroup(name = 'baz', srcs = ['baz.txt'])");
-    scratch.overwriteFile(
-        "WORKSPACE",
-        new ImmutableList.Builder<String>()
-            .addAll(analysisMock.getWorkspaceContents(mockToolsConfig))
-            .add("local_repository(name = 'foo', path = '/bar')")
-            .add("local_repository(name = 'foo', path = '/baz')")
-            .build());
-
-    invalidatePackages(
-        /*alsoConfigs=*/ false); // Repository shuffling messes with toolchain labels.
-    assertThat(
-            (List)
-                getConfiguredTargetAndData("@foo//:baz")
-                    .getTargetForTesting()
-                    .getAssociatedRule()
-                    .getAttr("srcs"))
-        .contains(Label.parseCanonical("@foo//:baz.txt"));
-
-    scratch.overwriteFile("BUILD");
-    scratch.overwriteFile("bar.bzl", "dummy = 1");
-
-    scratch.overwriteFile(
-        "WORKSPACE",
-        new ImmutableList.Builder<String>()
-            .addAll(analysisMock.getWorkspaceContents(mockToolsConfig))
-            .add("local_repository(name = 'foo', path = '/bar')")
-            .add("load('//:bar.bzl', 'dummy')")
-            .add("local_repository(name = 'foo', path = '/baz')")
-            .build());
-
-    invalidatePackages(/*alsoConfigs=*/ false); // Repository shuffling messes with toolchains.
-    assertThrows(Exception.class, () -> createRuleContext("@foo//:baz"));
-    assertContainsEvent(
-        "Cannot redefine repository after any load statement in the WORKSPACE file "
-            + "(for repository 'foo')");
   }
 
   @Test
@@ -3088,7 +2957,7 @@ public final class StarlarkRuleContextTest extends BuildViewTestCase {
   }
 
   // A list of attributes and methods ctx objects have
-  private final List<String> ctxAttributes =
+  private static final ImmutableList<String> CTX_ATTRIBUTES =
       ImmutableList.of(
           "attr",
           "split_attr",
@@ -3134,7 +3003,7 @@ public final class StarlarkRuleContextTest extends BuildViewTestCase {
         """);
     scratch.file("test/rules.bzl");
 
-    for (String attribute : ctxAttributes) {
+    for (String attribute : CTX_ATTRIBUTES) {
       scratch.overwriteFile(
           "test/rules.bzl",
           "load('//myinfo:myinfo.bzl', 'MyInfo')",
@@ -3171,7 +3040,7 @@ public final class StarlarkRuleContextTest extends BuildViewTestCase {
   @Test
   public void testFrozenRuleContextForAspectsHasInaccessibleAttributes() throws Exception {
     List<String> attributes = new ArrayList<>();
-    attributes.addAll(ctxAttributes);
+    attributes.addAll(CTX_ATTRIBUTES);
     attributes.addAll(
         ImmutableList.of("rule.attr", "rule.executable", "rule.file", "rule.files", "rule.kind"));
     scratch.file(

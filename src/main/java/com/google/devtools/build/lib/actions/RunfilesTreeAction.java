@@ -100,11 +100,8 @@ public final class RunfilesTreeAction extends AbstractAction {
   }
 
   @Override
-  @Nullable
   public PlatformInfo getExecutionPlatform() {
-    // Runfiles tree actions do not execute actual actions, and therefore have no execution
-    // platform.
-    return null;
+    return PlatformInfo.EMPTY_PLATFORM_INFO;
   }
 
   @Override

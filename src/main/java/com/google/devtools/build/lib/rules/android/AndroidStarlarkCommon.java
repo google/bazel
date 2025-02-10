@@ -26,9 +26,7 @@ import com.google.devtools.build.lib.analysis.actions.SpawnActionTemplate;
 import com.google.devtools.build.lib.analysis.actions.SpawnActionTemplate.OutputPathMapper;
 import com.google.devtools.build.lib.analysis.platform.ConstraintValueInfo;
 import com.google.devtools.build.lib.analysis.starlark.StarlarkRuleContext;
-import com.google.devtools.build.lib.packages.Info;
 import com.google.devtools.build.lib.packages.RuleClass.ConfiguredTargetFactory.RuleErrorException;
-import com.google.devtools.build.lib.rules.java.JavaCompilationArgsProvider;
 import com.google.devtools.build.lib.rules.java.JavaInfo;
 import com.google.devtools.build.lib.starlarkbuildapi.android.AndroidStarlarkCommonApi;
 import java.io.Serializable;
@@ -47,31 +45,6 @@ public class AndroidStarlarkCommon
   @Override
   public String getSourceDirectoryRelativePathFromResource(Artifact resource) {
     return AndroidCommon.getSourceDirectoryRelativePathFromResource(resource).toString();
-  }
-
-  /**
-   * TODO(b/14473160): Provides a Starlark compatibility layer for the sourceless deps bug. When a
-   * sourceless target is defined, the deps of the target are implicitly exported. Specifically only
-   * the {@link JavaCompilationArgsProvider} is propagated. This method takes the existing JavaInfo
-   * and produces a new one, only containing the {@link JavaCompilationArgsProvider} to be added to
-   * the exports field of the java_common.compile method. Remove this method once the bug has been
-   * fixed.
-   */
-  @Override
-  public JavaInfo enableImplicitSourcelessDepsExportsCompatibility(Info javaInfo, boolean neverlink)
-      throws RuleErrorException {
-    JavaCompilationArgsProvider.ClasspathType type =
-        neverlink
-            ? JavaCompilationArgsProvider.ClasspathType.COMPILE_ONLY
-            : JavaCompilationArgsProvider.ClasspathType.BOTH;
-    JavaInfo.Builder builder = JavaInfo.Builder.create();
-    JavaInfo.wrap(javaInfo)
-        .compilationArgsProvider()
-        .ifPresent(
-            args ->
-                builder.javaCompilationArgs(
-                    JavaCompilationArgsProvider.builder().addExports(args, type).build()));
-    return builder.setProvider(javaInfo.getProvider()).setNeverlink(neverlink).build();
   }
 
   @Override

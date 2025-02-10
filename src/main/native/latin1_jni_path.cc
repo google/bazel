@@ -20,10 +20,12 @@
 namespace blaze_jni {
 
 static void LogBadPath(JNIEnv *env, jstring jstr) {
-  static jclass NativePosixFiles_class =
-      env->FindClass("com/google/devtools/build/lib/unix/NativePosixFiles");
-  static jmethodID NativePosixFiles_logBadPath_method = env->GetStaticMethodID(
-      NativePosixFiles_class, "logBadPath", "(Ljava/lang/String;)V");
+  static const jclass NativePosixFiles_class =
+      static_cast<jclass>(env->NewGlobalRef(env->FindClass(
+          "com/google/devtools/build/lib/unix/NativePosixFiles")));
+  static const jmethodID NativePosixFiles_logBadPath_method =
+      env->GetStaticMethodID(NativePosixFiles_class, "logBadPath",
+                             "(Ljava/lang/String;)V");
   env->CallVoidMethod(NativePosixFiles_class,
                       NativePosixFiles_logBadPath_method, jstr);
 }

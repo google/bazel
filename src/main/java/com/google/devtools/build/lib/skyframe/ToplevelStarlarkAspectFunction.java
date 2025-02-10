@@ -35,6 +35,7 @@ import com.google.devtools.build.lib.causes.Cause;
 import com.google.devtools.build.lib.cmdline.PackageIdentifier;
 import com.google.devtools.build.lib.collect.nestedset.NestedSetBuilder;
 import com.google.devtools.build.lib.collect.nestedset.Order;
+import com.google.devtools.build.lib.events.Event;
 import com.google.devtools.build.lib.events.StoredEventHandler;
 import com.google.devtools.build.lib.packages.AspectDescriptor;
 import com.google.devtools.build.lib.packages.NoSuchTargetException;
@@ -255,36 +256,6 @@ final class ToplevelStarlarkAspectFunction implements SkyFunction {
     }
   }
 
-  /**
-   * Handles potential exception thrown during the rule transition application in {@link
-   * RuleTransitionApplier}
-   */
-  private void handlePotentialException(
-      ConfiguredTargetKey baseConfiguredTargetKey,
-      Target target,
-      DetailedExitCode exitCode,
-      String message,
-      Location location)
-      throws ReportedException {
-    if (exitCode == null) {
-      return;
-    }
-    Cause cause =
-        new AnalysisFailedCause(
-            baseConfiguredTargetKey.getLabel(),
-            configurationIdMessage(
-                baseConfiguredTargetKey.getConfigurationKey().getOptionsChecksum()),
-            exitCode != null ? exitCode : createDetailedExitCode(message));
-    ConfiguredValueCreationException exception =
-        new ConfiguredValueCreationException(
-            location,
-            message,
-            target.getLabel(),
-            configurationId(baseConfiguredTargetKey.getConfigurationKey()),
-            NestedSetBuilder.create(Order.STABLE_ORDER, cause),
-            exitCode != null ? exitCode : createDetailedExitCode(message));
-    throw new ReportedException(exception);
-  }
 
   // Computes {@link BuildConfigurationKey} by driving the state machine of {@link
   // RuleTransitionApplier} and returns the new {@link ConfiguredTargetKey} with the obtained build
@@ -317,9 +288,15 @@ final class ToplevelStarlarkAspectFunction implements SkyFunction {
         (ConfiguredRuleClassProvider) ruleClassProvider,
         buildViewProvider);
 
-    // TODO(kotlaja): Maybe handle exceptions in a better way?
-    handlePotentialException(
-        baseConfiguredTargetKey, target, state.exitCode, state.message, state.location);
+    if (state.hasError()) {
+      ConfiguredValueCreationException exception =
+          state.createException(baseConfiguredTargetKey, target);
+      if (!exception.getMessage().isEmpty()) {
+        // Report the error to the user.
+        env.getListener().handle(Event.error(exception.getLocation(), exception.getMessage()));
+      }
+      throw new ReportedException(exception);
+    }
 
     if (state.configurationKey == null) {
       // Skyframe restart is needed since configuration is still not ready.
@@ -414,9 +391,9 @@ final class ToplevelStarlarkAspectFunction implements SkyFunction {
     private IdempotencyState idempotencyState;
 
     // --------------- Error handling fields ------------------
-    private String message;
-    private Location location;
-    private DetailedExitCode exitCode;
+    @Nullable private String message = null;
+    @Nullable private Location location = null;
+    @Nullable private DetailedExitCode exitCode = null;
 
     State(boolean storeTransitivePackages, PrerequisitePackageFunction prerequisitePackages) {
       this.transitiveState =
@@ -440,10 +417,36 @@ final class ToplevelStarlarkAspectFunction implements SkyFunction {
      * is needed to throw {@link ReportedException}.
      */
     @Override
-    public void acceptErrorMessage(String message, Location location, DetailedExitCode exitCode) {
+    public void acceptErrorMessage(
+        String message, @Nullable Location location, @Nullable DetailedExitCode exitCode) {
       this.message = message;
       this.location = location;
       this.exitCode = exitCode;
+    }
+
+    public boolean hasError() {
+      return this.message != null || this.location != null || this.exitCode != null;
+    }
+
+    /**
+     * Handles an exception thrown during the rule transition application in {@link
+     * RuleTransitionApplier}
+     */
+    public ConfiguredValueCreationException createException(
+        ConfiguredTargetKey baseConfiguredTargetKey, Target target) {
+      Cause cause =
+          new AnalysisFailedCause(
+              baseConfiguredTargetKey.getLabel(),
+              configurationIdMessage(
+                  baseConfiguredTargetKey.getConfigurationKey().getOptionsChecksum()),
+              exitCode != null ? exitCode : createDetailedExitCode(message));
+      return new ConfiguredValueCreationException(
+          location,
+          message,
+          target.getLabel(),
+          configurationId(baseConfiguredTargetKey.getConfigurationKey()),
+          NestedSetBuilder.create(Order.STABLE_ORDER, cause),
+          exitCode != null ? exitCode : createDetailedExitCode(message));
     }
   }
 }

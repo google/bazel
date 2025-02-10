@@ -86,7 +86,7 @@ public class ActionInputDirectoryTreeTest extends DirectoryTreeTest {
     FileNode expectedFooNode =
         FileNode.createExecutable("foo.cc", foo.getPath(), digestUtil.computeAsUtf8("foo"));
     FileNode expectedBarNode =
-        FileNode.createExecutable("bar.cc", bar.getBytes(), digestUtil.computeAsUtf8("bar"), false);
+        FileNode.createExecutable("bar.cc", bar, digestUtil.computeAsUtf8("bar"), false);
     assertThat(fileNodesAtDepth(tree, 0)).isEmpty();
     assertThat(fileNodesAtDepth(tree, 1)).containsExactly(expectedFooNode, expectedBarNode);
   }

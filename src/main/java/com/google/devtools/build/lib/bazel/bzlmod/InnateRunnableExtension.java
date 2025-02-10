@@ -18,7 +18,6 @@ package com.google.devtools.build.lib.bazel.bzlmod;
 import static com.google.common.collect.ImmutableSet.toImmutableSet;
 
 import com.google.common.base.Preconditions;
-import com.google.common.base.Splitter;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
@@ -38,7 +37,6 @@ import com.google.devtools.build.lib.skyframe.BzlLoadFailedException;
 import com.google.devtools.build.lib.skyframe.BzlLoadFunction;
 import com.google.devtools.build.lib.skyframe.BzlLoadValue;
 import com.google.devtools.build.skyframe.SkyFunction.Environment;
-import java.util.Iterator;
 import java.util.Map.Entry;
 import java.util.Optional;
 import javax.annotation.Nullable;
@@ -104,18 +102,20 @@ final class InnateRunnableExtension implements RunnableExtension {
     RepositoryMapping repoMapping = usagesValue.getRepoMappings().get(moduleKey);
     Label.RepoContext repoContext = Label.RepoContext.of(repoMapping.ownerRepo(), repoMapping);
 
-    // The name of the extension is of the form "<bzl_file_label>%<rule_name>".
-    Iterator<String> parts = Splitter.on('%').split(extensionId.extensionName()).iterator();
+    // The name of the extension is of the form "<bzl_file_label> <rule_name>". Rule names cannot
+    // contain spaces, so we can split on the last space.
+    int lastSpace = extensionId.extensionName().lastIndexOf(' ');
+    String rawLabel = extensionId.extensionName().substring(0, lastSpace);
+    String ruleName = extensionId.extensionName().substring(lastSpace + 1);
     Location location = tags.getFirst().getLocation();
     Label bzlLabel;
     try {
-      bzlLabel = Label.parseWithRepoContext(parts.next(), repoContext);
+      bzlLabel = Label.parseWithRepoContext(rawLabel, repoContext);
       BzlLoadFunction.checkValidLoadLabel(bzlLabel, starlarkSemantics);
     } catch (LabelSyntaxException e) {
       throw ExternalDepsException.withCauseAndMessage(
           Code.BAD_MODULE, e, "bad repo rule .bzl file label at %s", location);
     }
-    String ruleName = parts.next();
 
     // Load the .bzl file.
     BzlLoadValue loadedBzl;

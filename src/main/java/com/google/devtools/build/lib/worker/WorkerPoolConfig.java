@@ -14,7 +14,6 @@
 
 package com.google.devtools.build.lib.worker;
 
-import com.google.common.annotations.VisibleForTesting;
 import java.util.List;
 import java.util.Map.Entry;
 import java.util.Objects;
@@ -24,27 +23,14 @@ import java.util.Objects;
  * workers.
  */
 public class WorkerPoolConfig {
-  private final boolean useNewWorkerPool;
   private final List<Entry<String, Integer>> workerMaxInstances;
   private final List<Entry<String, Integer>> workerMaxMultiplexInstances;
 
   public WorkerPoolConfig(
-      boolean useNewWorkerPool,
       List<Entry<String, Integer>> workerMaxInstances,
       List<Entry<String, Integer>> workerMaxMultiplexInstances) {
-    this.useNewWorkerPool = useNewWorkerPool;
     this.workerMaxInstances = workerMaxInstances;
     this.workerMaxMultiplexInstances = workerMaxMultiplexInstances;
-  }
-
-  @VisibleForTesting
-  public WorkerPoolConfig(
-      List<Entry<String, Integer>> workerMaxInstances,
-      List<Entry<String, Integer>> workerMaxMultiplexInstances) {
-    this(
-        /* useNewWorkerPool= */ false,
-        workerMaxInstances,
-        workerMaxMultiplexInstances);
   }
 
   public List<Entry<String, Integer>> getWorkerMaxInstances() {
@@ -63,13 +49,12 @@ public class WorkerPoolConfig {
     if (!(o instanceof WorkerPoolConfig that)) {
       return false;
     }
-    return useNewWorkerPool == that.useNewWorkerPool
-        && workerMaxInstances.equals(that.workerMaxInstances)
+    return workerMaxInstances.equals(that.workerMaxInstances)
         && workerMaxMultiplexInstances.equals(that.workerMaxMultiplexInstances);
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(useNewWorkerPool, workerMaxInstances, workerMaxMultiplexInstances);
+    return Objects.hash(workerMaxInstances, workerMaxMultiplexInstances);
   }
 }

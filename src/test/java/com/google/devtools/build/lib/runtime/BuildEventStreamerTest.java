@@ -15,6 +15,7 @@ package com.google.devtools.build.lib.runtime;
 
 import static com.google.common.truth.Truth.assertThat;
 import static com.google.common.truth.Truth.assertWithMessage;
+import static com.google.common.truth.extensions.proto.ProtoTruth.assertThat;
 import static com.google.devtools.build.lib.bugreport.BugReport.constructOomExitMessage;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.stream.Collectors.joining;
@@ -39,7 +40,6 @@ import com.google.devtools.build.lib.actions.ArtifactRoot;
 import com.google.devtools.build.lib.actions.CompletionContext;
 import com.google.devtools.build.lib.actions.EventReportingArtifacts;
 import com.google.devtools.build.lib.actions.FileArtifactValue;
-import com.google.devtools.build.lib.actions.SpawnResult.MetadataLog;
 import com.google.devtools.build.lib.actions.util.ActionsTestUtil;
 import com.google.devtools.build.lib.analysis.BlazeDirectories;
 import com.google.devtools.build.lib.analysis.ServerDirectories;
@@ -48,6 +48,7 @@ import com.google.devtools.build.lib.analysis.config.BuildOptions;
 import com.google.devtools.build.lib.analysis.config.CoreOptions;
 import com.google.devtools.build.lib.analysis.config.FragmentFactory;
 import com.google.devtools.build.lib.analysis.config.FragmentRegistry;
+import com.google.devtools.build.lib.analysis.config.InvalidConfigurationException;
 import com.google.devtools.build.lib.buildeventservice.BuildEventServiceOptions.BesUploadMode;
 import com.google.devtools.build.lib.buildeventstream.AnnounceBuildEventTransportsEvent;
 import com.google.devtools.build.lib.buildeventstream.ArtifactGroupNamer;
@@ -61,8 +62,8 @@ import com.google.devtools.build.lib.buildeventstream.BuildEventStreamProtos;
 import com.google.devtools.build.lib.buildeventstream.BuildEventStreamProtos.Aborted;
 import com.google.devtools.build.lib.buildeventstream.BuildEventStreamProtos.Aborted.AbortReason;
 import com.google.devtools.build.lib.buildeventstream.BuildEventStreamProtos.BuildEventId;
+import com.google.devtools.build.lib.buildeventstream.BuildEventStreamProtos.BuildEventId.IdCase;
 import com.google.devtools.build.lib.buildeventstream.BuildEventStreamProtos.BuildEventId.NamedSetOfFilesId;
-import com.google.devtools.build.lib.buildeventstream.BuildEventStreamProtos.File;
 import com.google.devtools.build.lib.buildeventstream.BuildEventTransport;
 import com.google.devtools.build.lib.buildeventstream.BuildEventTransportClosedEvent;
 import com.google.devtools.build.lib.buildeventstream.BuildEventWithConfiguration;
@@ -89,9 +90,9 @@ import com.google.devtools.build.lib.util.Pair;
 import com.google.devtools.build.lib.vfs.Path;
 import com.google.devtools.build.lib.vfs.PathFragment;
 import com.google.devtools.build.lib.vfs.Root;
-import com.google.devtools.build.lib.vfs.util.FileSystems;
 import com.google.devtools.common.options.Options;
 import com.google.devtools.common.options.OptionsBase;
+import com.google.devtools.common.options.OptionsParsingException;
 import com.google.devtools.common.options.OptionsParsingResult;
 import com.google.testing.junit.testparameterinjector.TestParameter;
 import com.google.testing.junit.testparameterinjector.TestParameterInjector;
@@ -103,7 +104,9 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.BrokenBarrierException;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.CyclicBarrier;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
@@ -162,7 +165,6 @@ public final class BuildEventStreamerTest extends FoundationTestCase {
           FileArtifactValue.MISSING_FILE_MARKER,
           /* stdout= */ null,
           /* stderr= */ null,
-          /* actionMetadataLogs= */ ImmutableList.of(),
           ErrorTiming.NO_ERROR,
           /* startTime= */ null,
           /* endTime= */ null);
@@ -785,32 +787,27 @@ public final class BuildEventStreamerTest extends FoundationTestCase {
 
     streamer.buildEvent(startEvent);
     // Publish `numEvents` different events that all report the same NamedSet of artifacts on
-    // `numEvents` different threads. Use latches to ensure:
+    // `numEvents` different threads. Use a CyclicBarrier and latch to ensure:
     //
     // 1. all threads have started, before:
     // 2. all threads send their event, before:
     // 3. verifying the recorded events.
-    CountDownLatch readyToPublishLatch = new CountDownLatch(numEvents);
-    CountDownLatch startPublishingLatch = new CountDownLatch(1);
+    CyclicBarrier readyToPublishLatch = new CyclicBarrier(numEvents);
     CountDownLatch donePublishingLatch = new CountDownLatch(numEvents);
     for (int i = 0; i < numEvents; i++) {
-      int num = i;
+      BuildEvent reportingArtifacts = eventsToPost.get(i);
       new Thread(
               () -> {
                 try {
-                  BuildEvent reportingArtifacts = eventsToPost.get(num);
-                  readyToPublishLatch.countDown();
-                  startPublishingLatch.await();
+                  readyToPublishLatch.await();
                   streamer.buildEvent(reportingArtifacts);
-                } catch (InterruptedException e) {
+                } catch (InterruptedException | BrokenBarrierException e) {
                   throw new RuntimeException(e);
                 }
                 donePublishingLatch.countDown();
               })
           .start();
     }
-    readyToPublishLatch.await();
-    startPublishingLatch.countDown();
     donePublishingLatch.await();
 
     assertThat(streamer.isClosed()).isFalse();
@@ -959,39 +956,10 @@ public final class BuildEventStreamerTest extends FoundationTestCase {
   @Test
   public void testReportedConfigurations() throws Exception {
     // Verify that configuration events are posted, but only once.
-    BuildOptions defaultBuildOptions = BuildOptions.of(ImmutableList.of(CoreOptions.class));
     BuildEvent startEvent =
         new GenericBuildEvent(
             testId("Initial"), ImmutableSet.of(ProgressEvent.INITIAL_PROGRESS_UPDATE));
-    BuildConfigurationValue configuration =
-        BuildConfigurationValue.createForTesting(
-            defaultBuildOptions,
-            "some_mnemonic",
-            "workspace",
-            /* siblingRepositoryLayout= */ false,
-            new BlazeDirectories(
-                new ServerDirectories(outputBase, outputBase, outputBase),
-                rootDirectory,
-                /* defaultSystemJavabase= */ null,
-                "productName"),
-            new BuildConfigurationValue.GlobalStateProvider() {
-              @Override
-              public ActionEnvironment getActionEnvironment(BuildOptions buildOptions) {
-                return ActionEnvironment.EMPTY;
-              }
-
-              @Override
-              public FragmentRegistry getFragmentRegistry() {
-                return FragmentRegistry.create(
-                    ImmutableList.of(), ImmutableList.of(), ImmutableList.of());
-              }
-
-              @Override
-              public ImmutableSet<String> getReservedActionMnemonics() {
-                return ImmutableSet.of();
-              }
-            },
-            new FragmentFactory());
+    BuildConfigurationValue configuration = makeTestingBuildConfigurationValue();
     BuildEvent firstWithConfiguration =
         new GenericConfigurationEvent(testId("first"), configuration.toBuildEvent());
     BuildEvent secondWithConfiguration =
@@ -1011,6 +979,62 @@ public final class BuildEventStreamerTest extends FoundationTestCase {
     assertThat(allEventsSeen.get(4)).isEqualTo(firstWithConfiguration);
     assertThat(allEventsSeen.get(5).getEventId()).isEqualTo(BuildEventIdUtil.progressId(2));
     assertThat(allEventsSeen.get(6)).isEqualTo(secondWithConfiguration);
+  }
+
+  @Test
+  public void testReportedConfigurations_concurrent() throws Exception {
+    // Verify that configuration events are posted, but only once.
+    BuildEvent startEvent =
+        new GenericBuildEvent(
+            testId("Initial"), ImmutableSet.of(ProgressEvent.INITIAL_PROGRESS_UPDATE));
+    BuildConfigurationValue configuration = makeTestingBuildConfigurationValue();
+
+    int numEvents = 100;
+    List<BuildEvent> eventsToPost = new ArrayList<>();
+    for (int i = 0; i < numEvents; i++) {
+      eventsToPost.add(
+          new GenericConfigurationEvent(testId("has_config_" + i), configuration.toBuildEvent()));
+    }
+
+    streamer.buildEvent(startEvent);
+    // Publish `numEvents` different events that all report the same configuration on `numEvents`
+    // different threads. Use a CyclicBarrier and latch to ensure:
+    //
+    // 1. all threads have started, before:
+    // 2. all threads send their event, before:
+    // 3. verifying the recorded events.
+    CyclicBarrier readyToPublishLatch = new CyclicBarrier(numEvents);
+    CountDownLatch donePublishingLatch = new CountDownLatch(numEvents);
+    for (int i = 0; i < numEvents; i++) {
+      BuildEvent hasConfigEvent = eventsToPost.get(i);
+      new Thread(
+              () -> {
+                try {
+                  readyToPublishLatch.await();
+                  streamer.buildEvent(hasConfigEvent);
+                } catch (InterruptedException | BrokenBarrierException e) {
+                  throw new RuntimeException(e);
+                }
+                donePublishingLatch.countDown();
+              })
+          .start();
+    }
+    donePublishingLatch.await();
+
+    assertThat(streamer.isClosed()).isFalse();
+
+    List<BuildEvent> allEventsSeen = transport.getEvents();
+
+    // Two events for each GenericConfigurationEvent: a progress event announcing it and the
+    // actual GenericConfigurationEvent itself.
+    assertThat(allEventsSeen).hasSize(3 + (numEvents * 2));
+    assertThat(allEventsSeen.get(0).getEventId()).isEqualTo(startEvent.getEventId());
+    assertThat(allEventsSeen.get(1).getEventId()).isEqualTo(ProgressEvent.INITIAL_PROGRESS_UPDATE);
+    assertThat(allEventsSeen.get(2)).isEqualTo(configuration.toBuildEvent());
+    for (int idx = 3; idx < allEventsSeen.size(); idx++) {
+      assertThat(allEventsSeen.get(idx).getEventId().getIdCase())
+          .isNotEqualTo(IdCase.CONFIGURATION);
+    }
   }
 
   @Test
@@ -1482,7 +1506,6 @@ public final class BuildEventStreamerTest extends FoundationTestCase {
             /* primaryOutputMetadata= */ null,
             /* stdout= */ null,
             /* stderr= */ null,
-            /* actionMetadataLogs= */ ImmutableList.of(),
             ErrorTiming.BEFORE_EXECUTION,
             /* startTime= */ null,
             /* endTime= */ null);
@@ -1528,7 +1551,6 @@ public final class BuildEventStreamerTest extends FoundationTestCase {
             /* primaryOutputMetadata= */ null,
             /* stdout= */ null,
             /* stderr= */ null,
-            /* actionMetadataLogs= */ ImmutableList.of(),
             ErrorTiming.BEFORE_EXECUTION,
             /* startTime= */ null,
             /* endTime= */ null);
@@ -1785,74 +1807,6 @@ public final class BuildEventStreamerTest extends FoundationTestCase {
     return new BuildCompleteEvent(result, childrenEvents);
   }
 
-  private static ActionExecutedEvent createActionExecutedEventWithLogs(
-      ImmutableList<MetadataLog> metadataLogs) {
-    return new ActionExecutedEvent(
-        ActionsTestUtil.DUMMY_ARTIFACT.getExecPath(),
-        new ActionsTestUtil.NullAction(),
-        /* exception= */ null,
-        ActionsTestUtil.DUMMY_ARTIFACT.getPath(),
-        ActionsTestUtil.DUMMY_ARTIFACT,
-        FileArtifactValue.MISSING_FILE_MARKER,
-        /* stdout= */ null,
-        /* stderr= */ null,
-        metadataLogs,
-        ErrorTiming.NO_ERROR,
-        /* startTime= */ null,
-        /* endTime= */ null);
-  }
-
-  @Test
-  public void testActionExecutedEventLogsConstructor() {
-    String metadataLogName = "action_metadata";
-    Path testPath1 = FileSystems.getJavaIoFileSystem().getPath("/path/to/logs-1");
-    Path testPath2 = FileSystems.getJavaIoFileSystem().getPath("/path/to/logs-2");
-    MetadataLog testMetadataLog1 = new MetadataLog(metadataLogName, testPath1);
-    MetadataLog testMetadataLog2 = new MetadataLog(metadataLogName, testPath2);
-
-    ActionExecutedEvent withLogsEvent =
-        createActionExecutedEventWithLogs(ImmutableList.of(testMetadataLog1, testMetadataLog2));
-
-    assertWithMessage("List parameter should return list of log path values")
-        .that(withLogsEvent.getActionMetadataLogs())
-        .containsExactly(testMetadataLog1, testMetadataLog2);
-    assertWithMessage("Null logs parameter should return empty list.")
-        .that(SUCCESSFUL_ACTION_EXECUTED_EVENT.getActionMetadataLogs())
-        .isEmpty();
-  }
-
-  @Test
-  public void testActionExcutedEventProtoLogs() throws Exception {
-    String metadataLogName = "action_metadata";
-    Path testPath1 = FileSystems.getJavaIoFileSystem().getPath("/path/to/logs-1");
-    Path testPath2 = FileSystems.getJavaIoFileSystem().getPath("/path/to/logs-2");
-
-    ActionExecutedEvent withLogsEvent =
-        createActionExecutedEventWithLogs(
-            ImmutableList.of(
-                new MetadataLog(metadataLogName, testPath1),
-                new MetadataLog(metadataLogName, testPath2)));
-
-    BuildEventStreamProtos.BuildEvent buildEventLogs =
-        withLogsEvent.asStreamProto(getTestBuildEventContext(artifactGroupNamer));
-    BuildEventStreamProtos.BuildEvent buildEventNoLogs =
-        SUCCESSFUL_ACTION_EXECUTED_EVENT.asStreamProto(
-            getTestBuildEventContext(artifactGroupNamer));
-
-    assertWithMessage("With logs build event action should contain 2 log files")
-        .that(buildEventLogs.getAction().getActionMetadataLogsCount())
-        .isEqualTo(2);
-    assertWithMessage("No logs build event action should contain 0 log files")
-        .that(buildEventNoLogs.getAction().getActionMetadataLogsCount())
-        .isEqualTo(0);
-    assertWithMessage("Event action should contains the two paths")
-        .that(
-            buildEventLogs.getAction().getActionMetadataLogsList().stream()
-                .map(File::getUri)
-                .collect(ImmutableList.toImmutableList()))
-        .containsExactly(testPath1.toString(), testPath2.toString());
-  }
-
   private OptionsParsingResult createMockOptions() {
     OptionsParsingResult options = mock(OptionsParsingResult.class);
     when(options.getOptions(any()))
@@ -1863,6 +1817,38 @@ public final class BuildEventStreamerTest extends FoundationTestCase {
             });
     when(options.asCompleteListOfParsedOptions()).thenReturn(ImmutableList.of());
     return options;
+  }
+
+  private BuildConfigurationValue makeTestingBuildConfigurationValue()
+      throws InvalidConfigurationException, OptionsParsingException {
+    return BuildConfigurationValue.createForTesting(
+        BuildOptions.of(ImmutableList.of(CoreOptions.class)),
+        "some_mnemonic",
+        "workspace",
+        /* siblingRepositoryLayout= */ false,
+        new BlazeDirectories(
+            new ServerDirectories(outputBase, outputBase, outputBase),
+            rootDirectory,
+            /* defaultSystemJavabase= */ null,
+            "productName"),
+        new BuildConfigurationValue.GlobalStateProvider() {
+          @Override
+          public ActionEnvironment getActionEnvironment(BuildOptions buildOptions) {
+            return ActionEnvironment.EMPTY;
+          }
+
+          @Override
+          public FragmentRegistry getFragmentRegistry() {
+            return FragmentRegistry.create(
+                ImmutableList.of(), ImmutableList.of(), ImmutableList.of());
+          }
+
+          @Override
+          public ImmutableSet<String> getReservedActionMnemonics() {
+            return ImmutableSet.of();
+          }
+        },
+        new FragmentFactory());
   }
 
   private static DetailedExitCode createGenericDetailedExitCode() {

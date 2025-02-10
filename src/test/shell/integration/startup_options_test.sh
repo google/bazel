@@ -80,7 +80,7 @@ function test_autodetect_server_javabase() {
 # Below are the regression tests for Issue #7489
 function test_multiple_bazelrc_later_overwrites_earlier() {
   # Help message only visible with --help_verbosity=medium
-  help_message_in_description="--${PRODUCT_NAME}rc (a string; default: see description)"
+  help_message_in_description="--${PRODUCT_NAME}rc (a string; may be used multiple times)"
 
   echo "help --help_verbosity=short" > 1.rc
   echo "help --help_verbosity=medium" > 2.rc

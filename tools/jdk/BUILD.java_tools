@@ -428,9 +428,11 @@ cc_library(
     name = "combiners",
     srcs = [
         "java_tools/src/tools/singlejar/combiners.cc",
+        "java_tools/src/tools/singlejar/log4j2_plugin_dat_combiner.cc",
     ],
     hdrs = [
         "java_tools/src/tools/singlejar/combiners.h",
+        "java_tools/src/tools/singlejar/log4j2_plugin_dat_combiner.h",
         ":transient_bytes",
     ],
     copts = SUPRESSED_WARNINGS,

@@ -61,11 +61,8 @@ public class StarlarkAspectFactory implements ConfiguredAspectFactory {
     try {
       StarlarkRuleContext ctx = ruleContext.initStarlarkRuleContext();
       aspectStarlarkObject =
-          Starlark.fastcall(
-              ruleContext.getStarlarkThread(),
-              starlarkAspect.getImplementation(),
-              /* positional= */ new Object[] {ct, ctx},
-              /* named= */ new Object[0]);
+          Starlark.positionalOnlyCall(
+              ruleContext.getStarlarkThread(), starlarkAspect.getImplementation(), ct, ctx);
     } catch (RuleErrorException e) {
       // TODO(bazel-team): Doesn't this double-log the message, if the exception was created by
       // RuleContext#throwWithRuleError?

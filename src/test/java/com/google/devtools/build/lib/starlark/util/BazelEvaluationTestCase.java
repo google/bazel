@@ -22,6 +22,7 @@ import com.google.common.collect.ImmutableMap;
 import com.google.devtools.build.lib.analysis.starlark.StarlarkConfig;
 import com.google.devtools.build.lib.analysis.starlark.StarlarkGlobalsImpl;
 import com.google.devtools.build.lib.cmdline.BazelModuleContext;
+import com.google.devtools.build.lib.cmdline.BazelModuleKey;
 import com.google.devtools.build.lib.cmdline.Label;
 import com.google.devtools.build.lib.cmdline.RepositoryMapping;
 import com.google.devtools.build.lib.events.Event;
@@ -190,7 +191,7 @@ public final class BazelEvaluationTestCase {
 
     // Return the module's client data. (This one uses dummy values for tests.)
     return BazelModuleContext.create(
-        label,
+        BazelModuleKey.createFakeModuleKeyForTesting(label),
         RepositoryMapping.ALWAYS_FALLBACK,
         "test/label.bzl",
         /* loads= */ ImmutableList.of(),

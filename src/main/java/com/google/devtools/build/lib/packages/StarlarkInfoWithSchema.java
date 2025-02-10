@@ -22,10 +22,12 @@ import com.google.devtools.build.lib.skyframe.serialization.VisibleForSerializat
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import javax.annotation.Nullable;
 import net.starlark.java.eval.EvalException;
 import net.starlark.java.eval.Starlark;
 import net.starlark.java.eval.StarlarkList;
+import net.starlark.java.eval.StarlarkThread;
 import net.starlark.java.syntax.Location;
 import net.starlark.java.syntax.TokenKind;
 
@@ -61,43 +63,66 @@ public class StarlarkInfoWithSchema extends StarlarkInfo {
     return table;
   }
 
+  static StarlarkProvider.StarlarkInfoFactory newStarlarkInfoFactory(
+      StarlarkProvider provider, StarlarkThread thread) {
+    return new StarlarkInfoFactory(provider, thread);
+  }
+
   /**
-   * Constructs a StarlarkInfo from an array of alternating key/value pairs as provided by
-   * Starlark.fastcall. Checks that each key is provided at most once, and is defined by the schema,
-   * which must be sorted. This function exists solely for the StarlarkProvider constructor.
+   * Constructs a StarlarkInfo with calls forwarded from one of the StarlarkInfo ArgumentProcessor
+   * implementations. Checks that each key is provided at most once, and is defined by the schema,
+   * which must be sorted. This class exists solely for the StarlarkInfo ArgumentProcessors.
    */
-  static StarlarkInfoWithSchema createFromNamedArgs(
-      StarlarkProvider provider, Object[] table, Location loc) throws EvalException {
-    ImmutableList<String> fields = provider.getFields();
+  static class StarlarkInfoFactory extends StarlarkProvider.StarlarkInfoFactory {
+    private final ImmutableList<String> fields;
+    private final Object[] valueTable;
+    private List<String> unexpected;
 
-    Object[] valueTable = new Object[fields.size()];
-    List<String> unexpected = null;
+    StarlarkInfoFactory(StarlarkProvider provider, StarlarkThread thread) {
+      super(provider, thread);
+      this.fields = provider.getFields();
+      this.valueTable = new Object[fields.size()];
+      this.unexpected = null;
+    }
 
-    for (int i = 0; i < table.length; i += 2) {
-      int pos = Collections.binarySearch(fields, (String) table[i]);
+    @Override
+    public void addNamedArg(String name, Object value) throws EvalException {
+      int pos = Collections.binarySearch(fields, name);
       if (pos >= 0) {
         if (valueTable[pos] != null) {
           throw Starlark.errorf(
               "got multiple values for parameter %s in call to instantiate provider %s",
-              table[i], provider.getPrintableName());
+              name, provider.getPrintableName());
         }
-        valueTable[pos] = provider.optimizeField(pos, table[i + 1]);
+        valueTable[pos] = provider.optimizeField(pos, value);
       } else {
         if (unexpected == null) {
           unexpected = new ArrayList<>();
         }
-        unexpected.add((String) table[i]);
+        unexpected.add(name);
       }
     }
 
-    if (unexpected != null) {
-      throw Starlark.errorf(
-          "got unexpected field%s '%s' in call to instantiate provider %s",
-          unexpected.size() > 1 ? "s" : "",
-          Joiner.on("', '").join(unexpected),
-          provider.getPrintableName());
+    @Override
+    public StarlarkInfoWithSchema createFromArgs(StarlarkThread thread) throws EvalException {
+      if (unexpected != null) {
+        throw Starlark.errorf(
+            "got unexpected field%s '%s' in call to instantiate provider %s",
+            unexpected.size() > 1 ? "s" : "",
+            Joiner.on("', '").join(unexpected),
+            provider.getPrintableName());
+      }
+      return new StarlarkInfoWithSchema(provider, valueTable, thread.getCallerLocation());
     }
-    return new StarlarkInfoWithSchema(provider, valueTable, loc);
+
+    @Override
+    public StarlarkInfo createFromMap(Map<String, Object> map, StarlarkThread thread)
+        throws EvalException {
+      for (Map.Entry<String, Object> e : map.entrySet()) {
+        addNamedArg(e.getKey(), e.getValue());
+      }
+      return createFromArgs(thread);
+    }
   }
 
   @Override

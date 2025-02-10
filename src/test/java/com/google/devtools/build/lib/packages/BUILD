@@ -43,7 +43,6 @@ java_test(
         include = ["*.java"],
         exclude = [
             "BazelDocumentationTest.java",
-            "ExternalPackageTest.java",
             "WorkspaceFactoryTestHelper.java",
         ],
     ),
@@ -126,7 +125,7 @@ java_test(
         "//src/main/java/com/google/devtools/build/lib/bazel/rules",
         "//third_party:guava",
         "//third_party:junit4",
-        "@bazel_tools//tools/java/runfiles",
+        "@rules_java//java/runfiles",
     ],
 )
 
@@ -195,6 +194,6 @@ java_library(
         "//third_party:jsr305",
         "//third_party:junit4",
         "//third_party:truth",
-        "@bazel_tools//tools/java/runfiles",
+        "@rules_java//java/runfiles",
     ],
 )

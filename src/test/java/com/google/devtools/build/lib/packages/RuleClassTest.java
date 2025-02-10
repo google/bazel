@@ -1206,7 +1206,6 @@ public final class RuleClassTest extends PackageLoadingTestCase {
             ExecGroup.builder()
                 .addToolchainType(ToolchainTypeRequirement.create(toolchain))
                 .execCompatibleWith(ImmutableSet.of(constraint))
-                .copyFrom(null)
                 .build()));
 
     RuleClass ruleClass = ruleClassBuilder.build();

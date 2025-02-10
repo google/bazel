@@ -89,14 +89,34 @@ java_library(
 )
 
 java_library(
+    name = "registered_execution_platforms_cycle_reporter",
+    srcs = ["RegisteredExecutionPlatformsCycleReporter.java"],
+    deps = [
+        ":registered_execution_platforms_value",
+        ":toolchain_context_key",
+        "//src/main/java/com/google/devtools/build/lib/analysis:config/toolchain_type_requirement",
+        "//src/main/java/com/google/devtools/build/lib/cmdline",
+        "//src/main/java/com/google/devtools/build/lib/events",
+        "//src/main/java/com/google/devtools/build/lib/skyframe:abstract_label_cycle_reporter",
+        "//src/main/java/com/google/devtools/build/lib/skyframe:configured_target_key",
+        "//src/main/java/com/google/devtools/build/lib/skyframe:sky_functions",
+        "//src/main/java/com/google/devtools/build/skyframe",
+        "//src/main/java/com/google/devtools/build/skyframe:skyframe-objects",
+        "//third_party:guava",
+    ],
+)
+
+java_library(
     name = "registered_execution_platforms_function",
     srcs = ["RegisteredExecutionPlatformsFunction.java"],
     deps = [
+        ":config_matching_util",
         ":platform_lookup_util",
         ":registered_execution_platforms_value",
         ":toolchain_exception",
         "//src/main/java/com/google/devtools/build/lib/analysis:config/build_configuration",
         "//src/main/java/com/google/devtools/build/lib/analysis:config/common_options",
+        "//src/main/java/com/google/devtools/build/lib/analysis:config/invalid_configuration_exception",
         "//src/main/java/com/google/devtools/build/lib/analysis:configured_target",
         "//src/main/java/com/google/devtools/build/lib/analysis:configured_target_value",
         "//src/main/java/com/google/devtools/build/lib/analysis:platform_configuration",
@@ -119,7 +139,6 @@ java_library(
         "//src/main/java/com/google/devtools/build/lib/skyframe/serialization/autocodec:serialization-constant",
         "//src/main/java/com/google/devtools/build/lib/util:detailed_exit_code",
         "//src/main/java/com/google/devtools/build/lib/vfs:pathfragment",
-        "//src/main/java/com/google/devtools/build/skyframe",
         "//src/main/java/com/google/devtools/build/skyframe:skyframe-objects",
         "//src/main/java/net/starlark/java/eval",
         "//src/main/protobuf:failure_details_java_proto",
@@ -132,14 +151,15 @@ java_library(
     name = "registered_execution_platforms_value",
     srcs = ["RegisteredExecutionPlatformsValue.java"],
     deps = [
+        "//src/main/java/com/google/devtools/build/lib/cmdline",
         "//src/main/java/com/google/devtools/build/lib/skyframe:configured_target_key",
         "//src/main/java/com/google/devtools/build/lib/skyframe:sky_functions",
         "//src/main/java/com/google/devtools/build/lib/skyframe/config",
         "//src/main/java/com/google/devtools/build/lib/skyframe/serialization:visible-for-serialization",
         "//src/main/java/com/google/devtools/build/lib/skyframe/serialization/autocodec",
         "//src/main/java/com/google/devtools/build/skyframe:skyframe-objects",
-        "//third_party:auto_value",
         "//third_party:guava",
+        "//third_party:jsr305",
     ],
 )
 
@@ -218,7 +238,10 @@ java_library(
 
 java_library(
     name = "single_toolchain_resolution_function",
-    srcs = ["SingleToolchainResolutionFunction.java"],
+    srcs = [
+        "SingleToolchainResolutionDebugPrinter.java",
+        "SingleToolchainResolutionFunction.java",
+    ],
     deps = [
         ":platform_lookup_util",
         ":registered_toolchains_function",
@@ -276,12 +299,12 @@ java_library(
     name = "toolchain_context_util",
     srcs = ["ToolchainContextUtil.java"],
     deps = [
-        "unloaded_toolchain_context",
         ":toolchain_context_key",
         "//src/main/java/com/google/devtools/build/lib/analysis:config/core_options",
         "//src/main/java/com/google/devtools/build/lib/analysis:config/toolchain_type_requirement",
         "//src/main/java/com/google/devtools/build/lib/analysis:exec_group_collection",
         "//src/main/java/com/google/devtools/build/lib/analysis:platform_configuration",
+        "//src/main/java/com/google/devtools/build/lib/analysis:starlark/starlark_exec_group_collection",
         "//src/main/java/com/google/devtools/build/lib/analysis/producers:unloaded_toolchain_contexts_inputs",
         "//src/main/java/com/google/devtools/build/lib/cmdline",
         "//src/main/java/com/google/devtools/build/lib/packages",

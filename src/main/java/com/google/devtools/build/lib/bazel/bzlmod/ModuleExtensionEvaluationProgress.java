@@ -24,19 +24,7 @@ public class ModuleExtensionEvaluationProgress implements FetchProgress {
 
   /** Returns the unique identifying string for a module extension evaluation event. */
   public static String moduleExtensionEvaluationContextString(ModuleExtensionId extensionId) {
-    String suffix =
-        extensionId
-            .isolationKey()
-            .map(
-                isolationKey ->
-                    String.format(
-                        " for %s in %s", isolationKey.usageExportedName(), isolationKey.module()))
-            .orElse("");
-    return String.format(
-        "module extension %s in %s%s",
-        extensionId.extensionName(),
-        extensionId.bzlFileLabel().getUnambiguousCanonicalForm(),
-        suffix);
+    return "module extension " + extensionId;
   }
 
   public static ModuleExtensionEvaluationProgress ongoing(

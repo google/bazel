@@ -51,8 +51,7 @@ public class DeclaredToolchainInfoTest extends BuildViewTestCase {
         ConstraintValueInfo.create(setting2, Label.parseCanonicalUnchecked("//constraint:value5")));
 
     DeclaredToolchainInfo.DuplicateConstraintException exception =
-        assertThrows(
-            DeclaredToolchainInfo.DuplicateConstraintException.class, () -> builder.build());
+        assertThrows(DeclaredToolchainInfo.DuplicateConstraintException.class, builder::build);
     assertThat(exception.execConstraintsException()).isNotNull();
     assertThat(exception.execConstraintsException())
         .hasMessageThat()
@@ -86,14 +85,16 @@ public class DeclaredToolchainInfoTest extends BuildViewTestCase {
                     ToolchainTypeInfo.create(Label.parseCanonicalUnchecked("//toolchain:tc1")))
                 .addExecConstraints(ImmutableList.of(constraint1))
                 .addTargetConstraints(ImmutableList.of(constraint2))
-                .toolchainLabel(Label.parseCanonicalUnchecked("//toolchain:toolchain1"))
+                .resolvedToolchainLabel(Label.parseCanonicalUnchecked("//toolchain:toolchain_def1"))
+                .targetLabel(Label.parseCanonicalUnchecked("//toolchain:toolchain1"))
                 .build(),
             DeclaredToolchainInfo.builder()
                 .toolchainType(
                     ToolchainTypeInfo.create(Label.parseCanonicalUnchecked("//toolchain:tc1")))
                 .addExecConstraints(ImmutableList.of(constraint1))
                 .addTargetConstraints(ImmutableList.of(constraint2))
-                .toolchainLabel(Label.parseCanonicalUnchecked("//toolchain:toolchain1"))
+                .resolvedToolchainLabel(Label.parseCanonicalUnchecked("//toolchain:toolchain_def1"))
+                .targetLabel(Label.parseCanonicalUnchecked("//toolchain:toolchain1"))
                 .build())
         .addEqualityGroup(
             // Different type.
@@ -102,7 +103,8 @@ public class DeclaredToolchainInfoTest extends BuildViewTestCase {
                     ToolchainTypeInfo.create(Label.parseCanonicalUnchecked("//toolchain:tc2")))
                 .addExecConstraints(ImmutableList.of(constraint1))
                 .addTargetConstraints(ImmutableList.of(constraint2))
-                .toolchainLabel(Label.parseCanonicalUnchecked("//toolchain:toolchain1"))
+                .resolvedToolchainLabel(Label.parseCanonicalUnchecked("//toolchain:toolchain_def1"))
+                .targetLabel(Label.parseCanonicalUnchecked("//toolchain:toolchain1"))
                 .build())
         .addEqualityGroup(
             // Different constraints.
@@ -111,7 +113,8 @@ public class DeclaredToolchainInfoTest extends BuildViewTestCase {
                     ToolchainTypeInfo.create(Label.parseCanonicalUnchecked("//toolchain:tc1")))
                 .addExecConstraints(ImmutableList.of(constraint2))
                 .addTargetConstraints(ImmutableList.of(constraint1))
-                .toolchainLabel(Label.parseCanonicalUnchecked("//toolchain:toolchain1"))
+                .resolvedToolchainLabel(Label.parseCanonicalUnchecked("//toolchain:toolchain_def1"))
+                .targetLabel(Label.parseCanonicalUnchecked("//toolchain:toolchain1"))
                 .build())
         .addEqualityGroup(
             // Different toolchain label.
@@ -120,7 +123,18 @@ public class DeclaredToolchainInfoTest extends BuildViewTestCase {
                     ToolchainTypeInfo.create(Label.parseCanonicalUnchecked("//toolchain:tc1")))
                 .addExecConstraints(ImmutableList.of(constraint1))
                 .addTargetConstraints(ImmutableList.of(constraint2))
-                .toolchainLabel(Label.parseCanonicalUnchecked("//toolchain:toolchain2"))
+                .resolvedToolchainLabel(Label.parseCanonicalUnchecked("//toolchain:toolchain_def2"))
+                .targetLabel(Label.parseCanonicalUnchecked("//toolchain:toolchain1"))
+                .build())
+        .addEqualityGroup(
+            // Different target label.
+            DeclaredToolchainInfo.builder()
+                .toolchainType(
+                    ToolchainTypeInfo.create(Label.parseCanonicalUnchecked("//toolchain:tc1")))
+                .addExecConstraints(ImmutableList.of(constraint1))
+                .addTargetConstraints(ImmutableList.of(constraint2))
+                .resolvedToolchainLabel(Label.parseCanonicalUnchecked("//toolchain:toolchain_def1"))
+                .targetLabel(Label.parseCanonicalUnchecked("//toolchain:toolchain2"))
                 .build())
         .testEquals();
   }

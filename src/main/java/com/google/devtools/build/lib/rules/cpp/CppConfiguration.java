@@ -393,16 +393,6 @@ public final class CppConfiguration extends Fragment
     return cppOptions.useArgsParamsFile;
   }
 
-  public boolean useCcTestFeature() {
-    return cppOptions.enableCcTestFeature;
-  }
-
-  @Override
-  public boolean useCcTestFeatureStarlark(StarlarkThread thread) throws EvalException {
-    CcModule.checkPrivateStarlarkificationAllowlist(thread);
-    return useCcTestFeature();
-  }
-
   /** Returns whether or not to strip the binaries. */
   public boolean shouldStripBinaries() {
     return stripBinaries;
@@ -1020,5 +1010,14 @@ public final class CppConfiguration extends Fragment
   public boolean getProtoProfile(StarlarkThread thread) throws EvalException {
     CcModule.checkPrivateStarlarkificationAllowlist(thread);
     return cppOptions.protoProfile;
+  }
+
+  @StarlarkMethod(
+      name = "experimental_starlark_linking",
+      documented = false,
+      useStarlarkThread = true)
+  public boolean experimentalStarlarkLinking(StarlarkThread thread) throws EvalException {
+    CcModule.checkPrivateStarlarkificationAllowlist(thread);
+    return cppOptions.experimentalStarlarkLinking;
   }
 }

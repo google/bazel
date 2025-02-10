@@ -307,49 +307,6 @@ function test_incremental_deleting_package_roots() {
   expect_not_log "//$pkg/a:external"
 }
 
-function test_no_package_loading_on_benign_workspace_file_changes() {
-  if [ -f WORKSPACE ]; then
-    cp WORKSPACE "${TEST_TMPDIR}/OLD_WORKSPACE"
-  fi
-
-  local -r pkg="${FUNCNAME}"
-  mkdir -p "$pkg" || fail "could not create \"$pkg\""
-
-  mkdir $pkg/foo
-
-  echo 'workspace(name="wsname1")' > WORKSPACE
-  echo 'sh_library(name="shname1")' > $pkg/foo/BUILD
-  bazel query --enable_workspace --experimental_ui_debug_all_events //$pkg/foo:all >& "$TEST_log" \
-      || fail "Expected success"
-  expect_log "Loading package: $pkg/foo"
-  expect_log "//$pkg/foo:shname1"
-
-  echo 'sh_library(name="shname2")' > $pkg/foo/BUILD
-  bazel query --enable_workspace --experimental_ui_debug_all_events //$pkg/foo:all >& "$TEST_log" \
-      || fail "Expected success"
-  expect_log "Loading package: $pkg/foo"
-  expect_log "//$pkg/foo:shname2"
-
-  # Test that comment changes do not cause package reloading
-  echo '#benign comment' >> WORKSPACE
-  bazel query --enable_workspace --experimental_ui_debug_all_events //$pkg/foo:all >& "$TEST_log" \
-      || fail "Expected success"
-  expect_not_log "Loading package: $pkg/foo"
-  expect_log "//$pkg/foo:shname2"
-
-  echo 'workspace(name="wsname2")' > WORKSPACE
-  bazel query --enable_workspace --experimental_ui_debug_all_events //$pkg/foo:all >& "$TEST_log" \
-      || fail "Expected success"
-  expect_log "Loading package: $pkg/foo"
-  expect_log "//$pkg/foo:shname2"
-
-  if [ -f "${TEST_TMPDIR}/OLD_WORKSPACE" ]; then
-    # Restore the old WORKSPACE file we don't pollute the behavior of other test
-    # cases.
-    mv "${TEST_TMPDIR}/OLD_WORKSPACE" WORKSPACE
-  fi
-}
-
 function test_disallow_load_labels_to_cross_package_boundaries() {
   local -r pkg="${FUNCNAME}"
   mkdir -p "$pkg" || fail "could not create \"$pkg\""

@@ -15,10 +15,14 @@ package com.google.devtools.build.lib.runtime;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
+import com.google.common.base.Strings;
+import com.google.devtools.build.lib.query2.common.CommonQueryOptions;
 import com.google.devtools.build.lib.server.FailureDetails;
 import com.google.devtools.build.lib.server.FailureDetails.FailureDetail;
 import com.google.devtools.build.lib.server.FailureDetails.Query;
 import com.google.devtools.build.lib.server.FailureDetails.Query.Code;
+import com.google.devtools.build.lib.vfs.Path;
+import java.io.IOException;
 import java.io.OutputStream;
 
 /**
@@ -47,7 +51,8 @@ public interface QueryRuntimeHelper extends AutoCloseable {
 
   /** Factory for {@link QueryRuntimeHelper} instances. */
   interface Factory {
-    QueryRuntimeHelper create(CommandEnvironment env) throws QueryRuntimeHelperException;
+    QueryRuntimeHelper create(CommandEnvironment env, CommonQueryOptions options)
+        throws QueryRuntimeHelperException;
   }
 
   /**
@@ -55,6 +60,8 @@ public interface QueryRuntimeHelper extends AutoCloseable {
    * {@link CommandEnvironment} instance's stdout.
    *
    * <p>This is intended to be the default {@link Factory}.
+   *
+   * <p>If {@code --output_file} is set, the stdout is redirected to the defined path value instead.
    */
   class StdoutQueryRuntimeHelperFactory implements Factory {
     public static final StdoutQueryRuntimeHelperFactory INSTANCE =
@@ -63,8 +70,14 @@ public interface QueryRuntimeHelper extends AutoCloseable {
     private StdoutQueryRuntimeHelperFactory() {}
 
     @Override
-    public QueryRuntimeHelper create(CommandEnvironment env) {
-      return createInternal(env.getReporter().getOutErr().getOutputStream());
+    public QueryRuntimeHelper create(CommandEnvironment env, CommonQueryOptions options)
+        throws QueryRuntimeHelperException {
+      if (Strings.isNullOrEmpty(options.outputFile)) {
+        return createInternal(env.getReporter().getOutErr().getOutputStream());
+      } else {
+        return FileQueryRuntimeHelper.create(
+            env.getWorkingDirectory().getRelative(options.outputFile));
+      }
     }
 
     public QueryRuntimeHelper createInternal(OutputStream stdoutOutputStream) {
@@ -90,6 +103,49 @@ public interface QueryRuntimeHelper extends AutoCloseable {
 
       @Override
       public void close() {}
+    }
+
+    /**
+     * A {@link QueryRuntimeHelper} that wraps a {@link java.io.FileOutputStream} instead of writing
+     * to standard out, for improved performance.
+     */
+    public static class FileQueryRuntimeHelper implements QueryRuntimeHelper {
+      private final Path path;
+      private final OutputStream out;
+
+      private FileQueryRuntimeHelper(Path path) throws IOException {
+        this.path = path;
+        this.out = path.getOutputStream();
+      }
+
+      public static FileQueryRuntimeHelper create(Path path) throws QueryRuntimeHelperException {
+        try {
+          return new FileQueryRuntimeHelper(path);
+        } catch (IOException e) {
+          throw new QueryRuntimeHelperException(
+              "Could not open query output file " + path.getPathString(),
+              Code.QUERY_OUTPUT_WRITE_FAILURE,
+              e);
+        }
+      }
+
+      @Override
+      public OutputStream getOutputStreamForQueryOutput() {
+        return out;
+      }
+
+      @Override
+      public void afterQueryOutputIsWritten() {}
+
+      @Override
+      public void close() throws QueryRuntimeHelperException {
+        try {
+          out.close();
+        } catch (IOException e) {
+          throw new QueryRuntimeHelperException(
+              "Could not close query output file " + path, Code.QUERY_OUTPUT_WRITE_FAILURE, e);
+        }
+      }
     }
   }
 

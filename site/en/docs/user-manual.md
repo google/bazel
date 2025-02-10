@@ -2178,12 +2178,12 @@ Following options are supported:
 Some `dump` commands require memory tracking. To turn this on, you have to pass
 startup flags to Bazel:
 
-*   `--host_jvm_args=-javaagent:$BAZEL/third_party/allocation_instrumenter/java-allocation-instrumenter-3.3.0.jar`
+*   `--host_jvm_args=-javaagent:$BAZEL/third_party/allocation_instrumenter/java-allocation-instrumenter-3.3.4.jar`
 *   `--host_jvm_args=-DRULE_MEMORY_TRACKER=1`
 
 The java-agent is checked into Bazel at
-`third_party/allocation_instrumenter/java-allocation-instrumenter-3.3.0.jar`, so make
-sure you adjust `$BAZEL` for where you keep your Bazel repository.
+`third_party/allocation_instrumenter/java-allocation-instrumenter-3.3.4.jar`, so
+make sure you adjust `$BAZEL` for where you keep your Bazel repository.
 
 Do not forget to keep passing these options to Bazel for every command or the server will
 restart.
@@ -2191,17 +2191,17 @@ restart.
 Example:
 
 <pre>
-    % bazel --host_jvm_args=-javaagent:$BAZEL/third_party/allocation_instrumenter/java-allocation-instrumenter-3.3.0.jar \
+    % bazel --host_jvm_args=-javaagent:$BAZEL/third_party/allocation_instrumenter/java-allocation-instrumenter-3.3.4.jar \
     --host_jvm_args=-DRULE_MEMORY_TRACKER=1 \
     build --nobuild &lt;targets&gt;
 
     # Dump rules
-    % bazel --host_jvm_args=-javaagent:$BAZEL/third_party/allocation_instrumenter/java-allocation-instrumenter-3.3.0.jar \
+    % bazel --host_jvm_args=-javaagent:$BAZEL/third_party/allocation_instrumenter/java-allocation-instrumenter-3.3.4.jar \
     --host_jvm_args=-DRULE_MEMORY_TRACKER=1 \
     dump --rules
 
     # Dump Starlark heap and analyze it with pprof
-    % bazel --host_jvm_args=-javaagent:$BAZEL/third_party/allocation_instrumenter/java-allocation-instrumenter-3.3.0.jar \
+    % bazel --host_jvm_args=-javaagent:$BAZEL/third_party/allocation_instrumenter/java-allocation-instrumenter-3.3.4.jar \
     --host_jvm_args=-DRULE_MEMORY_TRACKER=1 \
     dump --skylark_memory=$HOME/prof.gz
     % pprof -flame $HOME/prof.gz
@@ -2402,6 +2402,8 @@ Bazel server process to persist indefinitely.
 
 Note: this flag is only read if Bazel needs
 to start a new server. Changing this option will not cause the server to restart.
+
+Note: system sleep time where a build is not running is counted as idle time.
 
 This option may be used by scripts that invoke Bazel to ensure that
 they do not leave Bazel server processes on a user's machine when they

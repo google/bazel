@@ -774,11 +774,6 @@ create_and_cd_client
 
 # Optional environment changes.
 
-function disable_bzlmod() {
-  add_to_bazelrc "common --noenable_bzlmod"
-  add_to_bazelrc "common --enable_workspace"
-}
-
 # Creates a fake Python default runtime that just outputs a marker string
 # indicating which version was used, without executing any Python code.
 function use_fake_python_runtimes_for_testsuite() {

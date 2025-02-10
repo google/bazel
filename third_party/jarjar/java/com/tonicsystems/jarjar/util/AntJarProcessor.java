@@ -16,8 +16,12 @@
 
 package com.tonicsystems.jarjar.util;
 
-import java.io.*;
-import java.util.*;
+import java.io.ByteArrayInputStream;
+import java.io.File;
+import java.io.IOException;
+import java.io.InputStream;
+import java.util.HashSet;
+import java.util.Set;
 import org.apache.tools.ant.BuildException;
 import org.apache.tools.ant.taskdefs.Jar;
 import org.apache.tools.ant.types.ZipFileSet;
@@ -28,7 +32,6 @@ import org.apache.tools.zip.ZipOutputStream;
 public abstract class AntJarProcessor extends Jar {
   private EntryStruct struct = new EntryStruct();
   private JarProcessor proc;
-  private byte[] buf = new byte[0x2000];
 
   private Set<String> dirs = new HashSet<String>();
   private boolean filesOnly;
@@ -64,9 +67,7 @@ public abstract class AntJarProcessor extends Jar {
       File fromArchive,
       int mode)
       throws IOException {
-    ByteArrayOutputStream baos = new ByteArrayOutputStream();
-    IoUtil.pipe(is, baos, buf);
-    struct.data = baos.toByteArray();
+    struct.data = is.readAllBytes();
     struct.name = vPath;
     struct.time = lastModified;
     if (proc.process(struct)) {

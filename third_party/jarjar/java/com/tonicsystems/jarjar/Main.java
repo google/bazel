@@ -16,76 +16,86 @@
 
 package com.tonicsystems.jarjar;
 
-import com.tonicsystems.jarjar.util.*;
-import java.io.*;
-import java.util.*;
+import static java.nio.charset.StandardCharsets.UTF_8;
 
+import com.tonicsystems.jarjar.util.IoUtil;
+import com.tonicsystems.jarjar.util.StandaloneJarProcessor;
+import java.io.File;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.PrintWriter;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Locale;
+
+/** Main class for Jarjar CLI. */
 public class Main {
 
-  private static final String LINE_SEPARATOR = System.getProperty("line.separator");
-  private static final String HELP;
+  public static void main(String[] argv) throws Exception {
+    List<String> args = Arrays.asList(argv);
+    if (args.isEmpty()) {
+      help();
+      return;
+    }
 
-  static {
-    try {
-      HELP = readIntoString(Main.class.getResourceAsStream("help.txt"));
-    } catch (IOException e) {
-      throw new RuntimeIOException(e);
+    List<String> commandArgs = args.subList(1, args.size());
+    switch (args.get(0)) {
+      case "strings":
+        strings(commandArgs);
+        return;
+      case "find":
+        find(commandArgs);
+        return;
+      case "process":
+        process(commandArgs);
+        return;
+      default:
+        help();
+        return;
     }
   }
 
-  private static String readIntoString(InputStream in) throws IOException {
-    StringBuilder sb = new StringBuilder();
-    BufferedReader r = new BufferedReader(new InputStreamReader(in, "UTF-8"));
-    String line = null;
-    while ((line = r.readLine()) != null) sb.append(line).append(LINE_SEPARATOR);
-    return sb.toString();
+  private static void help() throws IOException {
+    try (InputStream helpStream = Main.class.getResourceAsStream("help.txt")) {
+      String helpText =
+          new String(helpStream.readAllBytes(), UTF_8).replace("\n", System.lineSeparator());
+      System.err.print(helpText);
+    }
   }
 
-  private boolean verbose;
-  private List patterns;
-  private int level = DepHandler.LEVEL_CLASS;
-
-  public static void main(String[] args) throws Exception {
-    MainUtil.runMain(new Main(), args, "help");
-  }
-
-  public void help() {
-    System.err.print(HELP);
-  }
-
-  public void strings(String cp) throws IOException {
-    if (cp == null) {
+  private static void strings(List<String> args) throws Exception {
+    if (args.isEmpty()) {
       throw new IllegalArgumentException("cp is required");
     }
-    new StringDumper().run(cp, new PrintWriter(System.out));
+    String cp = args.get(0);
+
+    PrintWriter stdout = IoUtil.bufferedPrintWriter(System.out, UTF_8);
+    new StringDumper().run(cp, stdout);
+    stdout.flush();
   }
 
-  // TODO: make level an enum
-  public void find(String level, String cp1, String cp2) throws IOException {
-    if (level == null || cp1 == null) {
+  private static void find(List<String> args) throws IOException {
+    if (args.size() < 3) {
       throw new IllegalArgumentException("level and cp1 are required");
     }
-    if (cp2 == null) {
-      cp2 = cp1;
-    }
-    int levelFlag;
-    if ("class".equals(level)) {
-      levelFlag = DepHandler.LEVEL_CLASS;
-    } else if ("jar".equals(level)) {
-      levelFlag = DepHandler.LEVEL_JAR;
-    } else {
-      throw new IllegalArgumentException("unknown level " + level);
-    }
-    PrintWriter w = new PrintWriter(System.out);
-    DepHandler handler = new TextDepHandler(w, levelFlag);
+    DepHandler.Level level = DepHandler.Level.valueOf(args.get(0).toUpperCase(Locale.ROOT));
+    String cp1 = args.get(1);
+    String cp2 = (args.size() == 2) ? cp1 : args.get(2);
+
+    PrintWriter stdout = IoUtil.bufferedPrintWriter(System.out, UTF_8);
+    DepHandler handler = new TextDepHandler(stdout, level);
     new DepFind().run(cp1, cp2, handler);
-    w.flush();
+    stdout.flush();
   }
 
-  public void process(File rulesFile, File inJar, File outJar) throws IOException {
-    if (rulesFile == null || inJar == null || outJar == null) {
+  private static void process(List<String> args) throws IOException {
+    if (args.size() < 3) {
       throw new IllegalArgumentException("rulesFile, inJar, and outJar are required");
     }
+    File rulesFile = new File(args.get(0));
+    File inJar = new File(args.get(1));
+    File outJar = new File(args.get(2));
+
     List<PatternElement> rules = RulesFileParser.parse(rulesFile);
     boolean verbose = Boolean.getBoolean("verbose");
     boolean skipManifest = Boolean.getBoolean("skipManifest");

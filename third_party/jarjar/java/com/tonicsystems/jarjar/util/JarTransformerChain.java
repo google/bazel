@@ -28,6 +28,7 @@ public class JarTransformerChain extends JarTransformer {
     }
   }
 
+  @Override
   protected ClassVisitor transform(ClassVisitor v) {
     chain[chain.length - 1].setTarget(v);
     return chain[0];

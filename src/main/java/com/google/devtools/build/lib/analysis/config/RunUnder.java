@@ -16,6 +16,7 @@ package com.google.devtools.build.lib.analysis.config;
 import com.google.common.collect.ImmutableList;
 import com.google.devtools.build.lib.cmdline.Label;
 import com.google.devtools.build.lib.skyframe.serialization.autocodec.AutoCodec;
+import javax.annotation.Nullable;
 
 /** Components of the {@code --run_under} option. */
 public sealed interface RunUnder {
@@ -29,6 +30,19 @@ public sealed interface RunUnder {
    * --run_under}.
    */
   ImmutableList<String> options();
+
+  /**
+   * Returns a new instance that only retains the information that is relevant for the analysis of
+   * non-test targets.
+   */
+  @Nullable
+  static RunUnder trimForNonTestConfiguration(@Nullable RunUnder runUnder) {
+    return switch (runUnder) {
+      case LabelRunUnder labelRunUnder ->
+          new LabelRunUnder("", ImmutableList.of(), labelRunUnder.label());
+      case null, default -> null;
+    };
+  }
 
   /**
    * Represents a value of {@code --run_under} whose first word (according to shell tokenization)

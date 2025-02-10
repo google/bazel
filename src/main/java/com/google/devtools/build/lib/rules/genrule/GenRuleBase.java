@@ -311,9 +311,9 @@ public abstract class GenRuleBase implements RuleConfiguredTargetFactory {
         Iterable<? extends MakeVariableSupplier> makeVariableSuppliers,
         boolean windowsPath) {
       super(
-          ruleContext,
           ruleContext.getRule().getPackage(),
           ruleContext.getConfiguration(),
+          ruleContext.getDefaultTemplateVariableProviders(),
           makeVariableSuppliers);
       this.ruleContext = ruleContext;
       this.resolvedSrcs = resolvedSrcs;
@@ -322,8 +322,7 @@ public abstract class GenRuleBase implements RuleConfiguredTargetFactory {
     }
 
     @Override
-    public String lookupVariable(String variableName)
-        throws ExpansionException, InterruptedException {
+    public String lookupVariable(String variableName) throws ExpansionException {
       String val = lookupVariableImpl(variableName);
       if (windowsPath) {
         return val.replace('/', '\\');
@@ -331,8 +330,7 @@ public abstract class GenRuleBase implements RuleConfiguredTargetFactory {
       return val;
     }
 
-    private String lookupVariableImpl(String variableName)
-        throws ExpansionException, InterruptedException {
+    private String lookupVariableImpl(String variableName) throws ExpansionException {
       if (variableName.equals("SRCS")) {
         return Artifact.joinExecPaths(" ", resolvedSrcs.toList());
       }

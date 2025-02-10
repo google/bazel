@@ -38,7 +38,6 @@ class BzlmodCredentialsTest(test_base.TestBase):
         [
             # In ipv6 only network, this has to be enabled.
             # 'startup --host_jvm_args=-Djava.net.preferIPv6Addresses=true',
-            'common --noenable_workspace',
             # Disable yanked version check so we are not affected BCR changes.
             'common --allow_yanked_versions=all',
         ],

@@ -448,7 +448,13 @@ public interface StarlarkRuleContextApi<ConstraintValueT extends ConstraintValue
             },
             defaultValue = "[]",
             named = true,
-            doc = "List of targets for additional lookup information."),
+            doc =
+                "List of targets for additional lookup information. These are expanded as follows:"
+                    + " A target with a single file in <code>DefaultInfo.files</code> expands to"
+                    + " that file. Other targets expand to their"
+                    + " <code>DefaultInfo.executable</code> file if set and if"
+                    + " <code>--incompatible_locations_prefers_executable</code> is enabled,"
+                    + " otherwise they expand to <code>DefaultInfo.files</code>."),
         @Param(
             name = "short_paths",
             named = true,

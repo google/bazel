@@ -315,7 +315,7 @@ public class MiscAnalysisTest extends BuildIntegrationTestCase {
   public void testNoTestTargetsFoundMessageForBuildCommand() throws Exception {
     write("pkg/BUILD");
     for (String option : ImmutableList.of("", "--nobuild", "--noanalyze")) {
-      resetOptions();
+      setupOptions();
       addOptions(TestConstants.PRODUCT_SPECIFIC_BUILD_LANG_OPTIONS);
       addOptions(option);
       buildTarget("//pkg:all");

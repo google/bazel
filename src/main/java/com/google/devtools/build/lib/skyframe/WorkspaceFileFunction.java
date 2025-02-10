@@ -187,10 +187,10 @@ public class WorkspaceFileFunction implements SkyFunction {
     } else if (useWorkspaceBzlmodFile) {
       // If Bzlmod is enabled and WORKSPACE.bzlmod exists, then use this file instead of the
       // original WORKSPACE file.
-      userWorkspaceFile = parseWorkspaceFile(workspaceBzlmodFile, options, env);
+      userWorkspaceFile = parseWorkspaceFile(workspaceBzlmodFile, options, starlarkSemantics, env);
     } else if (workspaceFileValue.exists()) {
       // normal WORKSPACE file
-      userWorkspaceFile = parseWorkspaceFile(workspaceFile, options, env);
+      userWorkspaceFile = parseWorkspaceFile(workspaceFile, options, starlarkSemantics, env);
     }
 
     boolean shouldSkipWorkspacePrefix = useWorkspaceResolvedFile || useWorkspaceBzlmodFile;
@@ -415,7 +415,10 @@ public class WorkspaceFileFunction implements SkyFunction {
   }
 
   private static StarlarkFile parseWorkspaceFile(
-      RootedPath workspaceFile, FileOptions options, Environment env)
+      RootedPath workspaceFile,
+      FileOptions options,
+      StarlarkSemantics starlarkSemantics,
+      Environment env)
       throws WorkspaceFileFunctionException {
     Path workspacePath = workspaceFile.asPath();
     byte[] bytes;
@@ -424,8 +427,20 @@ public class WorkspaceFileFunction implements SkyFunction {
     } catch (IOException ex) {
       throw new WorkspaceFileFunctionException(ex, Transience.TRANSIENT);
     }
-    StarlarkFile file =
-        StarlarkFile.parse(ParserInput.fromLatin1(bytes, workspacePath.toString()), options);
+    ParserInput parserInput;
+    try {
+      parserInput =
+          StarlarkUtil.createParserInput(
+              bytes,
+              workspacePath.toString(),
+              starlarkSemantics.get(BuildLanguageOptions.INCOMPATIBLE_ENFORCE_STARLARK_UTF8),
+              env.getListener());
+    } catch (
+        @SuppressWarnings("UnusedException") // createParserInput() reports its own error message
+        StarlarkUtil.InvalidUtf8Exception e) {
+      throw resolvedValueError("Failed to read WORKSPACE file");
+    }
+    StarlarkFile file = StarlarkFile.parse(parserInput);
     if (!file.ok()) {
       Event.replayEventsOn(env.getListener(), file.errors());
       throw resolvedValueError("Failed to parse WORKSPACE file");

@@ -19,6 +19,7 @@ import static sun.misc.Unsafe.ARRAY_OBJECT_INDEX_SCALE;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.ImmutableTable;
 import com.google.common.collect.Table.Cell;
+
 import com.google.protobuf.CodedInputStream;
 import com.google.protobuf.CodedOutputStream;
 import java.io.IOException;
@@ -45,6 +46,7 @@ public class ImmutableTableCodec extends DeferredObjectCodec<ImmutableTable> {
     }
   }
 
+  // TODO: b/386384684 - remove Unsafe usage
   @Override
   public DeferredValue<ImmutableTable> deserializeDeferred(
       AsyncDeserializationContext context, CodedInputStream codedIn)

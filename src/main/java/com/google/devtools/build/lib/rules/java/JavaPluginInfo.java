@@ -15,7 +15,6 @@
 package com.google.devtools.build.lib.rules.java;
 
 import static com.google.devtools.build.lib.skyframe.BzlLoadValue.keyForBuild;
-import static com.google.devtools.build.lib.skyframe.BzlLoadValue.keyForBuiltins;
 
 import com.google.auto.value.AutoValue;
 import com.google.common.annotations.VisibleForTesting;
@@ -50,17 +49,9 @@ import net.starlark.java.syntax.Location;
 public abstract class JavaPluginInfo extends NativeInfo
     implements JavaPluginInfoApi<Artifact, JavaPluginData, JavaOutput> {
   public static final String PROVIDER_NAME = "JavaPluginInfo";
-  public static final Provider LEGACY_BUILTINS_PROVIDER = new BuiltinsProvider();
   public static final Provider PROVIDER = new Provider();
   public static final Provider RULES_JAVA_PROVIDER = new RulesJavaProvider();
   public static final Provider WORKSPACE_PROVIDER = new WorkspaceProvider();
-
-  private static final JavaPluginInfo EMPTY_BUILTIN =
-      new AutoValue_JavaPluginInfo(
-          ImmutableList.of(),
-          JavaPluginData.empty(),
-          JavaPluginData.empty(),
-          LEGACY_BUILTINS_PROVIDER);
 
   private static final JavaPluginInfo EMPTY =
       new AutoValue_JavaPluginInfo(
@@ -75,40 +66,20 @@ public abstract class JavaPluginInfo extends NativeInfo
           ImmutableList.of(), JavaPluginData.empty(), JavaPluginData.empty(), WORKSPACE_PROVIDER);
 
   public static JavaPluginInfo wrap(Info info) throws RuleErrorException {
-    com.google.devtools.build.lib.packages.Provider.Key key = info.getProvider().getKey();
     // this wrapped instance is not propagated back to Starlark, so we don't need every type
-    // we just use the two types that are checked for in tests
-    if (key.equals(LEGACY_BUILTINS_PROVIDER.getKey())) {
-      return LEGACY_BUILTINS_PROVIDER.wrap(info);
-    } else {
-      return PROVIDER.wrap(info);
-    }
+    // we just use the single type that is checked for in tests
+    return PROVIDER.wrap(info);
   }
 
   @VisibleForTesting
   public static JavaPluginInfo get(ConfiguredTarget target) throws RuleErrorException {
-    // we just use the two types that are checked for in tests
-    JavaPluginInfo info = target.get(PROVIDER);
-    JavaPluginInfo builtinInfo = target.get(LEGACY_BUILTINS_PROVIDER);
-    if (info == null) {
-      return builtinInfo;
-    } else if (builtinInfo == null) {
-      return info;
-    }
-    return mergeWithoutJavaOutputs(info, builtinInfo);
+    // we just use the single type that is checked for in tests
+    return target.get(PROVIDER);
   }
 
   @Override
   public com.google.devtools.build.lib.packages.Provider getProvider() {
     return providerType();
-  }
-
-  /** Legacy Provider class for {@link JavaPluginInfo} objects. */
-  public static class BuiltinsProvider extends Provider {
-    private BuiltinsProvider() {
-      super(
-          keyForBuiltins(Label.parseCanonicalUnchecked("@_builtins//:common/java/java_info.bzl")));
-    }
   }
 
   /** Provider class for {@link JavaPluginInfo} objects in rules_java itself. */
@@ -290,9 +261,7 @@ public abstract class JavaPluginInfo extends NativeInfo
   }
 
   public static JavaPluginInfo empty(com.google.devtools.build.lib.packages.Provider providerType) {
-    if (providerType.equals(LEGACY_BUILTINS_PROVIDER)) {
-      return EMPTY_BUILTIN;
-    } else if (providerType.equals(RULES_JAVA_PROVIDER)) {
+    if (providerType.equals(RULES_JAVA_PROVIDER)) {
       return EMPTY_RULES_JAVA;
     } else if (providerType.equals(WORKSPACE_PROVIDER)) {
       return EMPTY_WORKSPACE;

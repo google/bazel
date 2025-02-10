@@ -125,7 +125,7 @@ def create_linking_context_from_compilation_outputs(
 
     linker_input = cc_common_internal.create_linker_input(
         # TODO(b/331164666): remove cheat, we always produce a file, file.owner gives us a label
-        owner = cc_internal.actions2ctx_cheat(actions).label,
+        owner = cc_internal.actions2ctx_cheat(actions).label.same_package_label(name),
         libraries = depset([cc_linking_outputs.library_to_link]) if cc_linking_outputs.library_to_link else None,
         user_link_flags = user_link_flags,
         additional_inputs = additional_inputs,

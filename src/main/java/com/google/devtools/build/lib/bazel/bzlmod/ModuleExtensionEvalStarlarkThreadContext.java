@@ -172,7 +172,7 @@ public final class ModuleExtensionEvalStarlarkThreadContext extends StarlarkThre
         var attributesValue = AttributeValues.create(attributes);
         AttributeValues.validateAttrs(
             attributesValue,
-            String.format("in the extension '%s'", extensionId.asTargetString()),
+            String.format("in the extension '%s'", extensionId),
             String.format("%s '%s'", rule.getRuleClass(), name));
         repoSpecs.put(
             name,

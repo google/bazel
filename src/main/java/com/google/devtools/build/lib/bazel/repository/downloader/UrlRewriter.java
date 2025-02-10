@@ -21,7 +21,6 @@ import com.google.auto.value.AutoValue;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Ascii;
 import com.google.common.base.Preconditions;
-import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
@@ -32,6 +31,7 @@ import com.google.devtools.build.lib.events.Event;
 import com.google.devtools.build.lib.events.Reporter;
 import com.google.devtools.build.lib.util.OS;
 import com.google.devtools.build.lib.vfs.Path;
+import com.google.devtools.build.lib.vfs.PathFragment;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
@@ -86,11 +86,12 @@ public class UrlRewriter {
    * @param reporter Used for logging when URLs are rewritten.
    */
   public static UrlRewriter getDownloaderUrlRewriter(
-      Path workspaceRoot, String configPath, Reporter reporter) throws UrlRewriterParseException {
+      Path workspaceRoot, @Nullable PathFragment configPath, Reporter reporter)
+      throws UrlRewriterParseException {
     Consumer<String> log = str -> reporter.handle(Event.info(str));
 
     // "empty" UrlRewriter shouldn't alter auth headers
-    if (Strings.isNullOrEmpty(configPath)) {
+    if (configPath == null || configPath.isEmpty()) {
       return new UrlRewriter(log, "", new StringReader(""));
     }
 
@@ -101,13 +102,13 @@ public class UrlRewriter {
 
     if (!actualConfigPath.exists()) {
       throw new UrlRewriterParseException(
-          String.format("Unable to find downloader config file %s", configPath));
+          String.format("Unable to find downloader config file %s", configPath.getPathString()));
     }
 
     try (InputStream inputStream = actualConfigPath.getInputStream();
         Reader inputStreamReader = new InputStreamReader(inputStream);
         Reader reader = new BufferedReader(inputStreamReader)) {
-      return new UrlRewriter(log, configPath, reader);
+      return new UrlRewriter(log, configPath.getPathString(), reader);
     } catch (IOException e) {
       throw new UrlRewriterParseException(e.getMessage());
     }

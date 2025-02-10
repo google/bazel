@@ -130,11 +130,14 @@ public abstract class VirtualCgroup implements Cgroup {
           continue;
         }
         Path cgroup = m.path().resolve(Path.of("/").relativize(h.path()));
+        logger.atInfo().log("Found cgroup v2 at %s", cgroup);
         if (!cgroup.equals(m.path())) {
           // Because of the "no internal processes" rule, it is not possible to
           // create a non-empty child cgroups on non-root cgroups with member processes
           // Instead, we go up one level in the hierarchy and declare a sibling.
           cgroup = cgroup.getParent();
+          logger.atInfo().log(
+              "Due to the no internal processes rule, using cgroup %s instead.", cgroup);
         }
         if (!cgroup.toFile().canWrite()) {
           logger.atInfo().log("Found non-writable cgroup v2 at %s", cgroup);

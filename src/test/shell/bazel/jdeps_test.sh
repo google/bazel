@@ -77,6 +77,9 @@ function test_jdeps() {
     || fail "Failed to run jdeps on non denylisted class files."
   cd ..
 
+  # Keep java.instrument for allocation_instrumenter, which is supplied by the user.
+  echo "java.instrument" >> jdeps
+
   # Make the list sorted and unique and compare it with expected results.
   cat jdeps | \
     sed -e 's|[[:space:]]*||g' -e 's|/.*||' | \

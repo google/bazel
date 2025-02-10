@@ -427,6 +427,7 @@ public class ConfigRuleClasses {
           .add(attr("default_value", STRING).nonconfigurable(NONCONFIGURABLE_ATTRIBUTE_REASON))
           .add(
               attr("scope", STRING)
+                  .value("universal")
                   .nonconfigurable(NONCONFIGURABLE_ATTRIBUTE_REASON)
                   .allowedValues(new AllowedValueSet("universal", "project")))
           .add(ConfigFeatureFlag.getAllowlistAttribute(env))

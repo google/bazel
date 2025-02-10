@@ -609,7 +609,7 @@ class BazelWindowsTest(test_base.TestBase):
             ),
             (
                 '    toolchains ='
-                ' ["@bazel_tools//tools/cpp:current_cc_toolchain"],'
+                ' ["@bazel_tools//tools/cpp:toolchain_type"],'
             ),
             ')',
         ],

@@ -207,6 +207,7 @@ public class RepositoryOptions extends OptionsBase {
       defaultValue = "null",
       documentationCategory = OptionDocumentationCategory.REMOTE,
       effectTags = {OptionEffectTag.UNKNOWN},
+      converter = OptionsUtils.PathFragmentConverter.class,
       help =
           "Specify a file to configure the remote downloader with. This file consists of lines, "
               + "each of which starts with a directive (`allow`, `block` or `rewrite`) followed "
@@ -214,7 +215,7 @@ public class RepositoryOptions extends OptionsBase {
               + "against, and one to use as a substitute URL, with back-references starting from "
               + "`$1`. It is possible for multiple `rewrite` directives for the same URL to be "
               + "give, and in this case multiple URLs will be returned.")
-  public String downloaderConfig;
+  public PathFragment downloaderConfig;
 
   /** See {@link #workerForRepoFetching}. */
   public enum WorkerForRepoFetching {

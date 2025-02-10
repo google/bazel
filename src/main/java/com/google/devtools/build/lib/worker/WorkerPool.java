@@ -72,23 +72,22 @@ public interface WorkerPool {
    *
    * @param key the worker key.
    */
-  Worker borrowObject(WorkerKey key) throws IOException, InterruptedException;
+  Worker borrowWorker(WorkerKey key) throws IOException, InterruptedException;
 
   /**
    * Returns an active worker back to the pool.
    *
    * @param key the worker key.
-   * @param obj the worker to be returned.
+   * @param worker the worker to be returned.
    */
-  void returnObject(WorkerKey key, Worker obj);
+  void returnWorker(WorkerKey key, Worker worker);
 
   /**
    * Invalidates the worker, thus destroying it.
    *
-   * @param key the worker key.
-   * @param obj the worker to be invalidated.
+   * @param worker the worker to be invalidated.
    */
-  void invalidateObject(WorkerKey key, Worker obj) throws InterruptedException;
+  void invalidateWorker(Worker worker) throws InterruptedException;
 
   void reset();
 

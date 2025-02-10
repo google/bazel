@@ -1348,9 +1348,7 @@ public class JavaInfoStarlarkApiTest extends BuildViewTestCase {
     assertThat(javaInfo.getCompilationInfoProvider()).isNull();
     assertThat(javaInfo.getJavaModuleFlagsInfo()).isEqualTo(JavaModuleFlagsProvider.EMPTY);
     assertThat(javaInfo.getJavaPluginInfo())
-        .isAnyOf(
-            JavaPluginInfo.empty(JavaPluginInfo.LEGACY_BUILTINS_PROVIDER),
-            JavaPluginInfo.empty(JavaPluginInfo.PROVIDER));
+        .isEqualTo(JavaPluginInfo.empty(JavaPluginInfo.PROVIDER));
   }
 
   @Test

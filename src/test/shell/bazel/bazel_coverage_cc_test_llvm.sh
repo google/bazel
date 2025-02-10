@@ -148,6 +148,10 @@ FN:3,_Z1ab
 FNDA:1,_Z1ab
 FNF:1
 FNH:1
+BRDA:4,0,0,1
+BRDA:4,0,1,0
+BRF:2
+BRH:1
 DA:3,1
 DA:4,1
 DA:5,1
@@ -159,7 +163,7 @@ LH:5
 LF:7
 end_of_record"
 
-  assert_equals "$expected_result" "$(cat $(get_coverage_file_path_from_test_log) | grep -v '^BR')"
+  assert_llvm_cc_coverage_result "$expected_result" "$(get_coverage_file_path_from_test_log)"
 }
 
 function test_cc_test_llvm_coverage_produces_lcov_report_with_split_postprocessing() {
@@ -178,6 +182,10 @@ FN:3,_Z1ab
 FNDA:1,_Z1ab
 FNF:1
 FNH:1
+BRDA:4,0,0,1
+BRDA:4,0,1,0
+BRF:2
+BRH:1
 DA:3,1
 DA:4,1
 DA:5,1
@@ -189,7 +197,7 @@ LH:5
 LF:7
 end_of_record"
 
-  assert_equals "$expected_result" "$(cat $(get_coverage_file_path_from_test_log) | grep -v '^BR')"
+  assert_llvm_cc_coverage_result "$expected_result" "$(get_coverage_file_path_from_test_log)"
 }
 
 function test_cc_test_with_runtime_objects_not_in_runfiles() {
@@ -234,6 +242,10 @@ FN:4,main
 FNDA:1,main
 FNF:1
 FNH:1
+BRDA:5,0,0,1
+BRDA:5,0,1,0
+BRF:2
+BRH:1
 DA:4,1
 DA:5,1
 DA:6,1
@@ -243,7 +255,7 @@ LH:5
 LF:5
 end_of_record"
 
-  assert_equals "$expected_result" "$(cat $(get_coverage_file_path_from_test_log) | grep -v '^BR')"
+  assert_llvm_cc_coverage_result "$expected_result" "$(get_coverage_file_path_from_test_log)"
 }
 
 function setup_external_cc_target() {
@@ -331,11 +343,15 @@ function test_external_cc_target_can_collect_coverage() {
   bazel coverage --combined_report=lcov --test_output=all \
     @other_repo//:t --instrumentation_filter=// &>$TEST_log || fail "Coverage for @other_repo//:t failed"
 
-  local expected_result='SF:b.cc
+  local expected_b_cc='SF:b.cc
 FN:1,_Z1bb
 FNDA:1,_Z1bb
 FNF:1
 FNH:1
+BRDA:2,0,0,1
+BRDA:2,0,1,0
+BRF:2
+BRH:1
 DA:1,1
 DA:2,1
 DA:3,1
@@ -345,12 +361,17 @@ DA:6,0
 DA:7,1
 LH:5
 LF:7
-end_of_record
-SF:external/+_repo_rules+other_repo/a.cc
+end_of_record'
+
+  local expected_a_cc='SF:external/+_repo_rules+other_repo/a.cc
 FN:4,_Z1ab
 FNDA:1,_Z1ab
 FNF:1
 FNH:1
+BRDA:5,0,0,1
+BRDA:5,0,1,0
+BRF:2
+BRH:1
 DA:4,1
 DA:5,1
 DA:6,1
@@ -362,8 +383,10 @@ LH:5
 LF:7
 end_of_record'
 
-  assert_equals "$expected_result" "$(cat $(get_coverage_file_path_from_test_log) | grep -v '^BR')"
-  assert_equals "$expected_result" "$(cat bazel-out/_coverage/_coverage_report.dat | grep -v '^BR')"
+  assert_llvm_cc_coverage_result "$expected_b_cc" "$(get_coverage_file_path_from_test_log)"
+  assert_llvm_cc_coverage_result "$expected_a_cc" "$(get_coverage_file_path_from_test_log)"
+  assert_llvm_cc_coverage_result "$expected_b_cc" "bazel-out/_coverage/_coverage_report.dat"
+  assert_llvm_cc_coverage_result "$expected_a_cc" "bazel-out/_coverage/_coverage_report.dat"
 }
 
 function test_external_cc_target_coverage_not_collected_by_default() {
@@ -378,6 +401,10 @@ FN:1,_Z1bb
 FNDA:1,_Z1bb
 FNF:1
 FNH:1
+BRDA:2,0,0,1
+BRDA:2,0,1,0
+BRF:2
+BRH:1
 DA:1,1
 DA:2,1
 DA:3,1
@@ -389,8 +416,8 @@ LH:5
 LF:7
 end_of_record'
 
-  assert_equals "$expected_result" "$(cat $(get_coverage_file_path_from_test_log) | grep -v '^BR')"
-  assert_equals "$expected_result" "$(cat bazel-out/_coverage/_coverage_report.dat | grep -v '^BR')"
+  assert_llvm_cc_coverage_result "$expected_result" "$(get_coverage_file_path_from_test_log)"
+  assert_llvm_cc_coverage_result "$expected_result" "bazel-out/_coverage/_coverage_report.dat"
 }
 
 function test_coverage_with_tmp_in_path() {
@@ -445,6 +472,10 @@ FN:3,_Z1ab
 FNDA:1,_Z1ab
 FNF:1
 FNH:1
+BRDA:4,0,0,1
+BRDA:4,0,1,0
+BRF:2
+BRH:1
 DA:3,1
 DA:4,1
 DA:5,1
@@ -456,8 +487,94 @@ LH:5
 LF:7
 end_of_record'
 
-  assert_equals "$expected_result" "$(cat $(get_coverage_file_path_from_test_log) | grep -v '^BR')"
-  assert_equals "$expected_result" "$(cat bazel-out/_coverage/_coverage_report.dat | grep -v '^BR')"
+  assert_llvm_cc_coverage_result "$expected_result" "$(get_coverage_file_path_from_test_log)"
+  assert_llvm_cc_coverage_result "$expected_result" "bazel-out/_coverage/_coverage_report.dat"
+}
+
+function test_coverage_for_header() {
+  setup_llvm_coverage_tools_for_lcov || return 0
+
+  cat << EOF > BUILD
+cc_library(
+  name = "foo",
+  srcs = ["foo.cc"],
+  hdrs = ["foo.h"],
+)
+
+cc_test(
+  name = "foo_test",
+  srcs = ["foo_test.cc"],
+  deps = [":foo"],
+)
+EOF
+
+cat << EOF > foo.h
+template<typename T>
+T fooify(T x) {
+  if (x < 0) {
+    return -1 * x;
+  }
+  return x + x*x;
+}
+
+int calc_foo(int x);
+EOF
+
+cat << EOF > foo.cc
+#include "foo.h"
+
+int calc_foo(int x) {
+  return fooify<int>(x);
+}
+EOF
+
+cat << EOF > foo_test.cc
+
+#include "foo.h"
+
+int main() {
+  int f = calc_foo(4);
+  return f == 20 ? 0 : 1;
+}
+EOF
+
+  local expected_foo_h="SF:foo.h
+FN:2,_Z6fooifyIiET_S0_
+FNDA:1,_Z6fooifyIiET_S0_
+FNF:1
+FNH:1
+BRDA:3,0,0,0
+BRDA:3,0,1,1
+BRF:2
+BRH:1
+DA:2,1
+DA:3,1
+DA:4,0
+DA:5,0
+DA:6,1
+DA:7,1
+LH:4
+LF:6
+end_of_record"
+
+local expected_foo_cc="SF:foo.cc
+FN:3,_Z8calc_fooi
+FNDA:1,_Z8calc_fooi
+FNF:1
+FNH:1
+DA:3,1
+DA:4,1
+DA:5,1
+LH:3
+LF:3
+end_of_record"
+
+  bazel coverage --nobuild_runfile_links --test_output=all //:foo_test \
+    &>$TEST_log || fail "Coverage for //:foo_test failed"
+
+  cov_file="$(get_coverage_file_path_from_test_log)"
+  assert_llvm_cc_coverage_result "$expected_foo_h" "$cov_file"
+  assert_llvm_cc_coverage_result "$expected_foo_cc" "$cov_file"
 }
 
 run_suite "test tests"

@@ -16,7 +16,6 @@
 from typing import Mapping
 from typing import Optional
 from typing import Tuple
-# Do not edit this line. Copybara replaces it with PY2 migration helper.
 from dataclasses import dataclass
 from dataclasses import field
 from frozendict import frozendict

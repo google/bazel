@@ -467,13 +467,12 @@ public class ModExecutor {
   /** Helper to display show_extension info. */
   private void displayExtension(ModuleExtensionId extension, ImmutableSet<ModuleKey> fromUsages)
       throws InvalidArgumentException {
-    printer.printf("## %s:\n", extension.asTargetString());
+    printer.printf("## %s:\n", extension.toString());
     printer.println();
     printer.println("Fetched repositories:");
     if (!extensionRepoImports.containsKey(extension)) {
       throw new InvalidArgumentException(
-          String.format(
-              "No extension %s exists in the dependency graph", extension.asTargetString()));
+          String.format("No extension %s exists in the dependency graph", extension));
     }
     ImmutableSortedSet<String> usedRepos =
         ImmutableSortedSet.copyOf(extensionRepoImports.get(extension).keySet());

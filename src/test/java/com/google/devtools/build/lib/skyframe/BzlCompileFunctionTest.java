@@ -103,14 +103,8 @@ public class BzlCompileFunctionTest extends BuildViewTestCase {
 
   @Test
   public void testLoadFromFileInRemoteRepo() throws Exception {
-    scratch.overwriteFile(
-        "WORKSPACE",
-        "local_repository(",
-        "    name = 'a_remote_repo',",
-        "    path = '/a_remote_repo'",
-        ")");
     Path repoPath = scratch.dir("/a_remote_repo");
-    scratch.file("/a_remote_repo/WORKSPACE");
+    scratch.file("/a_remote_repo/REPO.bazel");
     scratch.file("/a_remote_repo/remote_pkg/BUILD");
     scratch.file("/a_remote_repo/remote_pkg/foo.bzl", "load(':bar.bzl', 'CONST')");
     scratch.file("/a_remote_repo/remote_pkg/bar.bzl", "CONST = 17");
@@ -167,5 +161,57 @@ public class BzlCompileFunctionTest extends BuildViewTestCase {
               StarlarkThread.createTransient(mu, StarlarkSemantics.DEFAULT));
       assertThat(val.toString()).isEqualTo("[-9223372036854775809, 9223372036854775808]");
     }
+  }
+
+  @Test
+  public void testInvalidUtf8_enforcementOff() throws Exception {
+    setBuildLanguageOptions("--noincompatible_enforce_starlark_utf8");
+
+    scratch.file("pkg/BUILD");
+    scratch.file("pkg/foo.bzl", new byte[] {'#', ' ', (byte) 0x80});
+
+    SkyKey skyKey = BzlCompileValue.key(root, Label.parseCanonicalUnchecked("//pkg:foo.bzl"));
+    EvaluationResult<BzlCompileValue> result =
+        SkyframeExecutorTestUtils.evaluate(
+            getSkyframeExecutor(), skyKey, /* keepGoing= */ false, reporter);
+    assertThat(result.get(skyKey).lookupSuccessful()).isTrue();
+    assertNoEvents();
+  }
+
+  @Test
+  public void testInvalidUtf8_enforcementWarning() throws Exception {
+    setBuildLanguageOptions("--incompatible_enforce_starlark_utf8=warning");
+
+    scratch.file("pkg/BUILD");
+    scratch.file("pkg/foo.bzl", new byte[] {'#', ' ', (byte) 0x80});
+
+    SkyKey skyKey = BzlCompileValue.key(root, Label.parseCanonicalUnchecked("//pkg:foo.bzl"));
+    EvaluationResult<BzlCompileValue> result =
+        SkyframeExecutorTestUtils.evaluate(
+            getSkyframeExecutor(), skyKey, /* keepGoing= */ false, reporter);
+    assertThat(result.get(skyKey).lookupSuccessful()).isTrue();
+    assertContainsEvent(
+        "WARNING /workspace/pkg/foo.bzl: not a valid UTF-8 encoded file; this can lead to"
+            + " inconsistent behavior and will be disallowed in a future version of Bazel");
+  }
+
+  @Test
+  public void testInvalidUtf8_enforcementError() throws Exception {
+    reporter.removeHandler(failFastHandler);
+    setBuildLanguageOptions("--incompatible_enforce_starlark_utf8");
+
+    scratch.file("pkg/BUILD");
+    scratch.file("pkg/foo.bzl", new byte[] {'#', ' ', (byte) 0x80});
+
+    SkyKey skyKey = BzlCompileValue.key(root, Label.parseCanonicalUnchecked("//pkg:foo.bzl"));
+    EvaluationResult<BzlCompileValue> result =
+        SkyframeExecutorTestUtils.evaluate(
+            getSkyframeExecutor(), skyKey, /* keepGoing= */ false, reporter);
+    assertThat(result.get(skyKey).lookupSuccessful()).isFalse();
+    assertThat(result.get(skyKey).getError())
+        .isEqualTo("compilation of '/workspace/pkg/foo.bzl' failed");
+    assertContainsEvent(
+        "ERROR /workspace/pkg/foo.bzl: not a valid UTF-8 encoded file; this can lead to"
+            + " inconsistent behavior and will be disallowed in a future version of Bazel");
   }
 }

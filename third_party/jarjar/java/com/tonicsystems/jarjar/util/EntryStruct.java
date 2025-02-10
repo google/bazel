@@ -16,20 +16,25 @@
 
 package com.tonicsystems.jarjar.util;
 
-public class EntryStruct {
+/** A mutable representation of a JAR entry. */
+public final class EntryStruct {
   public byte[] data;
   public String name;
   public long time;
 
-    /** Returns true if the entry is a class file. */
-    public boolean isClass() {
-      if (!name.endsWith(".class")) {
-        return false;
-      }
-      if (name.startsWith("META-INF/version")) {
-        // TODO(b/69678527): handle multi-release jar files
-        return false;
-      }
-      return true;
+  /** Returns true if the entry is a class file. */
+  public boolean isClass() {
+    if (!name.endsWith(".class")) {
+      return false;
     }
+    if (name.startsWith("META-INF/version")) {
+      // TODO(b/69678527): handle multi-release jar files
+      return false;
+    }
+    return true;
+  }
+
+  public boolean isDir() {
+    return name.endsWith("/");
+  }
 }

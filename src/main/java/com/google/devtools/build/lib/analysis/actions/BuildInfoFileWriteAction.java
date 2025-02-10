@@ -18,7 +18,6 @@ import static com.google.common.collect.ImmutableList.toImmutableList;
 
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableMap;
 import com.google.devtools.build.lib.actions.AbstractAction;
 import com.google.devtools.build.lib.actions.ActionExecutionContext;
 import com.google.devtools.build.lib.actions.ActionExecutionException;
@@ -130,11 +129,7 @@ public final class BuildInfoFileWriteAction extends AbstractAction {
                 // in any reference-equals objects.
                 SymbolGenerator.createTransient());
         substitutionDictObject =
-            Starlark.call(
-                thread,
-                translationCallback,
-                ImmutableList.of(Dict.immutableCopyOf(values)),
-                ImmutableMap.of());
+            Starlark.positionalOnlyCall(thread, translationCallback, Dict.immutableCopyOf(values));
       } catch (EvalException e) {
         String message =
             String.format(

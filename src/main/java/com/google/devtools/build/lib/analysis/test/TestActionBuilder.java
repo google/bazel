@@ -14,8 +14,8 @@
 
 package com.google.devtools.build.lib.analysis.test;
 
-import static com.google.devtools.build.lib.analysis.test.ExecutionInfo.DEFAULT_TEST_RUNNER_EXEC_GROUP;
 import static com.google.devtools.build.lib.packages.BuildType.LABEL;
+import static com.google.devtools.build.lib.packages.RuleClass.DEFAULT_TEST_RUNNER_EXEC_GROUP_NAME;
 
 import com.google.common.base.MoreObjects;
 import com.google.common.base.Preconditions;
@@ -159,7 +159,7 @@ public final class TestActionBuilder {
     var execGroup =
         this.executionRequirements != null
             ? this.executionRequirements.getExecGroup()
-            : DEFAULT_TEST_RUNNER_EXEC_GROUP;
+            : DEFAULT_TEST_RUNNER_EXEC_GROUP_NAME;
     var owner = ruleContext.getActionOwner(execGroup);
     if (owner != null) {
       return owner;

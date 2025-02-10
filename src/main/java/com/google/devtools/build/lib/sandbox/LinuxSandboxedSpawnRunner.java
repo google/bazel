@@ -15,6 +15,7 @@
 package com.google.devtools.build.lib.sandbox;
 
 import static com.google.common.collect.ImmutableSet.toImmutableSet;
+import static com.google.devtools.build.lib.sandbox.LinuxSandboxCommandLineBuilder.NetworkNamespace.NETNS;
 import static com.google.devtools.build.lib.sandbox.LinuxSandboxCommandLineBuilder.NetworkNamespace.NETNS_WITH_LOOPBACK;
 import static com.google.devtools.build.lib.sandbox.LinuxSandboxCommandLineBuilder.NetworkNamespace.NO_NETNS;
 
@@ -34,8 +35,6 @@ import com.google.devtools.build.lib.actions.Spawn;
 import com.google.devtools.build.lib.actions.Spawns;
 import com.google.devtools.build.lib.actions.UserExecException;
 import com.google.devtools.build.lib.actions.cache.VirtualActionInput;
-import com.google.devtools.build.lib.events.Event;
-import com.google.devtools.build.lib.events.Reporter;
 import com.google.devtools.build.lib.exec.TreeDeleter;
 import com.google.devtools.build.lib.exec.local.LocalEnvProvider;
 import com.google.devtools.build.lib.exec.local.LocalExecutionOptions;
@@ -65,7 +64,6 @@ import java.util.Set;
 import java.util.SortedMap;
 import java.util.TreeMap;
 import java.util.TreeSet;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Stream;
 import javax.annotation.Nullable;
 
@@ -73,8 +71,6 @@ import javax.annotation.Nullable;
 final class LinuxSandboxedSpawnRunner extends AbstractSandboxSpawnRunner {
   // Since checking if sandbox is supported is expensive, we remember what we've checked.
   private static final Map<Path, Boolean> isSupportedMap = new HashMap<>();
-
-  private static final AtomicBoolean warnedAboutUnsupportedModificationCheck = new AtomicBoolean();
 
   /**
    * Returns whether the linux sandbox is supported on the local machine by running a small command
@@ -132,7 +128,6 @@ final class LinuxSandboxedSpawnRunner extends AbstractSandboxSpawnRunner {
   private final LocalEnvProvider localEnvProvider;
   private final Duration timeoutKillDelay;
   private final TreeDeleter treeDeleter;
-  private final Reporter reporter;
   private final Path slashTmp;
   private final ImmutableSet<Path> knownPathsToMountUnderHermeticTmp;
   private String cgroupsDir;
@@ -177,7 +172,6 @@ final class LinuxSandboxedSpawnRunner extends AbstractSandboxSpawnRunner {
     this.timeoutKillDelay = timeoutKillDelay;
     this.localEnvProvider = new PosixLocalEnvProvider(cmdEnv.getClientEnv());
     this.treeDeleter = treeDeleter;
-    this.reporter = cmdEnv.getReporter();
     this.slashTmp = cmdEnv.getRuntime().getFileSystem().getPath("/tmp");
     this.knownPathsToMountUnderHermeticTmp = collectPathsToMountUnderHermeticTmp(cmdEnv);
   }
@@ -317,7 +311,7 @@ final class LinuxSandboxedSpawnRunner extends AbstractSandboxSpawnRunner {
                 prepareAndGetBindMounts(sandboxExecRoot, sandboxTmp, pathsUnderTmpToMount))
             .setUseFakeHostname(getSandboxOptions().sandboxFakeHostname)
             .setEnablePseudoterminal(getSandboxOptions().sandboxExplicitPseudoterminal)
-            .setCreateNetworkNamespace(createNetworkNamespace ? NETNS_WITH_LOOPBACK : NO_NETNS)
+            .setCreateNetworkNamespace(createNetworkNamespace ? getNetworkNamespace() : NO_NETNS)
             .setKillDelay(timeoutKillDelay);
 
     Path sandboxDebugPath = null;
@@ -408,7 +402,11 @@ final class LinuxSandboxedSpawnRunner extends AbstractSandboxSpawnRunner {
       throws UserExecException, IOException {
     final SortedMap<Path, Path> userBindMounts = new TreeMap<>();
     SandboxHelpers.mountAdditionalPaths(
-        getSandboxOptions().sandboxAdditionalMounts, sandboxExecRoot, userBindMounts);
+        ImmutableMap.<String, String>builder()
+            .putAll(getSandboxOptions().sandboxAdditionalMounts)
+            .buildKeepingLast(),
+        sandboxExecRoot,
+        userBindMounts);
 
     for (Path inaccessiblePath : getInaccessiblePaths()) {
       if (!inaccessiblePath.exists()) {
@@ -497,36 +495,22 @@ final class LinuxSandboxedSpawnRunner extends AbstractSandboxSpawnRunner {
       if (!metadata.getType().isFile()) {
         // The hermetic sandbox creates hardlinks from files inside sandbox to files outside
         // sandbox. The content of the files outside the sandbox could have been tampered with via
-        // the hardlinks. Therefore files are checked for modifications. But directories and
-        // unresolved symlinks are not represented as hardlinks in sandbox and don't need to be
-        // checked. By continue and not checking them, we avoid UnsupportedOperationException and
-        // IllegalStateException.
+        // the hardlinks. Therefore files are checked for modifications. On the other hand,
+        // directories and unresolved symlinks are not represented as hardlinks, and don't have to
+        // be checked.
         continue;
       }
 
       Path path = execRoot.getRelative(input.getExecPath());
-      try {
-        if (wasModifiedSinceDigest(metadata.getContentsProxy(), path)) {
-          throw new IOException("input dependency " + path + " was modified during execution.");
-        }
-      } catch (UnsupportedOperationException e) {
-        // Some FileArtifactValue implementations are ignored safely and silently already by the
-        // isFile check above. The remaining ones should probably be checked, but some are not
-        // supporting necessary operations.
-        if (warnedAboutUnsupportedModificationCheck.compareAndSet(false, true)) {
-          reporter.handle(
-              Event.warn(
-                  String.format(
-                      "Input dependency %s of type %s could not be checked for modifications during"
-                          + " execution. Suppressing similar warnings.",
-                      path, metadata.getClass().getSimpleName())));
-        }
+      if (wasModifiedSinceDigest(metadata.getContentsProxy(), path)) {
+        throw new IOException("input dependency " + path + " was modified during execution.");
       }
     }
   }
 
   private boolean wasModifiedSinceDigest(FileContentsProxy proxy, Path path) throws IOException {
     if (proxy == null) {
+      // Metadata is not available (likely because this is not a regular file).
       return false;
     }
     FileStatus stat = path.statIfFound(Symlinks.FOLLOW);
@@ -562,5 +546,12 @@ final class LinuxSandboxedSpawnRunner extends AbstractSandboxSpawnRunner {
       return null;
     }
     return commandLineBuilder.buildForCommand(ImmutableList.of("/bin/sh", "-i"));
+  }
+
+  private final LinuxSandboxCommandLineBuilder.NetworkNamespace getNetworkNamespace() {
+    if (getSandboxOptions().sandboxEnableLoopbackDevice) {
+      return NETNS_WITH_LOOPBACK;
+    }
+    return NETNS;
   }
 }

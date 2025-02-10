@@ -338,6 +338,7 @@ public final class ArtifactFunction implements SkyFunction {
         case DANGLING_SYMLINK:
         case FILE_OPERATION_FAILURE:
         case SYMLINK_CYCLE_OR_INFINITE_EXPANSION:
+        case CANNOT_TRAVERSE_SOURCE_DIRECTORY:
           throw new ArtifactFunctionException(
               SourceArtifactException.create(artifact, e), Transience.PERSISTENT);
         case INCONSISTENT_FILESYSTEM:
@@ -618,12 +619,16 @@ public final class ArtifactFunction implements SkyFunction {
     }
   }
 
-  private static final class DirectoryArtifactTraversalRequest extends TraversalRequest {
+  /**
+   * Key for depending on all files under a source directory. Only requested when {@linkplain
+   * TrackSourceDirectoriesFlag tracking source directories}.
+   */
+  public static final class DirectoryArtifactTraversalRequest extends TraversalRequest {
 
     private static final SkyKeyInterner<DirectoryArtifactTraversalRequest> interner =
         SkyKey.newInterner();
 
-    static DirectoryArtifactTraversalRequest create(
+    private static DirectoryArtifactTraversalRequest create(
         DirectTraversalRoot root, boolean skipTestingForSubpackage, Artifact artifact) {
       return interner.intern(
           new DirectoryArtifactTraversalRequest(root, skipTestingForSubpackage, artifact));

@@ -940,6 +940,27 @@ attr("tags", "[\[ ]value[,\]]", deps(//foo))
 This works because the character before `value` will be `[` or a space and the
 character after `value` will be a comma or `]`.
 
+To select all rules among `//foo` dependencies with a particular `key` and
+`value` in a dict-type attribute, use
+
+```
+attr("some_dict_attribute", "[\{ ]key=value[,\}]", deps(//foo))
+```
+
+This would select `//foo` if `//foo` is defined as
+
+```
+some_rule(
+  name = "foo",
+  some_dict_attribute = {
+    "key": "value",
+  },
+)
+```
+
+This works because the character before `key=value` will be `{` or a space and
+the character after `key=value` will be a comma or `}`.
+
 ### Rule visibility filtering: visible {:#visible}
 
 ```

@@ -28,6 +28,29 @@ public final class FileSystemLock implements AutoCloseable {
   private final FileChannel channel;
   private final FileLock lock;
 
+  /**
+   * The exception thrown when a lock cannot be acquired because it is already exclusively held by
+   * another process.
+   */
+  public static class LockAlreadyHeldException extends IOException {
+    LockAlreadyHeldException(LockMode mode, Path path) {
+      super("failed to acquire %s filesystem lock on %s".formatted(mode, path));
+    }
+  }
+
+  private enum LockMode {
+    SHARED,
+    EXCLUSIVE;
+
+    @Override
+    public String toString() {
+      return switch (this) {
+        case SHARED -> "shared";
+        case EXCLUSIVE -> "exclusive";
+      };
+    }
+  }
+
   private FileSystemLock(FileChannel channel, FileLock lock) {
     this.channel = channel;
     this.lock = lock;
@@ -37,25 +60,25 @@ public final class FileSystemLock implements AutoCloseable {
    * Acquires shared access to the lock file.
    *
    * @param path the path to the lock file
-   * @throws IOException if an error occurred, including the lock currently being exclusively held
-   *     by another process
+   * @throws AlreadyLockedException if the lock is already exclusively held by another process
+   * @throws IOException if another error occurred
    */
   public static FileSystemLock getShared(Path path) throws IOException {
-    return get(path, true);
+    return get(path, LockMode.SHARED);
   }
 
   /**
    * Acquires exclusive access to the lock file.
    *
    * @param path the path to the lock file
-   * @throws IOException if an error occurred, including the lock currently being exclusively held
-   *     by another process
+   * @throws LockAlreadyHeldException if the lock is already exclusively held by another process
+   * @throws IOException if another error occurred
    */
   public static FileSystemLock getExclusive(Path path) throws IOException {
-    return get(path, false);
+    return get(path, LockMode.EXCLUSIVE);
   }
 
-  private static FileSystemLock get(Path path, boolean shared) throws IOException {
+  private static FileSystemLock get(Path path, LockMode mode) throws IOException {
     path.getParentDirectory().createDirectoryAndParents();
     FileChannel channel =
         FileChannel.open(
@@ -64,11 +87,9 @@ public final class FileSystemLock implements AutoCloseable {
             StandardOpenOption.READ,
             StandardOpenOption.WRITE,
             StandardOpenOption.CREATE);
-    FileLock lock = channel.tryLock(0, Long.MAX_VALUE, shared);
+    FileLock lock = channel.tryLock(0, Long.MAX_VALUE, mode == LockMode.SHARED);
     if (lock == null) {
-      throw new IOException(
-          "failed to acquire %s filesystem lock on %s"
-              .formatted(shared ? "shared" : "exclusive", path));
+      throw new LockAlreadyHeldException(mode, path);
     }
     return new FileSystemLock(channel, lock);
   }

@@ -52,8 +52,6 @@ import java.nio.file.attribute.PosixFilePermission;
 import java.time.Instant;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -130,25 +128,6 @@ public abstract class FileSystemTest {
    */
   protected abstract FileSystem getFreshFileSystem(DigestHashFunction digestHashFunction)
       throws IOException;
-
-  private static final Pattern STAT_SUBDIR_ERROR = Pattern.compile("(.*) \\(Not a directory\\)");
-
-  // Test that file is not present, using statIfFound. Base implementation throws an exception, but
-  // subclasses may override statIfFound to return null, in which case their tests should override
-  // this method.
-  @SuppressWarnings("unused") // Subclasses may throw.
-  protected void expectNotFound(Path path) throws IOException {
-    try {
-      assertThat(path.statIfFound()).isNull();
-    } catch (IOException e) {
-      // May be because of a non-directory path component. Parse exception to check this.
-      Matcher matcher = STAT_SUBDIR_ERROR.matcher(e.getMessage());
-      if (!matcher.matches() || !path.getPathString().startsWith(matcher.group(1))) {
-        // Throw if this doesn't match what an ENOTDIR error looks like.
-        throw e;
-      }
-    }
-  }
 
   /**
    * Cleans up the working directory by removing everything.
@@ -284,7 +263,7 @@ public abstract class FileSystemTest {
   public void testExistsForNonexistingPath() throws Exception {
     Path nonExistingPath = testFS.getPath("/something/strange");
     assertThat(nonExistingPath.exists()).isFalse();
-    expectNotFound(nonExistingPath);
+    assertThat(nonExistingPath.statIfFound()).isNull();
   }
 
   @Test
@@ -468,7 +447,7 @@ public abstract class FileSystemTest {
     FileSystemUtils.createEmptyFile(somePath);
     Path childOfNonDir = somePath.getChild("child");
     assertThat(childOfNonDir.exists()).isFalse();
-    expectNotFound(childOfNonDir);
+    assertThat(childOfNonDir.statIfFound()).isNull();
   }
 
   @Test

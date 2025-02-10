@@ -28,7 +28,7 @@ import com.google.devtools.build.lib.actions.Artifact.TreeFileArtifact;
 import com.google.devtools.build.lib.actions.ArtifactPathResolver;
 import com.google.devtools.build.lib.actions.FilesetOutputTree;
 import com.google.devtools.build.lib.actions.InputMetadataProvider;
-import com.google.devtools.build.lib.actions.RemoteArtifactChecker;
+import com.google.devtools.build.lib.actions.OutputChecker;
 import com.google.devtools.build.lib.actions.cache.OutputMetadataStore;
 import com.google.devtools.build.lib.analysis.BlazeDirectories;
 import com.google.devtools.build.lib.buildtool.buildevent.ExecutionPhaseCompleteEvent;
@@ -188,7 +188,7 @@ public class RemoteOutputService implements OutputService {
   }
 
   @Override
-  public RemoteArtifactChecker getRemoteArtifactChecker() {
+  public OutputChecker getOutputChecker() {
     return checkNotNull(remoteOutputChecker, "remoteOutputChecker must not be null");
   }
 

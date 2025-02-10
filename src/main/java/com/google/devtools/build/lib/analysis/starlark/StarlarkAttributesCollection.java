@@ -29,6 +29,7 @@ import com.google.devtools.build.lib.cmdline.Label;
 import com.google.devtools.build.lib.collect.nestedset.NestedSet;
 import com.google.devtools.build.lib.packages.Attribute;
 import com.google.devtools.build.lib.packages.BuildType;
+import com.google.devtools.build.lib.packages.RuleClass;
 import com.google.devtools.build.lib.packages.StructImpl;
 import com.google.devtools.build.lib.packages.StructProvider;
 import com.google.devtools.build.lib.packages.Type;
@@ -36,6 +37,7 @@ import com.google.devtools.build.lib.packages.Type.LabelClass;
 import com.google.devtools.build.lib.starlarkbuildapi.StarlarkAttributesCollectionApi;
 import com.google.devtools.build.lib.starlarkbuildapi.platform.ExecGroupCollectionApi;
 import com.google.devtools.build.lib.starlarkbuildapi.platform.ToolchainContextApi;
+import com.google.errorprone.annotations.CanIgnoreReturnValue;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -58,6 +60,7 @@ public class StarlarkAttributesCollection implements StarlarkAttributesCollectio
   private final StructImpl filesObject;
   private final ImmutableMap<Artifact, FilesToRunProvider> executableRunfilesMap;
   private final String ruleClassName;
+  private final Dict<String, String> ruleVariables;
 
   static final String ERROR_MESSAGE_FOR_NO_ATTR =
       "No attribute '%s' in attr. Make sure you declared a rule attribute with this name.";
@@ -69,7 +72,8 @@ public class StarlarkAttributesCollection implements StarlarkAttributesCollectio
       Map<String, Object> executables,
       Map<String, Object> singleFiles,
       Map<String, Object> files,
-      ImmutableMap<Artifact, FilesToRunProvider> executableRunfilesMap) {
+      ImmutableMap<Artifact, FilesToRunProvider> executableRunfilesMap,
+      Dict<String, String> ruleVariables) {
     this.starlarkRuleContext = starlarkRuleContext;
     this.ruleClassName = ruleClassName;
     attrObject = StructProvider.STRUCT.create(attrs, ERROR_MESSAGE_FOR_NO_ATTR);
@@ -89,6 +93,7 @@ public class StarlarkAttributesCollection implements StarlarkAttributesCollectio
             "No attribute '%s' in files. Make sure there is a label or label_list type attribute "
                 + "with this name");
     this.executableRunfilesMap = executableRunfilesMap;
+    this.ruleVariables = ruleVariables;
   }
 
   private void checkMutable(String attrName) throws EvalException {
@@ -148,7 +153,7 @@ public class StarlarkAttributesCollection implements StarlarkAttributesCollectio
     checkMutable("exec_groups");
     if (((AspectContext) starlarkRuleContext.getRuleContext()).getBaseTargetToolchainContexts()
         == null) {
-      return StarlarkExecGroupCollection.EXEC_GRPOUP_COLLECTION_NOT_VALID;
+      return StarlarkExecGroupCollection.EXEC_GROUP_COLLECTION_NOT_VALID;
     }
     // Create a thin wrapper around the toolchain collection, to expose the Starlark API.
     return StarlarkExecGroupCollection.create(
@@ -186,6 +191,7 @@ public class StarlarkAttributesCollection implements StarlarkAttributesCollectio
     private final LinkedHashMap<String, Object> fileBuilder = new LinkedHashMap<>();
     private final LinkedHashMap<String, Object> filesBuilder = new LinkedHashMap<>();
     private final HashSet<Artifact> seenExecutables = new HashSet<>();
+    private final Dict.Builder<String, String> ruleVariablesBuilder = new Dict.Builder<>();
 
     private Builder(
         StarlarkRuleContext ruleContext, PrerequisitesCollection prerequisitesCollection) {
@@ -227,6 +233,13 @@ public class StarlarkAttributesCollection implements StarlarkAttributesCollectio
       // and currently only applies to subrule attributes
       // TODO: b/293304174 - let subrules explicitly mark attributes as not-visible-to-starlark
       if (!Identifier.isValid(skyname)) {
+        return null;
+      }
+
+      // Don't expose exec_group_compatible_with to Starlark. There is no reason for it to be used
+      // by the rule implementation function and its type (LABEL_LIST_DICT) is not available to
+      // Starlark.
+      if (a.getName().equals(RuleClass.EXEC_GROUP_COMPATIBLE_WITH_ATTR)) {
         return null;
       }
 
@@ -342,6 +355,12 @@ public class StarlarkAttributesCollection implements StarlarkAttributesCollectio
       }
     }
 
+    @CanIgnoreReturnValue
+    public Builder putAllRuleVariables(Dict<String, String> var) {
+      this.ruleVariablesBuilder.putAll(var);
+      return this;
+    }
+
     public StarlarkAttributesCollection build() {
       return new StarlarkAttributesCollection(
           context,
@@ -350,7 +369,13 @@ public class StarlarkAttributesCollection implements StarlarkAttributesCollectio
           executableBuilder,
           fileBuilder,
           filesBuilder,
-          executableRunfilesbuilder.buildOrThrow());
+          executableRunfilesbuilder.buildOrThrow(),
+          ruleVariablesBuilder.buildImmutable());
     }
+  }
+
+  @Override
+  public Dict<String, String> var() throws EvalException, InterruptedException {
+    return this.ruleVariables;
   }
 }

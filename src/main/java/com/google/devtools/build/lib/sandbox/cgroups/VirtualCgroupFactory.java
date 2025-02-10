@@ -16,12 +16,15 @@ package com.google.devtools.build.lib.sandbox.cgroups;
 
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.flogger.GoogleLogger;
 import com.google.errorprone.annotations.CanIgnoreReturnValue;
 import java.io.IOException;
 import java.util.concurrent.ConcurrentHashMap;
 
 /** A factory for creating {@link VirtualCgroup} instances. */
 public class VirtualCgroupFactory {
+  private static final GoogleLogger logger = GoogleLogger.forEnclosingClass();
+
   private final String name;
   private final ImmutableMap<String, Double> defaultLimits;
   private final VirtualCgroup root;
@@ -57,20 +60,37 @@ public class VirtualCgroupFactory {
     }
 
     Double cpuLimit = limits.getOrDefault("cpu", defaultLimits.getOrDefault("cpu", 0.0));
-    double memoryLimit =
-        limits.getOrDefault("memory", defaultLimits.getOrDefault("memory", 0.0)) * 1024 * 1024;
+    long memoryLimit =
+        (long)
+            (limits.getOrDefault("memory", defaultLimits.getOrDefault("memory", 0.0))
+                * 1024
+                * 1024);
 
     if (!alwaysCreate && cpuLimit == 0 && memoryLimit == 0) {
       return VirtualCgroup.NULL;
     }
 
-    VirtualCgroup cgroup = root.createChild(this.name + id + ".scope");
+    String childName = this.name + id + ".scope";
+    VirtualCgroup cgroup = root.createChild(childName);
+    logger.atInfo().log("Created child cgroup %s", childName);
     cgroups.put(id, cgroup);
     if (memoryLimit > 0 && cgroup.memory() != null) {
-      cgroup.memory().setMaxBytes((long) memoryLimit);
+      cgroup.memory().setMaxBytes(memoryLimit);
+      if (cgroup.memory().getMaxBytes() == memoryLimit) {
+        logger.atInfo().log(
+            "Successfully set cgroup memory limit for %s to %d", childName, memoryLimit);
+      } else {
+        logger.atWarning().log(
+            "Failed to set cgroup memory limit for %s to %d", childName, memoryLimit);
+      }
     }
     if (cpuLimit > 0 && cgroup.cpu() != null) {
       cgroup.cpu().setCpus(cpuLimit);
+      if (cgroup.cpu().getCpus() == cpuLimit) {
+        logger.atInfo().log("Successfully set cgroup cpu limit for %s to %f", childName, cpuLimit);
+      } else {
+        logger.atWarning().log("Failed to set cgroup cpu limit for %s to %f", childName, cpuLimit);
+      }
     }
 
     return cgroup;

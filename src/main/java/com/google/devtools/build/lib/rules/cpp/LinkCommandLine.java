@@ -89,7 +89,8 @@ public final class LinkCommandLine extends AbstractCommandLine {
     return this.variables;
   }
 
-  public ImmutableList<String> getParamCommandLine(@Nullable ArtifactExpander expander)
+  public ImmutableList<String> getParamCommandLine(
+      @Nullable ArtifactExpander expander, PathMapper pathMapper)
       throws CommandLineExpansionException {
     ImmutableList.Builder<String> argv = ImmutableList.builder();
     try {
@@ -97,17 +98,17 @@ public final class LinkCommandLine extends AbstractCommandLine {
         // Filter out linker_param_file
         String linkerParamFile =
             variables
-                .getVariable(LINKER_PARAM_FILE.getVariableName())
-                .getStringValue(LINKER_PARAM_FILE.getVariableName(), PathMapper.NOOP);
+                .getVariable(LINKER_PARAM_FILE.getVariableName(), pathMapper)
+                .getStringValue(LINKER_PARAM_FILE.getVariableName(), pathMapper);
         argv.addAll(
             featureConfiguration
-                .getCommandLine(actionName, variables, expander, PathMapper.NOOP)
+                .getCommandLine(actionName, variables, expander, pathMapper)
                 .stream()
                 .filter(s -> !s.contains(linkerParamFile))
                 .collect(toImmutableList()));
       } else {
         argv.addAll(
-            featureConfiguration.getCommandLine(actionName, variables, expander, PathMapper.NOOP));
+            featureConfiguration.getCommandLine(actionName, variables, expander, pathMapper));
       }
     } catch (ExpansionException e) {
       throw new CommandLineExpansionException(e.getMessage());
@@ -153,13 +154,13 @@ public final class LinkCommandLine extends AbstractCommandLine {
 
   @Override
   public List<String> arguments() throws CommandLineExpansionException {
-    return arguments(null, null);
+    return arguments(null, PathMapper.NOOP);
   }
 
   @Override
   public List<String> arguments(ArtifactExpander artifactExpander, PathMapper pathMapper)
       throws CommandLineExpansionException {
-    return getParamCommandLine(artifactExpander);
+    return getParamCommandLine(artifactExpander, pathMapper);
   }
 
   /** A builder for a {@link LinkCommandLine}. */

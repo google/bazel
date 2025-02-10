@@ -15,7 +15,6 @@
 package com.google.devtools.build.lib.skyframe.toolchains;
 
 import static com.google.common.collect.ImmutableList.toImmutableList;
-import static java.util.stream.Collectors.joining;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
@@ -30,7 +29,6 @@ import com.google.devtools.build.lib.analysis.platform.DeclaredToolchainInfo;
 import com.google.devtools.build.lib.analysis.platform.PlatformInfo;
 import com.google.devtools.build.lib.analysis.platform.ToolchainTypeInfo;
 import com.google.devtools.build.lib.cmdline.Label;
-import com.google.devtools.build.lib.events.Event;
 import com.google.devtools.build.lib.server.FailureDetails.Toolchain.Code;
 import com.google.devtools.build.lib.skyframe.ConfiguredTargetKey;
 import com.google.devtools.build.lib.skyframe.toolchains.PlatformLookupUtil.InvalidPlatformException;
@@ -40,12 +38,10 @@ import com.google.devtools.build.skyframe.SkyFunction;
 import com.google.devtools.build.skyframe.SkyFunctionException;
 import com.google.devtools.build.skyframe.SkyKey;
 import com.google.devtools.build.skyframe.SkyValue;
-import com.google.errorprone.annotations.FormatMethod;
-import com.google.errorprone.annotations.FormatString;
-import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import javax.annotation.Nullable;
 
@@ -88,40 +84,26 @@ public class SingleToolchainResolutionFunction implements SkyFunction {
       throw new ToolchainResolutionFunctionException(e);
     }
 
-    List<String> resolutionTrace = debug ? new ArrayList<>() : null;
+    SingleToolchainResolutionDebugPrinter debugPrinter =
+        SingleToolchainResolutionDebugPrinter.create(debug, env.getListener());
 
-    // If debugging, describe rejected toolchains.
-    if (debug
-        && toolchains.rejectedToolchains() != null
-        && !toolchains.rejectedToolchains().isEmpty()) {
-      ImmutableMap<Label, String> rejectedToolchainImplementations =
-          toolchains.rejectedToolchains().row(key.toolchainType().toolchainType());
-      for (Map.Entry<Label, String> entry : rejectedToolchainImplementations.entrySet()) {
-        Label toolchainLabel = entry.getKey();
-        String message = entry.getValue();
-        debugMessage(
-            resolutionTrace,
-            IndentLevel.TOOLCHAIN_LEVEL,
-            "Rejected toolchain %s; %s",
-            toolchainLabel,
-            message);
-      }
-    }
+    // Describe rejected toolchains if any are present.
+    Optional.ofNullable(toolchains.rejectedToolchains())
+        .map(rejectedToolchains -> rejectedToolchains.row(key.toolchainType().toolchainType()))
+        .ifPresent(debugPrinter::describeRejectedToolchains);
 
     // Find the right one.
     SingleToolchainResolutionValue toolchainResolution =
         resolveConstraints(
+            env,
+            debugPrinter,
             key.toolchainType(),
             key.toolchainTypeInfo(),
             key.availableExecutionPlatformKeys(),
             key.targetPlatformKey(),
-            toolchains.registeredToolchains(),
-            env,
-            resolutionTrace);
+            toolchains.registeredToolchains());
 
-    if (debug) {
-      env.getListener().handle(Event.info(String.join("\n", resolutionTrace)));
-    }
+    debugPrinter.finishDebugging();
 
     return toolchainResolution;
   }
@@ -133,13 +115,13 @@ public class SingleToolchainResolutionFunction implements SkyFunction {
    */
   @Nullable
   private static SingleToolchainResolutionValue resolveConstraints(
+      Environment env,
+      SingleToolchainResolutionDebugPrinter debugPrinter,
       ToolchainTypeRequirement toolchainType,
       ToolchainTypeInfo toolchainTypeInfo,
       List<ConfiguredTargetKey> availableExecutionPlatformKeys,
       ConfiguredTargetKey targetPlatformKey,
-      ImmutableList<DeclaredToolchainInfo> toolchains,
-      Environment env,
-      @Nullable List<String> resolutionTrace)
+      ImmutableList<DeclaredToolchainInfo> toolchains)
       throws ToolchainResolutionFunctionException, InterruptedException {
 
     // Load the PlatformInfo needed to check constraints.
@@ -161,6 +143,7 @@ public class SingleToolchainResolutionFunction implements SkyFunction {
     }
 
     PlatformInfo targetPlatform = platforms.get(targetPlatformKey);
+    debugPrinter.startToolchainResolution(toolchainType.toolchainType(), targetPlatform.label());
 
     // Platforms may exist multiple times in availableExecutionPlatformKeys. The Set lets this code
     // check whether a platform has already been seen during processing.
@@ -176,29 +159,20 @@ public class SingleToolchainResolutionFunction implements SkyFunction {
                     toolchain.toolchainType().typeLabel().equals(toolchainType.toolchainType()))
             .collect(toImmutableList());
 
-    debugMessage(
-        resolutionTrace,
-        IndentLevel.TARGET_PLATFORM_LEVEL,
-        "Performing resolution of %s for target platform %s",
-        toolchainType.toolchainType(),
-        targetPlatform.label());
-
     for (DeclaredToolchainInfo toolchain : filteredToolchains) {
       // Make sure the target platform matches.
       if (!checkConstraints(
-          resolutionTrace,
+          debugPrinter,
           toolchain.targetConstraints(),
           /* isTargetPlatform= */ true,
           targetPlatform,
-          toolchain.toolchainLabel())) {
+          toolchain.targetLabel(),
+          toolchain.resolvedToolchainLabel())) {
         continue;
       }
 
-      debugMessage(
-          resolutionTrace,
-          IndentLevel.TOOLCHAIN_LEVEL,
-          "Toolchain %s is compatible with target platform, searching for execution platforms:",
-          toolchain.toolchainLabel());
+      debugPrinter.reportCompatibleTargetPlatform(
+          toolchain.targetLabel(), toolchain.resolvedToolchainLabel());
 
       boolean done = true;
 
@@ -206,11 +180,7 @@ public class SingleToolchainResolutionFunction implements SkyFunction {
       for (ConfiguredTargetKey executionPlatformKey : availableExecutionPlatformKeys) {
         // Only check the toolchains if this is a new platform.
         if (platformKeysSeen.contains(executionPlatformKey)) {
-          debugMessage(
-              resolutionTrace,
-              IndentLevel.EXECUTION_PLATFORM_LEVEL,
-              "Skipping execution platform %s; it has already selected a toolchain",
-              executionPlatformKey.getLabel());
+          debugPrinter.reportSkippedExecutionPlatformSeen(executionPlatformKey.getLabel());
           continue;
         }
 
@@ -219,13 +189,8 @@ public class SingleToolchainResolutionFunction implements SkyFunction {
         // Check if the platform allows this toolchain type.
         if (executionPlatform.checkToolchainTypes()
             && !executionPlatform.allowedToolchainTypes().contains(toolchainType.toolchainType())) {
-          debugMessage(
-              resolutionTrace,
-              IndentLevel.EXECUTION_PLATFORM_LEVEL,
-              "Skipping execution platform %s; its allowed toolchain types does not contain the"
-                  + " current toolchain type %s",
-              executionPlatformKey.getLabel(),
-              toolchainType.toolchainType());
+          debugPrinter.reportSkippedExecutionPlatformDisallowed(
+              executionPlatformKey.getLabel(), toolchainType.toolchainType());
 
           // Keep looking for a valid toolchain for this exec platform
           done = false;
@@ -234,98 +199,33 @@ public class SingleToolchainResolutionFunction implements SkyFunction {
 
         // Check if the execution constraints match.
         if (!checkConstraints(
-            resolutionTrace,
+            debugPrinter,
             toolchain.execConstraints(),
             /* isTargetPlatform= */ false,
             executionPlatform,
-            toolchain.toolchainLabel())) {
+            toolchain.targetLabel(),
+            toolchain.resolvedToolchainLabel())) {
           // Keep looking for a valid toolchain for this exec platform
           done = false;
           continue;
         }
 
-        debugMessage(
-            resolutionTrace,
-            IndentLevel.EXECUTION_PLATFORM_LEVEL,
-            "Compatible execution platform %s",
-            executionPlatformKey.getLabel());
-        builder.put(executionPlatformKey, toolchain.toolchainLabel());
+        debugPrinter.reportCompatibleExecutionPlatform(executionPlatformKey.getLabel());
+        builder.put(executionPlatformKey, toolchain.resolvedToolchainLabel());
         platformKeysSeen.add(executionPlatformKey);
       }
 
       if (done) {
-        debugMessage(
-            resolutionTrace,
-            IndentLevel.TOOLCHAIN_LEVEL,
-            "All execution platforms have been assigned a %s toolchain, stopping",
-            toolchainType.toolchainType());
+        debugPrinter.reportDone(toolchainType.toolchainType());
         break;
       }
     }
 
     ImmutableMap<ConfiguredTargetKey, Label> resolvedToolchainLabels = builder.buildOrThrow();
-    if (resolutionTrace != null) {
-      if (resolvedToolchainLabels.isEmpty()) {
-        debugMessage(
-            resolutionTrace,
-            IndentLevel.TARGET_PLATFORM_LEVEL,
-            "No %s toolchain found for target platform %s.",
-            toolchainType.toolchainType(),
-            targetPlatform.label());
-      } else {
-        debugMessage(
-            resolutionTrace,
-            IndentLevel.TARGET_PLATFORM_LEVEL,
-            "Recap of selected %s toolchains for target platform %s:",
-            toolchainType.toolchainType(),
-            targetPlatform.label());
-        resolvedToolchainLabels.forEach(
-            (executionPlatformKey, toolchainLabel) ->
-                debugMessage(
-                    resolutionTrace,
-                    IndentLevel.TOOLCHAIN_LEVEL,
-                    "Selected %s to run on execution platform %s",
-                    toolchainLabel,
-                    executionPlatformKey.getLabel()));
-      }
-    }
+    debugPrinter.reportResolvedToolchains(
+        resolvedToolchainLabels, targetPlatform.label(), toolchainType.toolchainType());
 
     return SingleToolchainResolutionValue.create(toolchainTypeInfo, resolvedToolchainLabels);
-  }
-
-  /** Helper enum to define the three indentation levels used in {@code debugMessage}. */
-  private enum IndentLevel {
-    TARGET_PLATFORM_LEVEL(""),
-    TOOLCHAIN_LEVEL("  "),
-    EXECUTION_PLATFORM_LEVEL("    ");
-
-    final String value;
-
-    IndentLevel(String value) {
-      this.value = value;
-    }
-
-    public String indent() {
-      return value;
-    }
-  }
-
-  /**
-   * Helper method to print a debugging message, if the given {@code resolutionTrace} is not {@code
-   * null}.
-   */
-  @FormatMethod
-  private static void debugMessage(
-      @Nullable List<String> resolutionTrace,
-      IndentLevel indent,
-      @FormatString String template,
-      Object... args) {
-    if (resolutionTrace == null) {
-      return;
-    }
-    String padding = resolutionTrace.isEmpty() ? "" : " ".repeat("INFO: ".length());
-    resolutionTrace.add(
-        padding + "ToolchainResolution: " + indent.indent() + String.format(template, args));
   }
 
   /**
@@ -333,11 +233,12 @@ public class SingleToolchainResolutionFunction implements SkyFunction {
    * match.
    */
   private static boolean checkConstraints(
-      @Nullable List<String> resolutionTrace,
+      SingleToolchainResolutionDebugPrinter debugPrinter,
       ConstraintCollection toolchainConstraints,
       boolean isTargetPlatform,
       PlatformInfo platform,
-      Label toolchainLabel) {
+      Label targetLabel,
+      Label resolvedToolchainLabel) {
 
     // Check every constraint_setting in either the toolchain or the platform.
     ImmutableSet<ConstraintSettingInfo> mismatchSettings =
@@ -356,40 +257,13 @@ public class SingleToolchainResolutionFunction implements SkyFunction {
             .filter(toolchainConstraints::hasWithoutDefault)
             .collect(ImmutableSet.toImmutableSet());
 
-    if (resolutionTrace != null && !mismatchSettingsWithDefault.isEmpty()) {
-      String mismatchValues =
-          mismatchSettingsWithDefault.stream()
-              .filter(toolchainConstraints::has)
-              .map(s -> toolchainConstraints.get(s).label().getName())
-              .collect(joining(", "));
-      if (!mismatchValues.isEmpty()) {
-        mismatchValues = "; mismatching values: " + mismatchValues;
-      }
-
-      String missingSettings =
-          mismatchSettingsWithDefault.stream()
-              .filter(s -> !toolchainConstraints.has(s))
-              .map(s -> s.label().getName())
-              .collect(joining(", "));
-      if (!missingSettings.isEmpty()) {
-        missingSettings = "; missing: " + missingSettings;
-      }
-      if (isTargetPlatform) {
-        debugMessage(
-            resolutionTrace,
-            IndentLevel.TOOLCHAIN_LEVEL,
-            "Rejected toolchain %s%s",
-            toolchainLabel,
-            mismatchValues + missingSettings);
-      } else {
-        debugMessage(
-            resolutionTrace,
-            IndentLevel.EXECUTION_PLATFORM_LEVEL,
-            "Incompatible execution platform %s%s",
-            platform.label(),
-            mismatchValues + missingSettings);
-      }
-    }
+    debugPrinter.reportMismatchedSettings(
+        toolchainConstraints,
+        isTargetPlatform,
+        platform,
+        targetLabel,
+        resolvedToolchainLabel,
+        mismatchSettingsWithDefault);
 
     return mismatchSettingsWithDefault.isEmpty();
   }

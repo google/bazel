@@ -16,14 +16,17 @@
 package com.google.devtools.build.lib.bazel.bzlmod;
 
 import com.google.common.collect.ImmutableMap;
+import com.google.devtools.build.lib.cmdline.Label;
 
 /** A utility class to create {@link RepoSpec}s for {@code local_repository}. */
 public final class LocalPathRepoSpecs {
   private LocalPathRepoSpecs() {}
 
-  // TODO: wyv@ - switch to Starlark local_repository. And maybe add support for
-  //   new_local_repository?
-  public static final RepoRuleId LOCAL_REPOSITORY = new RepoRuleId(null, "local_repository");
+  // TODO: wyv@ - maybe add support for new_local_repository?
+  public static final RepoRuleId LOCAL_REPOSITORY =
+      new RepoRuleId(
+          Label.parseCanonicalUnchecked("@@bazel_tools//tools/build_defs/repo:local.bzl"),
+          "local_repository");
 
   public static RepoSpec create(String path) {
     return new RepoSpec(LOCAL_REPOSITORY, AttributeValues.create(ImmutableMap.of("path", path)));

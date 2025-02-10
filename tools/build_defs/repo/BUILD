@@ -13,10 +13,11 @@ filegroup(
 )
 
 filegroup(
-    name = "http_src",
+    name = "mock_srcs",
     srcs = [
         "cache.bzl",
         "http.bzl",
+        "local.bzl",
         "utils.bzl",
     ],
     visibility = ["//src/test/py/bazel:__pkg__"],
@@ -39,6 +40,14 @@ genrule(
     cmd = "touch $@",
 )
 
+# This seemingly useless rule is needed to work around some Google-internal linter issues.
+genrule(
+    name = "index_md",
+    srcs = [":index.md.tmpl"],
+    outs = ["index.md"],
+    cmd = "cat $< > $@",
+)
+
 REPO_BZL_FILES = [
     "cache",
     "git",
@@ -56,7 +65,7 @@ REPO_BZL_FILES = [
 
 [genrule(
     name = "preamb_%s_md" % (name,),
-    srcs = [":preamb.md"],
+    srcs = [":preamb.md.tmpl"],
     outs = ["preamb_%s.md" % (name,)],
     cmd = "sed 's/BZL_FILE_BASE_NAME/%s/g' < $< > $@" % (name,),
 ) for name in REPO_BZL_FILES]

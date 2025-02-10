@@ -452,10 +452,10 @@ public class ActionExecutionContext implements Closeable, ActionContext.ActionCo
   }
 
   /**
-   * Report a subcommand event to this Executor's Reporter and, if action
-   * logging is enabled, post it on its EventBus.
+   * Report a subcommand event to this Executor's Reporter and, if action logging is enabled, post
+   * it on its EventBus.
    */
-  public void maybeReportSubcommand(Spawn spawn) {
+  public void maybeReportSubcommand(Spawn spawn, @Nullable String spawnRunner) {
     ShowSubcommands showSubcommands = executor.reportsSubcommands();
     if (!showSubcommands.shouldShowSubcommands) {
       return;
@@ -492,7 +492,8 @@ public class ActionExecutionContext implements Closeable, ActionContext.ActionCo
             /* environmentVariablesToClear= */ null,
             getExecRoot().getPathString(),
             spawn.getConfigurationChecksum(),
-            spawn.getExecutionPlatformLabel());
+            spawn.getExecutionPlatformLabel(),
+            spawnRunner);
     getEventHandler().handle(Event.of(EventKind.SUBCOMMAND, null, "# " + reason + "\n" + message));
   }
 

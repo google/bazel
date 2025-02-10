@@ -68,6 +68,18 @@ public final class BuildEventArtifactInstrumentationOutput implements Instrument
       return this;
     }
 
+    /**
+     * {@inheritDoc}
+     *
+     * <p>This is a no-op for {@link BuildEventArtifactInstrumentationOutput} since it will never be
+     * written to a local path.
+     */
+    @CanIgnoreReturnValue
+    @Override
+    public Builder setCreateParent(boolean createParent) {
+      return this;
+    }
+
     @Override
     public BuildEventArtifactInstrumentationOutput build() {
       return new BuildEventArtifactInstrumentationOutput(

@@ -120,7 +120,7 @@ public class GraphvizOutputFormatter extends OutputFormatter {
   }
 
   private String toId(ModuleExtensionId id) {
-    return id.asTargetString();
+    return id.toString();
   }
 
   private String toId(ModuleExtensionId id, String repo) {

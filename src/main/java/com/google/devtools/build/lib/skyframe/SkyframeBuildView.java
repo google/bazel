@@ -634,6 +634,7 @@ public final class SkyframeBuildView {
       boolean extraActionTopLevelOnly,
       QuiescingExecutors executors,
       boolean shouldDiscardAnalysisCache,
+      boolean shouldClearSyscallCache,
       BuildDriverKeyTestContext buildDriverKeyTestContext,
       int skymeldAnalysisOverlapPercentage)
       throws InterruptedException,
@@ -714,7 +715,8 @@ public final class SkyframeBuildView {
                     buildResultListener,
                     skyframeExecutor,
                     ctKeys,
-                    shouldDiscardAnalysisCache,
+                    /* shouldDiscardAnalysisCache= */ shouldDiscardAnalysisCache,
+                    /* shouldClearSyscallCache= */ shouldClearSyscallCache,
                     /* measuredAnalysisTime= */ analysisWorkTimer.stop().elapsed().toMillis(),
                     /* conflictCheckingMode= */ conflictCheckingMode),
             /* executionGoAheadCallback= */ executor::launchQueuedUpExecutionPhaseTasks)) {
@@ -737,6 +739,9 @@ public final class SkyframeBuildView {
                   executors.executionParallelism(),
                   executor);
         } finally {
+          if (shouldClearSyscallCache) {
+            skyframeExecutor.clearSyscallCache();
+          }
           // Required for incremental correctness.
           // We unconditionally reset the states here instead of in #analysisFinishedCallback since
           // in case of --nokeep_going & analysis error, the analysis phase is never finished.
@@ -909,6 +914,7 @@ public final class SkyframeBuildView {
       SkyframeExecutor skyframeExecutor,
       List<ConfiguredTargetKey> configuredTargetKeys,
       boolean shouldDiscardAnalysisCache,
+      boolean shouldClearSyscallCache,
       long measuredAnalysisTime,
       ConflictCheckingMode conflictCheckingMode)
       throws InterruptedException {
@@ -941,7 +947,9 @@ public final class SkyframeBuildView {
 
     // Clearing the syscall cache here to free up some heap space.
     // TODO(b/273225564) Would this incur more CPU cost for the execution phase cache misses?
-    skyframeExecutor.clearSyscallCache();
+    if (shouldClearSyscallCache) {
+      skyframeExecutor.clearSyscallCache();
+    }
 
     enableAnalysis(false);
 

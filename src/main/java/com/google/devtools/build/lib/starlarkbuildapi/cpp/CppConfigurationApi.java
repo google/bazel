@@ -170,12 +170,6 @@ public interface CppConfigurationApi<InvalidConfigurationExceptionT extends Exce
   @StarlarkMethod(name = "strip_opts", documented = false, useStarlarkThread = true)
   Sequence<String> getStripOptsStarlark(StarlarkThread thread) throws EvalException;
 
-  @StarlarkMethod(
-      name = "incompatible_enable_cc_test_feature",
-      documented = false,
-      useStarlarkThread = true)
-  boolean useCcTestFeatureStarlark(StarlarkThread thread) throws EvalException;
-
   @StarlarkMethod(name = "should_strip_binaries", useStarlarkThread = true, documented = false)
   boolean shouldStripBinariesForStarlark(StarlarkThread thread) throws EvalException;
 

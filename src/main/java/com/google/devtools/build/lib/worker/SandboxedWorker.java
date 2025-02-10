@@ -16,7 +16,6 @@ package com.google.devtools.build.lib.worker;
 
 import static com.google.devtools.build.lib.sandbox.LinuxSandboxCommandLineBuilder.NetworkNamespace.NETNS;
 
-import com.google.auto.value.AutoValue;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
@@ -39,56 +38,24 @@ import com.google.devtools.build.lib.vfs.Path;
 import com.google.devtools.build.lib.vfs.PathFragment;
 import com.google.devtools.build.lib.vfs.Symlinks;
 import java.io.IOException;
-import java.util.Map.Entry;
 import java.util.Set;
 import java.util.SortedMap;
 import javax.annotation.Nullable;
 
 /** A {@link SingleplexWorker} that runs inside a sandboxed execution root. */
 final class SandboxedWorker extends SingleplexWorker {
-  @AutoValue
-  public abstract static class WorkerSandboxOptions {
-    // Need to have this data class because we can't depend on SandboxOptions in here.
-    abstract boolean fakeHostname();
 
-    abstract boolean fakeUsername();
-
-    abstract boolean debugMode();
-
-    abstract ImmutableList<PathFragment> tmpfsPath();
-
-    abstract ImmutableList<String> writablePaths();
-
-    abstract Path sandboxBinary();
-
-    abstract int memoryLimit();
-
-    abstract ImmutableSet<Path> inaccessiblePaths();
-
-    abstract ImmutableList<Entry<String, String>> additionalMountPaths();
-
-    public static WorkerSandboxOptions create(
-        Path sandboxBinary,
-        boolean fakeHostname,
-        boolean fakeUsername,
-        boolean debugMode,
-        ImmutableList<PathFragment> tmpfsPath,
-        ImmutableList<String> writablePaths,
-        int memoryLimit,
-        ImmutableSet<Path> inaccessiblePaths,
-        ImmutableList<Entry<String, String>> sandboxAdditionalMounts) {
-      return new AutoValue_SandboxedWorker_WorkerSandboxOptions(
-          fakeHostname,
-          fakeUsername,
-          debugMode,
-          tmpfsPath,
-          writablePaths,
-          sandboxBinary,
-          memoryLimit,
-          inaccessiblePaths,
-          sandboxAdditionalMounts);
-    }
-  }
+  // Need to have this data class because we can't depend on SandboxOptions in here.
+  record WorkerSandboxOptions(
+      Path sandboxBinary,
+      boolean fakeHostname,
+      boolean fakeUsername,
+      boolean debugMode,
+      ImmutableSet<PathFragment> tmpfsPath,
+      ImmutableSet<String> writablePaths,
+      int memoryLimit,
+      ImmutableSet<Path> inaccessiblePaths,
+      ImmutableMap<String, String> additionalMountPaths) {}
 
   private static final GoogleLogger logger = GoogleLogger.forEnclosingClass();
   private final WorkerExecRoot workerExecRoot;
@@ -198,10 +165,10 @@ final class SandboxedWorker extends SingleplexWorker {
           LinuxSandboxCommandLineBuilder.commandLineBuilder(
                   this.hardenedSandboxOptions.sandboxBinary())
               .setWritableFilesAndDirectories(getWritableDirs(workDir))
-              .setTmpfsDirectories(ImmutableSet.copyOf(this.hardenedSandboxOptions.tmpfsPath()))
+              .setTmpfsDirectories(hardenedSandboxOptions.tmpfsPath())
               .setPersistentProcess(true)
               .setBindMounts(getBindMounts(workDir, sandboxTmp))
-              .setUseFakeHostname(this.hardenedSandboxOptions.fakeHostname())
+              .setUseFakeHostname(hardenedSandboxOptions.fakeHostname())
               .setCreateNetworkNamespace(NETNS);
 
       if (cgroup != null && cgroup.exists()) {

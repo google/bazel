@@ -70,14 +70,16 @@ file, before any rule.</p>
       <td id="package.default_visibility"><code>default_visibility</code></td>
       <td>
         <p>List of <a href="$expander.expandRef("build-ref#labels")">labels</a>; default is <code>[]</code></p>
-        <p>The default visibility of the rules in this package.</p>
-        <p>Every rule in this package has the visibility specified in this
-        attribute, unless otherwise specified in the <code>visibility</code>
-        attribute of the rule. For detailed information about the syntax of this
-        attribute, see the documentation of <a href="$expander.expandRef("visibility")">visibility</a>.
-        The package default visibility does not apply to
-        <a href="#exports_files">exports_files</a>, which is
-        public by default.</p>
+        <p>The default visibility of the top-level rule targets and symbolic
+        macros in this package &mdash; that is, the targets and symbolic macros
+        that are not themselves declared inside a symbolic macro. This attribute
+        is ignored if the target or macro specifies a <code>visibility</code>
+        value.</p>
+        <p>For detailed information about the syntax of this attribute, see the
+        documentation of <a href="$expander.expandRef("visibility")">
+        visibility</a>. The package default visibility does not apply to
+        <a href="#exports_files">exports_files</a>, which is public by default.
+        </p>
       </td>
     </tr>
     <tr>
