@@ -139,6 +139,7 @@ maven.install(
         "io.grpc:grpc-protobuf:1.66.0",
         "io.grpc:grpc-protobuf-lite:1.66.0",
         "io.grpc:grpc-stub:1.66.0",
+        "io.grpc:grpc-xds:1.66.0",
         "io.netty:netty-buffer:4.1.100.Final",
         "io.netty:netty-codec:4.1.100.Final",
         "io.netty:netty-codec-http:4.1.100.Final",
