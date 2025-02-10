@@ -176,6 +176,7 @@ final class RegularRunnableExtension implements RunnableExtension {
           SpellChecker.didYouMean(extensionId.extensionName(), exportedExtensions));
     }
 
+    // TODO Handle environ deps not in repo env supplier (non-default env vars)
     ImmutableMap<String, Optional<String>> envVars =
         RepositoryFunction.getEnvVarValues(env, ImmutableSet.copyOf(extension.envVariables()));
     if (envVars == null) {
@@ -351,6 +352,7 @@ final class RegularRunnableExtension implements RunnableExtension {
         workingDirectory,
         directories,
         env,
+        // TODO Add clientEnvironmentSupplier for `getenv` dynamic deps
         repoEnvironmentSupplier.get(),
         downloadManager,
         timeoutScaling,

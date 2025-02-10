@@ -401,6 +401,7 @@ public final class RepositoryDelegatorFunction implements SkyFunction {
       handler = handlers.get(rule.getRuleClass());
     }
     if (handler != null) {
+      // TODO Handle environ deps not in repo env supplier (non-default env vars)
       handler.setRepoEnvironment(repoEnvironmentSupplier.get());
     }
 

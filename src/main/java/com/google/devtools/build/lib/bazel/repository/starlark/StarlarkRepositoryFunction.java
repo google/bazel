@@ -231,6 +231,7 @@ public final class StarlarkRepositoryFunction extends RepositoryFunction {
                 outputDirectory,
                 ignoredSubdirectories.asIgnoredSubdirectories(),
                 env,
+                // somewhere here wire up environ/getenv dep expansion
                 ImmutableMap.copyOf(repoEnvironment),
                 downloadManager,
                 timeoutScaling,
