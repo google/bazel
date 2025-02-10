@@ -76,8 +76,7 @@ public final class PlatformUtils {
             ? remoteOptions.getRemoteDefaultExecProperties()
             : ImmutableSortedMap.of();
 
-    // TODO Rewrite `spawn.getExecutionPlatform() == null`, should always be set
-    if (spawn.getExecutionPlatform() == null
+    if ((spawn.getExecutionPlatform() == null || spawn.getExecutionPlatform().execProperties().isEmpty())
         && spawn.getCombinedExecProperties().isEmpty()
         && defaultExecProperties.isEmpty()
         && additionalProperties.isEmpty()) {
@@ -132,10 +131,6 @@ public final class PlatformUtils {
         properties = new HashMap<>(properties);
         properties.putAll(additionalProperties);
       }
-    }
-
-    if (properties.size() == 0) {
-      return null;
     }
 
     Platform.Builder platformBuilder = Platform.newBuilder();
