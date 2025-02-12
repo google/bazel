@@ -26,13 +26,14 @@ class FlagConstants {
 
   // TODO - ilist@: once Java providers are removed, the whole line can be compressed to "@rules_java"
   public static final String DEFAULT_INCOMPATIBLE_AUTOLOAD_EXTERNALLY =
-      "+@rules_python," +
+      "@rules_python," +
       "+java_common,+JavaInfo,+JavaPluginInfo,ProguardSpecProvider," +
       "java_binary,java_import,java_library,java_plugin,java_test," +
       "java_runtime,java_toolchain,java_package_configuration," +
       "@com_google_protobuf," +
       "@rules_shell," +
-      "+@rules_android";
+      "@rules_android," +
+      "+@rules_cc";
 
   public static final String DEFAULT_INCOMPATIBLE_PACKAGE_GROUP_HAS_PUBLIC_SYNTAX = "true";
   public static final String DEFAULT_INCOMPATIBLE_FIX_PACKAGE_GROUP_REPOROOT_SYNTAX = "true";
