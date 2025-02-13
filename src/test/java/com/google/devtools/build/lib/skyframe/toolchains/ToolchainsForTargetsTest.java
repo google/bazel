@@ -38,12 +38,14 @@ import com.google.devtools.build.lib.analysis.config.DependencyEvaluationExcepti
 import com.google.devtools.build.lib.analysis.configuredtargets.RuleConfiguredTarget;
 import com.google.devtools.build.lib.analysis.constraints.IncompatibleTargetChecker.IncompatibleTargetException;
 import com.google.devtools.build.lib.analysis.producers.DependencyContext;
+import com.google.devtools.build.lib.analysis.producers.DependencyContextProducer;
 import com.google.devtools.build.lib.analysis.test.BaselineCoverageAction;
 import com.google.devtools.build.lib.analysis.util.AnalysisMock;
 import com.google.devtools.build.lib.analysis.util.AnalysisTestCase;
 import com.google.devtools.build.lib.cmdline.Label;
 import com.google.devtools.build.lib.packages.RuleClassProvider;
 import com.google.devtools.build.lib.packages.util.Crosstool.CcToolchainConfig;
+import com.google.devtools.build.lib.skyframe.ConfiguredTargetFunction;
 import com.google.devtools.build.lib.skyframe.ConfiguredTargetKey;
 import com.google.devtools.build.lib.skyframe.ConfiguredValueCreationException;
 import com.google.devtools.build.lib.skyframe.DependencyResolver;
@@ -302,10 +304,18 @@ public final class ToolchainsForTargetsTest extends AnalysisTestCase {
         """
         def _impl(ctx):
             data = ctx.toolchains["//toolchain:test_toolchain"].data
-            return []
+            return [
+                coverage_common.instrumented_files_info(
+                    ctx,
+                    source_attributes = ["srcs"],
+                )
+            ]
 
         my_rule = rule(
             implementation = _impl,
+            attrs = {
+                "srcs": attr.label_list(allow_files = True),
+            },
             toolchains = ["//toolchain:test_toolchain"],
         )
         """);
@@ -740,11 +750,13 @@ public final class ToolchainsForTargetsTest extends AnalysisTestCase {
 
         my_rule(
             name = "a",
+            srcs = ["a.c"],
             exec_compatible_with = ["//platforms:local_value_a"],
         )
 
         my_rule(
             name = "b",
+            srcs = ["b.c"],
             exec_compatible_with = ["//platforms:local_value_b"],
         )
         """);
