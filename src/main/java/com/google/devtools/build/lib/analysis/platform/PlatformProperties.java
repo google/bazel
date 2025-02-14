@@ -17,8 +17,9 @@ import com.google.auto.value.AutoValue;
 import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableMap;
 import com.google.errorprone.annotations.CanIgnoreReturnValue;
-import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.SequencedMap;
 import javax.annotation.Nullable;
 
 /** Proepeties set on a specific {@link PlatformInfo}. */
@@ -70,8 +71,8 @@ public abstract class PlatformProperties {
         return properties;
       }
 
-      HashMap<String, String> result = new HashMap<>();
-      if (parent != null && !parent.properties().isEmpty()) {
+      SequencedMap<String, String> result = new LinkedHashMap<>();
+      if (!parent.properties().isEmpty()) {
         result.putAll(parent.properties());
       }
 

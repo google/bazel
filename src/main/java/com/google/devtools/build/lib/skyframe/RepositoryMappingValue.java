@@ -17,6 +17,7 @@ package com.google.devtools.build.lib.skyframe;
 import static java.util.Objects.requireNonNull;
 
 import com.google.auto.value.AutoValue;
+import com.google.common.collect.ImmutableMap;
 import com.google.devtools.build.lib.bazel.bzlmod.Version;
 import com.google.devtools.build.lib.cmdline.RepositoryMapping;
 import com.google.devtools.build.lib.cmdline.RepositoryName;
@@ -27,7 +28,6 @@ import com.google.devtools.build.lib.util.ExitCode;
 import com.google.devtools.build.skyframe.SkyFunctionName;
 import com.google.devtools.build.skyframe.SkyKey;
 import com.google.devtools.build.skyframe.SkyValue;
-import java.util.Map;
 import java.util.Optional;
 import javax.annotation.Nullable;
 
@@ -108,7 +108,8 @@ public record RepositoryMappingValue(
    * Replaces the inner {@link #getRepositoryMapping() repository mapping} with one returned by
    * calling its {@link RepositoryMapping#withAdditionalMappings} method.
    */
-  public final RepositoryMappingValue withAdditionalMappings(Map<String, RepositoryName> mappings) {
+  public final RepositoryMappingValue withAdditionalMappings(
+      ImmutableMap<String, RepositoryName> mappings) {
     return new RepositoryMappingValue(
         repositoryMapping().withAdditionalMappings(mappings),
         associatedModuleName(),

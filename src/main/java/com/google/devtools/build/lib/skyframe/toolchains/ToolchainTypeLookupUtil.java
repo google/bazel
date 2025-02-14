@@ -32,8 +32,9 @@ import com.google.devtools.build.lib.skyframe.ConfiguredTargetKey;
 import com.google.devtools.build.lib.skyframe.ConfiguredValueCreationException;
 import com.google.devtools.build.skyframe.SkyFunction.Environment;
 import com.google.devtools.build.skyframe.SkyframeLookupResult;
-import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.SequencedMap;
 import javax.annotation.Nullable;
 
 /** Helper class that looks up {@link ToolchainTypeInfo} data. */
@@ -59,7 +60,7 @@ public class ToolchainTypeLookupUtil {
 
     SkyframeLookupResult values = env.getValuesAndExceptions(toolchainTypeKeys);
     boolean valuesMissing = env.valuesMissing();
-    Map<Label, ToolchainTypeInfo> results = valuesMissing ? null : new HashMap<>();
+    SequencedMap<Label, ToolchainTypeInfo> results = valuesMissing ? null : new LinkedHashMap<>();
     for (ConfiguredTargetKey key : toolchainTypeKeys) {
       Label originalLabel = key.getLabel();
       ToolchainTypeInfo toolchainTypeInfo = findToolchainTypeInfo(key, values);

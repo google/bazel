@@ -605,11 +605,11 @@ public class BuildConfigurationValue
    * <p>Command-line definitions of make environments override variables defined by {@code
    * Fragment.addGlobalMakeVariables()}.
    */
-  public Map<String, String> getMakeEnvironment() {
-    Map<String, String> makeEnvironment = new HashMap<>();
+  public ImmutableMap<String, String> getMakeEnvironment() {
+    ImmutableMap.Builder<String, String> makeEnvironment = ImmutableMap.builder();
     makeEnvironment.putAll(globalMakeEnv);
     makeEnvironment.putAll(commandLineBuildVariables);
-    return ImmutableMap.copyOf(makeEnvironment);
+    return makeEnvironment.buildKeepingLast();
   }
 
   /**

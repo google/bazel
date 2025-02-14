@@ -29,12 +29,12 @@ import com.google.devtools.build.lib.util.OrderedSetMultimap;
 import com.google.devtools.common.options.OptionDefinition;
 import com.google.devtools.common.options.OptionsParser;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.SequencedMap;
 import java.util.Set;
 
 /**
@@ -138,7 +138,7 @@ public final class OptionsDiff {
   private final Map<Label, Object> starlarkSecond = new LinkedHashMap<>();
 
   private final List<Label> extraStarlarkOptionsFirst = new ArrayList<>();
-  private final Map<Label, Object> extraStarlarkOptionsSecond = new HashMap<>();
+  private final SequencedMap<Label, Object> extraStarlarkOptionsSecond = new LinkedHashMap<>();
 
   private boolean hasStarlarkOptions = false;
 

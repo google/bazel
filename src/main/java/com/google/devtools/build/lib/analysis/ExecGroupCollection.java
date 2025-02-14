@@ -21,7 +21,6 @@ import com.google.common.collect.HashBasedTable;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.ImmutableTable;
-import com.google.common.collect.Maps;
 import com.google.common.collect.Table;
 import com.google.devtools.build.lib.analysis.config.ToolchainTypeRequirement;
 import com.google.devtools.build.lib.analysis.platform.PlatformInfo;
@@ -55,7 +54,7 @@ public abstract class ExecGroupCollection {
       ImmutableSet<ToolchainTypeRequirement> defaultToolchainTypes,
       boolean useAutoExecGroups) {
     var processedGroups =
-        Maps.<String, ExecGroup>newHashMapWithExpectedSize(
+        ImmutableMap.<String, ExecGroup>builderWithExpectedSize(
             useAutoExecGroups
                 ? (execGroups.size() + defaultToolchainTypes.size())
                 : execGroups.size());
@@ -85,7 +84,7 @@ public abstract class ExecGroupCollection {
                 .build());
       }
     }
-    return ImmutableMap.copyOf(processedGroups);
+    return processedGroups.buildOrThrow();
   }
 
   /** Builder class for correctly constructing ExecGroupCollection instances. */
