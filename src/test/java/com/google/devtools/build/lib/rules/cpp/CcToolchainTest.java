@@ -656,6 +656,34 @@ public final class CcToolchainTest extends BuildViewTestCase {
                 toolchainProvider.getCcToolchainLabel(),
                 toolchainProvider.getToolchainIdentifier()))
         .isEqualTo("a/relative/path");
+    assertThat(
+            CcToolchainProvider.getToolPathString(
+                toolchainProvider.getToolPaths(),
+                Tool.GCC,
+                toolchainProvider.getCcToolchainLabel(),
+                toolchainProvider.getToolchainIdentifier()))
+        .isEqualTo("relative/path");
+    assertThat(
+            CcToolchainProvider.getToolPathString(
+                toolchainProvider.getToolPaths(),
+                Tool.GCOV,
+                toolchainProvider.getCcToolchainLabel(),
+                toolchainProvider.getToolchainIdentifier()))
+        .isEqualTo("sysroot/relative/path");
+    assertThat(
+            CcToolchainProvider.getToolPathString(
+                toolchainProvider.getToolPaths(),
+                Tool.GCOVTOOL,
+                toolchainProvider.getCcToolchainLabel(),
+                toolchainProvider.getToolchainIdentifier()))
+        .isEqualTo("a/relative/path");
+    assertThat(
+            CcToolchainProvider.getToolPathString(
+                toolchainProvider.getToolPaths(),
+                Tool.LD,
+                toolchainProvider.getCcToolchainLabel(),
+                toolchainProvider.getToolchainIdentifier()))
+        .isEqualTo("b/c/relative/path");
   }
 
   private void writeStarlarkRule() throws IOException {
@@ -731,10 +759,10 @@ public final class CcToolchainTest extends BuildViewTestCase {
                 tool_paths = [
                     tool_path(name = "ar", path = "/absolute/path"),
                     tool_path(name = "cpp", path = "relative/path"),
-                    tool_path(name = "gcc", path = "/some/path"),
-                    tool_path(name = "gcov", path = "/some/path"),
-                    tool_path(name = "gcovtool", path = "/some/path"),
-                    tool_path(name = "ld", path = "/some/path"),
+                    tool_path(name = "gcc", path = "%workspace%/relative/path"),
+                    tool_path(name = "gcov", path = "%sysroot%/relative/path"),
+                    tool_path(name = "gcov-tool", path = "%crosstool_top%/relative/path"),
+                    tool_path(name = "ld", path = "%package(//b/c)%/relative/path"),
                     tool_path(name = "nm", path = "/some/path"),
                     tool_path(name = "objcopy", path = "/some/path"),
                     tool_path(name = "objdump", path = "/some/path"),

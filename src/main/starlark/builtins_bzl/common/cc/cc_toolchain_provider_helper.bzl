@@ -73,13 +73,13 @@ def _additional_make_variables(toolchain_make_vars):
     make_vars.pop("CC_FLAGS", None)
     return make_vars
 
-def _compute_tool_paths(toolchain_config_info, crosstool_top_path):
+def _compute_tool_paths(target_label, toolchain_config_info, crosstool_top_path, sysroot_path):
     tool_paths_collector = {}
     for tool in toolchain_config_info.tool_paths():
         path_str = tool[1]
         if not paths.is_normalized(path_str):
             fail("The include path '" + path_str + "' is not normalized.")
-        tool_paths_collector[tool[0]] = paths.get_relative(crosstool_top_path, path_str)
+        tool_paths_collector[tool[0]] = _resolve_path(target_label, path_str, sysroot_path, crosstool_top_path)
 
     # These tools can only be declared using tool paths, so action-only toolchains should still
     # be allowed to declared them while still being treated as an action-only toolchain. If a tool
@@ -99,7 +99,7 @@ def _compute_tool_paths(toolchain_config_info, crosstool_top_path):
                 fail("Tool path for '" + tool + "' is missing")
     return tool_paths_collector
 
-def _resolve_include_dir(target_label, s, sysroot, crosstool_path):
+def _resolve_path(target_label, s, sysroot, crosstool_path):
     """ Resolve the given include directory.
 
     If it starts with %sysroot%/, that part is replaced with the actual sysroot.
@@ -181,7 +181,14 @@ def get_cc_toolchain_provider(ctx, attributes):
         attributes.cc_toolchain_label.package,
         ctx.configuration.is_sibling_repository_layout(),
     )
-    tool_paths = _compute_tool_paths(toolchain_config_info, tools_directory)
+    default_sysroot = None
+    if toolchain_config_info.builtin_sysroot() != "":
+        default_sysroot = toolchain_config_info.builtin_sysroot()
+    if attributes.libc_top_label == None:
+        sysroot = default_sysroot
+    else:
+        sysroot = attributes.libc_top_label.package
+    tool_paths = _compute_tool_paths(ctx.label, toolchain_config_info, tools_directory, sysroot)
     toolchain_features = cc_internal.cc_toolchain_features(toolchain_config_info = toolchain_config_info, tools_directory = tools_directory)
     fdo_context = create_fdo_context(
         llvm_profdata = tool_paths.get("llvm-profdata"),
@@ -195,13 +202,6 @@ def get_cc_toolchain_provider(ctx, attributes):
     runtime_solib_dir_base = attributes.runtime_solib_dir_base
     runtime_solib_dir = paths.get_relative(ctx.bin_dir.path, runtime_solib_dir_base)
     solib_directory = "_solib_" + toolchain_config_info.target_cpu()
-    default_sysroot = None
-    if toolchain_config_info.builtin_sysroot() != "":
-        default_sysroot = toolchain_config_info.builtin_sysroot()
-    if attributes.libc_top_label == None:
-        sysroot = default_sysroot
-    else:
-        sysroot = attributes.libc_top_label.package
 
     static_runtime_lib = attributes.static_runtime_lib
     if static_runtime_lib != None:
@@ -235,7 +235,7 @@ def get_cc_toolchain_provider(ctx, attributes):
 
     builtin_include_directories = []
     for s in toolchain_config_info.cxx_builtin_include_directories():
-        builtin_include_directories.append(_resolve_include_dir(ctx.label, s, sysroot, tools_directory))
+        builtin_include_directories.append(_resolve_path(ctx.label, s, sysroot, tools_directory))
 
     build_variables_dict = _get_cc_toolchain_vars(ctx.fragments.cpp, sysroot)
     build_variables = cc_internal.cc_toolchain_variables(
