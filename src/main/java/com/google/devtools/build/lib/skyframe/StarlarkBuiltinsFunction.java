@@ -194,12 +194,12 @@ public class StarlarkBuiltinsFunction implements SkyFunction {
         && starlarkSemantics.getBool(BuildLanguageOptions.ENABLE_BZLMOD)) {
       // We can't do autoloads where the rules are implemented (disabling them when running in
       // main repository named rules_python)
-      ModuleFileValue mainModule =
+      ModuleFileValue rootModule =
           (ModuleFileValue) env.getValue(ModuleFileValue.KEY_FOR_ROOT_MODULE);
-      if (mainModule == null) {
+      if (rootModule == null) {
         return null;
       }
-      if (autoloadSymbols.autoloadsDisabledForRepo(mainModule.getModule().getName())) {
+      if (autoloadSymbols.autoloadsDisabledForRepo(rootModule.module().getName())) {
         isWithAutoloads = false;
       }
     }

@@ -60,7 +60,7 @@ public class BazelModuleInspectorFunction implements SkyFunction {
     if (resolutionValue == null) {
       return null;
     }
-    ImmutableMap<String, ModuleOverride> overrides = root.getOverrides();
+    ImmutableMap<String, ModuleOverride> overrides = root.overrides();
     ImmutableMap<ModuleKey, InterimModule> unprunedDepGraph = resolutionValue.getUnprunedDepGraph();
     ImmutableMap<ModuleKey, Module> resolvedDepGraph = resolutionValue.getResolvedDepGraph();
 

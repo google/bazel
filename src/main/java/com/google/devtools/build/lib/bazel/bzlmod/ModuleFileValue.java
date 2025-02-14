@@ -15,8 +15,6 @@
 
 package com.google.devtools.build.lib.bazel.bzlmod;
 
-import com.google.auto.value.AutoValue;
-import com.google.auto.value.extension.memoized.Memoized;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.google.devtools.build.lib.bazel.repository.downloader.Checksum;
@@ -28,109 +26,74 @@ import com.google.devtools.build.skyframe.SkyFunctionName;
 import com.google.devtools.build.skyframe.SkyKey;
 import com.google.devtools.build.skyframe.SkyValue;
 import java.util.Optional;
-import javax.annotation.Nullable;
 
 /** The result of {@link ModuleFileFunction}. */
-public abstract class ModuleFileValue implements SkyValue {
+public interface ModuleFileValue extends SkyValue {
 
-  public static final ModuleFileValue.Key KEY_FOR_ROOT_MODULE = key(ModuleKey.ROOT, null);
+  ModuleFileValue.Key KEY_FOR_ROOT_MODULE = key(ModuleKey.ROOT);
 
   /**
    * The module resulting from the module file evaluation. Note that the name and version of this
    * module might not match the one in the requesting {@link SkyKey} in certain circumstances (for
    * example, for the root module, or when non-registry overrides are in play.
    */
-  public abstract InterimModule getModule();
+  InterimModule module();
 
   /**
    * Hashes of files obtained (or known to be missing) from registries while obtaining this module
    * file.
    */
-  public abstract ImmutableMap<String, Optional<Checksum>> getRegistryFileHashes();
+  ImmutableMap<String, Optional<Checksum>> registryFileHashes();
 
   /** The {@link ModuleFileValue} for non-root modules. */
-  @AutoValue
-  public abstract static class NonRootModuleFileValue extends ModuleFileValue {
-
-    public static NonRootModuleFileValue create(
-        InterimModule module,
-        ImmutableMap<String, Optional<Checksum>> registryFileHashes) {
-      return new AutoValue_ModuleFileValue_NonRootModuleFileValue(module, registryFileHashes);
-    }
-  }
+  @AutoCodec
+  record NonRootModuleFileValue(
+      InterimModule module, ImmutableMap<String, Optional<Checksum>> registryFileHashes)
+      implements ModuleFileValue {}
 
   /**
    * The {@link ModuleFileValue} for the root module, containing additional information about
    * overrides.
+   *
+   * @param overrides The overrides specified by the evaluated module file. The key is the module
+   *     name and the value is the override itself.
+   * @param nonRegistryOverrideCanonicalRepoNameLookup A mapping from a canonical repo name to the
+   *     name of the module. Only works for modules with non-registry overrides.
+   * @param moduleFilePaths The set of relative paths to the root MODULE.bazel file itself and all
+   *     its transitive includes.
    */
-  @AutoValue
-  public abstract static class RootModuleFileValue extends ModuleFileValue {
-    /**
-     * The overrides specified by the evaluated module file. The key is the module name and the
-     * value is the override itself.
-     */
-    public abstract ImmutableMap<String, ModuleOverride> getOverrides();
-
-    /**
-     * A mapping from a canonical repo name to the name of the module. Only works for modules with
-     * non-registry overrides.
-     */
-    public abstract ImmutableMap<RepositoryName, String>
-        getNonRegistryOverrideCanonicalRepoNameLookup();
-
-    /**
-     * The set of relative paths to the root MODULE.bazel file itself and all its transitive
-     * includes.
-     */
-    public abstract ImmutableSet<PathFragment> getModuleFilePaths();
-
+  @AutoCodec
+  record RootModuleFileValue(
+      InterimModule module,
+      ImmutableMap<String, ModuleOverride> overrides,
+      ImmutableMap<RepositoryName, String> nonRegistryOverrideCanonicalRepoNameLookup,
+      ImmutableSet<PathFragment> moduleFilePaths)
+      implements ModuleFileValue {
     @Override
-    public ImmutableMap<String, Optional<Checksum>> getRegistryFileHashes() {
+    public ImmutableMap<String, Optional<Checksum>> registryFileHashes() {
       // The root module is not obtained from a registry.
       return ImmutableMap.of();
     }
-
-    public static RootModuleFileValue create(
-        InterimModule module,
-        ImmutableMap<String, ModuleOverride> overrides,
-        ImmutableMap<RepositoryName, String> nonRegistryOverrideCanonicalRepoNameLookup,
-        ImmutableSet<PathFragment> moduleFilePaths) {
-      return new AutoValue_ModuleFileValue_RootModuleFileValue(
-          module,
-          overrides,
-          nonRegistryOverrideCanonicalRepoNameLookup,
-          moduleFilePaths);
-    }
   }
 
-  public static Key key(ModuleKey moduleKey, @Nullable ModuleOverride override) {
-    return Key.create(moduleKey, override);
+  static Key key(ModuleKey moduleKey) {
+    return Key.create(moduleKey);
   }
 
   /** {@link SkyKey} for {@link ModuleFileValue} computation. */
   @AutoCodec
-  @AutoValue
-  public abstract static class Key implements SkyKey {
+  record Key(ModuleKey moduleKey) implements SkyKey {
     private static final SkyKeyInterner<Key> interner = SkyKey.newInterner();
 
-    abstract ModuleKey getModuleKey();
-
-    @Nullable
-    abstract ModuleOverride getOverride();
-
     @AutoCodec.Instantiator
-    static Key create(ModuleKey moduleKey, @Nullable ModuleOverride override) {
-      return interner.intern(new AutoValue_ModuleFileValue_Key(moduleKey, override));
+    static Key create(ModuleKey moduleKey) {
+      return interner.intern(new Key(moduleKey));
     }
 
     @Override
     public SkyFunctionName functionName() {
       return SkyFunctions.MODULE_FILE;
     }
-
-    @Memoized
-    @Override
-    public abstract int hashCode();
 
     @Override
     public SkyKeyInterner<Key> getSkyKeyInterner() {

@@ -125,6 +125,12 @@ public final class BzlmodTestUtil {
     }
 
     @CanIgnoreReturnValue
+    public InterimModuleBuilder addNodepDep(ModuleKey key) {
+      builder.addNodepDep(DepSpec.fromModuleKey(key));
+      return this;
+    }
+
+    @CanIgnoreReturnValue
     public InterimModuleBuilder setKey(ModuleKey value) {
       this.key = value;
       this.builder.setKey(value);

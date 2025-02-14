@@ -18,7 +18,6 @@ package com.google.devtools.build.lib.bazel.bzlmod;
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.google.common.collect.ImmutableSortedMap.toImmutableSortedMap;
 import static java.util.Comparator.naturalOrder;
-import static java.util.Objects.requireNonNull;
 
 import com.google.common.base.Joiner;
 import com.google.common.base.Preconditions;
@@ -97,47 +96,18 @@ final class Selection {
    */
   record Result(
       ImmutableMap<ModuleKey, InterimModule> resolvedDepGraph,
-      ImmutableMap<ModuleKey, InterimModule> unprunedDepGraph) {
-    Result {
-      requireNonNull(resolvedDepGraph, "resolvedDepGraph");
-      requireNonNull(unprunedDepGraph, "unprunedDepGraph");
-    }
-
-    static Result create(
-        ImmutableMap<ModuleKey, InterimModule> resolvedDepGraph,
-        ImmutableMap<ModuleKey, InterimModule> unprunedDepGraph) {
-      return new Result(resolvedDepGraph, unprunedDepGraph);
-    }
-  }
+      ImmutableMap<ModuleKey, InterimModule> unprunedDepGraph) {}
 
   /**
    * During selection, a version is selected for each distinct "selection group".
    *
    * @param targetAllowedVersion This is only used for modules with multiple-version overrides.
    */
-  record SelectionGroup(String moduleName, int compatibilityLevel, Version targetAllowedVersion) {
-    SelectionGroup {
-      requireNonNull(moduleName, "moduleName");
-      requireNonNull(targetAllowedVersion, "targetAllowedVersion");
-    }
-
-    static SelectionGroup create(
-        String moduleName, int compatibilityLevel, Version targetAllowedVersion) {
-      return new SelectionGroup(moduleName, compatibilityLevel, targetAllowedVersion);
-    }
-  }
+  record SelectionGroup(String moduleName, int compatibilityLevel, Version targetAllowedVersion) {}
 
   record ModuleNameAndCompatibilityLevel(
       @SuppressWarnings("unused") String moduleName,
-      @SuppressWarnings("unused") int compatibilityLevel) {
-    ModuleNameAndCompatibilityLevel {
-      requireNonNull(moduleName, "moduleName");
-    }
-
-    static ModuleNameAndCompatibilityLevel create(String moduleName, int compatibilityLevel) {
-      return new ModuleNameAndCompatibilityLevel(moduleName, compatibilityLevel);
-    }
-  }
+      @SuppressWarnings("unused") int compatibilityLevel) {}
 
   /**
    * Computes a mapping from (moduleName, compatibilityLevel) to the set of allowed versions. This
@@ -152,12 +122,10 @@ final class Selection {
         new HashMap<>();
     for (Map.Entry<String, ModuleOverride> overrideEntry : overrides.entrySet()) {
       String moduleName = overrideEntry.getKey();
-      ModuleOverride override = overrideEntry.getValue();
-      if (!(override instanceof MultipleVersionOverride)) {
+      if (!(overrideEntry.getValue() instanceof MultipleVersionOverride mvo)) {
         continue;
       }
-      ImmutableList<Version> allowedVersions = ((MultipleVersionOverride) override).versions();
-      for (Version allowedVersion : allowedVersions) {
+      for (Version allowedVersion : mvo.versions()) {
         InterimModule allowedVersionModule =
             depGraph.get(new ModuleKey(moduleName, allowedVersion));
         if (allowedVersionModule == null) {
@@ -170,7 +138,7 @@ final class Selection {
         }
         ImmutableSortedSet.Builder<Version> allowedVersionSet =
             allowedVersionSets.computeIfAbsent(
-                ModuleNameAndCompatibilityLevel.create(
+                new ModuleNameAndCompatibilityLevel(
                     moduleName, allowedVersionModule.getCompatibilityLevel()),
                 // Remember that the empty version compares greater than any other version, so we
                 // can use it as a sentinel value.
@@ -193,14 +161,13 @@ final class Selection {
           allowedVersionSets) {
     ImmutableSortedSet<Version> allowedVersionSet =
         allowedVersionSets.get(
-            ModuleNameAndCompatibilityLevel.create(
-                module.getName(), module.getCompatibilityLevel()));
+            new ModuleNameAndCompatibilityLevel(module.getName(), module.getCompatibilityLevel()));
     if (allowedVersionSet == null) {
       // This means that this module has no multiple-version override.
-      return SelectionGroup.create(
+      return new SelectionGroup(
           module.getKey().name(), module.getCompatibilityLevel(), Version.EMPTY);
     }
-    return SelectionGroup.create(
+    return new SelectionGroup(
         module.getKey().name(),
         module.getCompatibilityLevel(),
         // We use the `ceiling` method here to quickly locate the lowest allowed version that's
@@ -362,7 +329,7 @@ final class Selection {
                     module ->
                         module.withDepSpecsTransformed(
                             depSpec -> DepSpec.fromModuleKey(resolutionStrategy.apply(depSpec)))));
-        return Result.create(prunedDepGraph, unprunedDepGraph);
+        return new Result(prunedDepGraph, unprunedDepGraph);
       } catch (ExternalDepsException e) {
         if (firstFailure == null) {
           firstFailure = e;
@@ -403,7 +370,7 @@ final class Selection {
       ImmutableMap.Builder<ModuleKey, InterimModule> newDepGraph = ImmutableMap.builder();
       Set<ModuleKey> known = new HashSet<>();
       Queue<ModuleKeyAndDependent> toVisit = new ArrayDeque<>();
-      toVisit.add(ModuleKeyAndDependent.create(ModuleKey.ROOT, null));
+      toVisit.add(new ModuleKeyAndDependent(ModuleKey.ROOT, null));
       known.add(ModuleKey.ROOT);
       while (!toVisit.isEmpty()) {
         ModuleKeyAndDependent moduleKeyAndDependent = toVisit.remove();
@@ -417,7 +384,7 @@ final class Selection {
 
         for (DepSpec depSpec : module.getDeps().values()) {
           if (known.add(depSpec.toModuleKey())) {
-            toVisit.add(ModuleKeyAndDependent.create(depSpec.toModuleKey(), key));
+            toVisit.add(new ModuleKeyAndDependent(depSpec.toModuleKey(), key));
           }
         }
         newDepGraph.put(key, module);
@@ -449,7 +416,7 @@ final class Selection {
       } else {
         ExistingModule existingModuleWithSameName =
             moduleByName.put(
-                module.getName(), ExistingModule.create(key, module.getCompatibilityLevel(), from));
+                module.getName(), new ExistingModule(key, module.getCompatibilityLevel(), from));
         if (existingModuleWithSameName != null) {
           // This has to mean that a module with the same name but a different compatibility level
           // was also selected.
@@ -490,26 +457,9 @@ final class Selection {
       }
     }
 
-    record ModuleKeyAndDependent(ModuleKey moduleKey, @Nullable ModuleKey dependent) {
-      ModuleKeyAndDependent {
-        requireNonNull(moduleKey, "moduleKey");
-      }
-
-      static ModuleKeyAndDependent create(ModuleKey moduleKey, @Nullable ModuleKey dependent) {
-        return new ModuleKeyAndDependent(moduleKey, dependent);
-      }
-    }
+    record ModuleKeyAndDependent(ModuleKey moduleKey, @Nullable ModuleKey dependent) {}
 
     record ExistingModule(
-        ModuleKey moduleKey, int compatibilityLevel, @Nullable ModuleKey dependent) {
-      ExistingModule {
-        requireNonNull(moduleKey, "moduleKey");
-      }
-
-      static ExistingModule create(
-          ModuleKey moduleKey, int compatibilityLevel, ModuleKey dependent) {
-        return new ExistingModule(moduleKey, compatibilityLevel, dependent);
-      }
-    }
+        ModuleKey moduleKey, int compatibilityLevel, @Nullable ModuleKey dependent) {}
   }
 }

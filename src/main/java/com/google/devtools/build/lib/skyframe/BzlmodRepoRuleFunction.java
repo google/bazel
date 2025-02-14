@@ -92,7 +92,7 @@ public final class BzlmodRepoRuleFunction implements SkyFunction {
         RepositoryMapping.create(
             ImmutableMap.<String, RepositoryName>builder()
                 .put("", RepositoryName.MAIN)
-                .put(root.getModule().getRepoName(), RepositoryName.MAIN)
+                .put(root.module().getRepoName(), RepositoryName.MAIN)
                 .buildKeepingLast(),
             RepositoryName.MAIN);
 
@@ -158,11 +158,11 @@ public final class BzlmodRepoRuleFunction implements SkyFunction {
 
   private static Optional<RepoSpec> checkRepoFromNonRegistryOverrides(
       RootModuleFileValue root, RepositoryName repositoryName) {
-    String moduleName = root.getNonRegistryOverrideCanonicalRepoNameLookup().get(repositoryName);
+    String moduleName = root.nonRegistryOverrideCanonicalRepoNameLookup().get(repositoryName);
     if (moduleName == null) {
       return Optional.empty();
     }
-    NonRegistryOverride override = (NonRegistryOverride) root.getOverrides().get(moduleName);
+    NonRegistryOverride override = (NonRegistryOverride) root.overrides().get(moduleName);
     return Optional.of(override.repoSpec());
   }
 
