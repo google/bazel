@@ -1332,6 +1332,7 @@ message ModCommand {
     TOO_MANY_ARGUMENTS = 2 [(metadata) = { exit_code: 2 }];
     INVALID_ARGUMENTS = 3 [(metadata) = { exit_code: 2 }];
     BUILDOZER_FAILED = 4 [(metadata) = { exit_code: 2 }];
+    MODULE_NEEDS_TIDY = 5 [(metadata) = { exit_code: 1 }];
   }
 
   Code code = 1;

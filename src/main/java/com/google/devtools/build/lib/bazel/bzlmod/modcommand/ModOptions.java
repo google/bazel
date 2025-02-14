@@ -164,6 +164,16 @@ public class ModOptions extends OptionsBase {
               + "text, json, graph")
   public OutputFormat outputFormat;
 
+  @Option(
+      name = "write",
+      defaultValue = "true",
+      documentationCategory = OptionDocumentationCategory.MOD_COMMAND,
+      effectTags = {OptionEffectTag.TERMINAL_OUTPUT, OptionEffectTag.BUILD_FILE_SEMANTICS},
+      help =
+          "Whether or not to write tidy changes to MODULE.bazel files."
+              + "Default is true, pass --nowrite to disable.")
+  public boolean write;
+
   /** Possible subcommands that can be specified for the `mod` command. */
   public enum ModSubcommand {
     DEPS(true),

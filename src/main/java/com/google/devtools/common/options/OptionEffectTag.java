@@ -93,7 +93,7 @@ public enum OptionEffectTag {
    */
   AFFECTS_OUTPUTS(4),
 
-  /** This option affects the semantics of BUILD or bzl files. */
+  /** This option affects the semantics of MODULE.bazel, BUILD, or bzl files. */
   BUILD_FILE_SEMANTICS(5),
 
   /**

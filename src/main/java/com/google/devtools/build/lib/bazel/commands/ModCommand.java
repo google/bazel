@@ -268,7 +268,7 @@ public final class ModCommand implements BlazeCommand {
         return reportAndCreateFailureResult(
             env, "the 'tidy' command doesn't take extra arguments", Code.TOO_MANY_ARGUMENTS);
       }
-      return runTidy(env, modTidyValue);
+      return runTidy(env, modTidyValue, modOptions.write);
     }
 
     // Extract and check the --base_module argument first to use it when parsing the other args.
@@ -559,7 +559,7 @@ public final class ModCommand implements BlazeCommand {
     return BlazeCommandResult.success();
   }
 
-  private BlazeCommandResult runTidy(CommandEnvironment env, BazelModTidyValue modTidyValue) {
+  private BlazeCommandResult runTidy(CommandEnvironment env, BazelModTidyValue modTidyValue, boolean write) {
     ImmutableListMultimap<PathFragment, String> allCommandsPerFile =
         modTidyValue.fixups().stream()
             .flatMap(fixup -> fixup.moduleFilePathToBuildozerCommands().entries().stream())
@@ -573,37 +573,49 @@ public final class ModCommand implements BlazeCommand {
       buildozerInput.append("format\n");
     }
 
-    try (var stdin = CharSource.wrap(buildozerInput).asByteSource(UTF_8).openStream()) {
-      new CommandBuilder()
-          .setWorkingDir(env.getWorkspace())
-          .addArg(modTidyValue.buildozer().getPathString())
-          .addArg("-f")
-          .addArg("-")
-          .build()
-          .executeAsync(stdin, /* killSubprocessOnInterrupt= */ true)
-          .get();
-    } catch (InterruptedException | CommandException | IOException e) {
-      String suffix = "";
-      if (e instanceof AbnormalTerminationException) {
-        if (((AbnormalTerminationException) e).getResult().getTerminationStatus().getRawExitCode()
-            == 3) {
-          // Buildozer exits with exit code 3 if it didn't make any changes.
-          return BlazeCommandResult.success();
+    if (write) {
+      try (var stdin = CharSource.wrap(buildozerInput).asByteSource(UTF_8).openStream()) {
+        new CommandBuilder()
+            .setWorkingDir(env.getWorkspace())
+            .addArg(modTidyValue.buildozer().getPathString())
+            .addArg("-f")
+            .addArg("-")
+            .build()
+            .executeAsync(stdin, /* killSubprocessOnInterrupt= */ true)
+            .get();
+      } catch (InterruptedException | CommandException | IOException e) {
+        String suffix = "";
+        if (e instanceof AbnormalTerminationException) {
+          if (((AbnormalTerminationException) e).getResult().getTerminationStatus().getRawExitCode()
+              == 3) {
+            // Buildozer exits with exit code 3 if it didn't make any changes.
+            return BlazeCommandResult.success();
+          }
+          suffix =
+              ":\n" + new String(((AbnormalTerminationException) e).getResult().getStderr(), UTF_8);
         }
-        suffix =
-            ":\n" + new String(((AbnormalTerminationException) e).getResult().getStderr(), UTF_8);
+        return reportAndCreateFailureResult(
+            env,
+            "Unexpected error while running buildozer: " + e.getMessage() + suffix,
+            Code.BUILDOZER_FAILED);
       }
-      return reportAndCreateFailureResult(
-          env,
-          "Unexpected error while running buildozer: " + e.getMessage() + suffix,
-          Code.BUILDOZER_FAILED);
+
+      for (RootModuleFileFixup fixupEvent : modTidyValue.fixups()) {
+        env.getReporter().handle(Event.info(fixupEvent.getSuccessMessage()));
+      }
+
+      return BlazeCommandResult.success();
     }
 
-    for (RootModuleFileFixup fixupEvent : modTidyValue.fixups()) {
-      env.getReporter().handle(Event.info(fixupEvent.getSuccessMessage()));
+    if (allCommandsPerFile.isEmpty()) {
+      return BlazeCommandResult.success();
     }
 
-    return BlazeCommandResult.success();
+    String lintErrors = String.format("Files with errors:\n%s",
+        modTidyValue.fixups().stream().map(fixup -> fixup.usage().getProxies().toString())
+            .collect(joining("\n"))).stripTrailing();
+    modTidyValue.fixups().stream().map(fixup -> fixup.warning()).forEach(env.getReporter()::handle);
+    return createFailureResult(lintErrors, Code.MODULE_NEEDS_TIDY);
   }
 
   /** Collects a list of {@link ModuleArg} into a set of {@link ModuleKey}s. */
