@@ -17,6 +17,7 @@ package com.google.devtools.build.lib.rules.cpp;
 import com.google.common.base.Preconditions;
 import com.google.devtools.build.lib.actions.Artifact;
 import com.google.devtools.build.lib.cmdline.Label;
+import com.google.devtools.build.lib.collect.nestedset.Depset;
 import com.google.devtools.build.lib.concurrent.ThreadSafety.Immutable;
 import com.google.devtools.build.lib.packages.BuiltinProvider;
 import com.google.devtools.build.lib.packages.NativeInfo;
@@ -38,17 +39,20 @@ public final class DebugPackageProvider extends NativeInfo
   private final Artifact strippedArtifact;
   private final Artifact unstrippedArtifact;
   @Nullable private final Artifact dwpArtifact;
+  @Nullable private final Depset dwoFiles;
 
   public DebugPackageProvider(
       Label targetLabel,
       @Nullable Artifact strippedArtifact,
       Artifact unstrippedArtifact,
-      @Nullable Artifact dwpArtifact) {
+      @Nullable Artifact dwpArtifact, 
+      @Nullable Depset dwoFiles) {
     Preconditions.checkNotNull(unstrippedArtifact);
     this.targetLabel = targetLabel;
     this.strippedArtifact = strippedArtifact;
     this.unstrippedArtifact = unstrippedArtifact;
     this.dwpArtifact = dwpArtifact;
+    this.dwoFiles = dwoFiles;
   }
 
   @Override
@@ -81,6 +85,13 @@ public final class DebugPackageProvider extends NativeInfo
     return dwpArtifact;
   }
 
+  /** Returns the depset of dwo files (for fission builds), the depset is empty if --fission=no. */
+  @Nullable
+  @Override
+  public final Depset getDwoFiles() {
+    return dwoFiles;
+  }
+
   /** Provider class for {@link DebugPackageProvider} objects. */
   public static class Provider extends BuiltinProvider<DebugPackageProvider>
       implements DebugPackageInfoApi.Provider<Artifact> {
@@ -93,13 +104,14 @@ public final class DebugPackageProvider extends NativeInfo
         Label starlarkTargetLabel,
         Object starlarkStrippedArtifact,
         Artifact starlarkUnstrippedArtifact,
-        Object starlarkDwpArtifact)
+        Object starlarkDwpArtifact,
+        Object starlarkDwoFiles)
         throws EvalException {
       return new DebugPackageProvider(
           starlarkTargetLabel,
           nullIfNone(starlarkStrippedArtifact, Artifact.class),
           starlarkUnstrippedArtifact,
-          nullIfNone(starlarkDwpArtifact, Artifact.class));
+          nullIfNone(starlarkDwpArtifact, Artifact.class),nullIfNone(starlarkDwoFiles,Depset.class));
     }
 
     @Nullable

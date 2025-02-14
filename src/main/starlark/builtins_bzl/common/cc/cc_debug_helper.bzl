@@ -82,6 +82,7 @@ def create_debug_packager_actions(
         inputs = packager["inputs"],
         outputs = packager["outputs"],
     )
+    return dwo_files
 
 def _collect_transitive_dwo_artifacts(cc_compilation_outputs, cc_debug_context, linking_mode, use_pic, lto_backend_artifacts):
     dwo_files = []
