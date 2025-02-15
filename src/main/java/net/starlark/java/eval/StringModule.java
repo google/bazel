@@ -870,9 +870,10 @@ final class StringModule implements StarlarkValue {
     if (sub.isEmpty()) {
       return hi(indices) - lo(indices) + 1; // str.length() + 1
     }
-    // Unfortunately Java forces us to allocate here, even though
-    // String has a private indexOf method that accepts indices.
-    // Fortunately the common case is self[0:n].
+    // The allocation could be avoided by starting at lo(indices) and checking
+    // for index <= hi(indices) - sub.length() in the loop, but benchmarks show
+    // that the allocation can be faster (and it is a no-op in the common case
+    // of default values for start and end).
     String str = self.substring(lo(indices), hi(indices));
     int count = 0;
     int index = 0;

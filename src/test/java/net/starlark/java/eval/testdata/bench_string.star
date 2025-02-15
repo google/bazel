@@ -16,3 +16,9 @@ _to_strip = "   Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do 
 def bench_strip(b):
     for _ in range(b.n):
         _to_strip.strip()
+
+_needle_to_count = "er"
+
+def bench_count(b):
+    for _ in range(b.n):
+        _haystack.count(_needle_to_count, 1, len(_haystack) - 1)
