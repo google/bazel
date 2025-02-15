@@ -288,7 +288,7 @@ EOF
   # Give enough head room so that the test won't break again if we tweak
   # our assumptions about local resource usage.
   bazel build --experimental_ui_debug_all_events -j 2 \
-      --local_ram_resources=2048000 --local_cpu_resources=32 \
+      --local_resources=memory=2048000 --local_resources=cpu=32 \
       -k -s "//${pkg}:"{top,longrun} --progress_report_interval=1 \
       >& "$TEST_log" && fail "build succeeded"
   expect_log "\[3 / 4\] Still waiting for 1 job to complete:"

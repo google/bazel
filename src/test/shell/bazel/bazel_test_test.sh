@@ -69,7 +69,7 @@ function test_3_cpus() {
   set_up_jobcount
   # 3 CPUs, so no more than 3 tests in parallel.
   bazel test --spawn_strategy=standalone --test_output=errors \
-    --local_test_jobs=0 --local_cpu_resources=3 \
+    --local_test_jobs=0 --local_resources=cpu=3 \
     --runs_per_test=10 //dir:test
 }
 
@@ -77,7 +77,7 @@ function test_3_local_jobs() {
   set_up_jobcount
   # 3 local test jobs, so no more than 3 tests in parallel.
   bazel test --spawn_strategy=standalone --test_output=errors \
-    --local_test_jobs=3 --local_cpu_resources=10 \
+    --local_test_jobs=3 --local_resources=cpu=10 \
     --runs_per_test=10 //dir:test
 }
 

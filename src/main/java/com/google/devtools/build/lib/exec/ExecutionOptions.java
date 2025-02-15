@@ -13,13 +13,14 @@
 // limitations under the License.
 package com.google.devtools.build.lib.exec;
 
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
 import com.google.devtools.build.lib.actions.ActionExecutionContext;
 import com.google.devtools.build.lib.actions.ActionExecutionContext.ShowSubcommands;
+import com.google.devtools.build.lib.actions.LocalHostCapacity;
+import com.google.devtools.build.lib.actions.ResourceSet;
 import com.google.devtools.build.lib.analysis.config.PerLabelOptions;
-import com.google.devtools.build.lib.util.CpuResourceConverter;
 import com.google.devtools.build.lib.util.OptionsUtils;
-import com.google.devtools.build.lib.util.RamResourceConverter;
 import com.google.devtools.build.lib.util.RegexFilter;
 import com.google.devtools.build.lib.util.ResourceConverter;
 import com.google.devtools.build.lib.vfs.PathFragment;
@@ -293,70 +294,6 @@ public class ExecutionOptions extends OptionsBase {
   public TestSummaryFormat testSummary;
 
   @Option(
-      name = "local_cpu_resources",
-      defaultValue = ResourceConverter.HOST_CPUS_KEYWORD,
-      deprecationWarning =
-          "--local_cpu_resources is deprecated, please use --local_resources=cpu= instead.",
-      documentationCategory = OptionDocumentationCategory.BUILD_TIME_OPTIMIZATION,
-      effectTags = {OptionEffectTag.HOST_MACHINE_RESOURCE_OPTIMIZATIONS},
-      help =
-          "Explicitly set the total number of local CPU cores available to Bazel to spend on build"
-              + " actions executed locally. Takes an integer, or \""
-              + ResourceConverter.HOST_CPUS_KEYWORD
-              + "\", optionally followed"
-              + " by [-|*]<float> (eg. "
-              + ResourceConverter.HOST_CPUS_KEYWORD
-              + "*.5"
-              + " to use half the available CPU cores). By default, (\""
-              + ResourceConverter.HOST_CPUS_KEYWORD
-              + "\"), Bazel will query system"
-              + " configuration to estimate the number of CPU cores available.",
-      converter = CpuResourceConverter.class)
-  public double localCpuResources;
-
-  @Option(
-      name = "local_ram_resources",
-      defaultValue = ResourceConverter.HOST_RAM_KEYWORD + "*.67",
-      deprecationWarning =
-          "--local_ram_resources is deprecated, please use --local_resources=memory= instead.",
-      documentationCategory = OptionDocumentationCategory.BUILD_TIME_OPTIMIZATION,
-      effectTags = {OptionEffectTag.HOST_MACHINE_RESOURCE_OPTIMIZATIONS},
-      help =
-          "Explicitly set the total amount of local host RAM (in MB) available to Bazel to spend on"
-              + " build actions executed locally. Takes an integer, or \""
-              + ResourceConverter.HOST_RAM_KEYWORD
-              + "\", optionally followed by [-|*]<float>"
-              + " (eg. "
-              + ResourceConverter.HOST_RAM_KEYWORD
-              + "*.5 to use half the available"
-              + " RAM). By default, (\""
-              + ResourceConverter.HOST_RAM_KEYWORD
-              + "*.67\"),"
-              + " Bazel will query system configuration to estimate the amount of RAM available"
-              + " and will use 67% of it.",
-      converter = RamResourceConverter.class)
-  public double localRamResources;
-
-  @Option(
-      name = "local_extra_resources",
-      defaultValue = "null",
-      deprecationWarning =
-          "--local_extra_resources is deprecated, please use --local_resources instead.",
-      documentationCategory = OptionDocumentationCategory.BUILD_TIME_OPTIMIZATION,
-      effectTags = {OptionEffectTag.HOST_MACHINE_RESOURCE_OPTIMIZATIONS},
-      allowMultiple = true,
-      help =
-          "Set the number of extra resources available to Bazel. "
-              + "Takes in a string-float pair. Can be used multiple times to specify multiple "
-              + "types of extra resources. Bazel will limit concurrently running actions "
-              + "based on the available extra resources and the extra resources required. "
-              + "Tests can declare the amount of extra resources they need "
-              + "by using a tag of the \"resources:<resoucename>:<amount>\" format. "
-              + "Available CPU, RAM and resources cannot be set with this flag.",
-      converter = Converters.StringToDoubleAssignmentConverter.class)
-  public List<Map.Entry<String, Double>> localExtraResources;
-
-  @Option(
       name = "local_resources",
       defaultValue = "null",
       documentationCategory = OptionDocumentationCategory.BUILD_TIME_OPTIMIZATION,
@@ -376,10 +313,17 @@ public class ExecutionOptions extends OptionsBase {
               + "types of resources. Bazel will limit concurrently running actions "
               + "based on the available resources and the resources required. "
               + "Tests can declare the amount of resources they need "
-              + "by using a tag of the \"resources:<resource name>:<amount>\" format. "
-              + "Overrides resources specified by --local_{cpu|ram|extra}_resources.",
+              + "by using a tag of the \"resources:<resource name>:<amount>\" format.",
       converter = ResourceConverter.AssignmentConverter.class)
   public List<Map.Entry<String, Double>> localResources;
+
+  public ImmutableMap<String, Double> getLocalResource() {
+    ImmutableMap.Builder<String, Double> resources = ImmutableMap.builder();
+    resources.put(ResourceSet.CPU, LocalHostCapacity.getLocalHostCapacity().getCpuUsage());
+    resources.put(ResourceSet.MEMORY, .67 * LocalHostCapacity.getLocalHostCapacity().getMemoryMb());
+    resources.putAll(localResources);
+    return resources.buildKeepingLast();
+  }
 
   @Option(
       name = "experimental_cpu_load_scheduling",

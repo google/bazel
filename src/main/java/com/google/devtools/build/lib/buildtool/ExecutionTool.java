@@ -984,26 +984,10 @@ public class ExecutionTool {
   @VisibleForTesting
   public static void configureResourceManager(ResourceManager resourceMgr, BuildRequest request) {
     ExecutionOptions options = request.getOptions(ExecutionOptions.class);
-    ImmutableMap<String, Double> cpuRam =
-        ImmutableMap.of(
-            ResourceSet.CPU,
-            // Replace with 1.0 * ResourceConverter.HOST_CPUS.get() after flag deprecation
-            options.localCpuResources,
-            ResourceSet.MEMORY,
-            // Replace with 0.67 * ResourceConverter.HOST_RAM.get() after flag deprecation
-            options.localRamResources);
-    ImmutableMap<String, Double> resources =
-        Streams.concat(
-                options.localExtraResources.stream(),
-                cpuRam.entrySet().stream(),
-                options.localResources.stream())
-            .collect(
-                ImmutableMap.toImmutableMap(
-                    Map.Entry::getKey, Map.Entry::getValue, (v1, v2) -> v2));
-
     resourceMgr.setAvailableResources(
         ResourceSet.create(
-            resources, options.usingLocalTestJobs() ? options.localTestJobs : Integer.MAX_VALUE));
+            options.getLocalResource(),
+            options.usingLocalTestJobs() ? options.localTestJobs : Integer.MAX_VALUE));
 
     resourceMgr.initializeCpuLoadFunctionality(
         MachineLoadProvider.instance(),

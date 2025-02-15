@@ -21,6 +21,7 @@ import com.google.common.collect.Sets;
 import com.google.common.flogger.GoogleLogger;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.google.devtools.build.lib.actions.ActionExecutionContext;
+import com.google.devtools.build.lib.actions.ResourceSet;
 import com.google.devtools.build.lib.actions.Spawn;
 import com.google.devtools.build.lib.actions.SpawnStrategy;
 import com.google.devtools.build.lib.actions.Spawns;
@@ -152,7 +153,7 @@ public class DynamicExecutionModule extends BlazeModule {
     registerSpawnStrategies(
         registryBuilder,
         options,
-        (int) execOptions.localCpuResources,
+        execOptions.getLocalResource().get(ResourceSet.CPU).intValue(),
         env.getOptions().getOptions(BuildRequestOptions.class).jobs);
   }
 

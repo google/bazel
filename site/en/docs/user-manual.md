@@ -745,7 +745,7 @@ by Bazel's scheduler, which tries to avoid running concurrent jobs
 that will use up more resources (RAM or CPU) than are available,
 based on some (very crude) estimates of the resource consumption
 of each job. The behavior of the scheduler can be controlled by
-the `--local_ram_resources` option.
+the `--local_resources` option.
 
 #### `--progress_report_interval={{ "<var>" }}n{{ "</var>" }}` {:progress-report-interval}
 
@@ -761,13 +761,13 @@ that progress is reported once every minute.
 When bazel is using cursor control, as specified by
 [`--curses`](#curses), progress is reported every second.
 
-#### `--local_{ram,cpu}_resources {{ "<var>" }}resources or resource expression{{ "</var>" }}` {:#local-resources}
+#### `--local_resources {{ "<var>" }}resources or resource expression{{ "</var>" }}` {:#local-resources}
 
 These options specify the amount of local resources (RAM in MB and number of CPU logical cores)
 that Bazel can take into consideration when scheduling build and test activities to run locally. They take
-an integer, or a keyword (HOST_RAM or HOST_CPUS) optionally followed by `[-|*`float`]`
-(for example, `--local_cpu_resources=2`, `--local_ram_resources=HOST_RAM*.5`,
-`--local_cpu_resources=HOST_CPUS-1`).
+an float, or a keyword (HOST_RAM or HOST_CPUS) optionally followed by `[-|*`float`]`
+(for example, `--local_resources=cpu=2`, `--local_resources=memory=HOST_RAM*.5`,
+`--local_resources=cpu=HOST_CPUS-1`).
 The flags are independent; one or both may be set. By default, Bazel estimates
 the amount of RAM and number of CPU cores directly from the local system's configuration.
 

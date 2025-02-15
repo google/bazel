@@ -339,8 +339,8 @@ function test_resource_flags_syntax() {
       --jobs="${threads}" \
       --legacy_globbing_threads="${threads}" \
       --loading_phase_threads="${threads}" \
-      --local_cpu_resources="${threads}" \
-      --local_ram_resources="${ram}" \
+      --local_resources=cpu="${threads}" \
+      --local_resources=memory="${ram}" \
       --local_test_jobs="${threads}" \
       || fail "Empty build failed"
 }

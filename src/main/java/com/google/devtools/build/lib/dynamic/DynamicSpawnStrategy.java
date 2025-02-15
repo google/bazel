@@ -115,7 +115,7 @@ public class DynamicSpawnStrategy implements SpawnStrategy {
    *     Spawn}.
    * @param getPostProcessingSpawnForLocalExecution A function that returns any post-processing
    *     spawns that should be run after finishing running a spawn locally.
-   * @param numCpus The number of CPUs allowed for local execution (--local_cpu_resources).
+   * @param numCpus The number of CPUs allowed for local execution (--local_resources).
    * @param jobs The maximum number of jobs (--jobs parameter).
    * @param ignoreFailureCheck A callback to check if a failure on one branch should be allowed to
    *     be ignored in favor of the other branch.
