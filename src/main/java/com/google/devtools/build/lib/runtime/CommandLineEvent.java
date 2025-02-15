@@ -130,6 +130,7 @@ public abstract class CommandLineEvent implements BuildEventWithOrderConstraint 
         options.add(
             createOption(
                 parsedOption.getOptionDefinition(),
+                parsedOption.getSource(),
                 parsedOption.getCommandLineForm(),
                 parsedOption.getUnconvertedValue()));
       }
@@ -137,7 +138,10 @@ public abstract class CommandLineEvent implements BuildEventWithOrderConstraint 
     }
 
     private Option createOption(
-        OptionDefinition optionDefinition, String combinedForm, @Nullable String value) {
+        OptionDefinition optionDefinition,
+        @Nullable String source,
+        String combinedForm,
+        @Nullable String value) {
       Option.Builder option = Option.newBuilder();
       option.setCombinedForm(combinedForm);
       option.setOptionName(optionDefinition.getOptionName());
@@ -146,6 +150,9 @@ public abstract class CommandLineEvent implements BuildEventWithOrderConstraint 
       }
       option.addAllEffectTags(getProtoEffectTags(optionDefinition.getOptionEffectTags()));
       option.addAllMetadataTags(getProtoMetadataTags(optionDefinition.getOptionMetadataTags()));
+      if (source != null) {
+        option.setSource(source);
+      }
       return option.build();
     }
 

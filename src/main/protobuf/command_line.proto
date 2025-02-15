@@ -99,4 +99,8 @@ message Option {
   // Metadata about the flag. See OptionMetadataTag's java documentation for
   // details.
   repeated options.OptionMetadataTag metadata_tags = 5;
+
+  // The source of the flag (i.e. whether is was explicitly passed by the user,
+  // from which .{bazel,blaze}rc it comes, etc).
+  string source = 6;
 }
