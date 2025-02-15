@@ -228,6 +228,49 @@ EOF
   grep "child_value" out.txt || fail "Did not find the overriding value"
 }
 
+function test_target_exec_compatible_with_cc_test_multiple_platforms() {
+  local -r pkg=${FUNCNAME[0]}
+  mkdir $pkg || fail "mkdir $pkg"
+  cat > ${pkg}/a.cc <<EOF
+#include <stdio.h>
+int main() {
+  printf("Hello\n");
+}
+EOF
+  cat > ${pkg}/BUILD <<EOF
+constraint_setting(name = "setting")
+constraint_value(name = "local", constraint_setting = ":setting")
+cc_test(
+  name = "a",
+  srcs = ["a.cc"],
+  exec_properties = {"key3": "value3", "overridden": "child_value"},
+  exec_compatible_with = [":local"],
+  target_compatible_with = [":local"],
+)
+platform(
+    name = "platform_a",
+    parents = ["${default_host_platform}"],
+    exec_properties = {
+        "key2": "value2",
+        "overridden": "parent_value",
+    },
+)
+platform(
+    name = "platform_b",
+    parents = ["${default_host_platform}"],
+    exec_properties = {
+        "key3": "value3",
+        "overridden": "parent_value",
+    },
+    constraint_values = [":local"],
+)
+EOF
+  bazel test --platforms="${pkg}:platform_b" --extra_execution_platforms="${pkg}:platform_a,${pkg}:platform_b" ${pkg}:a --execution_log_json_file out.txt &> $TEST_log || fail "Build failed"
+  grep "key2" out.txt && fail "Should not find the key from platform_a"
+  grep "key3" out.txt || fail "Did not find the target attribute key"
+  grep "child_value" out.txt || fail "Did not find the overriding value"
+}
+
 function test_target_test_properties_sh_test() {
   local -r pkg=${FUNCNAME[0]}
   mkdir $pkg || fail "mkdir $pkg"
