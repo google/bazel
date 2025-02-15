@@ -57,6 +57,8 @@ build --java_language_version=21
 build --tool_java_language_version=21
 build --tool_java_runtime_version=21
 
+build --incompatible_strict_action_env
+
 # User-specific .bazelrc
 try-import %workspace%/user.bazelrc
 
