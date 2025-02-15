@@ -33,6 +33,7 @@ import com.google.devtools.build.lib.starlarkbuildapi.platform.ConstraintCollect
 import com.google.devtools.build.lib.util.Fingerprint;
 import com.google.errorprone.annotations.CanIgnoreReturnValue;
 import java.util.Collection;
+import java.util.HashSet;
 import java.util.Map;
 import java.util.Objects;
 import java.util.function.Function;
@@ -107,6 +108,17 @@ public abstract class ConstraintCollection
 
   /** Returns the constraints supplied by this collection. */
   abstract ImmutableMap<ConstraintSettingInfo, ConstraintValueInfo> constraints();
+
+  /**
+   * Returns the transitive closure of {@link ConstraintSettingInfo}s this {@link ConstraintCollection} has constraints on.
+   */
+  public final ImmutableSet<ConstraintSettingInfo> transitiveConstraintSettings() {
+    var constraints = ImmutableSet.<ConstraintSettingInfo>builder();
+    if (parent() != null) {
+      constraints.addAll(parent().transitiveConstraintSettings());
+    }
+    return constraints.build();
+  }
 
   /**
    * Returns {@code true} if this {@link ConstraintCollection} contains every {@link
