@@ -49,13 +49,10 @@ java_test(
     ],
 )
 
-# Script-based tests of the Starlark interpreter.
-java_test(
-    name = "ScriptTest",
+java_library(
+    name = "ScriptTest_lib",
     srcs = ["ScriptTest.java"],
     data = glob(["testdata/*.star"]),
-    jvm_flags = ["-Dfile.encoding=UTF8"],
-    use_testrunner = False,
     deps = [
         "//src/main/java/net/starlark/java/annot",
         "//src/main/java/net/starlark/java/eval",
@@ -63,6 +60,25 @@ java_test(
         "//src/main/java/net/starlark/java/syntax",
         "//third_party:error_prone_annotations",
         "//third_party:guava",
+    ],
+)
+
+# Script-based tests of the Starlark interpreter.
+java_test(
+    name = "ScriptTest",
+    use_testrunner = False,
+    runtime_deps = [
+        ":ScriptTest_lib",
+    ],
+)
+
+java_test(
+    name = "ScriptTest_Latin1",
+    jvm_flags = ["-Dnet.starlark.java.eval.ScriptTest.utf8ByteStrings=true"],
+    main_class = "net.starlark.java.eval.ScriptTest",
+    use_testrunner = False,
+    runtime_deps = [
+        ":ScriptTest_lib",
     ],
 )
 

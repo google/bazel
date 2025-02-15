@@ -102,7 +102,7 @@ assert_([None] <= [None])
 #  U+FFFD  � 	= [FFFD]       REPLACEMENT CHAR
 #  U+1F33F 🌿	= [D83C DF3F]  HERB
 # The first compares greater than the second.
-assert_eq(sorted(["�", "🌿"]), ["🌿", "�"])
+assert_eq(sorted(["�", "🌿"]), ["�", "🌿"] if _utf8_byte_strings else ["🌿", "�"])
 
 assert_(False < True)
 assert_fails(lambda: False < 1, "unsupported comparison: bool <=> int")

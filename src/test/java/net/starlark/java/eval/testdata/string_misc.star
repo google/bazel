@@ -187,10 +187,12 @@ assert_eq("".removeprefix(""), "")
 assert_eq("".removeprefix("a"), "")
 assert_eq("Apricot".removeprefix("pr"), "Apricot")
 assert_eq("AprApricot".removeprefix("Apr"), "Apricot")
+
 def removeprefix_self_unmodified():
     original_string = "Apricot"
     assert_eq(original_string.removeprefix("Apr"), "icot")
     assert_eq(original_string, "Apricot")
+
 removeprefix_self_unmodified()
 assert_fails(lambda: "1234".removeprefix(1), "got value of type 'int', want 'string")
 
@@ -203,9 +205,17 @@ assert_eq("".removesuffix(""), "")
 assert_eq("".removesuffix("a"), "")
 assert_eq("Apricot".removesuffix("co"), "Apricot")
 assert_eq("Apricotcot".removesuffix("cot"), "Apricot")
+
 def removesuffix_self_unmodified():
     original_string = "Apricot"
     assert_eq(original_string.removesuffix("cot"), "Apri")
     assert_eq(original_string, "Apricot")
+
 removesuffix_self_unmodified()
 assert_fails(lambda: "1234".removesuffix(4), "got value of type 'int', want 'string")
+
+# strip
+assert_eq("  abc  ".strip(), "abc")
+assert_eq("薠".strip(), "薠")
+assert_eq("薠".lstrip(), "薠")
+assert_eq("薠".rstrip(), "薠")

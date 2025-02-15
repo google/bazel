@@ -191,6 +191,11 @@ final class StringModule implements StarlarkValue {
           "\u0009" + "\n" + "\u000B" + "\u000C" + "\r" + "\u001C" + "\u001D" + "\u001E" + "\u001F "
               + "\u0085" + "\u00A0");
 
+  private static final CharMatcher ASCII_WHITESPACE =
+      CharMatcher.anyOf(
+          "\u0009" + "\n" + "\u000B" + "\u000C" + "\r" + "\u001C" + "\u001D" + "\u001E"
+              + "\u001F ");
+
   private static String stringLStrip(String self, CharMatcher matcher) {
     for (int i = 0; i < self.length(); i++) {
       if (!matcher.matches(self.charAt(i))) {
@@ -232,11 +237,15 @@ final class StringModule implements StarlarkValue {
             },
             doc = "The characters to remove, or all whitespace if None.",
             defaultValue = "None")
-      })
-  public String lstrip(String self, Object charsOrNone) {
-    CharMatcher matcher =
-        charsOrNone != Starlark.NONE ? CharMatcher.anyOf((String) charsOrNone) : LATIN1_WHITESPACE;
-    return stringLStrip(self, matcher);
+      },
+      useStarlarkThread = true)
+  public String lstrip(String self, Object charsOrNone, StarlarkThread starlarkThread) {
+    return lstripSemantics(self, charsOrNone, starlarkThread.getSemantics());
+  }
+
+  public String lstripSemantics(
+      String self, Object charsOrNone, StarlarkSemantics starlarkSemantics) {
+    return stringLStrip(self, matcher(charsOrNone, starlarkSemantics));
   }
 
   @StarlarkMethod(
@@ -258,11 +267,15 @@ final class StringModule implements StarlarkValue {
             },
             doc = "The characters to remove, or all whitespace if None.",
             defaultValue = "None")
-      })
-  public String rstrip(String self, Object charsOrNone) {
-    CharMatcher matcher =
-        charsOrNone != Starlark.NONE ? CharMatcher.anyOf((String) charsOrNone) : LATIN1_WHITESPACE;
-    return stringRStrip(self, matcher);
+      },
+      useStarlarkThread = true)
+  public String rstrip(String self, Object charsOrNone, StarlarkThread starlarkThread) {
+    return rstripSemantics(self, charsOrNone, starlarkThread.getSemantics());
+  }
+
+  public String rstripSemantics(
+      String self, Object charsOrNone, StarlarkSemantics starlarkSemantics) {
+    return stringRStrip(self, matcher(charsOrNone, starlarkSemantics));
   }
 
   @StarlarkMethod(
@@ -285,11 +298,25 @@ final class StringModule implements StarlarkValue {
             },
             doc = "The characters to remove, or all whitespace if None.",
             defaultValue = "None")
-      })
-  public String strip(String self, Object charsOrNone) {
-    CharMatcher matcher =
-        charsOrNone != Starlark.NONE ? CharMatcher.anyOf((String) charsOrNone) : LATIN1_WHITESPACE;
-    return stringStrip(self, matcher);
+      },
+      useStarlarkThread = true)
+  public String strip(String self, Object charsOrNone, StarlarkThread starlarkThread) {
+    return stripSemantics(self, charsOrNone, starlarkThread.getSemantics());
+  }
+
+  public String stripSemantics(
+      String self, Object charsOrNone, StarlarkSemantics starlarkSemantics) {
+    return stringStrip(self, matcher(charsOrNone, starlarkSemantics));
+  }
+
+  private static CharMatcher matcher(Object charsOrNone, StarlarkSemantics starlarkSemantics) {
+    return charsOrNone != Starlark.NONE
+        // TODO: This doesn't work correctly for non-ASCII characters in charsOrNone if using UTF-8
+        // byte strings.
+        ? CharMatcher.anyOf((String) charsOrNone)
+        : (starlarkSemantics.getBool(StarlarkSemantics.INTERNAL_BAZEL_ONLY_UTF_8_BYTE_STRINGS)
+            ? ASCII_WHITESPACE
+            : LATIN1_WHITESPACE);
   }
 
   @StarlarkMethod(

@@ -14,6 +14,9 @@
 
 package net.starlark.java.lib.json;
 
+import static java.nio.charset.StandardCharsets.ISO_8859_1;
+import static java.nio.charset.StandardCharsets.UTF_8;
+
 import java.util.Arrays;
 import java.util.Map;
 import net.starlark.java.annot.Param;
@@ -27,6 +30,7 @@ import net.starlark.java.eval.StarlarkFloat;
 import net.starlark.java.eval.StarlarkInt;
 import net.starlark.java.eval.StarlarkIterable;
 import net.starlark.java.eval.StarlarkList;
+import net.starlark.java.eval.StarlarkSemantics;
 import net.starlark.java.eval.StarlarkThread;
 import net.starlark.java.eval.StarlarkValue;
 import net.starlark.java.eval.Structure;
@@ -302,7 +306,13 @@ public final class Json implements StarlarkValue {
       useStarlarkThread = true)
   public Object decode(String x, Object defaultValue, StarlarkThread thread) throws EvalException {
     try {
-      return new Decoder(thread.mutability(), x).decode();
+      return new Decoder(
+              thread.mutability(),
+              x,
+              thread
+                  .getSemantics()
+                  .getBool(StarlarkSemantics.INTERNAL_BAZEL_ONLY_UTF_8_BYTE_STRINGS))
+          .decode();
     } catch (EvalException e) {
       if (defaultValue != Starlark.UNBOUND) {
         return defaultValue;
@@ -321,11 +331,13 @@ public final class Json implements StarlarkValue {
 
     private final Mutability mu;
     private final String s; // the input string
+    private final boolean utf8ByteStrings;
     private int i = 0; // current index in s
 
-    private Decoder(Mutability mu, String s) {
+    private Decoder(Mutability mu, String s, boolean utf8ByteStrings) {
       this.mu = mu;
       this.s = s;
+      this.utf8ByteStrings = utf8ByteStrings;
     }
 
     // decode is the entry point into the decoder.
@@ -492,29 +504,59 @@ public final class Json implements StarlarkValue {
             if (i + 4 >= s.length()) {
               throw Starlark.errorf("incomplete \\uXXXX escape");
             }
-            int hex = 0;
-            for (int j = 0; j < 4; j++) {
-              c = s.charAt(i + j);
-              int nybble = 0;
-              if (isdigit(c)) {
-                nybble = c - '0';
-              } else if ('a' <= c && c <= 'f') {
-                nybble = 10 + c - 'a';
-              } else if ('A' <= c && c <= 'F') {
-                nybble = 10 + c - 'A';
-              } else {
-                throw Starlark.errorf("invalid hex char %s in \\uXXXX escape", quoteChar(c));
+            int hex = parseUnicodeEscape();
+            if (utf8ByteStrings) {
+              String unicodeString;
+              try {
+                unicodeString = Character.toString(hex);
+              } catch (IllegalArgumentException unused) {
+                unicodeString = Character.toString(0xFFFD);
               }
-              hex = (hex << 4) | nybble;
+              if (Character.MIN_SURROGATE <= hex && hex <= Character.MAX_SURROGATE) {
+                // If the code point is a surrogate, consume the next \\uXXXX escape.
+                if (i + 6 >= s.length() || s.charAt(i) != '\\' || s.charAt(i + 1) != 'u') {
+                  unicodeString = Character.toString(0xFFFD);
+                } else {
+                  i += 2;
+                  int hex2 = parseUnicodeEscape();
+                  if (Character.MIN_SURROGATE <= hex2 && hex2 <= Character.MAX_SURROGATE) {
+                    unicodeString += Character.toString(hex2);
+                  } else {
+                    unicodeString += Character.toString(0xFFFD);
+                  }
+                }
+              }
+              // Append the escaped Unicode code point as a UTF-8 byte sequence.
+              str.append(new String(unicodeString.getBytes(UTF_8), ISO_8859_1));
+            } else {
+              str.append((char) hex);
             }
-            str.append((char) hex);
-            i += 4;
             break;
           default:
             throw Starlark.errorf("invalid escape '\\%s'", c);
         }
       }
       throw Starlark.errorf("unclosed string literal");
+    }
+
+    private int parseUnicodeEscape() throws EvalException {
+      int hex = 0;
+      for (int j = 0; j < 4; j++) {
+        char c = s.charAt(i + j);
+        int nybble = 0;
+        if (isdigit(c)) {
+          nybble = c - '0';
+        } else if ('a' <= c && c <= 'f') {
+          nybble = 10 + c - 'a';
+        } else if ('A' <= c && c <= 'F') {
+          nybble = 10 + c - 'A';
+        } else {
+          throw Starlark.errorf("invalid hex char %s in \\uXXXX escape", quoteChar(c));
+        }
+        hex = (hex << 4) | nybble;
+      }
+      i += 4;
+      return hex;
     }
 
     private Object parseNumber(char c) throws EvalException {
@@ -624,8 +666,10 @@ public final class Json implements StarlarkValue {
         @Param(name = "x"),
         @Param(name = "prefix", positional = false, named = true, defaultValue = "''"),
         @Param(name = "indent", positional = false, named = true, defaultValue = "'\\t'"),
-      })
-  public String encodeIndent(Object x, String prefix, String indent) throws EvalException {
+      },
+      useStarlarkThread = true)
+  public String encodeIndent(Object x, String prefix, String indent, StarlarkThread starlarkThread)
+      throws EvalException {
     return indent(encode(x), prefix, indent);
   }
 

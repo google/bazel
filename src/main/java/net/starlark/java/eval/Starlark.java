@@ -591,11 +591,12 @@ public final class Starlark {
       return "";
     }
     // First line is special: we fully strip it and ignore it for leading spaces calculation
-    String firstLineTrimmed = StringModule.INSTANCE.strip(lines.get(0), NONE);
+    String firstLineTrimmed =
+        StringModule.INSTANCE.stripSemantics(lines.get(0), NONE, StarlarkSemantics.DEFAULT);
     Iterable<String> subsequentLines = Iterables.skip(lines, 1);
     int minLeadingSpaces = Integer.MAX_VALUE;
     for (String line : subsequentLines) {
-      String strippedLeading = StringModule.INSTANCE.lstrip(line, NONE);
+      String strippedLeading = StringModule.INSTANCE.lstripSemantics(line, NONE, StarlarkSemantics.DEFAULT);
       if (!strippedLeading.isEmpty()) {
         int leadingSpaces = line.length() - strippedLeading.length();
         minLeadingSpaces = min(leadingSpaces, minLeadingSpaces);
@@ -613,11 +614,13 @@ public final class Starlark {
         result.append("\n");
       }
       if (line.length() > minLeadingSpaces) {
-        result.append(StringModule.INSTANCE.rstrip(line.substring(minLeadingSpaces), NONE));
+        result.append(
+            StringModule.INSTANCE.rstripSemantics(
+                line.substring(minLeadingSpaces), NONE, StarlarkSemantics.DEFAULT));
       }
     }
     // Remove trailing empty lines
-    return StringModule.INSTANCE.rstrip(result.toString(), NONE);
+    return StringModule.INSTANCE.rstripSemantics(result.toString(), NONE, StarlarkSemantics.DEFAULT);
   }
 
   /**
