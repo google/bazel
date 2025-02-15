@@ -21,6 +21,7 @@ import com.google.devtools.build.lib.actions.Artifact;
 import com.google.devtools.build.lib.actions.Artifact.SpecialArtifact;
 import com.google.devtools.build.lib.actions.ArtifactPathResolver;
 import com.google.devtools.build.lib.actions.FileArtifactValue;
+import com.google.devtools.build.lib.actions.FileArtifactValue.FileWriteOutputArtifactValue;
 import com.google.devtools.build.lib.actions.InputMetadataProvider;
 import com.google.devtools.build.lib.actions.cache.VirtualActionInput;
 import com.google.devtools.build.lib.remote.Scrubber.SpawnScrubber;
@@ -166,6 +167,16 @@ class DirectoryTreeBuilder {
                   inputMetadataProvider.getInputMetadata(input),
                   "missing metadata for '%s'",
                   input.getExecPathString());
+          if (metadata instanceof FileWriteOutputArtifactValue fileArtifactValue) {
+            boolean childAdded =
+                currDir.addChild(
+                    FileNode.createExecutable(
+                        path.getBaseName(),
+                        fileArtifactValue,
+                        DigestUtil.buildDigest(metadata.getDigest(), metadata.getSize()),
+                        toolInputs.contains(path)));
+            return childAdded ? 1 : 0;
+          }
           switch (metadata.getType()) {
             case REGULAR_FILE -> {
               Digest d = DigestUtil.buildDigest(metadata.getDigest(), metadata.getSize());

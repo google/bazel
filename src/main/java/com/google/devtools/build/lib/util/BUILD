@@ -269,6 +269,9 @@ java_library(
     srcs = [
         "StreamWriter.java",
     ],
+    deps = [
+        "@com_google_protobuf//:protobuf_java",
+    ],
 )
 
 java_library(

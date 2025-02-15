@@ -31,6 +31,7 @@ import com.google.devtools.build.lib.actions.CachedActionEvent;
 import com.google.devtools.build.lib.actions.FileArtifactValue;
 import com.google.devtools.build.lib.analysis.TargetCompleteEvent;
 import com.google.devtools.build.lib.buildtool.util.BuildIntegrationTestCase;
+import com.google.devtools.build.lib.exec.ExecutionOptions.FileWriteStrategy;
 import com.google.devtools.build.lib.skyframe.ActionExecutionValue;
 import com.google.devtools.build.lib.skyframe.TreeArtifactValue;
 import com.google.devtools.build.lib.util.CommandBuilder;
@@ -38,6 +39,7 @@ import com.google.devtools.build.lib.util.OS;
 import com.google.devtools.build.lib.util.io.RecordingOutErr;
 import com.google.devtools.build.lib.vfs.Path;
 import com.google.devtools.build.lib.vfs.PathFragment;
+import com.google.testing.junit.testparameterinjector.TestParameter;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
@@ -1030,6 +1032,46 @@ public abstract class BuildWithoutTheBytesIntegrationTestBase extends BuildInteg
   }
 
   @Test
+  public void downloadToplevel_symlinkToWrittenFile() throws Exception {
+    setDownloadToplevel();
+    writeSymlinkRule();
+    writeWriteFileRule();
+    write(
+        "BUILD",
+        "load(':symlink.bzl', 'symlink')",
+        "load(':write_file.bzl', 'write_file')",
+        "write_file(",
+        "  name = 'foo',",
+        "  content = 'hello',",
+        // assertValidOutputFile checks for the executable bit.
+        "  executable = True,",
+        ")",
+        "symlink(",
+        "  name = 'foo-link',",
+        "  target_artifact = ':foo',",
+        ")");
+
+    buildTarget("//:foo-link");
+
+    assertSymlink("foo-link", getOutputPath("foo").asFragment());
+    assertValidOutputFile("foo-link", "hello");
+
+    // Delete link, re-plant symlink
+    getOutputPath("foo-link").delete();
+    buildTarget("//:foo-link");
+
+    assertSymlink("foo-link", getOutputPath("foo").asFragment());
+    assertValidOutputFile("foo-link", "hello");
+
+    // Delete target, re-download it
+    getOutputPath("foo").delete();
+    buildTarget("//:foo-link");
+
+    assertSymlink("foo-link", getOutputPath("foo").asFragment());
+    assertValidOutputFile("foo-link", "hello");
+  }
+
+  @Test
   public void downloadToplevel_unresolvedSymlink() throws Exception {
     // Dangling symlink would require developer mode to be enabled in the CI environment.
     assumeFalse(OS.getCurrent() == OS.WINDOWS);
@@ -1053,6 +1095,83 @@ public abstract class BuildWithoutTheBytesIntegrationTestBase extends BuildInteg
     buildTarget("//:foo-link");
 
     assertSymlink("foo-link", PathFragment.create("/some/path"));
+  }
+
+  @Test
+  public void downloadMinimal_fileWrite(
+      @TestParameter boolean isExecutable, @TestParameter FileWriteStrategy fileWriteStrategy)
+      throws Exception {
+    writeWriteFileRule();
+    writeSymlinkRule();
+    // Remote execution stages all files as executable.
+    write(
+        "BUILD",
+        """
+        load(':write_file.bzl', 'write_file')
+        write_file(
+            name = 'foo',
+            content = 'hello',
+            executable = %s,
+        )
+        genrule(
+            name = 'gen',
+            srcs = [':foo'],
+            outs = ['out/gen.txt'],
+            cmd = \"""
+            %s
+            cat $(location :foo) $(location :foo) > $@
+            \""",
+        )
+        """
+            .formatted(
+                isExecutable ? "True" : "False",
+                OS.getCurrent() == OS.WINDOWS
+                    ? ""
+                    : """
+                      [ -x $(location :foo) ] || { echo "unexpectedly not executable"; exit 1; }
+                      """));
+
+    addOptions("--file_write_strategy=" + fileWriteStrategy);
+
+    buildTarget("//:gen");
+    if (fileWriteStrategy == FileWriteStrategy.LAZY) {
+      assertOutputsDoNotExist("//:foo");
+    } else {
+      assertValidOutputFile("foo", "hello");
+    }
+    assertOutputsDoNotExist("//:gen");
+  }
+
+  @Test
+  public void downloadToplevel_fileWrite(
+      @TestParameter boolean isExecutable, @TestParameter FileWriteStrategy fileWriteStrategy)
+      throws Exception {
+    setDownloadToplevel();
+    writeWriteFileRule();
+    write(
+        "BUILD",
+        """
+        load(':write_file.bzl', 'write_file')
+        write_file(
+          name = 'foo',
+          content = 'hello',
+          executable = %s,
+        )
+        """.formatted(isExecutable ? "True" : "False"));
+
+    addOptions("--file_write_strategy=" + fileWriteStrategy);
+
+    buildTarget("//:foo");
+
+    assertOnlyOutputContent("//:foo", "foo", "hello");
+    // TODO: Bazel doesn't honor the executable bit.
+    assertThat(getOutputPath("foo").isExecutable()).isTrue();
+
+    // Delete file, re-create it
+    getOutputPath("foo-link").delete();
+    buildTarget("//:foo");
+
+    assertOnlyOutputContent("//:foo", "foo", "hello");
   }
 
   @Test
@@ -1369,6 +1488,53 @@ public abstract class BuildWithoutTheBytesIntegrationTestBase extends BuildInteg
     assertThat(actionEventCollector.getCachedActionEvents()).isEmpty();
     var metadata = getOnlyElement(getMetadata("//:foo").values());
     assertThat(metadata.isRemote()).isTrue();
+    assertThat(metadata.getContentsProxy()).isNotNull();
+  }
+
+  @Test
+  public void incrementalBuild_writeFileOutputIsPrefetched_noRuns() throws Exception {
+    // We need to download the intermediate output
+    if (!hasAccessToRemoteOutputs()) {
+      return;
+    }
+
+    // Arrange: Prepare workspace and run a clean build
+    writeWriteFileRule();
+    write(
+        "BUILD",
+        "load(':write_file.bzl', 'write_file')",
+        "write_file(",
+        "  name = 'foo',",
+        "  content = 'foo',",
+        "  executable = True,",
+        ")",
+        "genrule(",
+        "  name = 'foobar',",
+        "  srcs = [':foo'],",
+        "  outs = ['out/foobar.txt'],",
+        "  cmd = 'cat $(location :foo) > $@ && echo bar >> $@',",
+        "  tags = ['no-remote'],",
+        ")");
+
+    addOptions("--file_write_strategy=lazy");
+
+    buildTarget("//:foobar");
+    assertValidOutputFile("foo", "foo");
+    assertValidOutputFile("out/foobar.txt", "foobar\n");
+    assertThat(getOnlyElement(getMetadata("//:foo").values()).isLazy()).isTrue();
+
+    // Act: Do an incremental build without any modifications
+    ActionEventCollector actionEventCollector = new ActionEventCollector();
+    getRuntimeWrapper().registerSubscriber(actionEventCollector);
+    buildTarget("//:foobar");
+
+    // Assert: remote file metadata has contents proxy and action node is not marked as dirty.
+    assertValidOutputFile("foo", "foo");
+    assertValidOutputFile("out/foobar.txt", "foobar\n");
+    assertThat(actionEventCollector.getActionExecutedEvents()).isEmpty();
+    assertThat(actionEventCollector.getCachedActionEvents()).isEmpty();
+    var metadata = getOnlyElement(getMetadata("//:foo").values());
+    assertThat(metadata.isLazy()).isTrue();
     assertThat(metadata.getContentsProxy()).isNotNull();
   }
 
@@ -1993,6 +2159,25 @@ public abstract class BuildWithoutTheBytesIntegrationTestBase extends BuildInteg
         "  attr_aspects = ['srcs'],",
         ")");
     write("rules.bzl", lines.build().toArray(new String[0]));
+  }
+
+  protected void writeWriteFileRule() throws IOException {
+    write(
+        "write_file.bzl",
+        """
+        def _write_file_impl(ctx):
+            out = ctx.actions.declare_file(ctx.label.name)
+            ctx.actions.write(output = out, content = ctx.attr.content, is_executable = ctx.attr.executable)
+            return DefaultInfo(files = depset([out]))
+
+        write_file = rule(
+            implementation = _write_file_impl,
+            attrs = {
+                "content": attr.string(),
+                "executable": attr.bool(default = False),
+            },
+        )
+        """);
   }
 
   protected static class ActionEventCollector {

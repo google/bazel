@@ -32,13 +32,13 @@ import com.google.common.collect.Multimap;
 import com.google.devtools.build.lib.actions.ActionInput;
 import com.google.devtools.build.lib.actions.ArtifactPathResolver;
 import com.google.devtools.build.lib.actions.InputMetadataProvider;
-import com.google.devtools.build.lib.actions.cache.VirtualActionInput;
 import com.google.devtools.build.lib.profiler.Profiler;
 import com.google.devtools.build.lib.profiler.SilentCloseable;
 import com.google.devtools.build.lib.remote.Scrubber.SpawnScrubber;
+import com.google.devtools.build.lib.remote.merkletree.MerkleTree.ContentSource.InMemorySource;
 import com.google.devtools.build.lib.remote.merkletree.MerkleTree.ContentSource.PathSource;
-import com.google.devtools.build.lib.remote.merkletree.MerkleTree.ContentSource.VirtualActionInputSource;
 import com.google.devtools.build.lib.remote.util.DigestUtil;
+import com.google.devtools.build.lib.util.StreamWriter;
 import com.google.devtools.build.lib.vfs.Path;
 import com.google.devtools.build.lib.vfs.PathFragment;
 import java.io.IOException;
@@ -63,8 +63,7 @@ public class MerkleTree {
     record PathSource(Path path) implements ContentSource {}
 
     /** Content provided by a virtual action input. */
-    record VirtualActionInputSource(VirtualActionInput virtualActionInput)
-        implements ContentSource {}
+    record InMemorySource(StreamWriter streamWriter) implements ContentSource {}
   }
 
   private interface MerkleTreeDirectoryVisitor {
@@ -172,7 +171,7 @@ public class MerkleTree {
               if (file.getPath() != null) {
                 newDigestMap.put(file.getDigest(), file.getPath());
               } else {
-                newDigestMap.put(file.getDigest(), file.getVirtualActionInput());
+                newDigestMap.put(file.getDigest(), file.getData());
               }
             }
           });
@@ -190,8 +189,7 @@ public class MerkleTree {
   public ContentSource getFileByDigest(Digest digest) {
     return switch (getDigestFileMap().get(digest)) {
       case Path path -> new PathSource(path);
-      case VirtualActionInput virtualActionInput ->
-          new VirtualActionInputSource(virtualActionInput);
+      case StreamWriter streamWriter -> new InMemorySource(streamWriter);
       case null -> null;
       default ->
           throw new IllegalStateException("Unexpected value: " + getDigestFileMap().get(digest));

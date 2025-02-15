@@ -460,6 +460,7 @@ java_library(
     deps = [
         ":artifacts",
         ":has_digest",
+        "//src/main/java/com/google/devtools/build/lib/analysis:actions/deterministic_writer",
         "//src/main/java/com/google/devtools/build/lib/concurrent",
         "//src/main/java/com/google/devtools/build/lib/io:inconsistent_filesystem_exception",
         "//src/main/java/com/google/devtools/build/lib/skyframe:filesystem_keys",

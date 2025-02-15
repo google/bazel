@@ -37,7 +37,7 @@ import com.google.devtools.build.lib.buildtool.util.BuildIntegrationTestCase;
 import com.google.devtools.build.lib.buildtool.util.TestRuleModule;
 import com.google.devtools.build.lib.cmdline.RepositoryName;
 import com.google.devtools.build.lib.events.EventHandler;
-import com.google.devtools.build.lib.exec.FileWriteStrategy;
+import com.google.devtools.build.lib.exec.EagerFileWriteStrategy;
 import com.google.devtools.build.lib.exec.ModuleActionContextRegistry;
 import com.google.devtools.build.lib.packages.AttributeTransitionData;
 import com.google.devtools.build.lib.packages.ImplicitOutputsFunction;
@@ -195,7 +195,7 @@ public final class ConvenienceSymlinkTest extends BuildIntegrationTestCase {
         CommandEnvironment env,
         BuildRequest buildRequest) {
       // we need an implementation of FileWriteActionContext to get our file writes to succeed
-      registryBuilder.register(FileWriteActionContext.class, new FileWriteStrategy());
+      registryBuilder.register(FileWriteActionContext.class, new EagerFileWriteStrategy());
       // we need something to consume FileWriteActionContext or the registration will have no effect
       registryBuilder.restrictTo(FileWriteActionContext.class, "local");
     }

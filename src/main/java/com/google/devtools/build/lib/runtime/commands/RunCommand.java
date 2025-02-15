@@ -1091,11 +1091,13 @@ public class RunCommand implements BlazeCommand {
 
     Path executablePath = executable.getPath();
     try {
-      if (!executablePath.exists() || !executablePath.isExecutable()) {
+      if (!executablePath.exists()) {
         return reportAndCreateFailureResult(
-            env,
-            "Non-existent or non-executable " + executablePath,
-            Code.TARGET_BUILT_BUT_PATH_NOT_EXECUTABLE);
+            env, "Non-existent " + executablePath, Code.TARGET_BUILT_BUT_PATH_NOT_EXECUTABLE);
+      }
+      if (!executablePath.isExecutable()) {
+        return reportAndCreateFailureResult(
+            env, "Non-executable " + executablePath, Code.TARGET_BUILT_BUT_PATH_NOT_EXECUTABLE);
       }
     } catch (IOException e) {
       return reportAndCreateFailureResult(

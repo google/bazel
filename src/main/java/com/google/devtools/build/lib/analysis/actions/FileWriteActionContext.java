@@ -56,4 +56,12 @@ public interface FileWriteActionContext extends ActionContext {
         isRemotable,
         Iterables.getOnlyElement(action.getOutputs()));
   }
+
+  /**
+   * Returns whether the {@link DeterministicWriter} may be retained after {@link
+   * #writeOutputToFile} returns.
+   */
+  default boolean mayRetainWriter() {
+    return false;
+  }
 }
