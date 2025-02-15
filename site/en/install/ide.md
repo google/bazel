@@ -103,7 +103,7 @@ Eclipse projects.
 
 ## Autocomplete for Source Code {:#autocomplete-for-source-code}
 
-### C Language Family (C++, C, Objective-C, and Objective-C++)
+### C Language Family (C++, C, Objective-C, Objective-C++, and CUDA)
 
 [`kiron1/bazel-compile-commands`](https://github.com/kiron1/bazel-compile-commands){: .external}
 run `bazel-compile-commands //...` in a Bazel workspace to generate a `compile_commands.json` file.
