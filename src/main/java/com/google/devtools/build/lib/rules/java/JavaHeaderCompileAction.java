@@ -574,7 +574,7 @@ public final class JavaHeaderCompileAction extends SpawnAction {
                 // If classPathMode == BAZEL, also make sure to inject the dependencies to be
                 // available to downstream actions. Else just do enough work to locally create the
                 // full .jdeps from the .stripped .jdeps produced on the executor.
-                /* insertDependencies= */ classpathMode == JavaClasspathMode.BAZEL,
+                /* insertDependencies= */ classpathMode == JavaClasspathMode.BAZEL || classpathMode == JavaClasspathMode.BAZEL_NO_FALLBACK,
                 javaConfiguration.inmemoryJdepsFiles(),
                 additionalArtifactsForPathMapping));
         return;

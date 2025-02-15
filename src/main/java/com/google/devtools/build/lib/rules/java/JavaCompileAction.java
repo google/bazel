@@ -187,7 +187,8 @@ public final class JavaCompileAction extends AbstractAction implements CommandAc
     this.outputDepsProto = outputDepsProto;
     this.classpathMode = classpathMode;
     checkState(
-        outputDepsProto != null || classpathMode != JavaClasspathMode.BAZEL,
+        outputDepsProto != null
+            || (classpathMode != JavaClasspathMode.BAZEL && classpathMode != JavaClasspathMode.BAZEL_NO_FALLBACK),
         "Cannot have null outputDepsProto with reduced class path mode BAZEL %s",
         describe());
   }
@@ -312,10 +313,16 @@ public final class JavaCompileAction extends AbstractAction implements CommandAc
     } else {
       classpathLine.addExecPaths("--classpath", reducedClasspath.reducedJars);
     }
-    // These flags instruct JavaBuilder that this is a compilation with a reduced classpath and
-    // that it should report a special value back if a compilation error occurs that suggests
-    // retrying with the full classpath.
-    classpathLine.add("--reduce_classpath_mode", fallback ? "BAZEL_FALLBACK" : "BAZEL_REDUCED");
+
+    if (classpathMode == JavaClasspathMode.BAZEL_NO_FALLBACK) {
+      // No need of fallback logic, invoke SimpleJavaLibraryBuilder with a reduced --classpath
+      classpathLine.add("--reduce_classpath_mode", "NONE");
+    } else {
+      // These flags instruct JavaBuilder that this is a compilation with a reduced classpath and
+      // that it should report a special value back if a compilation error occurs that suggests
+      // retrying with the full classpath.
+      classpathLine.add("--reduce_classpath_mode", fallback ? "BAZEL_FALLBACK" : "BAZEL_REDUCED");
+    }
     classpathLine.add("--full_classpath_length", Integer.toString(reducedClasspath.fullLength));
     classpathLine.add(
         "--reduced_classpath_length", Integer.toString(reducedClasspath.reducedLength));
@@ -401,7 +408,7 @@ public final class JavaCompileAction extends AbstractAction implements CommandAc
     ReducedClasspath reducedClasspath;
     Spawn spawn;
     try {
-      if (classpathMode == JavaClasspathMode.BAZEL) {
+      if (classpathMode == JavaClasspathMode.BAZEL || classpathMode == JavaClasspathMode.BAZEL_NO_FALLBACK) {
         JavaCompileActionContext context =
             actionExecutionContext.getContext(JavaCompileActionContext.class);
         try {
