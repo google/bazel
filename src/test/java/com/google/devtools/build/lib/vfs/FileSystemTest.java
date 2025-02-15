@@ -50,6 +50,8 @@ import java.nio.file.FileAlreadyExistsException;
 import java.nio.file.Files;
 import java.nio.file.attribute.PosixFilePermission;
 import java.time.Instant;
+import java.util.HashSet;
+import java.util.Set;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicBoolean;
 import org.junit.After;
@@ -2034,5 +2036,19 @@ public abstract class FileSystemTest {
   protected static void assumeUtf8CompatibleEncoding() {
     Charset sunJnuEncoding = Charset.forName(System.getProperty("sun.jnu.encoding"));
     assume().that(ImmutableList.of(UTF_8, ISO_8859_1)).contains(sunJnuEncoding);
+  }
+
+  @Test
+  public void testCreateTempDirectory() throws Exception {
+    Set<Path> tempDirs = new HashSet<>();
+    for (int i = 0; i < 10; i++) {
+      Path tempDir = workingDir.createTempDirectory("prefix" + i);
+      assertThat(tempDir.isDirectory()).isTrue();
+      assertThat(tempDir.isReadable()).isTrue();
+      assertThat(tempDir.isWritable()).isTrue();
+      assertThat(tempDir.getBaseName()).startsWith("prefix" + i);
+      assertThat(tempDirs).doesNotContain(tempDir);
+      tempDirs.add(tempDir);
+    }
   }
 }

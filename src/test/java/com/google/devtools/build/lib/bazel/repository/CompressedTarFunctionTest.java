@@ -19,7 +19,7 @@ import static com.google.devtools.build.lib.bazel.repository.TestArchiveDescript
 import static com.google.devtools.build.lib.bazel.repository.TestArchiveDescriptor.ROOT_FOLDER_NAME;
 
 import com.google.devtools.build.lib.vfs.Path;
-import java.io.FileInputStream;
+import java.io.BufferedInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.HashMap;
@@ -105,9 +105,9 @@ public class CompressedTarFunctionTest {
   private Path decompress(DecompressorDescriptor descriptor) throws Exception {
     return new CompressedTarFunction() {
       @Override
-      protected InputStream getDecompressorStream(DecompressorDescriptor descriptor)
+      protected InputStream getDecompressorStream(BufferedInputStream compressedInputStream)
           throws IOException {
-        return new GZIPInputStream(new FileInputStream(descriptor.archivePath().getPathFile()));
+        return new GZIPInputStream(compressedInputStream);
       }
     }.decompress(descriptor);
   }

@@ -1,4 +1,4 @@
-load("@rules_java//java:defs.bzl", "java_import", "java_library", "java_plugin")
+load("@rules_java//java:defs.bzl", "java_binary", "java_import", "java_library", "java_plugin")
 load("@rules_license//rules:license.bzl", "license")
 load("//src/tools/bzlmod:utils.bzl", "get_repo_root")
 load("//tools/distributions:distribution_rules.bzl", "distrib_jar_filegroup", "distrib_java_import")
@@ -316,13 +316,17 @@ genrule(
         "@rules_java//toolchains:platformclasspath",
     ],
     outs = ["fastutil-stripped.jar"],
+    # ProGuard output is silenced below because it prints
+    # ...
+    # Caused by: java.net.UnknownHostException: bk-docker-3gmr: Temporary failure in name resolution
+    # ...
+    # when running in the Bazel sandbox, which throws off bazel_determinism_test.
     cmd = """
     $(location :proguard) \
         -injars $(execpath @maven//:it_unimi_dsi_fastutil_file) \
         -outjars $@ \
         -libraryjars $(execpath @rules_java//toolchains:platformclasspath) \
-        @$(location //tools:fastutil.proguard) \
-      | tail -n +2 # Skip the "ProGuard, version X" line
+        @$(location //tools:fastutil.proguard) > /dev/null
     # Null out the file times stored in the jar to make the output reproducible.
     TMPDIR=$$(mktemp -d)
     trap 'rm -rf $$TMPDIR' EXIT
@@ -340,6 +344,10 @@ genrule(
 
 java_binary(
     name = "proguard",
+    jvm_flags = [
+        # Prevent ProGuard from calling out to the internet through log4j.
+        "-Dlog4j.rootLogger=OFF",
+    ],
     main_class = "proguard.ProGuard",
     runtime_deps = ["@maven//:com_guardsquare_proguard_base"],
 )

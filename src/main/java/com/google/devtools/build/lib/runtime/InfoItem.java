@@ -14,13 +14,12 @@
 
 package com.google.devtools.build.lib.runtime;
 
+
 import com.google.common.base.Supplier;
 import com.google.devtools.build.lib.analysis.config.BuildConfigurationValue;
+import com.google.devtools.build.lib.unsafe.StringUnsafe;
 import com.google.devtools.build.lib.util.AbruptExitException;
-import java.io.ByteArrayOutputStream;
-import java.io.OutputStreamWriter;
-import java.io.PrintWriter;
-import java.nio.charset.StandardCharsets;
+import java.util.Arrays;
 
 /** An item that is returned by <code>blaze info</code>. */
 public abstract class InfoItem {
@@ -77,11 +76,9 @@ public abstract class InfoItem {
     if (value instanceof byte[]) {
       return (byte[]) value;
     }
-    ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
-    PrintWriter writer =
-        new PrintWriter(new OutputStreamWriter(outputStream, StandardCharsets.UTF_8));
-    writer.print(value + "\n");
-    writer.flush();
-    return outputStream.toByteArray();
+    byte[] bytes = StringUnsafe.getInternalStringBytes(String.valueOf(value));
+    bytes = Arrays.copyOf(bytes, bytes.length + 1);
+    bytes[bytes.length - 1] = '\n';
+    return bytes;
   }
 }

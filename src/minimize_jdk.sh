@@ -29,6 +29,15 @@ source "${RUNFILES_DIR:-/dev/null}/$f" 2>/dev/null || \
   { echo>&2 "ERROR: cannot find $f"; exit 1; }; f=; set -e
 # --- end runfiles.bash initialization v3 ---
 
+# Force a UTF-8 compatible locale for Java tools to operate under paths with
+# Unicode characters.
+if [[ $(locale charmap) != "UTF-8" ]]; then
+  export LC_CTYPE=C.UTF-8
+fi
+if [[ $(locale charmap) != "UTF-8" ]]; then
+  export LC_CTYPE=en_US.UTF-8
+fi
+
 if [ "$1" == "--allmodules" ]; then
   shift
   modules="ALL-MODULE-PATH"

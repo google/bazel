@@ -17,22 +17,18 @@ package com.google.devtools.build.lib.bazel.repository;
 import com.github.luben.zstd.ZstdInputStreamNoFinalizer;
 import com.google.devtools.build.lib.bazel.repository.DecompressorValue.Decompressor;
 import java.io.BufferedInputStream;
-import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 
 /** Creates a repository by unarchiving a zstandard-compressed .tar file. */
 final class TarZstFunction extends CompressedTarFunction {
   static final Decompressor INSTANCE = new TarZstFunction();
-  private static final int BUFFER_SIZE = 32 * 1024;
 
   private TarZstFunction() {}
 
   @Override
-  protected InputStream getDecompressorStream(DecompressorDescriptor descriptor)
+  protected InputStream getDecompressorStream(BufferedInputStream compressedInputStream)
       throws IOException {
-    return new ZstdInputStreamNoFinalizer(
-        new BufferedInputStream(
-            new FileInputStream(descriptor.archivePath().getPathFile()), BUFFER_SIZE));
+    return new ZstdInputStreamNoFinalizer(compressedInputStream);
   }
 }

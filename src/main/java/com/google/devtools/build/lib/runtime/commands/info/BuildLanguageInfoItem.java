@@ -41,6 +41,7 @@ import com.google.devtools.build.lib.server.FailureDetails;
 import com.google.devtools.build.lib.skyframe.StarlarkBuiltinsValue;
 import com.google.devtools.build.lib.util.AbruptExitException;
 import com.google.devtools.build.lib.util.DetailedExitCode;
+import com.google.devtools.build.lib.util.StringEncoding;
 import com.google.devtools.build.skyframe.EvaluationResult;
 import com.google.devtools.build.skyframe.SkyValue;
 import java.util.Collection;
@@ -172,7 +173,7 @@ public final class BuildLanguageInfoItem extends InfoItem {
       // TODO(adonovan): need dual function of parseDistributions.
       // Treat as empty list for now.
     } else if (t == Type.STRING) {
-      b.setString((String) v);
+      b.setString(StringEncoding.internalToUnicode((String) v));
     } else if (t == Type.INTEGER) {
       b.setInt(((StarlarkInt) v).toIntUnchecked());
     } else if (t == Type.BOOLEAN) {
@@ -180,7 +181,7 @@ public final class BuildLanguageInfoItem extends InfoItem {
     } else if (t == BuildType.TRISTATE) {
       b.setInt(((TriState) v).toInt());
     } else if (BuildType.isLabelType(t)) { // case order matters!
-      b.setString(v.toString());
+      b.setString(StringEncoding.internalToUnicode(v.toString()));
     } else {
       // No native rule attribute of this type (FilesetEntry?) has a default value.
       throw new IllegalStateException("unexpected type of attribute default value: " + t);

@@ -27,6 +27,7 @@ import com.google.devtools.build.lib.sandbox.SandboxHelpers.SandboxOutputs;
 import com.google.devtools.build.lib.shell.Subprocess;
 import com.google.devtools.build.lib.shell.SubprocessBuilder;
 import com.google.devtools.build.lib.shell.SubprocessFactory;
+import com.google.devtools.build.lib.util.StringEncoding;
 import com.google.devtools.build.lib.vfs.Path;
 import com.google.devtools.build.lib.vfs.PathFragment;
 import com.google.devtools.build.lib.worker.WorkerProcessStatus.Status;
@@ -200,10 +201,14 @@ public class WorkerMultiplexer {
               });
       Runtime.getRuntime().addShutdownHook(shutdownHook);
       ImmutableList<String> args = workerKey.getArgs();
-      File executable = new File(args.get(0));
+      File executable = new File(StringEncoding.internalToPlatform(args.get(0)));
       if (!executable.isAbsolute() && executable.getParent() != null) {
         List<String> newArgs = new ArrayList<>(args);
-        newArgs.set(0, new File(workDir.getPathFile(), newArgs.get(0)).getAbsolutePath());
+        newArgs.set(
+            0,
+            StringEncoding.platformToInternal(
+                new File(workDir.getPathFile(), StringEncoding.internalToPlatform(newArgs.get(0)))
+                    .getAbsolutePath()));
         args = ImmutableList.copyOf(newArgs);
       }
       SubprocessBuilder processBuilder =

@@ -31,6 +31,7 @@ import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.nio.channels.SeekableByteChannel;
 import java.nio.file.FileAlreadyExistsException;
+import java.security.SecureRandom;
 import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
@@ -841,6 +842,22 @@ public abstract class FileSystem {
   protected java.nio.file.Path getNioPath(PathFragment path) {
     throw new UnsupportedOperationException(
         "getNioPath() not supported for " + getClass().getName());
+  }
+
+  /**
+   * Returns the path of a new temporary directory with the given prefix created under the given
+   * parent path, but <b>not</b> necessarily with secure permissions.
+   */
+  protected PathFragment createTempDirectory(PathFragment parent, String prefix)
+      throws IOException {
+    SecureRandom rand = new SecureRandom();
+    while (true) {
+      PathFragment candidate = parent.getRelative(prefix + Long.toUnsignedString(rand.nextLong()));
+      if (createDirectory(candidate)) {
+        chmod(candidate, 0700);
+        return candidate;
+      }
+    }
   }
 
   /**

@@ -17,14 +17,13 @@ package com.google.devtools.build.lib.util;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.base.Preconditions.checkState;
-import static java.nio.charset.StandardCharsets.UTF_8;
+import static java.nio.charset.StandardCharsets.ISO_8859_1;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Strings;
 import com.google.common.io.CountingOutputStream;
 import com.google.common.net.InetAddresses;
 import com.google.errorprone.annotations.CanIgnoreReturnValue;
-import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InterruptedIOException;
@@ -524,6 +523,10 @@ public final class SimpleLogHandler extends Handler {
       return builderValue;
     }
 
+    // .properties files are read as Latin-1 by java.util.Properties, with Unicode escape sequences
+    // interpreted. Since the Bazel client passes path properties as UTF-8 without escaping,
+    // configuredValue already contains a string in Bazel's internal string encoding (see
+    // StringEncoding).
     String configuredValue =
         LogManager.getLogManager()
             .getProperty(SimpleLogHandler.class.getName() + "." + configuredName);
@@ -661,7 +664,7 @@ public final class SimpleLogHandler extends Handler {
 
     StringBuilder sb = new StringBuilder(100); // Typical name is < 100 bytes
     boolean inVar = false;
-    String username = System.getProperty("user.name");
+    String username = StringEncoding.platformToInternal(System.getProperty("user.name"));
 
     if (Strings.isNullOrEmpty(username)) {
       username = "unknown_user";
@@ -695,7 +698,7 @@ public final class SimpleLogHandler extends Handler {
       }
     }
 
-    return new File(sb.toString()).getAbsoluteFile().toPath();
+    return Path.of(StringEncoding.internalToPlatform(sb.toString())).toAbsolutePath();
   }
 
   /**
@@ -707,19 +710,19 @@ public final class SimpleLogHandler extends Handler {
   private static Path getSymlinkAbsolutePath(Path logDir, String symlink) {
     checkNotNull(symlink);
     checkArgument(!symlink.isEmpty());
-    File symlinkFile = new File(symlink);
-    if (!symlinkFile.isAbsolute()) {
-      symlinkFile = new File(logDir + File.separator + symlink);
+    Path symlinkPath = Path.of(StringEncoding.internalToPlatform(symlink));
+    if (!symlinkPath.isAbsolute()) {
+      symlinkPath = logDir.resolve(symlinkPath);
     }
     checkArgument(
-        symlinkFile.toPath().getParent().equals(logDir),
-        "symlink is not a top-level file in logDir");
-    return symlinkFile.toPath();
+        symlinkPath.getParent().equals(logDir), "symlink is not a top-level file in logDir");
+    return symlinkPath;
   }
 
   private static final class Output {
     /** Log file currently in use. */
-    @Nullable private File file;
+    @Nullable private Path file;
+
     /** Output stream for {@link #file} which counts the number of bytes written. */
     @Nullable private CountingOutputStream stream;
     /** Writer for {@link #stream}. */
@@ -734,12 +737,12 @@ public final class SimpleLogHandler extends Handler {
      *
      * @throws IOException if the file could not be opened
      */
-    public void open(String path) throws IOException {
+    public void open(Path file) throws IOException {
       try {
         close();
-        file = new File(path);
-        stream = new CountingOutputStream(new FileOutputStream(file, true));
-        writer = new OutputStreamWriter(stream, UTF_8);
+        this.file = file;
+        stream = new CountingOutputStream(new FileOutputStream(file.toFile(), true));
+        writer = new OutputStreamWriter(stream, ISO_8859_1);
       } catch (IOException e) {
         close();
         throw e;
@@ -752,7 +755,7 @@ public final class SimpleLogHandler extends Handler {
      * @throws NullPointerException if not open
      */
     public Path getPath() {
-      return file.toPath();
+      return file;
     }
 
     /**
@@ -826,7 +829,8 @@ public final class SimpleLogHandler extends Handler {
 
       try {
         output.open(
-            baseFilePath + timestampFormat.format(Date.from(Instant.now(clock))) + extension);
+            Path.of(
+                baseFilePath + timestampFormat.format(Date.from(Instant.now(clock))) + extension));
         output.write(getFormatter().getHead(this));
       } catch (IOException e) {
         try {

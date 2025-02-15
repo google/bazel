@@ -38,7 +38,7 @@ public class StdoutInfoItemHandlerTest {
     RecordingOutErr outErr = new RecordingOutErr();
     try (StdoutInfoItemHandler stdoutInfoItemHandler = new StdoutInfoItemHandler(outErr)) {
       stdoutInfoItemHandler.addInfoItem(
-          "info-1", "value-1\n".getBytes(UTF_8), /* printKeys= */ false);
+          "info-1", "value-1".getBytes(UTF_8), /* printKeys= */ false);
     }
 
     assertThat(outErr.outAsLatin1()).isEqualTo("value-1\n");
@@ -48,10 +48,8 @@ public class StdoutInfoItemHandlerTest {
   public void testStdOutputItemHandler_addTwoItemWithPrintingKey() throws Exception {
     RecordingOutErr outErr = new RecordingOutErr();
     try (StdoutInfoItemHandler stdoutInfoItemHandler = new StdoutInfoItemHandler(outErr)) {
-      stdoutInfoItemHandler.addInfoItem(
-          "foo", "value-foo\n".getBytes(UTF_8), /* printKeys= */ true);
-      stdoutInfoItemHandler.addInfoItem(
-          "bar", "value-bar\n".getBytes(UTF_8), /* printKeys= */ true);
+      stdoutInfoItemHandler.addInfoItem("foo", "value-foo".getBytes(UTF_8), /* printKeys= */ true);
+      stdoutInfoItemHandler.addInfoItem("bar", "value-bar".getBytes(UTF_8), /* printKeys= */ true);
     }
 
     assertThat(outErr.outAsLatin1()).isEqualTo("foo: value-foo\nbar: value-bar\n");
