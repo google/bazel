@@ -16,7 +16,6 @@ package com.google.devtools.build.lib.bazel.coverage;
 
 import static java.util.Objects.requireNonNull;
 
-import com.google.common.collect.ImmutableList;
 import com.google.devtools.build.lib.actions.Artifact;
 import com.google.devtools.build.lib.actions.ArtifactFactory;
 import com.google.devtools.build.lib.actions.ArtifactOwner;
@@ -24,6 +23,7 @@ import com.google.devtools.build.lib.analysis.BlazeDirectories;
 import com.google.devtools.build.lib.analysis.FilesToRunProvider;
 import com.google.devtools.build.lib.bazel.coverage.CoverageReportActionBuilder.ArgsFunc;
 import com.google.devtools.build.lib.bazel.coverage.CoverageReportActionBuilder.LocationFunc;
+import com.google.devtools.build.lib.collect.nestedset.NestedSet;
 import com.google.devtools.build.lib.vfs.PathFragment;
 import javax.annotation.Nullable;
 
@@ -34,7 +34,7 @@ import javax.annotation.Nullable;
  */
 public record CoverageArgs(
     BlazeDirectories directories,
-    ImmutableList<Artifact> coverageArtifacts,
+    NestedSet<Artifact> coverageArtifacts,
     Artifact lcovArtifact,
     ArtifactFactory factory,
     ArtifactOwner artifactOwner,
@@ -55,7 +55,7 @@ public record CoverageArgs(
 
   public static CoverageArgs create(
       BlazeDirectories directories,
-      ImmutableList<Artifact> coverageArtifacts,
+      NestedSet<Artifact> coverageArtifacts,
       Artifact lcovArtifact,
       ArtifactFactory factory,
       ArtifactOwner artifactOwner,

@@ -45,6 +45,11 @@ public final class BaselineCoverageAction extends AbstractFileWriteAction {
     this.instrumentedFiles = instrumentedFiles;
   }
 
+  @VisibleForTesting
+  public NestedSet<Artifact> getInstrumentedFilesForTesting() {
+    return instrumentedFiles;
+  }
+
   @Override
   public String getMnemonic() {
     return "BaselineCoverage";

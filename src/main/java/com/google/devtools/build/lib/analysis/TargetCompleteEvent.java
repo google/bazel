@@ -15,7 +15,6 @@
 package com.google.devtools.build.lib.analysis;
 
 import static com.google.devtools.build.lib.analysis.config.BuildConfigurationValue.configurationId;
-import static com.google.devtools.build.lib.buildeventstream.TestFileNameConstants.BASELINE_COVERAGE;
 
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
@@ -30,7 +29,6 @@ import com.google.devtools.build.lib.actions.EventReportingArtifacts;
 import com.google.devtools.build.lib.actions.FileArtifactValue;
 import com.google.devtools.build.lib.analysis.TopLevelArtifactHelper.ArtifactsInOutputGroup;
 import com.google.devtools.build.lib.analysis.config.BuildConfigurationValue;
-import com.google.devtools.build.lib.analysis.test.InstrumentedFilesInfo;
 import com.google.devtools.build.lib.analysis.test.TestConfiguration;
 import com.google.devtools.build.lib.analysis.test.TestProvider;
 import com.google.devtools.build.lib.bugreport.BugReport;
@@ -118,8 +116,6 @@ public final class TargetCompleteEvent
   private final ImmutableList<BuildEventId> postedAfter;
   private final CompletionContext completionContext;
   private final ImmutableMap<String, ArtifactsInOutputGroup> outputs;
-  @Nullable private final Artifact baselineCoverageArtifact;
-  @Nullable private final LocalFile baselineCoverage;
   // The label as appeared in the BUILD file.
   private final Label originalLabel;
   private final boolean isTest;
@@ -168,28 +164,11 @@ public final class TargetCompleteEvent
         isTest
             ? targetAndData.getConfiguredTarget().getProvider(TestProvider.class).getTestParams()
             : null;
-    this.baselineCoverageArtifact = baselineCoverageArtifact(targetAndData);
-    this.baselineCoverage =
-        baselineCoverageArtifact == null
-            ? null
-            : new LocalFile(
-                completionContext.pathResolver().toPath(baselineCoverageArtifact),
-                LocalFileType.COVERAGE_OUTPUT,
-                completionContext.getBaselineCoverageValue());
     this.postedAfter = postedAfterBuilder.build();
     this.tags = targetAndData.getRuleTags();
   }
 
   @Nullable
-  private static Artifact baselineCoverageArtifact(ConfiguredTargetAndData targetAndData) {
-    InstrumentedFilesInfo instrumentedFilesProvider =
-        targetAndData.getConfiguredTarget().get(InstrumentedFilesInfo.STARLARK_CONSTRUCTOR);
-    if (instrumentedFilesProvider == null) {
-      return null;
-    }
-    return instrumentedFilesProvider.getBaselineCoverageArtifact();
-  }
-
   /** Construct a successful target completion event. */
   public static TargetCompleteEvent successfulBuild(
       ConfiguredTargetAndData ct,
@@ -428,9 +407,6 @@ public final class TargetCompleteEvent
             });
       }
     }
-    if (baselineCoverage != null) {
-      builder.add(baselineCoverage);
-    }
     return builder.build();
   }
 
@@ -469,14 +445,6 @@ public final class TargetCompleteEvent
     if (converters.getOptions().legacyImportantOutputs) {
       addFilesDirectlyToProtoField(
           completionContext, builder, converters, filteredImportantArtifacts);
-      if (baselineCoverage != null) {
-        addFilesDirectlyToProtoField(
-            completionContext,
-            builder::addImportantOutput,
-            artifact -> BASELINE_COVERAGE,
-            converters,
-            ImmutableList.of(baselineCoverageArtifact));
-      }
     }
 
     BuildEventStreamProtos.TargetComplete complete = builder.build();
@@ -490,8 +458,7 @@ public final class TargetCompleteEvent
 
   @Override
   public ReportedArtifacts reportedArtifacts(OutputGroupFileModes outputGroupFileModes) {
-    return toReportedArtifacts(
-        outputs, completionContext, baselineCoverageArtifact, outputGroupFileModes);
+    return toReportedArtifacts(outputs, completionContext, outputGroupFileModes);
   }
 
   @Override
@@ -502,7 +469,6 @@ public final class TargetCompleteEvent
   static ReportedArtifacts toReportedArtifacts(
       ImmutableMap<String, ArtifactsInOutputGroup> outputs,
       CompletionContext completionContext,
-      @Nullable Artifact baselineCoverageArtifact,
       OutputGroupFileModes outputGroupFileModes) {
     ImmutableSet.Builder<NestedSet<Artifact>> builder = ImmutableSet.builder();
     for (var entry : outputs.entrySet()) {
@@ -516,12 +482,6 @@ public final class TargetCompleteEvent
         }
       }
     }
-    if (baselineCoverageArtifact != null) {
-      OutputGroupFileMode mode = outputGroupFileModes.getMode(BASELINE_COVERAGE);
-      if (mode == OutputGroupFileMode.NAMED_SET_OF_FILES_ONLY || mode == OutputGroupFileMode.BOTH) {
-        builder.add(NestedSetBuilder.create(Order.STABLE_ORDER, baselineCoverageArtifact));
-      }
-    }
     return new ReportedArtifacts(builder.build(), completionContext);
   }
 
@@ -531,13 +491,12 @@ public final class TargetCompleteEvent
   }
 
   private ImmutableList<OutputGroup> getOutputFilesByGroup(BuildEventContext converters) {
-    return toOutputGroupProtos(outputs, baselineCoverageArtifact, completionContext, converters);
+    return toOutputGroupProtos(outputs, completionContext, converters);
   }
 
   /** Returns {@link OutputGroup} protos for given output groups and optional coverage artifacts. */
   static ImmutableList<OutputGroup> toOutputGroupProtos(
       ImmutableMap<String, ArtifactsInOutputGroup> outputs,
-      @Nullable Artifact baselineCoverageArtifact,
       CompletionContext completionContext,
       BuildEventContext converters) {
     ImmutableList.Builder<OutputGroup> groups = ImmutableList.builder();
@@ -556,16 +515,6 @@ public final class TargetCompleteEvent
                   () -> artifacts,
                   artifacts::toList));
         });
-    if (baselineCoverageArtifact != null) {
-      groups.add(
-          makeOutputGroupProto(
-              completionContext,
-              converters,
-              BASELINE_COVERAGE,
-              /* outputGroupIncomplete= */ false,
-              () -> NestedSetBuilder.create(Order.STABLE_ORDER, baselineCoverageArtifact),
-              () -> ImmutableList.of(baselineCoverageArtifact)));
-    }
     return groups.build();
   }
 

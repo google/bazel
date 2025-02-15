@@ -16,6 +16,7 @@ package com.google.devtools.build.lib.analysis.test;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.ImmutableSet;
 import com.google.devtools.build.lib.actions.ActionAnalysisMetadata;
 import com.google.devtools.build.lib.actions.Artifact;
 import com.google.devtools.build.lib.analysis.AnalysisEnvironment;
@@ -204,10 +205,10 @@ public final class InstrumentedFilesCollector {
     instrumentedFilesInfoBuilder.coverageEnvironmentBuilder.putAll(coverageEnvironment);
 
     // Local sources.
-    NestedSet<Artifact> localSources = NestedSetBuilder.emptySet(Order.STABLE_ORDER);
+    ImmutableSet<Artifact> localSources = ImmutableSet.of();
     if (shouldIncludeLocalSources(
         ruleContext.getConfiguration(), ruleContext.getLabel(), ruleContext.isTestTarget())) {
-      NestedSetBuilder<Artifact> localSourcesBuilder = NestedSetBuilder.stableOrder();
+      ImmutableSet.Builder<Artifact> localSourcesBuilder = ImmutableSet.builder();
       for (TransitiveInfoCollection dep :
           getPrerequisitesForAttributes(ruleContext, spec.sourceAttributes)) {
         for (Artifact artifact : dep.getProvider(FileProvider.class).getFilesToBuild().toList()) {
@@ -219,12 +220,9 @@ public final class InstrumentedFilesCollector {
       }
       localSources = localSourcesBuilder.build();
     }
-    instrumentedFilesInfoBuilder.addLocalSources(localSources);
+    instrumentedFilesInfoBuilder.setLocalSources(localSources);
     if (withBaselineCoverage) {
-      // Also add the local sources to the baseline coverage instrumented sources, if the current
-      // rule supports baseline coverage.
-      // TODO(ulfjack): Generate a local baseline coverage action, and then merge at the leaves.
-      instrumentedFilesInfoBuilder.addBaselineCoverageSources(localSources);
+      instrumentedFilesInfoBuilder.generateBaselineCoverage();
     }
 
     // Local metadata files.
@@ -367,13 +365,15 @@ public final class InstrumentedFilesCollector {
 
   private static class InstrumentedFilesInfoBuilder {
 
-    RuleContext ruleContext;
-    NestedSetBuilder<Artifact> instrumentedFilesBuilder;
-    NestedSetBuilder<Artifact> metadataFilesBuilder;
-    NestedSetBuilder<Artifact> baselineCoverageInstrumentedFilesBuilder;
-    NestedSetBuilder<Artifact> coverageSupportFilesBuilder;
+    final RuleContext ruleContext;
+    final NestedSetBuilder<Artifact> instrumentedFilesBuilder;
+    final NestedSetBuilder<Artifact> metadataFilesBuilder;
+    final NestedSetBuilder<Artifact> baselineCoverageArtifactsBuilder;
+    final NestedSetBuilder<Artifact> coverageSupportFilesBuilder;
     final ImmutableMap.Builder<String, String> coverageEnvironmentBuilder;
     final NestedSet<Tuple> reportedToActualSources;
+    NestedSet<Artifact> localSources;
+    boolean generateBaselineCoverage;
 
     InstrumentedFilesInfoBuilder(
         RuleContext ruleContext,
@@ -382,7 +382,7 @@ public final class InstrumentedFilesCollector {
       this.ruleContext = ruleContext;
       instrumentedFilesBuilder = NestedSetBuilder.stableOrder();
       metadataFilesBuilder = NestedSetBuilder.stableOrder();
-      baselineCoverageInstrumentedFilesBuilder = NestedSetBuilder.stableOrder();
+      baselineCoverageArtifactsBuilder = NestedSetBuilder.stableOrder();
       coverageSupportFilesBuilder =
           NestedSetBuilder.<Artifact>stableOrder().addTransitive(coverageSupportFiles);
       coverageEnvironmentBuilder = ImmutableMap.builder();
@@ -401,19 +401,23 @@ public final class InstrumentedFilesCollector {
       if (provider != null) {
         instrumentedFilesBuilder.addTransitive(provider.getInstrumentedFiles());
         metadataFilesBuilder.addTransitive(provider.getInstrumentationMetadataFiles());
-        baselineCoverageInstrumentedFilesBuilder.addTransitive(
-            provider.getBaselineCoverageInstrumentedFiles());
+        baselineCoverageArtifactsBuilder.addTransitive(provider.getBaselineCoverageArtifacts());
         coverageSupportFilesBuilder.addTransitive(provider.getCoverageSupportFiles());
         coverageEnvironmentBuilder.putAll(provider.getCoverageEnvironment());
       }
     }
 
-    void addLocalSources(NestedSet<Artifact> localSources) {
-      instrumentedFilesBuilder.addTransitive(localSources);
+    void setLocalSources(ImmutableSet<Artifact> localSources) {
+      // Wrap in a nested set to share the set between the transitive set of instrumented files and
+      // the inputs to the local baseline coverage action.
+      NestedSet<Artifact> localSourcesNestedSet =
+          NestedSetBuilder.wrap(Order.STABLE_ORDER, localSources);
+      instrumentedFilesBuilder.addTransitive(localSourcesNestedSet);
+      this.localSources = localSourcesNestedSet;
     }
 
-    void addBaselineCoverageSources(NestedSet<Artifact> localSources) {
-      baselineCoverageInstrumentedFilesBuilder.addTransitive(localSources);
+    public void generateBaselineCoverage() {
+      generateBaselineCoverage = true;
     }
 
     void collectLocalMetadata(
@@ -427,19 +431,16 @@ public final class InstrumentedFilesCollector {
     }
 
     InstrumentedFilesInfo build() {
-      NestedSet<Artifact> baselineCoverageFiles = baselineCoverageInstrumentedFilesBuilder.build();
-
-      // Create one baseline coverage action per target, for the transitive closure of files.
-      var baselineCoverageAction =
-          BaselineCoverageAction.create(ruleContext, baselineCoverageFiles);
-      ruleContext.registerAction(baselineCoverageAction);
-      Artifact baselineCoverageArtifact = baselineCoverageAction.getPrimaryOutput();
+      if (generateBaselineCoverage) {
+        var baselineCoverageAction = BaselineCoverageAction.create(ruleContext, localSources);
+        ruleContext.registerAction(baselineCoverageAction);
+        baselineCoverageArtifactsBuilder.add(baselineCoverageAction.getPrimaryOutput());
+      }
 
       return new InstrumentedFilesInfo(
           instrumentedFilesBuilder.build(),
           metadataFilesBuilder.build(),
-          baselineCoverageFiles,
-          baselineCoverageArtifact,
+          baselineCoverageArtifactsBuilder.build(),
           coverageSupportFilesBuilder.build(),
           coverageEnvironmentBuilder.buildKeepingLast(),
           reportedToActualSources);

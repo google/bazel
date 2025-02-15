@@ -42,6 +42,7 @@ import com.google.devtools.build.lib.analysis.configuredtargets.RuleConfiguredTa
 import com.google.devtools.build.lib.analysis.starlark.StarlarkAttributeTransitionProvider;
 import com.google.devtools.build.lib.analysis.starlark.StarlarkRuleTransitionProvider;
 import com.google.devtools.build.lib.analysis.test.AnalysisTestResultInfo;
+import com.google.devtools.build.lib.analysis.test.BaselineCoverageAction;
 import com.google.devtools.build.lib.analysis.test.InstrumentedFilesInfo;
 import com.google.devtools.build.lib.analysis.util.BuildViewTestCase;
 import com.google.devtools.build.lib.analysis.util.DummyTestFragment;
@@ -1147,7 +1148,14 @@ public class StarlarkIntegrationTest extends BuildViewTestCase {
             ActionsTestUtil.baseArtifactNames(
                 customRule
                     .get(InstrumentedFilesInfo.STARLARK_CONSTRUCTOR)
-                    .getBaselineCoverageInstrumentedFiles()))
+                    .getBaselineCoverageArtifacts()
+                    .toList()
+                    .stream()
+                    .flatMap(
+                        coverageArtifact ->
+                            ((BaselineCoverageAction) getGeneratingAction(coverageArtifact))
+                                .getInstrumentedFilesForTesting().toList().stream())
+                    .toList()))
         .containsExactly(
             "label_src.txt",
             "label_list_src.txt",
