@@ -388,11 +388,13 @@ def _RunForCoverage(python_program, main_filename, args, env,
         directory under the runfiles tree, and will recursively delete the
         runfiles directory if set.
   """
-  # We need for coveragepy to use relative paths.  This can only be configured
-  # via an rc file, so we need to make one.
-  rcfile_name = os.path.join(os.environ['COVERAGE_DIR'], '.coveragerc')
-  with open(rcfile_name, "w") as rcfile:
-    rcfile.write('''[run]
+  rcfile_name = os.environ.get('COVERAGE_RCFILE', None)
+  if rcfile_name is None or not os.path.exists(rcfile_name):
+      # We need for coveragepy to use relative paths.  This can only be configured
+      # via an rc file, so we need to make one.
+      rcfile_name = os.path.join(os.environ['COVERAGE_DIR'], '.coveragerc')
+      with open(rcfile_name, "w") as rcfile:
+          rcfile.write('''[run]
 relative_files = True
 ''')
   PrintVerboseCoverage('Coverage entrypoint:', coverage_entrypoint)
