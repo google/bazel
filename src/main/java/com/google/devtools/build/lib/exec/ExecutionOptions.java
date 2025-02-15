@@ -282,14 +282,15 @@ public class ExecutionOptions extends OptionsBase {
       defaultValue = "short",
       converter = TestSummaryFormat.Converter.class,
       documentationCategory = OptionDocumentationCategory.LOGGING,
-      effectTags = {OptionEffectTag.TERMINAL_OUTPUT},
+      effectTags = {OptionEffectTag.TERMINAL_OUTPUT, OptionEffectTag.AFFECTS_OUTPUTS},
       help =
           "Specifies the desired format of the test summary. Valid values are 'short' to print"
               + " information only about tests executed, 'terse', to print information only about"
               + " unsuccessful tests that were run, 'detailed' to print detailed information about"
               + " failed test cases, 'testcase' to print summary in test case resolution, do not"
               + " print detailed information about failed test cases and 'none' to omit the"
-              + " summary.")
+              + " summary. When set to 'detailed' or 'testcase', the test details are added to BES"
+              + " outputs.")
   public TestSummaryFormat testSummary;
 
   @Option(
