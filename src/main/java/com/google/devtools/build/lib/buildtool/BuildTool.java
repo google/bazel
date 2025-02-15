@@ -83,6 +83,7 @@ import com.google.devtools.build.lib.runtime.StarlarkOptionsParser;
 import com.google.devtools.build.lib.runtime.StarlarkOptionsParser.BuildSettingLoader;
 import com.google.devtools.build.lib.server.FailureDetails.ActionQuery;
 import com.google.devtools.build.lib.server.FailureDetails.BuildConfiguration.Code;
+import com.google.devtools.build.lib.server.FailureDetails.ClientEnvironment;
 import com.google.devtools.build.lib.server.FailureDetails.FailureDetail;
 import com.google.devtools.build.lib.skyframe.BuildResultListener;
 import com.google.devtools.build.lib.skyframe.PrerequisitePackageFunction;
@@ -958,7 +959,23 @@ public class BuildTool {
     InterruptedException ie = null;
 
     // The stop time has to be captured before we send the BuildCompleteEvent.
-    result.setStopTime(runtime.getClock().currentTimeMillis());
+    var stopTime = runtime.getClock().currentTimeMillis();
+    if (result.getStartTime() > stopTime) {
+      env.getReporter().handle(Event.error("invalid build stop time: system time was updated"));
+      var failureDetail =
+          FailureDetail.newBuilder()
+              .setMessage("invalid build stop time: system time was updated")
+              .setClientEnvironment(
+                  ClientEnvironment.newBuilder()
+                      .setCode(ClientEnvironment.Code.CLIENT_INVALID_CLOCK)
+                      .build())
+              .build();
+      reportExceptionError(new ExitException(detailedExitCode));
+
+      stopTime = result.getStartTime();
+      result.setDetailedExitCode(DetailedExitCode.of(failureDetail));
+    }
+    result.setStopTime(stopTime);
 
     // Skip the build complete events so that modules can run blazeShutdownOnCrash without thinking
     // that the build completed normally. BlazeCommandDispatcher will call handleCrash.

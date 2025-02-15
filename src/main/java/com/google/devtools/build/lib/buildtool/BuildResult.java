@@ -74,6 +74,14 @@ public final class BuildResult {
   }
 
   /**
+   * Return the time (according to System.currentTimeMillis()) at which the service of this request
+   * was initiated.
+   */
+  public long getStartTime() {
+    return startTimeMillis;
+  }
+
+  /**
    * Record the time (according to System.currentTimeMillis()) at which the service of this request
    * was completed.
    */
