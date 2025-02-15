@@ -605,6 +605,10 @@ def cc_binary_impl(ctx, additional_linkopts, force_linkstatic = False):
     if extra_link_time_libraries != None:
         linker_inputs_extra, runtime_libraries_extra = extra_link_time_libraries.build_libraries(ctx = ctx, static_mode = linking_mode != linker_mode.LINKING_DYNAMIC, for_dynamic_library = _is_link_shared(ctx))
 
+    for suffix in cc_toolchain.additional_link_outputs:
+        outfile = ctx.actions.declare_file(_strip_extension(binary) + suffix, sibling = binary)
+        additional_linker_outputs.append(outfile)
+
     cc_linking_outputs_binary, cc_launcher_info, deps_cc_linking_context = _create_transitive_linking_actions(
         ctx,
         cc_toolchain,

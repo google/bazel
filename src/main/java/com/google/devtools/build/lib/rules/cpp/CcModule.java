@@ -1135,12 +1135,17 @@ public abstract class CcModule
       Sequence<?> toolPaths, // <StarlarkInfo> expected
       Sequence<?> makeVariables, // <StarlarkInfo> expected
       Object builtinSysroot,
+      Sequence<?> additionalLinkOutputsUnchecked,
       StarlarkThread thread)
       throws EvalException {
     isCalledFromStarlarkCcCommon(thread);
     List<String> cxxBuiltInIncludeDirectories =
         Sequence.cast(
             cxxBuiltInIncludeDirectoriesUnchecked, String.class, "cxx_builtin_include_directories");
+
+    List<String> additionalLinkOutputs =
+        Sequence.cast(
+            additionalLinkOutputsUnchecked, String.class, "additional_link_outputs");
 
     ImmutableList.Builder<Feature> featureBuilder = ImmutableList.builder();
     for (Object feature : features) {
@@ -1296,7 +1301,8 @@ public abstract class CcModule
         convertFromNoneable(abiLibcVersion, /* defaultValue= */ ""),
         toolPathList,
         makeVariablePairs.build(),
-        convertFromNoneable(builtinSysroot, /* defaultValue= */ ""));
+        convertFromNoneable(builtinSysroot, /* defaultValue= */ ""),
+        ImmutableList.copyOf(additionalLinkOutputs));
   }
 
   private static void checkRightStarlarkInfoProvider(

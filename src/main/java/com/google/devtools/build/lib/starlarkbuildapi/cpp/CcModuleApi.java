@@ -1994,6 +1994,15 @@ public interface CcModuleApi<
             doc =
                 "The built-in sysroot. If this attribute is not present, Bazel does not "
                     + "allow using a different sysroot, i.e. through the --grte_top option."),
+        @Param(
+            name = "additional_link_outputs",
+            positional = false,
+            named = true,
+            defaultValue = "[]",
+            doc = "List of suffixes for additional files created by the link action. "
+                    + "The suffixes will be concatenated to the binary name. f.e. for a "
+                    + "binary `out` with additional link outputs `[.a, .b]`, the following "
+                    + "output files are expected: `[out, out.a, out.b]."),
       })
   CcToolchainConfigInfoT ccToolchainConfigInfoFromStarlark(
       StarlarkRuleContextT starlarkRuleContext,
@@ -2012,6 +2021,7 @@ public interface CcModuleApi<
       Sequence<?> toolPaths, // <StructApi> expected
       Sequence<?> makeVariables, // <StructApi> expected
       Object builtinSysroot,
+      Sequence<?> additionalLinkOutputs,
       StarlarkThread thread)
       throws EvalException;
 

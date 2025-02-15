@@ -120,6 +120,7 @@ def _create_cc_toolchain_info(
         strip_executable = strip_executable,
         ld_executable = ld_executable,
         gcov_executable = gcov_executable,
+        additional_link_outputs = toolchain_config_info.additional_link_outputs(),
         _runtime_sysroot = runtime_sysroot,
         _as_files = as_files,
         _ar_files = ar_files,
@@ -205,6 +206,7 @@ CcToolchainInfo, _ = provider(
         "strip_executable": "The path to the strip binary.",
         "ld_executable": "The path to the ld binary.",
         "gcov_executable": "The path to the gcov binary.",
+        "additional_link_outputs": "List of additional suffixes to output",
         "_runtime_sysroot": """
             INTERNAL API, DO NOT USE!
             Returns the runtime sysroot, where the dynamic linker and system libraries are found at

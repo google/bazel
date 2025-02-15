@@ -526,6 +526,7 @@ def _create_cc_toolchain_config_info(
         tool_paths = [],
         make_variables = [],
         builtin_sysroot = None,
+        additional_link_outputs = [],
         cc_target_os = None):
     return cc_common_internal.create_cc_toolchain_config_info(
         ctx = ctx,
@@ -544,6 +545,7 @@ def _create_cc_toolchain_config_info(
         tool_paths = tool_paths,
         make_variables = make_variables,
         builtin_sysroot = builtin_sysroot,
+        additional_link_outputs = additional_link_outputs,
     )
 
 def _create_linking_context_from_compilation_outputs(

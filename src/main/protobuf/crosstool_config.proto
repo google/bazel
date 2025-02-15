@@ -485,7 +485,11 @@ message CToolchain {
   // things internal to Google.
   optional string cc_target_os = 55;
 
-  // Next free id: 56
+  // List of suffixes for additional files created by the link action.
+  // The suffixes will be concatenated to the binary name.
+  repeated string additional_link_outputs = 56;
+
+  // Next free id: 57
 }
 
 message ToolPath {
