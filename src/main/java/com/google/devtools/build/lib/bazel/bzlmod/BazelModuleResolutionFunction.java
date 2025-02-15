@@ -136,7 +136,7 @@ public class BazelModuleResolutionFunction implements SkyFunction {
       finalDepGraph =
           computeFinalDepGraph(
               state.discoverAndSelectResult.selectionResult.resolvedDepGraph(),
-              root.getOverrides(),
+              root.overrides(),
               remoteRepoSpecs.buildOrThrow());
     }
 
@@ -163,11 +163,11 @@ public class BazelModuleResolutionFunction implements SkyFunction {
       return null;
     }
 
-    verifyAllOverridesAreOnExistentModules(discoveryResult.depGraph(), root.getOverrides());
+    verifyAllOverridesAreOnExistentModules(discoveryResult.depGraph(), root.overrides());
 
     Selection.Result selectionResult;
     try (SilentCloseable c = Profiler.instance().profile(ProfilerTask.BZLMOD, "selection")) {
-      selectionResult = Selection.run(discoveryResult.depGraph(), root.getOverrides());
+      selectionResult = Selection.run(discoveryResult.depGraph(), root.overrides());
     } catch (ExternalDepsException e) {
       throw new BazelModuleResolutionFunctionException(e, Transience.PERSISTENT);
     }

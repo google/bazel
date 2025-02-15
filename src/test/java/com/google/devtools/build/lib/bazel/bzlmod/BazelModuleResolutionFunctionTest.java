@@ -17,6 +17,7 @@ package com.google.devtools.build.lib.bazel.bzlmod;
 
 import static com.google.common.truth.Truth.assertThat;
 import static com.google.devtools.build.lib.bazel.bzlmod.BzlmodTestUtil.createModuleKey;
+import static org.junit.Assert.fail;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
@@ -364,5 +365,107 @@ public class BazelModuleResolutionFunctionTest extends BuildViewTestCase {
     assertDoesNotContainEvent("hello from a@1.0");
     assertDoesNotContainEvent("hello from b@1.0");
     assertDoesNotContainEvent("hello from b@1.1");
+  }
+
+  @Test
+  public void nodep_unfulfilled() throws Exception {
+    scratch.overwriteFile(
+        "MODULE.bazel",
+        """
+        bazel_dep(name='b',version='1.0')
+        bazel_dep(name='c',version='1.0',repo_name=None)
+        """);
+
+    registry
+        .addModule(
+            createModuleKey("b", "1.0"),
+            "module(name='b', version='1.0');bazel_dep(name='d', version='1.0')")
+        .addModule(
+            createModuleKey("c", "1.0"),
+            "module(name='c', version='1.0');bazel_dep(name='d',version='1.1')")
+        .addModule(createModuleKey("d", "1.0"), "module(name='d', version='1.0')")
+        .addModule(createModuleKey("d", "1.1"), "module(name='d', version='1.1')");
+    invalidatePackages(false);
+
+    EvaluationResult<BazelModuleResolutionValue> result =
+        SkyframeExecutorTestUtils.evaluate(
+            skyframeExecutor, BazelModuleResolutionValue.KEY, false, reporter);
+
+    if (result.hasError()) {
+      fail(result.getError().toString());
+    }
+    var depGraph = result.get(BazelModuleResolutionValue.KEY).getResolvedDepGraph();
+    assertThat(depGraph).doesNotContainKey(createModuleKey("c", "1.0"));
+    assertThat(depGraph.get(createModuleKey("b", "1.0")).getDeps().get("d").version())
+        .isEqualTo(Version.parse("1.0"));
+  }
+
+  @Test
+  public void nodep_fulfilled() throws Exception {
+    scratch.overwriteFile(
+        "MODULE.bazel",
+        """
+        bazel_dep(name='b',version='1.0')
+        bazel_dep(name='c',version='1.0')
+        """);
+
+    registry
+        .addModule(
+            createModuleKey("b", "1.0"),
+            "module(name='b', version='1.0');bazel_dep(name='d', version='1.0')")
+        .addModule(
+            createModuleKey("c", "1.0"),
+            "module(name='c', version='1.0');bazel_dep(name='d',version='1.1',repo_name=None)")
+        .addModule(createModuleKey("d", "1.0"), "module(name='d', version='1.0')")
+        .addModule(createModuleKey("d", "1.1"), "module(name='d', version='1.1')");
+    invalidatePackages(false);
+
+    EvaluationResult<BazelModuleResolutionValue> result =
+        SkyframeExecutorTestUtils.evaluate(
+            skyframeExecutor, BazelModuleResolutionValue.KEY, false, reporter);
+
+    if (result.hasError()) {
+      fail(result.getError().toString());
+    }
+    var depGraph = result.get(BazelModuleResolutionValue.KEY).getResolvedDepGraph();
+    assertThat(depGraph).containsKey(createModuleKey("d", "1.1"));
+    assertThat(depGraph.get(createModuleKey("b", "1.0")).getDeps().get("d").version())
+        .isEqualTo(Version.parse("1.1"));
+    assertThat(depGraph.get(createModuleKey("c", "1.0")).getDeps()).doesNotContainKey("d");
+  }
+
+  @Test
+  public void nodep_crossesCompatLevelBoundary() throws Exception {
+    scratch.overwriteFile(
+        "MODULE.bazel",
+        """
+        bazel_dep(name='b',version='1.0')
+        bazel_dep(name='c',version='1.0')
+        """);
+
+    registry
+        .addModule(
+            createModuleKey("b", "1.0"),
+            "module(name='b', version='1.0');bazel_dep(name='d', version='1.0')")
+        .addModule(
+            createModuleKey("c", "1.0"),
+            "module(name='c', version='1.0');bazel_dep(name='d',version='2.0',repo_name=None)")
+        .addModule(createModuleKey("d", "1.0"), "module(name='d', version='1.0')")
+        .addModule(
+            createModuleKey("d", "2.0"), "module(name='d', version='2.0', compatibility_level=3)");
+    invalidatePackages(false);
+
+    EvaluationResult<BazelModuleResolutionValue> result =
+        SkyframeExecutorTestUtils.evaluate(
+            skyframeExecutor, BazelModuleResolutionValue.KEY, false, reporter);
+
+    if (result.hasError()) {
+      fail(result.getError().toString());
+    }
+    var depGraph = result.get(BazelModuleResolutionValue.KEY).getResolvedDepGraph();
+    assertThat(depGraph).doesNotContainKey(createModuleKey("d", "2.0"));
+    assertThat(depGraph.get(createModuleKey("b", "1.0")).getDeps().get("d").version())
+        .isEqualTo(Version.parse("1.0"));
+    assertThat(depGraph.get(createModuleKey("c", "1.0")).getDeps()).doesNotContainKey("d");
   }
 }
