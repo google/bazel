@@ -29,7 +29,13 @@ public class CppModulesConfiguredTargetTest extends BuildViewTestCase {
     AnalysisMock.get()
         .ccSupport()
         .setupCcToolchainConfig(
-            mockToolsConfig, Crosstool.CcToolchainConfig.builder().withFeatures(args));
+            mockToolsConfig,
+            Crosstool.CcToolchainConfig.builder()
+                .withFeatures(args)
+                .withActionConfigs(
+                    CppActionNames.CPP_MODULE_DEPS_SCANNING,
+                    CppActionNames.CPP20_MODULE_COMPILE,
+                    CppActionNames.CPP20_MODULE_CODEGEN));
   }
 
   @Test
