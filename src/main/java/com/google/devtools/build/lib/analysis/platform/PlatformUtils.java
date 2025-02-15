@@ -76,7 +76,11 @@ public final class PlatformUtils {
             ? remoteOptions.getRemoteDefaultExecProperties()
             : ImmutableSortedMap.of();
 
-    if (spawn.getExecutionPlatform() == null
+    if ((spawn.getExecutionPlatform() == null
+        || (
+          spawn.getExecutionPlatform().execProperties().isEmpty()
+          && spawn.getExecutionPlatform().remoteExecutionProperties().isEmpty()
+        ))
         && spawn.getCombinedExecProperties().isEmpty()
         && defaultExecProperties.isEmpty()
         && additionalProperties.isEmpty()) {

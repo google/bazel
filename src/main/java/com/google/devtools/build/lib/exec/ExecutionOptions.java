@@ -123,6 +123,23 @@ public class ExecutionOptions extends OptionsBase {
   public List<Map.Entry<RegexFilter, List<String>>> strategyByRegexp;
 
   @Option(
+      name = "allowed_strategies_by_exec_platform",
+      allowMultiple = true,
+      converter = Converters.StringToStringListConverter.class,
+      defaultValue = "null",
+      documentationCategory = OptionDocumentationCategory.EXECUTION_STRATEGY,
+      effectTags = {OptionEffectTag.EXECUTION},
+      help =
+          """
+          Filters spawn strategies by the execution platform.
+          Example: `--allowed_strategies_by_exec_platform=@platforms//host:host=local,sandboxed,worker`
+          to prevent actions configured for the host platform from being spawned remotely.
+          Example: `--allowed_strategies_by_exec_platform=//:linux_amd64=remote` to prevent actions
+          configured for a platform `//:linux_amd64` from being spawned locally.
+          """)
+  public List<Map.Entry<String, List<String>>> allowedStrategiesByExecPlatform;
+
+  @Option(
       name = "materialize_param_files",
       defaultValue = "false",
       documentationCategory = OptionDocumentationCategory.LOGGING,

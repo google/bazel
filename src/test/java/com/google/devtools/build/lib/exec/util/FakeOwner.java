@@ -80,7 +80,11 @@ public class FakeOwner implements ActionExecutionMetadata {
   }
 
   public FakeOwner(String mnemonic, String progressMessage, String ownerLabel) {
-    this(mnemonic, progressMessage, checkNotNull(ownerLabel), null);
+    this(
+        mnemonic,
+        progressMessage,
+        checkNotNull(ownerLabel),
+        PlatformInfo.EMPTY_PLATFORM_INFO);
   }
 
   @Override
