@@ -429,7 +429,8 @@ public final class TargetCompleteEventTest extends BuildIntegrationTestCase {
   private static BuildEventStreamProtos.TargetComplete findTargetCompleteEventInBEPStream(File bep)
       throws IOException {
     for (BuildEvent buildEvent : parseBuildEventsFromBEPStream(bep)) {
-      if (buildEvent.getId().getIdCase() == IdCase.TARGET_COMPLETED) {
+      if (buildEvent.getId().getIdCase() == IdCase.TARGET_COMPLETED
+          && !buildEvent.getId().getTargetCompleted().getAspect().equals("ValidateTarget")) {
         return buildEvent.getCompleted();
       }
     }

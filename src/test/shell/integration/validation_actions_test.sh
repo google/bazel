@@ -218,11 +218,11 @@ EOF
 
 #### Tests #####################################################################
 
-function test_validation_actions() {
+function test_validation_actions_without_validation_aspect() {
   setup_test_project
   setup_passing_validation_action
 
-  bazel build --run_validations \
+  bazel build --run_validations --noexperimental_use_validation_aspect \
       //validation_actions:foo0 >& "$TEST_log" || fail "Expected build to succeed"
 
   expect_log "Target //validation_actions:foo0 up-to-date:"
@@ -230,11 +230,11 @@ function test_validation_actions() {
   assert_exists bazel-bin/validation_actions/foo0.validation
 }
 
-function test_validation_actions_with_validation_aspect() {
+function test_validation_actions() {
   setup_test_project
   setup_passing_validation_action
 
-  bazel build --run_validations --experimental_use_validation_aspect \
+  bazel build --run_validations \
       //validation_actions:foo0 >& "$TEST_log" || fail "Expected build to succeed"
 
   # Console printout as if no aspects were running
@@ -261,7 +261,6 @@ EOF
 
   bazel build --run_validations \
       --show_result=2 \
-      --experimental_use_validation_aspect \
       --aspects=validation_actions/simpleaspect.bzl%simple_aspect \
       --output_groups=+aspect_out \
       //validation_actions:foo0 >& "$TEST_log" || fail "Expected build to succeed"
@@ -323,7 +322,7 @@ function test_failing_validation_action_fails_build_implicit_output() {
   setup_failing_validation_action
 
   bazel clean
-  bazel build --run_validations --experimental_use_validation_aspect \
+  bazel build --run_validations \
       //validation_actions:foo0.implicit >& "$TEST_log" && fail "Expected build to fail"
   expect_log "validation failed!"
   expect_log "Target //validation_actions:foo0.implicit failed to build"
@@ -334,7 +333,7 @@ function test_failing_validation_action_fails_build_genrule_output() {
   setup_failing_validation_action
 
   bazel build --run_validations \
-      --experimental_use_validation_aspect --aspects=ValidateTarget \
+      --aspects=ValidateTarget \
       //validation_actions:generated >& "$TEST_log" && fail "Expected build to fail"
   expect_log "validation failed!"
   expect_log "Target //validation_actions:generated failed to build"
@@ -378,8 +377,8 @@ function test_failing_validation_action_for_dep_from_test_fails_build() {
   # run with bazel test.
   bazel test --run_validations //validation_actions:test_with_rule_with_validation_in_deps >& "$TEST_log" && fail "Expected build to fail"
   expect_log "validation failed!"
-  expect_log "FAILED TO BUILD"
-  expect_log "out of 1 test: 1 fails to build."
+  expect_log "NO STATUS"
+  expect_log "out of 1 test: 1 was skipped."
 }
 
 function test_slow_failing_validation_action_for_dep_from_test_fails_build() {
@@ -390,7 +389,6 @@ function test_slow_failing_validation_action_for_dep_from_test_fails_build() {
   # with "bazel test", even though validation finishes after test
   bazel clean  # Clean out any previous test or validation outputs
   bazel test --run_validations \
-      --experimental_use_validation_aspect \
       //validation_actions:test_with_rule_with_validation_in_deps >& "$TEST_log" \
       && fail "Expected build to fail"
   expect_log "validation failed!"
@@ -409,6 +407,7 @@ function test_failing_validation_action_fails_multiple_tests() {
   # Validation actions in the deps of the test should fail the build when run
   # with bazel test.
   bazel test --run_validations \
+      --noexperimental_use_validation_aspect \
       //validation_actions:test_with_rule_with_validation_in_deps \
       //validation_actions:test_with_same_validation_in_deps >& "$TEST_log" \
       && fail "Expected build to fail"
@@ -426,7 +425,6 @@ function test_slow_failing_validation_action_fails_multiple_tests() {
   # with "bazel test", even though validation finishes after test
   bazel clean  # Clean out any previous test or validation outputs
   bazel test --run_validations \
-      --experimental_use_validation_aspect \
       //validation_actions:test_with_rule_with_validation_in_deps \
       //validation_actions:test_with_same_validation_in_deps >& "$TEST_log" \
       && fail "Expected build to fail"
@@ -446,7 +444,6 @@ function test_slow_failing_validation_action_fails_multiple_tests_keep_going() {
   # with "bazel test", even though validation finishes after test
   bazel clean  # Clean out any previous test or validation outputs
   bazel test -k --run_validations \
-      --experimental_use_validation_aspect \
       //validation_actions:test_with_rule_with_validation_in_deps \
       //validation_actions:test_with_same_validation_in_deps >& "$TEST_log" \
       && fail "Expected build to fail"
@@ -562,7 +559,6 @@ function test_validation_actions_in_rule_and_aspect_use_validation_aspect() {
   setup_passing_validation_action
 
   bazel build --run_validations --aspects=//aspect:def.bzl%validation_aspect \
-      --experimental_use_validation_aspect \
       //validation_actions:foo0 >& "$TEST_log" || fail "Expected build to succeed"
   expect_log "Target //validation_actions:foo0 up-to-date:"
   expect_log "validation_actions/foo0.main"
@@ -576,7 +572,6 @@ exit 1
 EOF
 
   bazel build --run_validations --aspects=//aspect:def.bzl%validation_aspect \
-      --experimental_use_validation_aspect \
       //validation_actions:foo0 >& "$TEST_log" && fail "Expected build to fail"
   expect_log "aspect validation failed!"
 }
