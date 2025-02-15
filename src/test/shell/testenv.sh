@@ -384,7 +384,7 @@ function setup_android_sdk_support() {
 
       # -L is to dereference symbolic links. Otherwise, we'd get symlinks to
       # /tmp/bazel-source-roots/ under $ANDROID_SDK, which reference the source
-      # roots of the outer Bazel sandbox which are duly overriden by the inner
+      # roots of the outer Bazel sandbox which are duly overridden by the inner
       # one.
       cp -LR "$local_android_sdk" "$ANDROID_SDK"
     fi

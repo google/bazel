@@ -909,7 +909,7 @@ public class CriticalPathComputerTest extends FoundationTestCase {
                 computer.actionStarted(new ActionStartedEvent(nonSharedAction, clock.nanoTime())));
     assertThat(exception)
         .hasMessageThat()
-        .contains("Duplicate output artifact found for unsharable actions.");
+        .contains("Duplicate output artifact found for unshareable actions.");
   }
 
   @Test
