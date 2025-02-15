@@ -213,13 +213,33 @@ public final class SymlinkAction extends AbstractAction {
     Path outputPath = getOutputPath(actionExecutionContext);
 
     try {
-      // Delete the empty output directory created prior to the action execution when the output is
-      // a tree artifact. All other actions that produce tree artifacts expect it to exist prior to
-      // their execution. It's not worth complicating ActionOutputDirectoryHelper just to avoid this
-      // small amount of overhead.
-      outputPath.delete();
-
-      outputPath.createSymbolicLink(targetPath);
+      if (getPrimaryOutput().isDirectory()) {
+        // Delete the empty output directory created prior to the action execution when the output
+        // is a tree artifact. All other actions that produce tree artifacts expect it to exist
+        // prior to their execution. It's not worth complicating ActionOutputDirectoryHelper just to
+        // avoid this small amount of overhead.
+        outputPath.delete();
+      }
+      // If the filesystem doesn't support symlinks, it may attempt to copy the file instead or
+      // create a junction (Windows) to a file. Instead of forcing a download that would block this
+      // action, forward the existing metadata.
+      if (!targetPath.getFileSystem().supportsSymbolicLinksNatively(targetPath.asFragment())
+          && !getPrimaryOutput().isDirectory()
+          && getPrimaryInput() != null
+          && actionExecutionContext
+              .getInputMetadataProvider()
+              .getInputMetadata(getPrimaryInput())
+              .isRemote()) {
+        actionExecutionContext
+            .getOutputMetadataStore()
+            .injectFile(
+                getPrimaryOutput(),
+                actionExecutionContext
+                    .getInputMetadataProvider()
+                    .getInputMetadata(getPrimaryInput()));
+      } else {
+        outputPath.createSymbolicLink(targetPath);
+      }
     } catch (IOException e) {
       String message =
           String.format(

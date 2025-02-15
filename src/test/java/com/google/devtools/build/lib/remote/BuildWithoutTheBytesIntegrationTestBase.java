@@ -38,6 +38,7 @@ import com.google.devtools.build.lib.util.OS;
 import com.google.devtools.build.lib.util.io.RecordingOutErr;
 import com.google.devtools.build.lib.vfs.Path;
 import com.google.devtools.build.lib.vfs.PathFragment;
+import com.google.devtools.build.lib.vfs.Symlinks;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
@@ -922,6 +923,33 @@ public abstract class BuildWithoutTheBytesIntegrationTestBase extends BuildInteg
   }
 
   @Test
+  public void downloadMinimal_symlinkToGeneratedFile() throws Exception {
+    writeSymlinkRule();
+    write(
+        "BUILD",
+        "load(':symlink.bzl', 'symlink')",
+        "genrule(",
+        "  name = 'foo',",
+        "  srcs = [],",
+        "  outs = ['out/foo.txt'],",
+        "  cmd = 'echo foo > $@',",
+        ")",
+        "symlink(",
+        "  name = 'foo-link',",
+        "  target_artifact = ':foo',",
+        ")");
+
+    buildTarget("//:foo-link");
+
+    assertOutputsDoNotExist("//:foo");
+    // On Windows, symlinks are replaced with copies and should not result in a download.
+    if (OS.getCurrent() == OS.WINDOWS) {
+      assertOutputsDoNotExist("//:foo-link");
+    }
+    // TODO: Create symlinks lazily on other platforms.
+  }
+
+  @Test
   public void downloadToplevel_symlinkToGeneratedFile() throws Exception {
     setDownloadToplevel();
     writeSymlinkRule();
@@ -943,6 +971,10 @@ public abstract class BuildWithoutTheBytesIntegrationTestBase extends BuildInteg
 
     assertSymlink("foo-link", getOutputPath("out/foo.txt").asFragment());
     assertValidOutputFile("foo-link", "foo\n");
+    // On Windows, symlinks are replaced with copies, which should not result in two downloads.
+    if (OS.getCurrent() == OS.WINDOWS) {
+      assertOutputsDoNotExist("//:foo");
+    }
 
     // Delete link, re-plant symlink
     getOutputPath("foo-link").delete();
@@ -950,6 +982,9 @@ public abstract class BuildWithoutTheBytesIntegrationTestBase extends BuildInteg
 
     assertSymlink("foo-link", getOutputPath("out/foo.txt").asFragment());
     assertValidOutputFile("foo-link", "foo\n");
+    if (OS.getCurrent() == OS.WINDOWS) {
+      assertOutputsDoNotExist("//:foo");
+    }
 
     // Delete target, re-download it
     getOutputPath("out/foo.txt").delete();
@@ -957,6 +992,9 @@ public abstract class BuildWithoutTheBytesIntegrationTestBase extends BuildInteg
 
     assertSymlink("foo-link", getOutputPath("out/foo.txt").asFragment());
     assertValidOutputFile("foo-link", "foo\n");
+    if (OS.getCurrent() == OS.WINDOWS) {
+      assertOutputsDoNotExist("//:foo");
+    }
   }
 
   @Test
@@ -1857,7 +1895,7 @@ public abstract class BuildWithoutTheBytesIntegrationTestBase extends BuildInteg
     for (Artifact output : getArtifacts(target)) {
       assertWithMessage(
               "output %s for target %s should not exist", output.getExecPathString(), target)
-          .that(output.getPath().exists())
+          .that(output.getPath().exists(Symlinks.NOFOLLOW))
           .isFalse();
     }
   }
@@ -1872,7 +1910,7 @@ public abstract class BuildWithoutTheBytesIntegrationTestBase extends BuildInteg
 
   protected void assertOutputDoesNotExist(String binRelativePath) {
     Path output = getOutputPath(binRelativePath);
-    assertThat(output.exists()).isFalse();
+    assertThat(output.exists(Symlinks.NOFOLLOW)).isFalse();
   }
 
   protected void assertOnlyOutputContent(String target, String filename, String content)
@@ -1893,9 +1931,11 @@ public abstract class BuildWithoutTheBytesIntegrationTestBase extends BuildInteg
 
   protected void assertSymlink(String binRelativeLinkPath, PathFragment targetPath)
       throws Exception {
+    Path output = getOutputPath(binRelativeLinkPath);
     // On Windows, symlinks might be implemented as a file copy.
-    if (OS.getCurrent() != OS.WINDOWS) {
-      Path output = getOutputPath(binRelativeLinkPath);
+    if (OS.getCurrent() == OS.WINDOWS) {
+      assertThat(output.exists(Symlinks.FOLLOW)).isTrue();
+    } else {
       assertThat(output.isSymbolicLink()).isTrue();
       assertThat(output.readSymbolicLink()).isEqualTo(targetPath);
     }
