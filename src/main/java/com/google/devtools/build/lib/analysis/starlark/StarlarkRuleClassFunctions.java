@@ -291,7 +291,6 @@ public class StarlarkRuleClassFunctions implements StarlarkRuleFunctionsApi {
             .add(
                 attr("$collect_coverage_script", LABEL)
                     .cfg(ExecutionTransitionFactory.createFactory())
-                    .singleArtifact()
                     .value(labelCache.get(toolsRepository + "//tools/test:collect_coverage")))
             // Input files for test actions collecting code coverage
             .add(

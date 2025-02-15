@@ -252,8 +252,28 @@ public final class TestActionBuilder {
 
     TestTargetExecutionSettings executionSettings;
     if (collectCodeCoverage) {
-      collectCoverageScript = ruleContext.getPrerequisiteArtifact("$collect_coverage_script");
-      inputsBuilder.add(collectCoverageScript);
+      TransitiveInfoCollection collectCoverageTarget =
+          ruleContext.getPrerequisite("$collect_coverage_script");
+      FilesToRunProvider collectCoverageFilesToRun =
+          collectCoverageTarget.getProvider(FilesToRunProvider.class);
+      if (collectCoverageFilesToRun != null) {
+        inputsBuilder.addTransitive(collectCoverageFilesToRun.getFilesToRun());
+        lcovMergerFilesToRun.addTransitive(collectCoverageFilesToRun.getFilesToRun());
+        collectCoverageScript = collectCoverageFilesToRun.getExecutable();
+      } else {
+        NestedSet<Artifact> filesToBuild =
+          collectCoverageTarget.getProvider(FileProvider.class).getFilesToBuild();
+        if (filesToBuild.isSingleton()) {
+          inputsBuilder.add(collectCoverageScript);
+          lcovMergerFilesToRun.add(collectCoverageScript);
+          collectCoverageScript = filesToBuild.getSingleton();
+        } else {
+          ruleContext.attributeError(
+              "$collect_coverage_script",
+              "the collect_coverage_script should be either an executable or a single artifact");
+        }
+      }
+
       inputsBuilder.addTransitive(instrumentedFiles.getCoverageSupportFiles());
       // Add instrumented file manifest artifact to the list of inputs. This file will contain
       // exec paths of all source files that should be included into the code coverage output.

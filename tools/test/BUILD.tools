@@ -1,3 +1,5 @@
+load("@rules_shell//shell:sh_binary.bzl", "sh_binary")
+
 package(default_visibility = ["//visibility:public"])
 
 # Members of this filegroup shouldn't have duplicate basenames, otherwise
@@ -18,7 +20,7 @@ filegroup(
     srcs = ["generate-xml.sh"],
 )
 
-filegroup(
+sh_binary(
     name = "collect_coverage",
     srcs = ["collect_coverage.sh"],
 )

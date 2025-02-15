@@ -517,9 +517,7 @@ sh_test(
     data = [
         ":gen_rules_java_repo_name",
         ":test-deps",
-    ],
-    tags = [
-        "no_windows",
+        "@bazel_tools//tools/bash/runfiles",
     ],
 )
 
@@ -541,9 +539,7 @@ sh_test(
         data = [
             ":gen_rules_java_repo_name",
             ":test-deps",
-        ],
-        tags = [
-            "no_windows",
+            "@bazel_tools//tools/bash/runfiles",
         ],
     )
     for java_version in JAVA_VERSIONS_COVERAGE
@@ -571,8 +567,8 @@ sh_test(
             "//src:java_tools_zip" if java_version == "21" else "//src:java_tools_java8.zip",
             "//tools/test/CoverageOutputGenerator/java/com/google/devtools/coverageoutputgenerator:coverage_empty_workspace",
             "//tools/test/CoverageOutputGenerator/java/com/google/devtools/coverageoutputgenerator:coverage_output_generator_repo%s" % ("" if java_version == "21" else "_java8"),
+            "@bazel_tools//tools/bash/runfiles",
         ],
-        tags = ["no_windows"],
     )
     for java_version in JAVA_VERSIONS_COVERAGE
 ]

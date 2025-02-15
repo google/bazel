@@ -277,7 +277,6 @@ public class BaseRuleClasses {
           .add(
               attr("$collect_coverage_script", LABEL)
                   .cfg(ExecutionTransitionFactory.createFactory())
-                  .singleArtifact()
                   .value(env.getToolsLabel("//tools/test:collect_coverage")))
           // Input files for test actions collecting code coverage
           .add(
