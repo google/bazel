@@ -48,15 +48,6 @@ public class ShellConfiguration extends Fragment {
     shellExecutables = osToShellMap;
   }
 
-  /**
-   * Injects a map for locating the correct sh executable given a set of target constraints. Assumes
-   * no options-based default shell.
-   */
-  public static void injectShellExecutableFinder(Map<OS, PathFragment> osToShellMap) {
-    optionsBasedDefault = (options) -> null;
-    shellExecutables = osToShellMap;
-  }
-
   private final PathFragment defaultShellExecutableFromOptions;
 
   public ShellConfiguration(BuildOptions buildOptions) {
