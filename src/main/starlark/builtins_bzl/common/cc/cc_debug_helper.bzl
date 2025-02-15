@@ -14,11 +14,14 @@
 """Utilities for creating cc debug package information outputs"""
 
 load(":common/cc/cc_helper.bzl", "cc_helper", "linker_mode")
+load(":common/cc/cc_common.bzl", "cc_common")
+load(":common/cc/action_names.bzl", "ACTION_NAMES")
 
 def create_debug_packager_actions(
         ctx,
         cc_toolchain,
         dwp_output,
+        feature_configuration,
         *,
         cc_compilation_outputs,
         cc_debug_context,
@@ -70,7 +73,7 @@ def create_debug_packager_actions(
     # The actions form an n-ary tree with n == MAX_INPUTS_PER_DWP_ACTION. The tree is fuller
     # at the leaves than the root, but that both increases parallelism and reduces the final
     # action's input size.
-    packager = _create_intermediate_dwp_packagers(ctx, dwp_output, cc_toolchain, cc_toolchain._dwp_files, dwo_files_list, 1)
+    packager = _create_intermediate_dwp_packagers(ctx, dwp_output, cc_toolchain, feature_configuration, cc_toolchain._dwp_files, dwo_files_list, 1)
     packager["outputs"].append(dwp_output)
     packager["arguments"].add("-o", dwp_output)
     ctx.actions.run(
@@ -114,13 +117,13 @@ def _get_intermediate_dwp_file(ctx, dwp_output, order_number):
 
     return ctx.actions.declare_file("_dwps/" + intermediate_path)
 
-def _create_intermediate_dwp_packagers(ctx, dwp_output, cc_toolchain, dwp_files, dwo_files, intermediate_dwp_count):
+def _create_intermediate_dwp_packagers(ctx, dwp_output, cc_toolchain, feature_configuration, dwp_files, dwo_files, intermediate_dwp_count):
     intermediate_outputs = dwo_files
 
     # This long loop is a substitution for recursion, which is not currently supported in Starlark.
     for _ in range(2147483647):
         packagers = []
-        current_packager = _new_dwp_action(ctx, cc_toolchain, dwp_files)
+        current_packager = _new_dwp_action(ctx, cc_toolchain, feature_configuration, dwp_files)
         inputs_for_current_packager = 0
 
         # Step 1: generate our batches. We currently break into arbitrary batches of fixed maximum
@@ -128,7 +131,7 @@ def _create_intermediate_dwp_packagers(ctx, dwp_output, cc_toolchain, dwp_files,
         for dwo_file in intermediate_outputs:
             if inputs_for_current_packager == 100:
                 packagers.append(current_packager)
-                current_packager = _new_dwp_action(ctx, cc_toolchain, dwp_files)
+                current_packager = _new_dwp_action(ctx, cc_toolchain, feature_configuration, dwp_files)
                 inputs_for_current_packager = 0
             current_packager["inputs"].append(dwo_file)
 
@@ -167,10 +170,15 @@ def _create_intermediate_dwp_packagers(ctx, dwp_output, cc_toolchain, dwp_files,
     # This is to fix buildifier errors, even though we should never reach this part of the code.
     return None
 
-def _new_dwp_action(ctx, cc_toolchain, dwp_tools):
+def _new_dwp_action(ctx, cc_toolchain, feature_configuration, dwp_tools):
     return {
         "tools": dwp_tools,
-        "executable": cc_toolchain._tool_paths.get("dwp", None),
+        # Old toolchains use tool_paths.  But, those same old toolchains don't support the new
+        # action configuration solution, so we have to try both.
+        "executable": cc_toolchain._tool_paths.get("dwp", None) or cc_common.get_tool_for_action(
+            feature_configuration = feature_configuration,
+            action_name = ACTION_NAMES.dwp,
+        ),
         "arguments": ctx.actions.args(),
         "inputs": [],
         "outputs": [],

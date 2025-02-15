@@ -651,6 +651,7 @@ def cc_binary_impl(ctx, additional_linkopts, force_linkstatic = False):
         ctx,
         cc_toolchain,
         dwp_file,
+        feature_configuration = feature_configuration,
         cc_compilation_outputs = cc_compilation_outputs,
         cc_debug_context = cc_helper.merge_cc_debug_contexts(cc_compilation_outputs, _get_providers(ctx)),
         linking_mode = linking_mode,
