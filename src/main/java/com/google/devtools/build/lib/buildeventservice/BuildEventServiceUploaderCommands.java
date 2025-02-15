@@ -17,6 +17,7 @@ import com.google.common.base.MoreObjects;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.devtools.build.lib.buildeventstream.BuildEvent;
 import com.google.devtools.build.lib.buildeventstream.PathConverter;
+import com.google.devtools.build.v1.PublishBuildToolEventStreamRequest;
 import com.google.protobuf.Timestamp;
 import io.grpc.Status;
 import javax.annotation.concurrent.Immutable;
@@ -34,6 +35,8 @@ public class BuildEventServiceUploaderCommands {
       ACK_RECEIVED,
       /** Tells the event loop that this is the last event of the stream */
       SEND_LAST_BUILD_EVENT,
+      /** Tells the event loop to send an ack retransmit request */
+      SEND_REQUEST_BUILD_EVENT,
       /** Tells the event loop that the streaming RPC completed */
       STREAM_COMPLETE
     }
@@ -102,6 +105,34 @@ public class BuildEventServiceUploaderCommands {
     @Override
     public String toString() {
       return MoreObjects.toStringHelper(this).add("seq_num", getSequenceNumber()).toString();
+    }
+  }
+
+  /** Implementation of {@link EventLoopCommand.Type#SEND_REQUEST_BUILD_EVENT}. */
+  static final class SendRequestBuildEventCommand extends SendBuildEventCommand {
+    private final PublishBuildToolEventStreamRequest request;
+
+    SendRequestBuildEventCommand(PublishBuildToolEventStreamRequest request) {
+      this.request = request;
+    }
+
+    PublishBuildToolEventStreamRequest getRequest() {
+      return request;
+    }
+
+    @Override
+    public long getSequenceNumber() {
+      return request.getOrderedBuildEvent().getSequenceNumber();
+    }
+
+    @Override
+    Timestamp getCreationTime() {
+      return request.getOrderedBuildEvent().getEvent().getEventTime();
+    }
+
+    @Override
+    public Type type() {
+      return Type.SEND_REQUEST_BUILD_EVENT;
     }
   }
 
