@@ -119,10 +119,37 @@ most build rules</a>.
    and that rule's <code>outs</code> are automatically added to
    this <code>cc_library</code>'s data files.
 </p>
-<p>Your C++ code can access these data files like so:</p>
+<p>Using the functionality defined by the <code>runfiles.h</code> located under 
+   <code>tools/cpp/runfiles/runfiles.h</code>. This header is provided by the following target
+   <code>@bazel_tools//cpp/runfiles:runfiles</code> Your C++ code can access these data files,
+   like so:
+</p>
 <pre><code class="lang-starlark">
-  const std::string path = devtools_build::GetDataDependencyFilepath(
-      "my/test/data/file");
+  
+  #include "tools/cpp/runfiles/runfiles.h"
+
+  int main(int argc, char** argv) {
+    
+    try {
+
+    using bazel::tools::cpp::runfiles::Runfiles;
+    
+    std::string error;
+    std::unique_ptr<Runfiles> runfiles(Runfiles::Create(argv[0], BAZEL_CURRENT_REPOSITORY, &error));
+    
+    // "cpp_example" is the module name attribute
+    // "data/example.json" is the path relative from the project root
+
+    std::string path = runfiles->Rlocation("cpp_example/data/example.json");
+    
+    //...
+    
+    } catch (const std::exception& e) {
+    	// ...
+    }
+
+    return 0;
+  }
 </code></pre>
 """,
     ),
