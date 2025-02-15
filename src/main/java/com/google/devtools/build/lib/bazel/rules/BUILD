@@ -138,6 +138,9 @@ gen_workspace_stanza(
         protobuf_deps()
         load("@rules_java//java:repositories.bzl", "rules_java_toolchains")
         rules_java_toolchains()
+        load("@rules_shell//shell:repositories.bzl", "rules_shell_dependencies", "rules_shell_toolchains")
+        rules_shell_dependencies()
+        rules_shell_toolchains()
     """,
     preamble = """
         load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
@@ -150,6 +153,7 @@ gen_workspace_stanza(
         "rules_cc",  # For auto-load cc rules symbols
         "rules_python",  # For auto-load python rules symbols
         "rules_license",  # for license attestations
+        "rules_shell",  # For auto-load of shell rules symbols
     ],
     use_maybe = 1,
     visibility = ["//:__pkg__"],

@@ -653,6 +653,7 @@ filegroup(
         "@rules_license//:WORKSPACE",
         "@rules_pkg//:WORKSPACE",
         "@rules_python//:WORKSPACE",
+        "@rules_shell//shell:rules_bzl",
         "@rules_testing//:LICENSE",
     ] + select({
         "//src/conditions:linux_x86_64": ["@remotejdk%s_linux//:WORKSPACE" % v for v in JDK_VERSIONS],

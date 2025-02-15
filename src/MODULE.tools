@@ -41,6 +41,6 @@ bazel_dep(name = "protobuf", version = "29.0", repo_name = "com_google_protobuf"
 bazel_dep(name = "rules_java", version = "8.9.0")
 bazel_dep(name = "rules_cc", version = "0.0.17")
 bazel_dep(name = "rules_python", version = "0.40.0")
-bazel_dep(name = "rules_shell", version = "0.2.0")
+bazel_dep(name = "rules_shell", version = "0.3.0")
 # add rules_android
 # add apple_support
