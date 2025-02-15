@@ -1198,15 +1198,15 @@ static ATTRIBUTE_NORETURN void RunClientServerMode(
 
 // Parse the options.
 static void ParseOptionsOrDie(const string &cwd, const string &workspace,
-                              OptionProcessor &option_processor, int argc,
+                              OptionProcessor *option_processor, int argc,
                               const char *const *argv) {
   std::string error;
   std::vector<std::string> args(argv, argv + argc);
   const blaze_exit_code::ExitCode parse_exit_code =
-      option_processor.ParseOptions(args, workspace, cwd, &error);
+      option_processor->ParseOptions(args, workspace, cwd, &error);
 
   if (parse_exit_code != blaze_exit_code::SUCCESS) {
-    option_processor.PrintStartupOptionsProvenanceMessage();
+    option_processor->PrintStartupOptionsProvenanceMessage();
     BAZEL_DIE(parse_exit_code) << error;
   }
 }
