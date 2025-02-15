@@ -37,7 +37,7 @@ bazel_dep(name = "abseil-cpp", version = "20240722.0.bcr.2")
 bazel_dep(name = "rules_shell", version = "0.2.0")
 
 # repo_name needs to be used, until WORKSPACE mode is to be supported in bazel_tools
-bazel_dep(name = "protobuf", version = "29.0", repo_name = "com_google_protobuf")
+bazel_dep(name = "protobuf", version = "29.3", repo_name = "com_google_protobuf")
 
 # TODO: wyv@ - add remoteapis to the BCR
 bazel_dep(name = "remoteapis", version = "")

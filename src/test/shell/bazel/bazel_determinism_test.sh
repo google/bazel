@@ -80,6 +80,7 @@ function test_determinism()  {
       --check_direct_dependencies=error \
       --lockfile_mode=update \
       --override_repository=$(cat derived/maven/MAVEN_CANONICAL_REPO_NAME)=derived/maven \
+      --override_repository=$(cat derived/maven/PROTOBUF_MAVEN_CANONICAL_REPO_NAME)=derived/maven \
       --nostamp \
       //src:bazel
     hash_outputs >"${TEST_TMPDIR}/sum1"
@@ -95,6 +96,7 @@ function test_determinism()  {
       --check_direct_dependencies=error \
       --lockfile_mode=update \
       --override_repository=$(cat derived/maven/MAVEN_CANONICAL_REPO_NAME)=derived/maven \
+      --override_repository=$(cat derived/maven/PROTOBUF_MAVEN_CANONICAL_REPO_NAME)=derived/maven \
       --nostamp \
       //src:bazel
     hash_outputs >"${TEST_TMPDIR}/sum2"

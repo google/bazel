@@ -202,11 +202,19 @@ write_file(
     content = [get_canonical_repo_name("@maven")],
 )
 
+_PROTOBUF_MAVEN_CANONICAL_REPO_NAME = "rules_jvm_external++maven+protobuf_maven"
+
+write_file(
+    name = "gen_protobuf_maven_repo_name",
+    out = "PROTOBUF_MAVEN_CANONICAL_REPO_NAME",
+    content = [_PROTOBUF_MAVEN_CANONICAL_REPO_NAME],
+)
+
 # The @maven repository is created by maven_install from rules_jvm_external.
 # `@maven//:srcs` contains all jar files downloaded and BUILD files created by maven_install.
 pkg_tar(
     name = "maven-srcs",
-    srcs = ["@maven//:srcs"] + ["MAVEN_CANONICAL_REPO_NAME"],
+    srcs = ["@maven//:srcs"] + ["MAVEN_CANONICAL_REPO_NAME", "PROTOBUF_MAVEN_CANONICAL_REPO_NAME"],
     package_dir = "derived/maven",
     remap_paths = {
         "external/" + get_canonical_repo_name("@maven") + "/": "",
