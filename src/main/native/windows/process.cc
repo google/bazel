@@ -24,6 +24,10 @@
 #include <memory>
 #include <sstream>
 
+#include <codecvt>
+#include <locale.h>
+#include <string_view>
+
 namespace bazel {
 namespace windows {
 
@@ -45,6 +49,81 @@ static bool DupeHandle(HANDLE h, AutoHandle* out, std::wstring* error) {
   }
   *out = dup;
   return true;
+}
+
+static std::wstring CreateProcessWrapper(const std::wstring argv0,
+                                         const std::wstring &commandline,
+                                         std::wstring &out_path) {
+  // Safety first, ensure the out_path is empty before we do any work
+  out_path = L"";
+
+  /*
+    Save on possible collisions by using the argv0 name as a base for the
+    wrapper file name.
+    Argv0 is likely quoted, so we can use a string_view to cheaply manipulate
+    it and get rid of the quote if needed.
+  */
+  auto const view = std::wstring_view(argv0);
+  auto const pos = view.find_last_of('\\');
+  auto stem = view.substr(pos == std::wstring::npos ? 0 : (pos + 1));
+  if (stem.find(L"\"") != std::wstring::npos) {
+    /*
+     After removing the initial quote, there's no other place for the quote to
+     be than at the end, so we can simply remove it and move on.
+     */
+    stem.remove_suffix(1);
+  }
+
+  std::wstring wrapper_file_name = std::wstring(stem) + L".wrapper.bat";
+  HANDLE handle = ::CreateFileW(
+      /* lpFileName */ wrapper_file_name.c_str(),
+      /* dwDesiredAccess */ GENERIC_WRITE,
+      /* dwShareMode */ FILE_SHARE_READ,
+      /* lpSecurityAttributes */ nullptr,
+      /* dwCreationDisposition */ CREATE_ALWAYS,
+      /* dwFlagsAndAttributes */ FILE_ATTRIBUTE_NORMAL,
+      /* hTemplateFile */ nullptr);
+
+  if (handle == INVALID_HANDLE_VALUE) {
+    return MakeErrorMessage(WSTR(__FILE__), __LINE__, L"CreateProcessWrapper",
+                            wrapper_file_name,
+                            L"Unable to create file wrapper");
+  }
+
+  /*
+    Simply call the original command line
+    Different powershells seem to struggle with widechars, so convert
+    to normal char instead.
+  */
+  std::string contents =
+      "@ECHO OFF\n\n" +
+      std::wstring_convert<std::codecvt_utf8<wchar_t>>().to_bytes(commandline);
+
+  DWORD bytesWritten;
+  if (!::WriteFile(handle, contents.data(), contents.length(), &bytesWritten,
+                   nullptr)) {
+
+    DWORD err_code = GetLastError();
+    return MakeErrorMessage(WSTR(__FILE__), __LINE__, L"CreateProcessWrapper",
+                            wrapper_file_name, err_code);
+  }
+
+  if (bytesWritten != contents.length()) {
+    std::wstring res = MakeErrorMessage(
+        WSTR(__FILE__), __LINE__, L"CreateProcessWrapper", wrapper_file_name,
+        L"Unable to write all data to file wrapper");
+    return res;
+  }
+
+  if (!::CloseHandle(handle)) {
+    DWORD err_code = GetLastError();
+    return MakeErrorMessage(WSTR(__FILE__), __LINE__, L"CreateProcessWrapper",
+                            wrapper_file_name, err_code);
+  }
+  handle = INVALID_HANDLE_VALUE;
+
+  out_path = wrapper_file_name;
+  return L"";
 }
 
 bool WaitableProcess::Create(const std::wstring& argv0,
@@ -90,15 +169,35 @@ bool WaitableProcess::Create(const std::wstring& argv0,
   }
 
   std::wstring argv0short;
-  error_msg = AsExecutablePathForCreateProcess(argv0, &argv0short);
+  error_msg = AsExecutablePathForCreateProcess(argv0, &argv0short, false);
   if (!error_msg.empty()) {
     *error = MakeErrorMessage(WSTR(__FILE__), __LINE__,
                               L"WaitableProcess::Create", argv0, error_msg);
     return false;
   }
 
+  /*
+    If the short form of the executable is still well above MAX_PATH, then we
+    cannot use it for CreateProcessW in any form.
+    Instead, output a wrapper file into a known location that ends up calling
+    the executable instead. This should side-step the MAX_PATH limitations.
+  */
   std::wstring commandline =
       argv_rest.empty() ? argv0short : (argv0short + L" " + argv_rest);
+  if (argv0short.length() >= MAX_PATH) {
+    std::wstring wrapper_file_path;
+    std::wstring error_msg(
+        CreateProcessWrapper(argv0short, commandline, wrapper_file_path));
+    if (!error_msg.empty()) {
+      *error = MakeErrorMessage(WSTR(__FILE__), __LINE__,
+                                L"WaitableProcess::Create", argv0, error_msg);
+      return false;
+    }
+
+    // Redirect command line to call the wrapper instead
+    commandline = L"cmd /c " + wrapper_file_path;
+  }
+
   std::unique_ptr<WCHAR[]> mutable_commandline(
       new WCHAR[commandline.size() + 1]);
   wcsncpy(mutable_commandline.get(), commandline.c_str(),
