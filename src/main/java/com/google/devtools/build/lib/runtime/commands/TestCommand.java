@@ -99,7 +99,7 @@ public class TestCommand implements BlazeCommand {
     TestOutputFormat testOutput = options.getOptions(ExecutionOptions.class).testOutput;
     if (testOutput == ExecutionOptions.TestOutputFormat.STREAMED) {
       env.getReporter().handle(Event.warn(
-          "Streamed test output requested. All tests will be run locally, without sharding, "
+          "Streamed test output requested. All tests will be run without sharding, "
           + "one at a time"));
     }
 
