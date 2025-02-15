@@ -1,6 +1,6 @@
 load("@rules_python//python:defs.bzl", "py_library")
 
-licenses(["notice"])
+licenses(["notice"])  # Apache 2.0
 
 filegroup(
     name = "srcs",
