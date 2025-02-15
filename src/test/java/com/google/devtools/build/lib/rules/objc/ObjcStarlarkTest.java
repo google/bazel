@@ -845,6 +845,61 @@ swift_binary = rule(
   }
 
   @Test
+  public void testStarlarkCanAccessObjcConfigurationForDevice() throws Exception {
+    scratch.file("examples/rule/BUILD");
+    scratch.file(
+        "examples/rule/objc_rules.bzl",
+        """
+        load("//myinfo:myinfo.bzl", "MyInfo")
+
+        def swift_binary_impl(ctx):
+            compilation_mode_copts = ctx.fragments.objc.copts_for_current_compilation_mode
+            ios_device = ctx.fragments.objc.ios_device
+            signing_certificate_name = ctx.fragments.objc.signing_certificate_name
+            return MyInfo(
+                compilation_mode_copts = compilation_mode_copts,
+                ios_device = ios_device,
+                signing_certificate_name = signing_certificate_name,
+            )
+
+        swift_binary = rule(
+            implementation = swift_binary_impl,
+            fragments = ["objc"],
+        )
+        """);
+
+    scratch.file("examples/objc_starlark/a.m");
+    scratch.file(
+        "examples/objc_starlark/BUILD",
+        """
+        load("//examples/rule:objc_rules.bzl", "swift_binary")
+
+        package(default_visibility = ["//visibility:public"])
+
+        swift_binary(
+            name = "my_target",
+        )
+        """);
+
+    useConfiguration(
+        "--compilation_mode=opt",
+        "--ios_multi_cpus=arm64",
+        "--ios_device='11111111-1111-1111-1111-11111111111'",
+        "--ios_signing_cert_name='Apple Developer'");
+    ConfiguredTarget starlarkTarget = getConfiguredTarget("//examples/objc_starlark:my_target");
+    StructImpl myInfo = getMyInfoFromTarget(starlarkTarget);
+
+    @SuppressWarnings("unchecked")
+    List<String> compilationModeCopts = (List<String>) myInfo.getValue("compilation_mode_copts");
+    Object iosDevice = myInfo.getValue("ios_device");
+    Object signingCertificateName = myInfo.getValue("signing_certificate_name");
+
+    assertThat(compilationModeCopts).containsExactlyElementsIn(ObjcConfiguration.OPT_COPTS);
+    assertThat(iosDevice).isEqualTo("'11111111-1111-1111-1111-11111111111'");
+    assertThat(signingCertificateName).isEqualTo("'Apple Developer'");
+  }
+
+  @Test
   public void testSigningCertificateNameCanReturnNone() throws Exception {
     scratch.file("test_starlark/rule/BUILD");
     scratch.file(

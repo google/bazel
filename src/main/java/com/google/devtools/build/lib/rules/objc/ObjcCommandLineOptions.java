@@ -49,6 +49,18 @@ public class ObjcCommandLineOptions extends FragmentOptions {
   public String iosSimulatorDevice;
 
   @Option(
+    name = "ios_device",
+    defaultValue = "null",
+    documentationCategory = OptionDocumentationCategory.TESTING,
+    effectTags = {OptionEffectTag.TEST_RUNNER},
+    help =
+        "The identifier, ECID, serial number, UDID, user-provided name, or DNS name of "
+            + "the device for running an iOS application. "
+            + "You can get a list of devices by running 'xcrun devicectl list "
+            + "devices'.")
+  public String iosDevice;
+
+  @Option(
     name = "ios_memleaks",
     defaultValue = "false",
     documentationCategory = OptionDocumentationCategory.TESTING,
