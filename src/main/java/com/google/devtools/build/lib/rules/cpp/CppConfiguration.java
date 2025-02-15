@@ -903,24 +903,10 @@ public final class CppConfiguration extends Fragment
     return cppOptions.objcEnableBinaryStripping;
   }
 
-  @StarlarkMethod(
-      name = "experimental_cc_implementation_deps",
-      documented = false,
-      useStarlarkThread = true)
-  public boolean experimentalCcImplementationDepsForStarlark(StarlarkThread thread)
-      throws EvalException {
-    CcModule.checkPrivateStarlarkificationAllowlist(thread);
-    return experimentalCcImplementationDeps();
-  }
-
   @StarlarkMethod(name = "experimental_cpp_modules", documented = false, useStarlarkThread = true)
   public boolean experimentalCppModulesForStarlark(StarlarkThread thread) throws EvalException {
     CcModule.checkPrivateStarlarkificationAllowlist(thread);
     return experimentalCppModules();
-  }
-
-  public boolean experimentalCcImplementationDeps() {
-    return cppOptions.experimentalCcImplementationDeps;
   }
 
   public boolean experimentalCppModules() {

@@ -44,7 +44,6 @@ def _cc_library_impl(ctx):
     semantics.validate_attributes(ctx = ctx)
     _check_no_repeated_srcs(ctx)
 
-    semantics.check_can_use_implementation_deps(ctx)
     interface_deps = ctx.attr.deps + semantics.get_cc_runtimes(ctx, True)
     runtimes_copts = semantics.get_cc_runtimes_copts(ctx)
     compilation_contexts = cc_helper.get_compilation_contexts_from_deps(interface_deps)
@@ -950,7 +949,7 @@ See <a href="${link cc_binary.linkshared}"><code>cc_binary.linkshared</code></a>
         "_stl": semantics.get_stl(),
         "_def_parser": semantics.get_def_parser(),
         "_use_auto_exec_groups": attr.bool(default = True),
-    } | semantics.get_distribs_attr() | semantics.get_implementation_deps_allowed_attr() | semantics.get_nocopts_attr(),
+    } | semantics.get_distribs_attr() | semantics.get_nocopts_attr(),
     toolchains = cc_helper.use_cpp_toolchain() +
                  semantics.get_runtimes_toolchain(),
     fragments = ["cpp"] + semantics.additional_fragments(),
