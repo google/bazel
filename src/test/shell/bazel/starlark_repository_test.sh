@@ -2961,6 +2961,58 @@ EOF
     @repo//... &> $TEST_log || fail "expected Bazel to succeed"
 }
 
+function test_execute_environment_action_env_no_repo_off() {
+  cat >> $(setup_module_dot_bazel)  <<'EOF'
+my_repo = use_repo_rule("//:repo.bzl", "my_repo")
+my_repo(name="repo")
+EOF
+  touch BUILD
+  cat > repo.bzl <<'EOF'
+def _impl(ctx):
+  st = ctx.execute(
+    ["env"],
+  )
+  if st.return_code:
+    fail("Command did not succeed")
+  vars = {line.partition("=")[0]: line.partition("=")[-1] for line in st.stdout.strip().split("\n")}
+  if vars.get("ACTION_ENV_PRESENT") != "value1":
+    fail("ACTION_ENV_PRESENT has wrong value: " + vars.get("ACTION_ENV_PRESENT"))
+  ctx.file("BUILD", "exports_files(['data.txt'])")
+my_repo = repository_rule(_impl)
+EOF
+
+  bazel build \
+    --noincompatible_action_env_no_repo \
+    --action_env=ACTION_ENV_PRESENT=value1 \
+    @repo//... &> $TEST_log || fail "expected Bazel to succeed"
+}
+
+function test_execute_environment_action_env_no_repo_on() {
+  cat >> $(setup_module_dot_bazel)  <<'EOF'
+my_repo = use_repo_rule("//:repo.bzl", "my_repo")
+my_repo(name="repo")
+EOF
+  touch BUILD
+  cat > repo.bzl <<'EOF'
+def _impl(ctx):
+  st = ctx.execute(
+    ["env"],
+  )
+  if st.return_code:
+    fail("Command did not succeed")
+  vars = {line.partition("=")[0]: line.partition("=")[-1] for line in st.stdout.strip().split("\n")}
+  if "ACTION_ENV_REMOVED" in vars:
+    fail("ACTION_ENV_REMOVED should not be in the environment")
+  ctx.file("BUILD", "exports_files(['data.txt'])")
+my_repo = repository_rule(_impl)
+EOF
+
+  bazel build \
+    --incompatible_action_env_no_repo \
+    --action_env=ACTION_ENV_REMOVED=value1 \
+    @repo//... &> $TEST_log || fail "expected Bazel to succeed"
+}
+
 function test_dependency_on_repo_with_invalid_name() {
   cat >> $(setup_module_dot_bazel) <<'EOF'
 my_repo = use_repo_rule("//:repo.bzl", "my_repo")
