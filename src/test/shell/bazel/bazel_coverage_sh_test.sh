@@ -505,7 +505,7 @@ exit 0
 EOF
   chmod +x pull-test.sh
 
-  bazel coverage --test_output=all --experimental_fetch_all_coverage_outputs //:pull &>$TEST_log \
+  bazel coverage --test_output=all --experimental_fetch_all_coverage_outputs --noexperimental_split_coverage_postprocessing //:pull &>$TEST_log \
       || fail "Coverage failed"
 
   local coverage_file_path="$(dirname $( get_coverage_file_path_from_test_log ))/_coverage/foo.txt"

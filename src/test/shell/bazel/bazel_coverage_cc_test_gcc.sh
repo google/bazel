@@ -906,7 +906,7 @@ int main() {
   return 0;
 }
 EOF
-  bazel coverage --test_output=all --experimental_split_coverage_postprocessing //:hello-test \
+  bazel coverage --test_output=all --experimental_split_coverage_postprocessing --noexperimental_fetch_all_coverage_outputs //:hello-test \
                 &>$TEST_log && fail "Expected test failure" || :
 
   assert_contains '--experimental_split_coverage_postprocessing depends on --experimental_fetch_all_coverage_outputs being enabled' $TEST_log
@@ -932,7 +932,6 @@ EOF
      bazel coverage  --test_output=all \
         //empty_cov:empty-cov-test  &>"$TEST_log" \
      || fail "Coverage for //empty_cov:empty-cov-test failed"
-     expect_log "WARNING: There was no coverage found."
 }
 
 function setup_external_cc_target() {

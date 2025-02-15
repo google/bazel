@@ -219,7 +219,7 @@ EOF
   [[ -e output.compact ]] || fail "no compact log produced"
 
   rm output.compact
-  bazel coverage //:test --experimental_split_coverage_postprocessing --experimental_fetch_all_coverage_outputs \
+  bazel coverage //:test --noexperimental_split_coverage_postprocessing --noexperimental_fetch_all_coverage_outputs \
     --execution_log_compact_file=output.compact >> $TEST_log 2>&1 || fail "coverage failed"
   [[ -e output.compact ]] || fail "no compact log produced"
 }
