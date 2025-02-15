@@ -42,7 +42,7 @@ public abstract class ActionOwner {
   @SerializationConstant
   public static final ActionOwner SYSTEM_ACTION_OWNER =
       createDummy(
-          /* label= */ Label.parseCanonicalUnchecked(PlatformConstants.INTERNAL_PLATFORM),
+          /* label= */ PlatformConstants.INTERNAL_PLATFORM,
           Location.BUILTIN,
           /* targetKind= */ "empty target kind",
           /* buildConfigurationMnemonic= */ "system",

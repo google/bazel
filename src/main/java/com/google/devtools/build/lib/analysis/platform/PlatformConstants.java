@@ -13,11 +13,17 @@
 // limitations under the License.
 package com.google.devtools.build.lib.analysis.platform;
 
+import com.google.devtools.build.lib.cmdline.Label;
+
 /** This file holds hardcoded constants used by the platforms system. */
 public final class PlatformConstants {
 
   private PlatformConstants() {}
 
-  public static final String INTERNAL_PLATFORM = "@bazel_tools//tools:internal_platform";
-}
+  public static final Label INTERNAL_PLATFORM =
+      Label.parseCanonicalUnchecked("@bazel_tools//tools:internal_platform");
 
+  // The label of the toolchain type to add to the default "test" exec group.
+  public static final Label DEFAULT_TEST_TOOLCHAIN_TYPE =
+      Label.parseCanonicalUnchecked("@bazel_tools//tools/test:default_test_toolchain_type");
+}

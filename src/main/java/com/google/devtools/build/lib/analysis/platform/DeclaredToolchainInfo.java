@@ -57,6 +57,21 @@ public record DeclaredToolchainInfo(
     requireNonNull(resolvedToolchainLabel, "resolvedToolchainLabel");
   }
 
+  public boolean hasTargetToExecConstraints() {
+    return execConstraints == USE_TARGET_PLATFORM_CONSTRAINTS
+        && targetConstraints == USE_TARGET_PLATFORM_CONSTRAINTS;
+  }
+
+  private static final ConstraintCollection USE_TARGET_PLATFORM_CONSTRAINTS;
+
+  static {
+    try {
+      USE_TARGET_PLATFORM_CONSTRAINTS = ConstraintCollection.builder().build();
+    } catch (ConstraintCollection.DuplicateConstraintException e) {
+      throw new IllegalStateException(e);
+    }
+  }
+
   /** Builder class to assist in creating {@link DeclaredToolchainInfo} instances. */
   public static class Builder {
     private ToolchainTypeInfo toolchainType;
@@ -147,6 +162,16 @@ public record DeclaredToolchainInfo(
           toolchainType,
           execConstraints,
           targetConstraints,
+          targetSettings.build(),
+          targetLabel,
+          resolvedToolchainLabel);
+    }
+
+    public DeclaredToolchainInfo buildWithTargetToExecConstraints() {
+      return new DeclaredToolchainInfo(
+          toolchainType,
+          USE_TARGET_PLATFORM_CONSTRAINTS,
+          USE_TARGET_PLATFORM_CONSTRAINTS,
           targetSettings.build(),
           targetLabel,
           resolvedToolchainLabel);

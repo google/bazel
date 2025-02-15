@@ -113,6 +113,7 @@ filegroup(
         "BUILD.tools",
         "collect_cc_coverage.sh",
         "collect_coverage.sh",
+        "default_test_toolchain.bzl",
         "extensions.bzl",
         "generate-xml.sh",
         "test-setup.sh",
@@ -130,5 +131,8 @@ filegroup(
 
 filegroup(
     name = "bzl_srcs",
-    srcs = ["extensions.bzl"],
+    srcs = [
+        "default_test_toolchain.bzl",
+        "extensions.bzl",
+    ],
 )

@@ -333,16 +333,6 @@ public class TestConfiguration extends Fragment {
     public boolean zipUndeclaredTestOutputs;
 
     @Option(
-        name = "use_target_platform_for_tests",
-        defaultValue = "false",
-        documentationCategory = OptionDocumentationCategory.EXECUTION_STRATEGY,
-        effectTags = {OptionEffectTag.EXECUTION},
-        help =
-            "If true, then Bazel will use the target platform for running tests rather than "
-                + "the test exec group.")
-    public boolean useTargetPlatformForTests;
-
-    @Option(
         name = "incompatible_check_sharding_support",
         defaultValue = "true",
         documentationCategory = OptionDocumentationCategory.UNCATEGORIZED,
@@ -472,10 +462,6 @@ public class TestConfiguration extends Fragment {
 
   public boolean getZipUndeclaredTestOutputs() {
     return options.zipUndeclaredTestOutputs;
-  }
-
-  public boolean useTargetPlatformForTests() {
-    return options.useTargetPlatformForTests;
   }
 
   public boolean checkShardingSupport() {

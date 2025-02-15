@@ -3482,11 +3482,14 @@ constraint_value(
 
 platform(
     name = "host",
-    constraint_values = [":has_foo"],
+    constraint_values = [
+        "@platforms//cpu:x86_64",
+        "@platforms//os:linux",
+        ":has_foo",
+    ],
     exec_properties = {
         "test.no-remote-exec": "1",
     },
-    parents = ["@bazel_tools//tools:host_platform"],
     visibility = ["//visibility:public"],
 )
 
@@ -3528,10 +3531,6 @@ EOF
     //a:test >& $TEST_log || fail "Failed to test //a:test"
   expect_log "2 local, 1 remote"
 
-  # Note: While the test spawns are executed locally, they still select the
-  # remote platform as it is the first registered execution platform and there
-  # are no constraints to force a different one. This is not desired behavior,
-  # but it isn't covered by this test.
   bazel test \
     --extra_execution_platforms=//a:remote,//a:host \
     --platforms=//a:host \

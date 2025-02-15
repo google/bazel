@@ -160,14 +160,16 @@ public class SingleToolchainResolutionFunction implements SkyFunction {
             .collect(toImmutableList());
 
     for (DeclaredToolchainInfo toolchain : filteredToolchains) {
-      // Make sure the target platform matches.
-      if (!checkConstraints(
-          debugPrinter,
-          toolchain.targetConstraints(),
-          /* isTargetPlatform= */ true,
-          targetPlatform,
-          toolchain.targetLabel(),
-          toolchain.resolvedToolchainLabel())) {
+      // Make sure the target platform matches. A toolchain with use_target_platform_constraints matches
+      // any target platform.
+      if (!toolchain.hasTargetToExecConstraints()
+          && !checkConstraints(
+              debugPrinter,
+              toolchain.targetConstraints(),
+              /* isTargetPlatform= */ true,
+              targetPlatform,
+              toolchain.targetLabel(),
+              toolchain.resolvedToolchainLabel())) {
         continue;
       }
 
@@ -200,7 +202,9 @@ public class SingleToolchainResolutionFunction implements SkyFunction {
         // Check if the execution constraints match.
         if (!checkConstraints(
             debugPrinter,
-            toolchain.execConstraints(),
+            toolchain.hasTargetToExecConstraints()
+                ? targetPlatform.constraints()
+                : toolchain.execConstraints(),
             /* isTargetPlatform= */ false,
             executionPlatform,
             toolchain.targetLabel(),

@@ -60,9 +60,7 @@ public class PlatformInfo extends NativeInfo
   static {
     try {
       EMPTY_PLATFORM_INFO =
-          PlatformInfo.builder()
-              .setLabel(Label.parseCanonicalUnchecked(PlatformConstants.INTERNAL_PLATFORM))
-              .build();
+          PlatformInfo.builder().setLabel(PlatformConstants.INTERNAL_PLATFORM).build();
     } catch (DuplicateConstraintException | ExecPropertiesException e) {
       // This can never happen since we're not passing any values to the builder.
       throw new VerifyException(e);

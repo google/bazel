@@ -699,6 +699,39 @@ In order to catch early exit, a test may create a file at the path specified by
 file when the test finishes, it will assume that the test exited prematurely and
 mark it as having failed.
 
+## Execution platform {:#execution-platform}
+
+The [execution platform](/extending/platforms) for a test action is determined
+via [toolchain resolution](/extending/toolchains#toolchain-resolution), just
+like for any other action. Each test rule has an implicitly defined [
+`test` exec group](/extending/exec-groups#exec-groups-for-native-rules) that,
+unless overridden, has a mandatory toolchain requirement on
+`@bazel_tools//tools/test:default_test_toolchain_type`. Toolchains of this type
+do not carry any data in the form of providers, but can be used to influence the
+execution platform of the test action. By default, Bazel registers two such
+toolchains:
+
+* If `--@bazel_tools//tools/test:incompatible_use_default_test_toolchain` is
+  disabled (the current default), the active test toolchain is
+  `@bazel_tools//tools/test:legacy_test_toolchain`. This toolchain does not
+  impose any constraints and thus test actions without manually specified exec
+  constraints are configured for the first registered execution platform. This
+  is often not the intended behavior in multi-platform builds as it can result
+  in e.g. a test binary built for Linux on a Windows machine to be executed on
+  Windows.
+* If `--@bazel_tools//tools/test:incompatible_use_default_test_toolchain` is
+  enabled, the active test toolchain is
+  `@bazel_tools//tools/test:default_test_toolchain`. This toolchain requires an
+  execution platform to match all the constraints of the test rule's target
+  platform. In particular, the target platform is compatible with this toolchain
+  if it is also registered as an execution platform. If no such platform is
+  found, the test rule fails with a toolchain resolution error.
+
+Users can register additional toolchains for this type to influence this
+behavior and their toolchains will take precedence over the default ones.
+Test rule authors can define their own test toolchain type and also register
+a default toolchain for it.
+
 ## Tag conventions {:#tag-conventions}
 
 Some tags in the test rules have a special meaning. See also the

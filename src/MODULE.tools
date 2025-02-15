@@ -44,3 +44,5 @@ bazel_dep(name = "rules_python", version = "0.40.0")
 bazel_dep(name = "rules_shell", version = "0.2.0")
 # add rules_android
 # add apple_support
+
+register_toolchains("//tools/test:all")

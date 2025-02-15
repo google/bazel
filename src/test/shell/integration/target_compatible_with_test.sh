@@ -1355,7 +1355,7 @@ function test_cquery_with_glob() {
 function test_cquery_incompatible_target() {
   mkdir -p target_skipping
   cat >> target_skipping/BUILD <<'EOF'
-sh_test(
+sh_binary(
     name = "depender",
     srcs = ["depender.sh"],
     data = [":never_compatible"],

@@ -14,6 +14,9 @@ filegroup(
 java_library(
     name = "constants",
     srcs = ["PlatformConstants.java"],
+    deps = [
+        "//src/main/java/com/google/devtools/build/lib/cmdline",
+    ],
 )
 
 # Description:

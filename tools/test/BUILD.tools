@@ -1,4 +1,94 @@
+load(":default_test_toolchain.bzl", "bool_flag", "empty_toolchain")
+
 package(default_visibility = ["//visibility:public"])
+
+# The mandatory toolchain requirement of the default "test" exec group defined
+# on every test rule.
+# Register a toolchain for this type to influence the selection of the
+# execution platform based on the target platform. ToolchainInfo provided by
+# toolchain implementations is generally ignored, but test rules are free to
+# define their own test toolchain types and specify different behavior.
+toolchain_type(
+    name = "default_test_toolchain_type",
+    no_match_error = """By default, tests are executed on the first execution platform that \
+matches all constraints specified by the target platform. Either register the target platform (or \
+a platform with at least the same constraints) as an execution platform, or override the default \
+behavior by registering a custom toolchain for \
+@bazel_tools//tools/test:default_test_toolchain_type.""",
+)
+
+
+# A target that provides an empty platform_common.ToolchainInfo for use
+# in test toolchains that do not need to carry any data, just
+# constraints.
+empty_toolchain(name = "empty_toolchain")
+
+# Whether to register a default test toolchain for all test rules without
+# an explicitly defined "test" exec group. This toolchain forces the
+# execution platform to satisfy all constraints specified by the target
+# platform.
+bool_flag(
+    name = "incompatible_use_default_test_toolchain",
+    build_setting_default = False,
+    visibility = ["//visibility:private"],
+)
+
+config_setting(
+    name = "use_default_test_toolchain",
+    values = {
+        "use_target_platform_for_tests": "false",
+    },
+    flag_values = {
+        ":incompatible_use_default_test_toolchain": "true",
+    },
+    visibility = ["//visibility:private"],
+)
+
+config_setting(
+    name = "use_legacy_test_toolchain_due_to_use_target_platform_for_tests",
+    values = {
+        "use_target_platform_for_tests": "true",
+    },
+    visibility = ["//visibility:private"],
+)
+
+config_setting(
+    name = "use_legacy_test_toolchain_due_to_incompatible_flag",
+    flag_values = {
+        ":incompatible_use_default_test_toolchain": "false",
+    },
+    visibility = ["//visibility:private"],
+)
+
+# A toolchain that forces the execution platform to satisfy all constraints
+# specified by the target platform.
+toolchain(
+    name = "default_test_toolchain",
+    toolchain_type = ":default_test_toolchain_type",
+    use_target_platform_constraints = True,
+    target_settings = [":use_default_test_toolchain"],
+    toolchain = ":empty_toolchain",
+    visibility = ["//visibility:private"],
+)
+
+# A toolchain that allows a test action to run on any execution platform, which
+# matches the behavior of Bazel before the introduction of the default test
+# toolchain.
+toolchain(
+    name = "legacy_test_toolchain",
+    toolchain_type = ":default_test_toolchain_type",
+    target_settings = [":use_legacy_test_toolchain_due_to_incompatible_flag"],
+    toolchain = ":empty_toolchain",
+    visibility = ["//visibility:private"],
+)
+
+toolchain(
+    name = "legacy_test_toolchain_use_target_platform_for_tests",
+    toolchain_type = ":default_test_toolchain_type",
+    target_settings = [":use_legacy_test_toolchain_due_to_use_target_platform_for_tests"],
+    toolchain = ":empty_toolchain",
+    visibility = ["//visibility:private"],
+)
 
 # Members of this filegroup shouldn't have duplicate basenames, otherwise
 # TestRunnerAction#getRuntimeArtifact() will get confused.
@@ -68,5 +158,8 @@ filegroup(
 
 filegroup(
     name = "bzl_srcs",
-    srcs = ["extensions.bzl"],
+    srcs = [
+        "default_test_toolchain.bzl",
+        "extensions.bzl",
+    ],
 )

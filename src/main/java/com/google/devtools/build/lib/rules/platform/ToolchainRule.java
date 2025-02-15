@@ -26,6 +26,7 @@ import com.google.devtools.build.lib.analysis.platform.ToolchainTypeInfo;
 import com.google.devtools.build.lib.packages.BuildType;
 import com.google.devtools.build.lib.packages.RuleClass;
 import com.google.devtools.build.lib.packages.RuleClass.ToolchainResolutionMode;
+import com.google.devtools.build.lib.packages.Type;
 import com.google.devtools.build.lib.packages.Types;
 import com.google.devtools.build.lib.util.FileTypeSet;
 
@@ -37,6 +38,7 @@ public class ToolchainRule implements RuleDefinition {
   public static final String TARGET_COMPATIBLE_WITH_ATTR = "target_compatible_with";
   public static final String TARGET_SETTING_ATTR = "target_settings";
   public static final String TOOLCHAIN_ATTR = "toolchain";
+  public static final String USE_TARGET_PLATFORM_CONSTRAINTS_ATTR = "use_target_platform_constraints";
 
   @Override
   public RuleClass build(RuleClass.Builder builder, RuleDefinitionEnvironment env) {
@@ -79,6 +81,16 @@ public class ToolchainRule implements RuleDefinition {
             attr(TARGET_COMPATIBLE_WITH_ATTR, BuildType.LABEL_LIST)
                 .mandatoryProviders(ConstraintValueInfo.PROVIDER.id())
                 .allowedFileTypes(FileTypeSet.NO_FILE)
+                .nonconfigurable("part of toolchain configuration"))
+        /* <!-- #BLAZE_RULE(toolchain).ATTRIBUTE(use_target_platform_constraints) -->
+        If <code>True</code>, this toolchain behaves as if its <code>exec_compatible_with</code> and
+        <code>target_compatible_with</code> constraints are set to those of the current target
+        platform. <code>exec_compatible_with</code> and <code>target_compatible_with</code> must not
+        be set in that case.
+        <!-- #END_BLAZE_RULE.ATTRIBUTE --> */
+        .add(
+            attr(USE_TARGET_PLATFORM_CONSTRAINTS_ATTR, Type.BOOLEAN)
+                .value(false)
                 .nonconfigurable("part of toolchain configuration"))
         /* <!-- #BLAZE_RULE(toolchain).ATTRIBUTE(target_settings) -->
         A list of <code>config_setting</code>s that must be satisfied by the target configuration
