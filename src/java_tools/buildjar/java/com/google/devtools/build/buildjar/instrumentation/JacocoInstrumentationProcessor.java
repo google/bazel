@@ -33,6 +33,8 @@ import java.util.List;
 import org.jacoco.core.instr.Instrumenter;
 import org.jacoco.core.runtime.OfflineInstrumentationAccessGenerator;
 
+import static java.nio.file.StandardOpenOption.TRUNCATE_EXISTING;
+
 /** Instruments compiled java classes using Jacoco instrumentation library. */
 public final class JacocoInstrumentationProcessor {
 
@@ -103,18 +105,21 @@ public final class JacocoInstrumentationProcessor {
             // It's not clear whether there is any advantage in not instrumenting *Test classes,
             // apart from lowering the covered percentage in the aggregate statistics.
 
-            // We first move the original .class file to our metadata directory, then instrument it
-            // and output the instrumented version in the regular classes output directory.
+            // We first copy the original .class file to our metadata directory, then instrument it
+            // and rewrite the instrumented version back into the regular classes output directory.
+
+            // Not moving or unlinking the source .class file is essential to guarantee visiting
+            // it only once during recursive directory traversal while also mutating the directory.
             Path instrumentedCopy = file;
             Path absoluteUninstrumentedCopy = Path.of(file + ".uninstrumented");
             Path uninstrumentedCopy =
                 instrumentedClassesDirectory.resolve(root.relativize(absoluteUninstrumentedCopy));
             Files.createDirectories(uninstrumentedCopy.getParent());
-            Files.move(file, uninstrumentedCopy);
+            Files.copy(file, uninstrumentedCopy);
             try (InputStream input =
                     new BufferedInputStream(Files.newInputStream(uninstrumentedCopy));
                 OutputStream output =
-                    new BufferedOutputStream(Files.newOutputStream(instrumentedCopy))) {
+                    new BufferedOutputStream(Files.newOutputStream(instrumentedCopy, TRUNCATE_EXISTING))) {
               instr.instrument(input, output, file.toString());
             }
             return FileVisitResult.CONTINUE;
