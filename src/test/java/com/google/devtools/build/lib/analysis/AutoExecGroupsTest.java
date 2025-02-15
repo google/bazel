@@ -1266,8 +1266,9 @@ public class AutoExecGroupsTest extends BuildViewTestCase {
     getConfiguredTarget("//test:custom_rule_name");
 
     assertContainsEvent(
-        "Tried to set execution constraints for non-existent exec groups: //rule:toolchain_type_2"
-            + " (did you mean '//rule:toolchain_type_1'?)");
+        "Tried to set execution constraints for non-existent exec groups on"
+            + " //test:custom_rule_name: //rule:toolchain_type_2 (did you mean"
+            + " '//rule:toolchain_type_1'?)");
   }
 
   @Test

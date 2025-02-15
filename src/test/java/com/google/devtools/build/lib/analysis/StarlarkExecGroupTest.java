@@ -930,8 +930,8 @@ public class StarlarkExecGroupTest extends BuildViewTestCase {
     reporter.removeHandler(failFastHandler);
     getConfiguredTarget("//test:a");
     assertContainsEvent(
-        "Tried to set execution constraints for non-existent exec groups: my_grou (did you mean"
-            + " 'my_group'?)");
+        "Tried to set execution constraints for non-existent exec groups on"
+            + " //test:a: my_grou (did you mean 'my_group'?)");
   }
 
   @Test

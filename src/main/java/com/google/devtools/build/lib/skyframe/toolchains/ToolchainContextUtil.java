@@ -196,6 +196,7 @@ public final class ToolchainContextUtil {
         if (!rule.getRuleClassObject().getExecGroups().containsKey(canonicalKey)) {
           throw new ExecGroupCollection.InvalidExecGroupException(
               "execution constraints",
+              rule.getDisplayFormLabel(),
               ImmutableSet.of(canonicalKey),
               rule.getRuleClassObject().getExecGroups().keySet());
         }
@@ -205,7 +206,10 @@ public final class ToolchainContextUtil {
           label = Label.parseWithPackageContext(entry.getKey(), packageContext);
         } catch (LabelSyntaxException e) {
           throw new ExecGroupCollection.InvalidExecGroupException(
-              "execution constraints", ImmutableSet.of(entry.getKey()), ImmutableSet.of());
+              "execution constraints",
+              rule.getDisplayFormLabel(),
+              ImmutableSet.of(entry.getKey()),
+              ImmutableSet.of());
         }
         if (toolchainTypes.stream()
             .map(ToolchainTypeRequirement::toolchainType)
@@ -220,12 +224,18 @@ public final class ToolchainContextUtil {
                     .collect(toImmutableSet());
           }
           throw new ExecGroupCollection.InvalidExecGroupException(
-              "execution constraints", ImmutableSet.of(entry.getKey()), suggestedLabels);
+              "execution constraints",
+              rule.getDisplayFormLabel(),
+              ImmutableSet.of(entry.getKey()),
+              suggestedLabels);
         }
         canonicalKey = label.getUnambiguousCanonicalForm();
       } else {
         throw new ExecGroupCollection.InvalidExecGroupException(
-            "execution constraints", ImmutableSet.of(entry.getKey()), ImmutableSet.of());
+            "execution constraints",
+            rule.getDisplayFormLabel(),
+            ImmutableSet.of(entry.getKey()),
+            ImmutableSet.of());
       }
       execGroupConstraints.putAll(canonicalKey, entry.getValue());
     }

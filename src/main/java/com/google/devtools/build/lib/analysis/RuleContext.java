@@ -1559,7 +1559,8 @@ public class RuleContext extends TargetContext
         }
       }
 
-      return execGroupCollectionBuilder.build(toolchainContexts, rawExecProperties);
+      return execGroupCollectionBuilder.build(
+          toolchainContexts, rawExecProperties, getRule().getDisplayFormLabel());
     }
 
     private void checkAttributesNonEmpty(AttributeMap attributes) {

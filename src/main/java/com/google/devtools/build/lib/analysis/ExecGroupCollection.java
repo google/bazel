@@ -118,12 +118,13 @@ public abstract class ExecGroupCollection {
 
     public ExecGroupCollection build(
         @Nullable ToolchainCollection<ResolvedToolchainContext> toolchainContexts,
-        ImmutableMap<String, String> rawExecProperties)
+        ImmutableMap<String, String> rawExecProperties,
+        String targetLabel)
         throws InvalidExecGroupException {
 
       // For each exec group, compute the combined execution properties.
       ImmutableTable<String, String, String> combinedExecProperties =
-          computeCombinedExecProperties(toolchainContexts, rawExecProperties);
+          computeCombinedExecProperties(toolchainContexts, rawExecProperties, targetLabel);
 
       return new AutoValue_ExecGroupCollection(execGroups(), combinedExecProperties);
     }
@@ -135,7 +136,8 @@ public abstract class ExecGroupCollection {
    */
   private static ImmutableTable<String, String, String> computeCombinedExecProperties(
       @Nullable ToolchainCollection<ResolvedToolchainContext> toolchainContexts,
-      ImmutableMap<String, String> rawExecProperties)
+      ImmutableMap<String, String> rawExecProperties,
+      String targetLabel)
       throws InvalidExecGroupException {
 
     ImmutableSet<String> execGroupNames;
@@ -158,6 +160,7 @@ public abstract class ExecGroupCollection {
       if (!unknownTargetExecGroupNames.isEmpty()) {
         throw new InvalidExecGroupException(
             "exec_properties",
+            targetLabel,
             unknownTargetExecGroupNames,
             Iterables.concat(execGroupNames, ImmutableSet.of(DEFAULT_EXEC_GROUP_NAME)));
       }
@@ -283,11 +286,15 @@ public abstract class ExecGroupCollection {
   public static final class InvalidExecGroupException extends AbstractSaneAnalysisException {
 
     public InvalidExecGroupException(
-        String what, Collection<String> invalidNames, Iterable<String> validNames) {
+        String what,
+        String targetLabel,
+        Collection<String> invalidNames,
+        Iterable<String> validNames) {
       super(
           String.format(
-              "Tried to set %s for non-existent exec groups: %s%s",
+              "Tried to set %s for non-existent exec groups on %s: %s%s",
               what,
+              targetLabel,
               String.join(",", invalidNames),
               invalidNames.stream()
                   .map(invalidName -> SpellChecker.didYouMean(invalidName, validNames))

@@ -190,4 +190,11 @@ public interface Target extends TargetData {
    * Creates a compact representation of this target with enough information for dependent parents.
    */
   TargetData reduceForSerialization();
+
+  /** Returns the label identifying as a string formatted for display. */
+  default String getDisplayFormLabel() {
+    return getLabel()
+        .getDisplayForm(
+            getLabel().getRepository().isMain() ? getPackage().getRepositoryMapping() : null);
+  }
 }

@@ -610,7 +610,7 @@ cc_test(
 )
 EOF
   bazel test ${pkg}:a &> $TEST_log && fail "Build passed when we expected an error"
-  grep "Tried to set exec_properties for non-existent exec group" $TEST_log || fail "Did not complain about unknown exec group"
+  grep "Tried to set exec_properties for non-existent exec groups on //${pkg}:a: unknown" $TEST_log || fail "Did not complain about unknown exec group"
 }
 
 function write_toolchains_for_exec_group_tests() {
