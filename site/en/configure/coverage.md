@@ -122,7 +122,7 @@ remote execution, as well, including JUnit.
 
 ### Python
 
-See the [`rules_python` coverage docs](https://github.com/bazelbuild/rules_python/blob/main/docs/sphinx/coverage.md)
+See the [`rules_python` coverage docs](https://rules-python.readthedocs.io/en/latest/coverage.html)
 for additional steps needed to enable coverage support in Python.
 
 [lcov]: https://github.com/linux-test-project/lcov
