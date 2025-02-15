@@ -306,7 +306,7 @@ OBJCPP_SOURCE = [".mm"]
 CLIF_INPUT_PROTO = [".ipb"]
 CLIF_OUTPUT_PROTO = [".opb"]
 CC_HEADER = [".h", ".hh", ".hpp", ".ipp", ".hxx", ".h++", ".inc", ".inl", ".tlh", ".tli", ".H", ".tcc"]
-ASSESMBLER_WITH_C_PREPROCESSOR = [".S"]
+ASSEMBLER_WITH_C_PREPROCESSOR = [".S"]
 ASSEMBLER = [".s", ".asm"]
 ARCHIVE = [".a", ".lib"]
 PIC_ARCHIVE = [".pic.a"]
@@ -324,7 +324,7 @@ CC_AND_OBJC.extend(OBJC_SOURCE)
 CC_AND_OBJC.extend(OBJCPP_SOURCE)
 CC_AND_OBJC.extend(CC_HEADER)
 CC_AND_OBJC.extend(ASSEMBLER)
-CC_AND_OBJC.extend(ASSESMBLER_WITH_C_PREPROCESSOR)
+CC_AND_OBJC.extend(ASSEMBLER_WITH_C_PREPROCESSOR)
 
 DISALLOWED_HDRS_FILES = []
 DISALLOWED_HDRS_FILES.extend(ARCHIVE)
@@ -340,7 +340,7 @@ extensions = struct(
     CC_SOURCE = CC_SOURCE,
     C_SOURCE = C_SOURCE,
     CC_HEADER = CC_HEADER,
-    ASSESMBLER_WITH_C_PREPROCESSOR = ASSESMBLER_WITH_C_PREPROCESSOR,
+    ASSEMBLER_WITH_C_PREPROCESSOR = ASSEMBLER_WITH_C_PREPROCESSOR,
     ASSEMBLER = ASSEMBLER,
     ARCHIVE = ARCHIVE,
     PIC_ARCHIVE = PIC_ARCHIVE,
@@ -1110,7 +1110,7 @@ def _create_cc_instrumented_files_info(ctx, cc_config, cc_toolchain, metadata_fi
     extensions = CC_SOURCE + \
                  C_SOURCE + \
                  CC_HEADER + \
-                 ASSESMBLER_WITH_C_PREPROCESSOR + \
+                 ASSEMBLER_WITH_C_PREPROCESSOR + \
                  ASSEMBLER
     coverage_environment = {}
     if ctx.configuration.coverage_enabled:
