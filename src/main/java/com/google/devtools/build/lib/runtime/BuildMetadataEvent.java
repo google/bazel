@@ -15,6 +15,7 @@
 package com.google.devtools.build.lib.runtime;
 
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ListMultimap;
 import com.google.devtools.build.lib.buildeventstream.BuildEventContext;
 import com.google.devtools.build.lib.buildeventstream.BuildEventIdUtil;
 import com.google.devtools.build.lib.buildeventstream.BuildEventStreamProtos;
@@ -22,6 +23,7 @@ import com.google.devtools.build.lib.buildeventstream.BuildEventStreamProtos.Bui
 import com.google.devtools.build.lib.buildeventstream.BuildEventWithOrderConstraint;
 import com.google.devtools.build.lib.buildeventstream.GenericBuildEvent;
 import java.util.Collection;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -30,14 +32,14 @@ import java.util.Map;
  */
 public class BuildMetadataEvent implements BuildEventWithOrderConstraint {
 
-  private final Map<String, String> buildMetadata;
+  private final ListMultimap<String, String> buildMetadata;
 
   /**
    * Construct the build metadata event.
    *
    * @param buildMetadata the supplementary build metadata for a single build.
    */
-  public BuildMetadataEvent(Map<String, String> buildMetadata) {
+  public BuildMetadataEvent(ListMultimap<String, String> buildMetadata) {
     this.buildMetadata = buildMetadata;
   }
 
@@ -55,8 +57,16 @@ public class BuildMetadataEvent implements BuildEventWithOrderConstraint {
   public BuildEventStreamProtos.BuildEvent asStreamProto(BuildEventContext converters) {
     BuildEventStreamProtos.BuildMetadata.Builder metadataBuilder =
         BuildEventStreamProtos.BuildMetadata.newBuilder();
-    for (Map.Entry<String, String> entry : buildMetadata.entrySet()) {
-      metadataBuilder.putMetadata(entry.getKey(), entry.getValue());
+    for (String key : buildMetadata.keySet()) {
+      List<String> values = buildMetadata.get(key);
+      metadataBuilder.putMetadata(key, values.get(values.size() - 1));
+      if (values.size() > 1) {
+        metadataBuilder.putExtraValues(
+            key,
+            BuildEventStreamProtos.BuildMetadata.ExtraValues.newBuilder()
+                .addAllValues(values.subList(0, values.size()-1))
+                .build());
+      }
     }
     return GenericBuildEvent.protoChaining(this).setBuildMetadata(metadataBuilder.build()).build();
   }

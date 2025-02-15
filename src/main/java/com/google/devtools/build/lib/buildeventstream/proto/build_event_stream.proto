@@ -439,9 +439,19 @@ message WorkspaceStatus {
 // Payload of an event reporting custom key-value metadata associated with the
 // build.
 message BuildMetadata {
-  // Custom metadata for the build.
-  map<string, string> metadata = 1
-      ;
+  // Custom metadata for the build.  If the user tried to set a given key
+  // multiple times, this will contain the *last* value that they set.
+  map<string, string> metadata = 1;
+
+  // Represents the list of additional metadata flag values for a given metadata
+  // key. This will be set if two different --build_metadata arguments try to
+  // set the same key, and will contain all values set for the key *except* the
+  // last value set.  Whether and how these values are used is up to the
+  // external tool consuming the metadata.
+  message ExtraValues {
+    repeated string values = 1;
+  }
+  map<string, ExtraValues> extra_values = 2;
 }
 
 // Payload of an event reporting details of a given configuration.
