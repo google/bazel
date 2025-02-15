@@ -719,8 +719,30 @@ function test_rc_flag_alias_supported_under_common_command() {
 
   bazel canonicalize-flags -- --drink=coffee \
     >& "$TEST_log" || fail "Expected success"
+  expect_log "--//$pkg:type=coffee"
+
+  bazel build //$pkg:my_drink --drink=coffee \
+    >& "$TEST_log" || fail "Expected success"
+  expect_log "type=coffee"
+}
+
+function test_rc_flag_alias_with_usage_supported_under_common_command() {
+  local -r pkg=$FUNCNAME
+  mkdir -p $pkg
+
+  add_to_bazelrc "common --flag_alias=drink=//$pkg:type"
+  add_to_bazelrc "common --drink=coffee"
+  write_build_setting_bzl
+
+  # canonicalize-flags does not see the common flag in .bazelrc.
+  bazel canonicalize-flags -- --drink=coffee >& "$TEST_log" || fail "Expected success"
+  expect_log "--//$pkg:type=coffee"
 
   bazel build //$pkg:my_drink >& "$TEST_log" || fail "Expected success"
+  expect_log "type=coffee"
+
+  # Does not support Starlark flags.
+  bazel query //$pkg:my_drink >& "$TEST_log" || fail "Expected success"
 }
 
 function test_rc_flag_alias_unsupported_under_test_command() {

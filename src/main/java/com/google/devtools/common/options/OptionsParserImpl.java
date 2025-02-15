@@ -36,6 +36,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -178,6 +179,7 @@ class OptionsParserImpl {
   private final List<ParsedOptionDescription> skippedOptions = new ArrayList<>();
 
   private final Map<String, String> flagAliasMappings;
+  private final Set<String> permittedButIgnoredFlagAliases = new HashSet<>();
   // We want to keep the invariant that warnings are produced as they are encountered, but only
   // show each one once.
   private final Set<String> warnings = new LinkedHashSet<>();
@@ -797,6 +799,12 @@ class OptionsParserImpl {
       throw new OptionsParsingException("Invalid options syntax: " + arg, arg);
     }
 
+    if (lookupResult == null && permittedButIgnoredFlagAliases.contains(parsedOptionName)) {
+      // The name references a flag alias defined on an ignored command, ignore it as well.
+      return new ParsedOptionDescriptionOrIgnoredArgs(
+          Optional.empty(), Optional.of(commandLineForm.toString()));
+    }
+
     // Do not recognize internal options, which are treated as if they did not exist.
     if (lookupResult == null || shouldIgnoreOption(lookupResult.definition)) {
       String suggestion;
@@ -825,6 +833,23 @@ class OptionsParserImpl {
     }
 
     if (lookupResult.fromFallback) {
+      if (Objects.equals(aliasFlag, "--" + lookupResult.definition.getOptionName())) {
+        Map.Entry<String, String> alias;
+        try {
+          alias =
+              (Map.Entry<String, String>)
+                  lookupResult
+                      .definition
+                      .getConverter()
+                      .convert(unconvertedValue, conversionContext);
+        } catch (OptionsParsingException e) {
+          // The converter doesn't know the option name, so we supply it here by re-throwing:
+          throw new OptionsParsingException(
+              String.format("While parsing option %s: %s", commandLineForm, e.getMessage()), e);
+        }
+        permittedButIgnoredFlagAliases.add(alias.getKey());
+      }
+
       // The option was not found on the current command, but is a valid option for some other
       // command. Ignore it.
       return new ParsedOptionDescriptionOrIgnoredArgs(
