@@ -85,7 +85,7 @@ class EnumMapCodec extends AsyncObjectCodec<EnumMap> {
 
     MapBuffer buffer = new MapBuffer(result, size);
 
-    Object[] enums = clazz.getEnumConstants();
+    Enum[] enums = (Enum[]) clazz.getEnumConstants();
     for (int i = 0; i < size; i++) {
       int ordinal = codedIn.readInt32();
       buffer.setEnum(i, enums[ordinal]);
@@ -101,14 +101,14 @@ class EnumMapCodec extends AsyncObjectCodec<EnumMap> {
   /** Buffers the entry elements and populates the map once all values are done. */
   private static class MapBuffer implements Runnable {
     private final EnumMap result;
-    private final Object[] enums;
+    private final Enum[] enums;
     private final Object[] values;
 
     private final AtomicInteger remaining;
 
     private MapBuffer(EnumMap result, int size) {
       this.result = result;
-      this.enums = new Object[size];
+      this.enums = new Enum[size];
       this.values = new Object[size];
       this.remaining = new AtomicInteger(size);
     }
@@ -122,7 +122,7 @@ class EnumMapCodec extends AsyncObjectCodec<EnumMap> {
       }
     }
 
-    private void setEnum(int index, Object enumKey) {
+    private void setEnum(int index, Enum enumKey) {
       enums[index] = enumKey;
     }
   }
