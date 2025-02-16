@@ -455,7 +455,7 @@ targets defined by any rule finalizer, including this one.
             },
             doc =
                 "Whether this rule is a test rule, that is, whether it may be the subject of a"
-                    + " <code>blaze test</code> command. All test rules are automatically"
+                    + " <code>bazel test</code> command. All test rules are automatically"
                     + " considered <a href='#rule.executable'>executable</a>; it is unnecessary"
                     + " (and discouraged) to explicitly set <code>executable = True</code> for a"
                     + " test rule. The value defaults to <code>False</code>. See the <a"
@@ -551,7 +551,7 @@ declared.
             },
             doc =
                 "Whether this rule is considered executable, that is, whether it may be the subject"
-                    + " of a <code>blaze run</code> command. It defaults to <code>False</code>. See"
+                    + " of a <code>bazel run</code> command. It defaults to <code>False</code>. See"
                     + " the <a"
                     + " href='https://bazel.build/extending/rules#executable_rules_and_test_rules'>"
                     + " Rules page</a> for more information."),
