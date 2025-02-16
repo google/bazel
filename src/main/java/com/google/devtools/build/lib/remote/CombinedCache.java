@@ -37,6 +37,7 @@ import com.google.devtools.build.lib.exec.SpawnCheckingCacheEvent;
 import com.google.devtools.build.lib.exec.SpawnProgressEvent;
 import com.google.devtools.build.lib.remote.common.CacheNotFoundException;
 import com.google.devtools.build.lib.remote.common.LazyFileOutputStream;
+import com.google.devtools.build.lib.remote.common.DirectCopyOutputStream;
 import com.google.devtools.build.lib.remote.common.OutputDigestMismatchException;
 import com.google.devtools.build.lib.remote.common.ProgressStatusListener;
 import com.google.devtools.build.lib.remote.common.RemoteActionExecutionContext;
@@ -603,6 +604,7 @@ public class CombinedCache extends AbstractReferenceCounted {
 
     reporter.started();
     OutputStream out = new ReportingOutputStream(new LazyFileOutputStream(path), reporter);
+    OutputStream out = new DirectCopyOutputStream(new ReportingOutputStream(new LazyFileOutputStream(path), reporter));
 
     ListenableFuture<Void> f = downloadBlob(context, digest, out);
     f.addListener(

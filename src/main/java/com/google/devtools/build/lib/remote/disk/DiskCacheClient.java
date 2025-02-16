@@ -32,17 +32,21 @@ import com.google.common.util.concurrent.MoreExecutors;
 import com.google.devtools.build.lib.remote.Store;
 import com.google.devtools.build.lib.remote.common.CacheNotFoundException;
 import com.google.devtools.build.lib.remote.common.RemoteCacheClient.ActionKey;
+import com.google.devtools.build.lib.remote.common.DirectCopyOutputStream;
 import com.google.devtools.build.lib.remote.util.DigestOutputStream;
 import com.google.devtools.build.lib.remote.util.DigestUtil;
 import com.google.devtools.build.lib.remote.util.Utils;
 import com.google.devtools.build.lib.vfs.Path;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.ExtensionRegistryLite;
+import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.nio.file.Files;
+import java.nio.file.StandardCopyOption;
 import java.util.UUID;
 import java.util.concurrent.ExecutorService;
 import javax.annotation.Nullable;
@@ -140,32 +144,53 @@ public class DiskCacheClient {
     target.getParentDirectory().createDirectoryAndParents();
     src.renameTo(target);
   }
-
   private ListenableFuture<Void> download(Digest digest, OutputStream out, Store store) {
+    return download(digest, out, store, null);
+  }
+  private ListenableFuture<Void> download(Digest digest, OutputStream out, Store store, DirectCopyOutputStream directCopyOut) {
     return executorService.submit(
         () -> {
           Path path = toPath(digest, store);
           if (!refresh(path)) {
             throw new CacheNotFoundException(digest);
           }
-          try (InputStream in = path.getInputStream()) {
-            ByteStreams.copy(in, out);
+          if (directCopyOut != null) {
+            try {
+              directCopyFile(path, directCopyOut.path);
+              directCopyOut.setDirectCopyed(true);
+            } catch (IOException e) {
+              try (InputStream in = path.getInputStream()) {
+                ByteStreams.copy(in, out);
+              }
+            }
+          } else {
+            try (InputStream in = path.getInputStream()) {
+              ByteStreams.copy(in, out);
+            }
           }
           return null;
         });
   }
 
   public ListenableFuture<Void> downloadBlob(Digest digest, OutputStream out) {
+    
+    @Nullable
+    DirectCopyOutputStream directCopyOut = (out instanceof DirectCopyOutputStream) ? (DirectCopyOutputStream)out : null;
+
     @Nullable
     DigestOutputStream digestOut = verifyDownloads ? digestUtil.newDigestOutputStream(out) : null;
     return Futures.transformAsync(
-        download(digest, digestOut != null ? digestOut : out, Store.CAS),
+        download(digest, digestOut != null ? digestOut : out, Store.CAS, directCopyOut),
         (v) -> {
           try {
             if (digestOut != null) {
-              Utils.verifyBlobContents(digest, digestOut.digest());
+              if (directCopyOut != null) {
+                Utils.verifyBlobContents(digest, digestUtil.compute(directCopyOut.path));
+              } else {
+                Utils.verifyBlobContents(digest, digestOut.digest());
+                out.flush();
+              }
             }
-            out.flush();
             return immediateFuture(null);
           } catch (IOException e) {
             return Futures.immediateFailedFuture(e);
@@ -267,8 +292,11 @@ public class DiskCacheClient {
   public ListenableFuture<Void> uploadFile(Digest digest, Path file) {
     return executorService.submit(
         () -> {
-          try (InputStream in = file.getInputStream()) {
-            saveFile(digest, Store.CAS, in);
+          try {
+            
+            directSaveFile(digest, Store.CAS, file);
+          } catch (IOException e) {
+            throw e;
           }
           return null;
         });
@@ -301,7 +329,32 @@ public class DiskCacheClient {
 
   public Path toPath(String hash, Store store) {
     // Create the file in a subfolder to bypass possible folder file count limits.
-    return storeRootMap.get(store).getChild(hash.substring(0, 2)).getChild(hash);
+    return root.getChild(store.toString()).getChild(hash.substring(0, 2)).getChild(hash);
+  }
+
+  private void directCopyFile(Path src, Path dest) throws IOException {
+    java.nio.file.Path srcNIOPath = new File(src.asFragment().toString()).toPath();
+    java.nio.file.Path destNIOPath = new File(dest.asFragment().toString()).toPath();
+    try {
+      Files.copy(srcNIOPath, destNIOPath, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.COPY_ATTRIBUTES);
+    } catch (IOException e) {
+      throw e;
+    }
+  }
+
+  private void directSaveFile(Digest digest, Store store, Path inputFile) throws IOException {
+    Path path = toPath(digest, store);
+
+    if (refresh(path)) {
+      return;
+    }
+
+    try {
+      path.getParentDirectory().createDirectoryAndParents();
+      directCopyFile(inputFile, path);
+    } catch (IOException e) {
+      throw e;
+    }
   }
 
   public void saveFile(Digest digest, Store store, InputStream in) throws IOException {
