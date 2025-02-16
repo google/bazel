@@ -139,6 +139,24 @@ message BuildEventId {
     string id = 1;
   }
 
+  message PlatformInfoId {
+    string label = 1;
+  }
+
+  message PlatformRegistrationId {
+    string label = 1;
+  }
+
+  message ExecutionPlatformFilterId {
+    string label = 1;
+  }
+
+  message ToolchainInfoId {
+    string label = 1;
+  }
+
+  message ToolchainResolutionId {}
+
   // Identifier of an event indicating that a target was built completely; this
   // does not include running the test if the target is a test target.
   message TargetCompletedId {
@@ -263,6 +281,11 @@ message BuildEventId {
     OptionsParsedId options_parsed = 12;
     FetchId fetch = 17;
     ConfigurationId configuration = 15;
+    PlatformInfoId platform_info = 30;
+    PlatformRegistrationId platform_registration = 31;
+    ExecutionPlatformFilterId exec_platform_filter = 32;
+    ToolchainInfoId toolchain_info = 33;
+    ToolchainResolutionId toolchain_resolution = 34;
     TargetConfiguredId target_configured = 16;
     PatternExpandedId pattern = 4;
     PatternExpandedId pattern_skipped = 10;
@@ -454,6 +477,50 @@ message Configuration {
   // Whether this configuration is used for building tools.
   bool is_tool = 5;
 }
+
+message Constraint {
+  string constraint_setting = 1;
+  string constraint_value = 2;
+}
+
+message PlatformInfo {
+  string platform_label = 1;
+  repeated Constraint constraints = 2;
+
+  message PlatformProperty {
+    string key = 1;
+    string value = 2;
+  }
+  repeated PlatformProperty properties = 3;
+  repeated string flags = 4;
+}
+
+message PlatformRegistration {
+  string platform_label = 1;
+  enum PlatformType {
+    HOST = 0;
+    EXECUTION = 1;
+    TARGET = 2;
+  }
+  PlatformType type = 2;
+}
+
+message ExecutionPlatformFilter {
+  string platform_label = 1;
+  Constraint missing_constraint = 2;
+}
+
+message ToolchainInfo {
+  string toolchain_label = 1;
+  string toolchain_type_label = 2;
+}
+
+message ToolchainResolution {
+  string target_platform_label = 1;
+  string exec_platform_label = 2;
+  string toolchain_label = 3;
+}
+
 
 // Payload of the event indicating the expansion of a target pattern.
 // The main information is in the chaining part: the id will contain the
@@ -1425,6 +1492,11 @@ message BuildEvent {
     WorkspaceStatus workspace_status = 16;
     Fetch fetch = 21;
     Configuration configuration = 17;
+    PlatformInfo platform_info = 31;
+    PlatformRegistration platform_registration = 32;
+    ExecutionPlatformFilter exec_platform_filter = 33;
+    ToolchainInfo toolchain_info = 34;
+    ToolchainResolution toolchain_resolution = 35;
     PatternExpanded expanded = 6;
     TargetConfigured configured = 18;
     ActionExecuted action = 7;
