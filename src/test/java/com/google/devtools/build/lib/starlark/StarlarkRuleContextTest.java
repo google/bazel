@@ -2900,6 +2900,80 @@ public final class StarlarkRuleContextTest extends BuildViewTestCase {
   }
 
   @Test
+  public void testCoverageExperimentalInstrumentedFragmentCoverageDisabled() throws Exception {
+    setUpCoverageInstrumentedTest();
+    useConfiguration(
+        "--nocollect_code_coverage",
+        "--experimental_instrumentation_filter_fragment=.");
+    StarlarkRuleContext ruleContext = createRuleContext("//test:foo");
+    setRuleContext(ruleContext);
+    Object result = ev.eval("ruleContext.coverage_instrumented()");
+    assertThat((Boolean) result).isFalse();
+  }
+
+  @Test
+  public void testCoverageExperimentalInstrumentedFragmentFalseForSourceFileLabel() throws Exception {
+    setUpCoverageInstrumentedTest();
+    useConfiguration(
+        "--collect_code_coverage",
+        "--experimental_instrumentation_filter_fragment=:foo",
+        "--experimental_instrumentation_filter_fragment=:bar");
+    setRuleContext(createRuleContext("//test:foo"));
+    Object result = ev.eval("ruleContext.coverage_instrumented(ruleContext.attr.srcs[0])");
+    assertThat((Boolean) result).isFalse();
+  }
+
+  @Test
+  public void testCoverageExperimentalInstrumentedFragmentDoesNotMatchFilter() throws Exception {
+    setUpCoverageInstrumentedTest();
+    useConfiguration(
+        "--collect_code_coverage",
+        "--experimental_instrumentation_filter_fragment=:foo",
+        "--experimental_instrumentation_filter_fragment=-:bar");
+    setRuleContext(createRuleContext("//test:bar"));
+    Object result = ev.eval("ruleContext.coverage_instrumented()");
+    assertThat((Boolean) result).isFalse();
+  }
+
+  @Test
+  public void testCoverageExperimentalInstrumentedFragmentMatchesFilter() throws Exception {
+    setUpCoverageInstrumentedTest();
+    useConfiguration(
+        "--collect_code_coverage",
+        "--experimental_instrumentation_filter_fragment=:foo",
+        "--experimental_instrumentation_filter_fragment=:bar");
+    setRuleContext(createRuleContext("//test:foo"));
+    Object result = ev.eval("ruleContext.coverage_instrumented()");
+    assertThat((Boolean) result).isTrue();
+  }
+
+  @Test
+  public void testCoverageExperimentalInstrumentedFragmentDoesNotMatchFilterNonDefaultLabel() throws Exception {
+    setUpCoverageInstrumentedTest();
+    useConfiguration(
+        "--collect_code_coverage",
+        "--experimental_instrumentation_filter_fragment=:foo",
+        // --instrumentation_filter has no effect because --experimental_instrumentation_filter_fragment is used.
+        "--instrumentation_filter=:bar");
+    setRuleContext(createRuleContext("//test:foo"));
+    // //test:bar does not match :foo, though //test:foo would.
+    Object result = ev.eval("ruleContext.coverage_instrumented(ruleContext.attr.deps[0])");
+    assertThat((Boolean) result).isFalse();
+  }
+
+  @Test
+  public void testCoverageExperimentalInstrumentedFragmentMatchesFilterNonDefaultLabel() throws Exception {
+    setUpCoverageInstrumentedTest();
+    useConfiguration(
+        "--collect_code_coverage",
+        "--experimental_instrumentation_filter_fragment=:bar");
+    setRuleContext(createRuleContext("//test:foo"));
+    // //test:bar does match :bar, though //test:foo would not.
+    Object result = ev.eval("ruleContext.coverage_instrumented(ruleContext.attr.deps[0])");
+    assertThat((Boolean) result).isTrue();
+  }
+
+  @Test
   public void testCoverageInstrumentedCoverageDisabled() throws Exception {
     setUpCoverageInstrumentedTest();
     useConfiguration("--nocollect_code_coverage", "--instrumentation_filter=.");

@@ -47,6 +47,7 @@ import com.google.devtools.build.lib.util.RegexFilter;
 import com.google.devtools.build.lib.vfs.PathFragment;
 import com.google.devtools.build.skyframe.SkyValue;
 import com.google.devtools.common.options.TriState;
+import com.google.devtools.common.options.OptionsParsingException;
 import java.io.PrintStream;
 import java.util.HashMap;
 import java.util.List;
@@ -159,6 +160,8 @@ public class BuildConfigurationValue
       fragment.reportInvalidOptions(reporter, this.buildOptions);
     }
   }
+
+  private final RegexFilter instrumentationFilter;
 
   /**
    * Compute the test environment, which, at configuration level, is a pair consisting of the
@@ -315,6 +318,19 @@ public class BuildConfigurationValue
     this.reservedActionMnemonics = reservedActionMnemonics;
     this.commandLineLimits = new CommandLineLimits(options.minParamFileSize);
     this.defaultFeatures = FeatureSet.parse(options.defaultFeatures);
+
+    if (!options.instrumentationFilterFragment.isEmpty()) {
+      // A regex-based instrumentation filter instance is formed by concatenating
+      // string values of --experimental_instrumentation_filter_fragment.
+      try {
+        this.instrumentationFilter = new RegexFilter.RegexFilterConverter().convert(
+          Joiner.on(",").join(options.instrumentationFilterFragment));
+      } catch (OptionsParsingException e) {
+        throw new RuntimeException(e);
+      }
+    } else {
+      this.instrumentationFilter = options.instrumentationFilter;
+    }
   }
 
   @Override
@@ -573,7 +589,7 @@ public class BuildConfigurationValue
    * identify targets to be instrumented in the coverage mode.
    */
   public RegexFilter getInstrumentationFilter() {
-    return options.instrumentationFilter;
+    return instrumentationFilter;
   }
 
   /**
