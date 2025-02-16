@@ -32,8 +32,13 @@ class PathFragmentResolver(object):
     Returns:
       The string representing the full exec path.
     """
-    exec_path_tokens = []
+
     curr_id = path_fragment_id
+    if not curr_id:
+      # Root path fragment.
+      return ""
+
+    exec_path_tokens = []
     while curr_id:
       if curr_id not in self._id_to_path_fragment:
         raise ValueError('Path Fragment id not found.')
