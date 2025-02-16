@@ -483,6 +483,13 @@ limit memory usage, there is a cap on the number of attributes that may be \
 declared.
 <p>Declared attributes will convert <code>None</code> to the default value.</p>
 """),
+        @Param(
+            name = "deleted_attrs",
+            allowedTypes = {@ParamType(type = Sequence.class, generic1 = String.class)},
+            named = true,
+            positional = false,
+            defaultValue = "[]",
+            doc = "List of (inherited) attributes to remove."),
         // TODO(bazel-team): need to give the types of these builtin attributes
         @Param(
             name = "outputs",
@@ -773,6 +780,7 @@ declared.
       StarlarkFunction implementation,
       Object testUnchecked,
       Dict<?, ?> attrs,
+      Object deletedAttrs,
       Object implicitOutputs,
       Object executableUnchecked,
       boolean outputToGenfiles,
