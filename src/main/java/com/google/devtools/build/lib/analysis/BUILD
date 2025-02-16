@@ -910,6 +910,7 @@ java_library(
         "//src/main/java/com/google/devtools/build/lib/buildeventstream",
         "//src/main/java/com/google/devtools/build/lib/buildeventstream/proto:build_event_stream_java_proto",
         "//third_party:guava",
+        "@com_google_protobuf//java/util",
     ],
 )
 
