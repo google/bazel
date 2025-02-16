@@ -388,14 +388,18 @@ def _RunForCoverage(python_program, main_filename, args, env,
         directory under the runfiles tree, and will recursively delete the
         runfiles directory if set.
   """
-  # We need for coveragepy to use relative paths.  This can only be configured
-  # via an rc file, so we need to make one.
-  rcfile_name = os.path.join(os.environ['COVERAGE_DIR'], '.coveragerc')
-  with open(rcfile_name, "w") as rcfile:
-    rcfile.write('''[run]
+  # Allow configured coveragerc
+  if "PYTHON_COVERAGERC" in os.environ:
+    rcfile_name = os.environ["PYTHON_COVERAGERC"]
+  else:
+    # We need for coveragepy to use relative paths as default
+    rcfile_name = os.path.join(os.environ['COVERAGE_DIR'], '.coveragerc')
+    with open(rcfile_name, "w") as rcfile:
+      rcfile.write('''[run]
 relative_files = True
 ''')
   PrintVerboseCoverage('Coverage entrypoint:', coverage_entrypoint)
+  PrintVerboseCoverage('Coverage rcfile:', rcfile_name)
   # First run the target Python file via coveragepy to create a .coverage
   # database file, from which we can later export lcov.
   ret_code = subprocess.call(
@@ -427,13 +431,14 @@ relative_files = True
     env=env,
     cwd=workspace
   ) or ret_code
-  try:
-    os.unlink(rcfile_name)
-  except OSError as err:
-    # It's possible that the profiled program might execute another Python
-    # binary through a wrapper that would then delete the rcfile.  Not much
-    # we can do about that, besides ignore the failure here.
-    PrintVerboseCoverage('Error removing temporary coverage rc file:', err)
+  if "PYTHON_COVERAGERC" not in os.environ:
+    try:
+      os.unlink(rcfile_name)
+    except OSError as err:
+      # It's possible that the profiled program might execute another Python
+      # binary through a wrapper that would then delete the rcfile.  Not much
+      # we can do about that, besides ignore the failure here.
+      PrintVerboseCoverage('Error removing temporary coverage rc file:', err)
   if os.path.isfile(output_filename):
     UnresolveSymlinks(output_filename)
   return ret_code
