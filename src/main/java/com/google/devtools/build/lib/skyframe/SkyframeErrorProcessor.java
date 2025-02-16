@@ -972,7 +972,7 @@ public final class SkyframeErrorProcessor {
       throw new BuildFailedException(
           message,
           actionExecutionCause.isCatastrophe(),
-          /* errorAlreadyShown= */ !actionExecutionCause.showError(),
+          /* errorAlreadyShown= */ true,
           actionExecutionCause.getDetailedExitCode());
     }
     if (cause instanceof InputFileErrorException inputFileErrorException) {
