@@ -31,6 +31,7 @@ final class DockerCommandLineBuilder {
   private Path dockerClient;
   private String imageName;
   private List<String> commandArguments;
+  private String containerRuntime;
   private Path sandboxExecRoot;
   private Map<String, String> environmentVariables;
   private Duration timeout;
@@ -63,6 +64,12 @@ final class DockerCommandLineBuilder {
   @CanIgnoreReturnValue
   public DockerCommandLineBuilder setCommandArguments(List<String> commandArguments) {
     this.commandArguments = commandArguments;
+    return this;
+  }
+
+  @CanIgnoreReturnValue
+  public DockerCommandLineBuilder setContainerRuntime(String containerRuntime) {
+    this.containerRuntime = containerRuntime;
     return this;
   }
 
@@ -137,6 +144,9 @@ final class DockerCommandLineBuilder {
 
     dockerCmdLine.add(dockerClient.getPathString());
     dockerCmdLine.add("run");
+    if (!containerRuntime.isEmpty()) {
+      dockerCmdLine.add("--runtime=" + containerRuntime);
+    }
     dockerCmdLine.add("--rm");
     if (createNetworkNamespace) {
       dockerCmdLine.add("--network=none");

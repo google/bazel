@@ -45,6 +45,8 @@ import com.google.devtools.build.lib.util.OS;
 import com.google.devtools.build.lib.util.ProcessUtils;
 import com.google.devtools.build.lib.vfs.Path;
 import com.google.devtools.build.lib.vfs.PathFragment;
+
+import javax.annotation.Nullable;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -147,6 +149,8 @@ final class DockerSandboxedSpawnRunner extends AbstractSandboxSpawnRunner {
   private final ProcessWrapper processWrapper;
   private final Path sandboxBase;
   private final String defaultImage;
+  @Nullable
+  private final String containerRuntime;
   private final LocalEnvProvider localEnvProvider;
   private final String commandId;
   private final Reporter reporter;
@@ -174,6 +178,8 @@ final class DockerSandboxedSpawnRunner extends AbstractSandboxSpawnRunner {
       Path dockerClient,
       Path sandboxBase,
       String defaultImage,
+      @Nullable
+      String containerRuntime,
       boolean useCustomizedImages,
       TreeDeleter treeDeleter) {
     super(cmdEnv);
@@ -184,6 +190,7 @@ final class DockerSandboxedSpawnRunner extends AbstractSandboxSpawnRunner {
     this.processWrapper = ProcessWrapper.fromCommandEnvironment(cmdEnv);
     this.sandboxBase = sandboxBase;
     this.defaultImage = defaultImage;
+    this.containerRuntime = containerRuntime;
     this.localEnvProvider = LocalEnvProvider.forCurrentOs(cmdEnv.getClientEnv());
     this.commandId = cmdEnv.getCommandId().toString();
     this.reporter = cmdEnv.getReporter();
@@ -259,6 +266,9 @@ final class DockerSandboxedSpawnRunner extends AbstractSandboxSpawnRunner {
                 || Spawns.requiresNetwork(spawn, getSandboxOptions().defaultSandboxAllowNetwork)))
         .setCommandId(commandId)
         .setUuid(uuid);
+    if (containerRuntime != null) {
+      cmdLine.setContainerRuntime(containerRuntime);
+    }
     // If uid / gid are -1, we are on an operating system that doesn't require us to set them on the
     // Docker invocation. If they're 0, it means we are running as root and don't need to set them.
     if (uid > 0) {
