@@ -116,6 +116,32 @@ public class PyInfoTest extends BuildViewTestCase {
   }
 
   @Test
+  public void starlarkConstructorDefaults_has_py2_only_sources() throws Exception {
+    writeCreatePyInfo(
+        "    transitive_sources = depset(direct=[dummy_file])",
+        "    has_py2_only_sources = True");
+
+    PyInfo info = getPyInfo();
+
+    // verify that has_py2_only_sources does not affect has_py3_only_sources
+    assertThat(info.getHasPy2OnlySources()).isTrue();
+    assertThat(info.getHasPy3OnlySources()).isFalse();
+  }
+
+  @Test
+  public void starlarkConstructorDefaults_has_py3_only_sources() throws Exception {
+    writeCreatePyInfo(
+        "    transitive_sources = depset(direct=[dummy_file])",
+        "    has_py3_only_sources = True");
+
+    PyInfo info = getPyInfo();
+
+    // verify that has_py3_only_sources does not affect has_py2_only_sources
+    assertThat(info.getHasPy2OnlySources()).isFalse();
+    assertThat(info.getHasPy3OnlySources()).isTrue();
+  }
+
+  @Test
   public void starlarkConstructorErrors_transitiveSources_missing() throws Exception {
     writeCreatePyInfo();
 
