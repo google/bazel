@@ -88,6 +88,7 @@ public class StarlarkRepositoryModule implements RepositoryModuleApi {
       builder.addAttribute(attr("$remotable", BOOLEAN).defaultValue(remotable).build());
       BaseRuleClasses.execPropertiesAttribute(builder);
     }
+    // TODO Use this to expand the repo env this repo rule will get initially
     builder.addAttribute(attr("$environ", STRING_LIST).defaultValue(environ).build());
     BaseRuleClasses.commonCoreAndStarlarkAttributes(builder);
     builder.add(attr("expect_failure", STRING));
@@ -316,6 +317,7 @@ rule. Created by \
         .setDoc(Starlark.toJavaOptional(doc, String.class).map(Starlark::trimDocString))
         .setDefiningBzlFileLabel(
             BzlInitThreadContext.fromOrFail(thread, "module_extension()").getBzlFile())
+        // TODO Use this to expand the repo env this module extension will get initially
         .setEnvVariables(ImmutableList.copyOf(Sequence.cast(environ, String.class, "environ")))
         .setLocation(thread.getCallerLocation())
         .setOsDependent(osDependent)

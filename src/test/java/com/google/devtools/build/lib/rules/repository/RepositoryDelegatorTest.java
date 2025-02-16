@@ -135,7 +135,7 @@ public class RepositoryDelegatorTest extends FoundationTestCase {
             repositoryHandlers,
             new StarlarkRepositoryFunction(),
             /* isFetch= */ new AtomicBoolean(true),
-            /* clientEnvironmentSupplier= */ ImmutableMap::of,
+            /* repoEnvironmentSupplier= */ ImmutableMap::of,
             directories,
             BazelSkyframeExecutorConstants.EXTERNAL_PACKAGE_HELPER);
     AtomicReference<PathPackageLocator> pkgLocator =

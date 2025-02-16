@@ -73,7 +73,7 @@ final class RegularRunnableExtension implements RunnableExtension {
   private final ModuleExtension extension;
   private final ImmutableMap<String, Optional<String>> staticEnvVars;
   private final BlazeDirectories directories;
-  private final Supplier<Map<String, String>> clientEnvironmentSupplier;
+  private final Supplier<Map<String, String>> repoEnvironmentSupplier;
   private final double timeoutScaling;
   @Nullable private final ProcessWrapper processWrapper;
   @Nullable private final RepositoryRemoteExecutor repositoryRemoteExecutor;
@@ -84,7 +84,7 @@ final class RegularRunnableExtension implements RunnableExtension {
       ModuleExtension extension,
       ImmutableMap<String, Optional<String>> staticEnvVars,
       BlazeDirectories directories,
-      Supplier<Map<String, String>> clientEnvironmentSupplier,
+      Supplier<Map<String, String>> repoEnvironmentSupplier,
       double timeoutScaling,
       @Nullable ProcessWrapper processWrapper,
       @Nullable RepositoryRemoteExecutor repositoryRemoteExecutor,
@@ -93,7 +93,7 @@ final class RegularRunnableExtension implements RunnableExtension {
     this.extension = extension;
     this.staticEnvVars = staticEnvVars;
     this.directories = directories;
-    this.clientEnvironmentSupplier = clientEnvironmentSupplier;
+    this.repoEnvironmentSupplier = repoEnvironmentSupplier;
     this.timeoutScaling = timeoutScaling;
     this.processWrapper = processWrapper;
     this.repositoryRemoteExecutor = repositoryRemoteExecutor;
@@ -141,7 +141,7 @@ final class RegularRunnableExtension implements RunnableExtension {
       StarlarkSemantics starlarkSemantics,
       Environment env,
       BlazeDirectories directories,
-      Supplier<Map<String, String>> clientEnvironmentSupplier,
+      Supplier<Map<String, String>> repoEnvironmentSupplier,
       double timeoutScaling,
       @Nullable ProcessWrapper processWrapper,
       @Nullable RepositoryRemoteExecutor repositoryRemoteExecutor,
@@ -176,6 +176,7 @@ final class RegularRunnableExtension implements RunnableExtension {
           SpellChecker.didYouMean(extensionId.extensionName(), exportedExtensions));
     }
 
+    // TODO Handle environ deps not in repo env supplier (non-default env vars)
     ImmutableMap<String, Optional<String>> envVars =
         RepositoryFunction.getEnvVarValues(env, ImmutableSet.copyOf(extension.envVariables()));
     if (envVars == null) {
@@ -186,7 +187,7 @@ final class RegularRunnableExtension implements RunnableExtension {
         extension,
         envVars,
         directories,
-        clientEnvironmentSupplier,
+        repoEnvironmentSupplier,
         timeoutScaling,
         processWrapper,
         repositoryRemoteExecutor,
@@ -351,7 +352,8 @@ final class RegularRunnableExtension implements RunnableExtension {
         workingDirectory,
         directories,
         env,
-        clientEnvironmentSupplier.get(),
+        // TODO Add clientEnvironmentSupplier for `getenv` dynamic deps
+        repoEnvironmentSupplier.get(),
         downloadManager,
         timeoutScaling,
         processWrapper,

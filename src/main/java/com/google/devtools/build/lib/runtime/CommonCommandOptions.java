@@ -539,11 +539,32 @@ public class CommonCommandOptions extends OptionsBase {
       documentationCategory = OptionDocumentationCategory.OUTPUT_PARAMETERS,
       effectTags = {OptionEffectTag.ACTION_COMMAND_LINES},
       help =
-          "Specifies additional environment variables to be available only for repository rules."
-              + " Note that repository rules see the full environment anyway, but in this way"
-              + " configuration information can be passed to repositories through options without"
-              + " invalidating the action graph.")
+          """
+          Specifies additional environment variables to be available only for repository rules.
+          Note that by default repository rules see the full environment anyway, but in this way \
+          configuration information can be passed to repositories through options without \
+          invalidating the action graph.
+          """)
   public List<Map.Entry<String, String>> repositoryEnvironment;
+
+  @Option(
+      name = "strict_repo_env",
+      defaultValue = "false",
+      documentationCategory = OptionDocumentationCategory.UNCATEGORIZED,
+      effectTags = {OptionEffectTag.LOADING_AND_ANALYSIS},
+      help =
+          """
+          If true, repository rules and module extensions will only inherit <code>PATH</code>, \
+          <code>PATHEXT</code> (Windows), requests via <code>getenv</code> and <code>environ</code> \
+          declarations.
+          <br>
+          <code>--action_env=NAME=VALUE</code> options will also no longer affect them\
+          (<code>--action_env=NAME</code> is already ignored).
+          <br>
+          Use <code>--repo_env=NAME</code> to inherit additional environment variables and \
+          <code>--repo_env=NAME=VALUE</code> to set a static value.
+          """)
+    public boolean useStrictRepoEnv;
 
   @Option(
       name = "heuristically_drop_nodes",
