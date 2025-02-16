@@ -68,4 +68,8 @@ public abstract class EnumConverter<T extends Enum<T>> extends Converter.Context
     return Ascii.toLowerCase(
         Converters.joinEnglishList(Arrays.asList(enumType.getEnumConstants())));
   }
+
+  public final Class<T> getEnumType() {
+    return enumType;
+  }
 }

@@ -46,6 +46,19 @@ message FlagInfo {
   // but if true a value must be present for all instantiations of the flag,
   // e.g. --jobs=100.
   optional bool requires_value = 10;
+  // The default value
+  optional string default_value = 13;
+  // The old, deprecated name for this option, without leading dashes.
+  optional string old_name = 11;
+  // The deprecation warning for this option, if one is present.
+  optional string deprecation_warning = 12;
+  // Additional options which are added if this option is present.
+  repeated string option_expansions = 14;
+
+  // The expected type/"converter".
+  optional string type_converter = 15;
+  // List of valid enum values.
+  repeated string enum_values = 16;
 }
 
 message FlagCollection {

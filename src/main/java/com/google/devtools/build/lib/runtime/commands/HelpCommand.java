@@ -45,7 +45,9 @@ import com.google.devtools.build.lib.server.FailureDetails.HelpCommand.Code;
 import com.google.devtools.build.lib.util.StringUtil;
 import com.google.devtools.build.lib.util.StringUtilities;
 import com.google.devtools.build.lib.util.io.OutErr;
+import com.google.devtools.common.options.Converter;
 import com.google.devtools.common.options.Converters;
+import com.google.devtools.common.options.EnumConverter;
 import com.google.devtools.common.options.Option;
 import com.google.devtools.common.options.OptionDefinition;
 import com.google.devtools.common.options.OptionDocumentationCategory;
@@ -276,6 +278,13 @@ public final class HelpCommand implements BlazeCommand {
     flagBuilder.setAllowsMultiple(option.allowsMultiple());
     flagBuilder.setRequiresValue(option.requiresValue());
 
+    if (option.getAbbreviation() != '\0') {
+      flagBuilder.setAbbreviation(String.valueOf(option.getAbbreviation()));
+    }
+    if (!option.getOldOptionName().isEmpty()) {
+      flagBuilder.setOldName(option.getOldOptionName());
+    }
+
     List<String> optionEffectTags =
         Arrays.stream(option.getOptionEffectTags())
             .map(Enum::toString)
@@ -292,9 +301,33 @@ public final class HelpCommand implements BlazeCommand {
       flagBuilder.setDocumentationCategory(option.getDocumentationCategory().toString());
     }
 
-    if (option.getAbbreviation() != '\0') {
-      flagBuilder.setAbbreviation(String.valueOf(option.getAbbreviation()));
+    if (!option.isSpecialNullDefault()) {
+       flagBuilder.setDefaultValue(option.getUnparsedDefaultValue());
     }
+
+    if (!option.getDeprecationWarning().isEmpty()) {
+      flagBuilder.setDeprecationWarning(option.getDeprecationWarning());
+    }
+
+    if (option.getOptionExpansion().length > 0) {
+      flagBuilder.addAllOptionExpansions(Arrays.asList(option.getOptionExpansion()));
+    }
+
+    Converter converter = option.getConverter();
+    String converterClassName = converter.getClass().getSimpleName();
+    if (converterClassName.endsWith("Converter")) {
+       String shortName = converterClassName.substring(0, converterClassName.length() - "Converter".length());
+       flagBuilder.setTypeConverter(shortName);
+    }
+    if (converter instanceof EnumConverter) {
+      EnumConverter enumConverter = (EnumConverter) converter;
+      List<String> enumValues =
+          Arrays.stream(enumConverter.getEnumType().getEnumConstants())
+              .map(Object::toString)
+              .collect(Collectors.toList());
+      flagBuilder.addAllEnumValues(enumValues);
+    }
+
     return flagBuilder;
   }
 
