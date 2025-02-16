@@ -1047,7 +1047,8 @@ public abstract class BuildEventServiceModule<OptionsT extends BuildEventService
                   cmdEnv,
                   cmdEnv.getReporter(),
                   /* append= */ null,
-                  /* internal= */ null);
+                  /* internal= */ null,
+                  /* createParent= */ true);
       return new BufferedOutputStream(output.createOutputStream());
     }
   }
