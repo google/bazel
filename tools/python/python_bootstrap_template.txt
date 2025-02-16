@@ -74,6 +74,13 @@ PYTHON_BINARY = '%python_binary%'
 if IsWindows() and not HasWindowsExecutableExtension(PYTHON_BINARY):
   PYTHON_BINARY = PYTHON_BINARY + '.exe'
 
+# The main Python source file.
+# The magic string percent-main-percent is replaced with the runfiles-relative
+# filename of the main file of the Python binary in BazelPythonSemantics.java.
+MAIN_REL_PATH = '%main%'
+if IsWindows():
+  MAIN_REL_PATH = MAIN_REL_PATH.replace('/', os.sep)
+
 def SearchPath(name):
   """Finds a file in a given search path."""
   search_path = os.getenv('PATH', os.defpath).split(os.pathsep)
@@ -129,7 +136,7 @@ def CreatePythonPathEntries(python_imports, module_space):
   parts = python_imports.split(':')
   return [module_space] + ['%s/%s' % (module_space, path) for path in parts]
 
-def FindModuleSpace(main_rel_path):
+def FindModuleSpace():
   """Finds the runfiles tree."""
   # When the calling process used the runfiles manifest to resolve the
   # location of this stub script, the path may be expanded. This means
@@ -144,7 +151,7 @@ def FindModuleSpace(main_rel_path):
       runfiles_dir = runfiles_manifest_file[:-9]
   # Be defensive: the runfiles dir should contain our main entry point. If
   # it doesn't, then it must not be our runfiles directory.
-  if runfiles_dir and os.path.exists(os.path.join(runfiles_dir, main_rel_path)):
+  if runfiles_dir and os.path.exists(os.path.join(runfiles_dir, MAIN_REL_PATH)):
     return runfiles_dir
 
   stub_filename = sys.argv[0]
@@ -311,8 +318,8 @@ def UnresolveSymlinks(output_filename):
           output_file.write(line)
     os.unlink(unfixed_file)
 
-def ExecuteFile(python_program, main_filename, args, env, module_space,
-                coverage_entrypoint, workspace, delete_module_space):
+def ExecuteFile(python_program, main_filename, args, env,
+                coverage_entrypoint, workspace):
   # type: (str, str, list[str], dict[str, str], str, str|None, str|None) -> ...
   """Executes the given Python file using the various environment settings.
 
@@ -324,12 +331,9 @@ def ExecuteFile(python_program, main_filename, args, env, module_space,
     main_filename: (str) The Python file to execute
     args: (list[str]) Additional args to pass to the Python file
     env: (dict[str, str]) A dict of environment variables to set for the execution
-    module_space: (str) Path to the module space/runfiles tree directory
     coverage_entrypoint: (str|None) Path to the coverage tool entry point file.
     workspace: (str|None) Name of the workspace to execute in. This is expected to be a
         directory under the runfiles tree.
-    delete_module_space: (bool), True if the module space should be deleted
-        after a successful (exit code zero) program run, False if not.
   """
   # We want to use os.execv instead of subprocess.call, which causes
   # problems with signal passing (making it difficult to kill
@@ -347,7 +351,7 @@ def ExecuteFile(python_program, main_filename, args, env, module_space,
   # - For coverage targets, at least coveragepy requires running in
   #   two invocations, which also requires control to return here.
   #
-  if not (IsWindows() or workspace or coverage_entrypoint or delete_module_space):
+  if not (IsWindows() or workspace or coverage_entrypoint or IsRunningFromZip()):
     _RunExecv(python_program, main_filename, args, env)
 
   if coverage_entrypoint is not None:
@@ -360,11 +364,6 @@ def ExecuteFile(python_program, main_filename, args, env, module_space,
       cwd=workspace
     )
 
-  if delete_module_space:
-    # NOTE: dirname() is called because CreateModuleSpace() creates a
-    # sub-directory within a temporary directory, and we want to remove the
-    # whole temporary directory.
-    shutil.rmtree(os.path.dirname(module_space), True)
   sys.exit(ret_code)
 
 def _RunExecv(python_program, main_filename, args, env):
@@ -438,24 +437,10 @@ relative_files = True
     UnresolveSymlinks(output_filename)
   return ret_code
 
-def Main():
+def MainWithModuleSpace(module_space):
   args = sys.argv[1:]
 
   new_env = {}
-
-  # The main Python source file.
-  # The magic string percent-main-percent is replaced with the runfiles-relative
-  # filename of the main file of the Python binary in BazelPythonSemantics.java.
-  main_rel_path = '%main%'
-  if IsWindows():
-    main_rel_path = main_rel_path.replace('/', os.sep)
-
-  if IsRunningFromZip():
-    module_space = CreateModuleSpace()
-    delete_module_space = True
-  else:
-    module_space = FindModuleSpace(main_rel_path)
-    delete_module_space = False
 
   python_imports = '%imports%'
   python_path_entries = CreatePythonPathEntries(python_imports, module_space)
@@ -485,7 +470,7 @@ def Main():
   # See: https://docs.python.org/3.11/using/cmdline.html#envvar-PYTHONSAFEPATH
   new_env['PYTHONSAFEPATH'] = '1'
 
-  main_filename = os.path.join(module_space, main_rel_path)
+  main_filename = os.path.join(module_space, MAIN_REL_PATH)
   main_filename = GetWindowsPathWithUNCPrefix(main_filename)
   assert os.path.exists(main_filename), \
          'Cannot exec() %r: file not found.' % main_filename
@@ -542,9 +527,8 @@ def Main():
     sys.stdout.flush()
     # NOTE: ExecuteFile may call execve() and lines after this will never run.
     ExecuteFile(
-      python_program, main_filename, args, new_env, module_space,
+      python_program, main_filename, args, new_env,
       cov_tool, workspace,
-      delete_module_space = delete_module_space,
     )
 
   except EnvironmentError:
@@ -554,6 +538,17 @@ def Main():
     if not getattr(e, 'filename', None):
       e.filename = program  # Add info to error message
     raise
+
+def Main():
+  module_space = CreateModuleSpace() if IsRunningFromZip() else FindModuleSpace()
+  try:
+    MainWithModuleSpace(module_space)
+  finally:
+    if IsRunningFromZip():
+      # NOTE: dirname() is called because CreateModuleSpace() creates a
+      # sub-directory within a temporary directory, and we want to remove the
+      # whole temporary directory.
+      shutil.rmtree(os.path.dirname(module_space), True)
 
 if __name__ == '__main__':
   Main()
