@@ -431,6 +431,20 @@ BCR through internet. Add the following line to your `.bazelrc`:
 ```python
 common --registry="path/to/local/bcr/registry"
 ```
+Note that in case you don't have an 'source' server with Internet connectivity to execute the above procedure, the --dist_dir option still works in Bazel 7. This might be a path to follow in case if you don't have access. The --repository_cache option is preferred in case you don't experience this constraint. Some considerations :
+- The packages will need to be downloaded manually using a web browser. This sounds more dramatic as it sounds as only a dozen or so packages are to be downloaded. The following entries could be added to the .bazelrc file or the ~/.bazelrc can be used instead on each of the target platforms without the _:windows_ and _:linux_ extensions on the tags :
+```
+build:windows --distdir=C:\\path\\to\\repository
+test:linux --distdir=/path/to/repository
+```
+- Packages are to be kept compressed (either _tar.gz_ or _zip_).
+- Some packages (e.g. rules_proto-4.0.0.zip) are not picked up automatically. A workaround is to add the following entries in the MODULE.bazel file and create a symbolic link in the third_party directory at the project root directory :
+```
+bazel_dep(name = "rules_proto", version = "4.0.0")
+local_path_override(module_name = "rules_proto", path = "third_party/rules_proto")
+rules_proto = use_extension("@rules_proto//:*", "rules_proto")
+```
+The location of the repository cache can be found by using `bazel info repository_cache`.
 
 ##### Distribution directory (with Bazel prior to 7)
 
